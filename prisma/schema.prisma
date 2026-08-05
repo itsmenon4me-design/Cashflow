@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../apps/backend/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Base model convention: UUID primary key, createdAt, updatedAt
+// Initial placeholder model only
+model SystemHealth {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  deleted_at      DateTime? @db.Timestamptz
+
+  email           String   @unique
+  username        String   @unique
+  full_name       String
+  password_hash   String
+  avatar_url      String?  
+  phone_number    String?
+  status          String
+  email_verified_at DateTime? @db.Timestamptz
+  last_login_at   DateTime? @db.Timestamptz
+
+  // Email verification fields
+  verification_token_hash String?  
+  verification_token_expires_at DateTime? @db.Timestamptz
+
+  // Password reset fields
+  password_reset_token_hash String?
+  password_reset_expires_at DateTime? @db.Timestamptz
+  password_reset_requested_at DateTime? @db.Timestamptz
+
+  role_id         String?  @db.Uuid
+  role            Role?    @relation(fields: [role_id], references: [id])
+
+  refresh_tokens  RefreshToken[]
+  sessions        Session[]
+
+  @@map("users")
+}
+
+model Role {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique
+  name       String
+  description String?
+  is_system  Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  users User[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  token_hash String
+  expires_at DateTime
+  revoked_at DateTime? @db.Timestamptz
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+  sessions Session[]
+
+  @@index([user_id])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id               String   @id @default(uuid()) @db.Uuid
+  user_id          String   @db.Uuid
+  refresh_token_id String   @db.Uuid
+  device_name      String?
+  device_type      String?
+  browser          String?
+  operating_system String?
+  ip_address       String?
+  user_agent       String?
+  last_activity_at DateTime
+  expires_at       DateTime
+  revoked_at       DateTime? @db.Timestamptz
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+  refreshToken RefreshToken @relation(fields: [refresh_token_id], references: [id])
+
+  @@index([user_id])
+  @@index([refresh_token_id])
+  @@map("sessions")
+}
+
+model Permission {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique
+  name       String
+  description String?
+  module     String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now())
+
+  role Role @relation(fields: [role_id], references: [id])
+  permission Permission @relation(fields: [permission_id], references: [id])
+
+  @@index([role_id])
+  @@index([permission_id])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id              String    @id @default(uuid()) @db.Uuid
+  user_id         String?   @db.Uuid
+  action          String
+  module          String
+  entity_type     String?
+  entity_id       String?   @db.Uuid
+  ip_address      String?
+  user_agent      String?
+  request_method  String?
+  request_path    String?
+  response_status Int?
+  metadata        Json?
+  created_at      DateTime  @default(now())
+
+  @@index([user_id])
+  @@index([action])
+  @@index([module])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
