@@ -154,3 +154,28 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// Account model
+model Account {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.Uuid
+  name               String
+  account_type       String
+  currency           String   @default("IDR")
+  opening_balance_cents BigInt @default(0) @db.BigInt
+  current_balance_cents BigInt @default(0) @db.BigInt
+  color              String?
+  icon               String?
+  description        String?
+  is_active          Boolean  @default(true)
+  is_default         Boolean  @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  deleted_at         DateTime? @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@unique([user_id, name])
+  @@map("accounts")
+}
+
