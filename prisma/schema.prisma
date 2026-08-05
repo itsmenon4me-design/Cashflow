@@ -177,5 +177,56 @@ model Account {
   @@index([user_id])
   @@unique([user_id, name])
   @@map("accounts")
+  @@map("accounts")
+}
+// Category model
+model Category {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.Uuid
+  name               String
+  type               String
+  icon               String?
+  color              String?
+  description        String?
+  parent_category_id String?  @db.Uuid
+  is_system          Boolean  @default(false)
+  is_active          Boolean  @default(true)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  deleted_at         DateTime? @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id])
+  parent Category? @relation("CategoryToParent", fields: [parent_category_id], references: [id])
+  children Category[] @relation("CategoryToParent")
+
+  @@index([user_id])
+  @@unique([user_id, name, type])
+  @@map("categories")
 }
 
+// Transaction model
+model Transaction {
+  id               String   @id @default(uuid()) @db.Uuid
+  user_id          String   @db.Uuid
+  account_id       String   @db.Uuid
+  category_id      String   @db.Uuid
+  transaction_type String
+  amount_cents     BigInt  @db.BigInt
+  transaction_date DateTime
+  note             String?
+  reference_number String?
+  attachment_url   String?
+  location         String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  deleted_at       DateTime? @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id])
+  account Account @relation(fields: [account_id], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+
+  @@index([user_id])
+  @@index([account_id])
+  @@index([category_id])
+  @@map("transactions")
+}
