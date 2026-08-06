@@ -36,17 +36,23 @@ model User {
   verification_token_expires_at DateTime? @db.Timestamptz
 
   // Password reset fields
-  password_reset_token_hash String?
+  password_reset_token_hash String? 
   password_reset_expires_at DateTime? @db.Timestamptz
   password_reset_requested_at DateTime? @db.Timestamptz
 
-  role_id         String?  @db.Uuid
+role_id String? @db.Uuid
   role            Role?    @relation(fields: [role_id], references: [id])
 
-  refresh_tokens  RefreshToken[]
-  sessions        Session[]
+refresh_tokens  RefreshToken[]
+sessions        Session[]
 
-  @@map("users")
+// Finance modules
+accounts        Account[]
+categories      Category[]
+transactions    Transaction[]
+audit_logs      AuditLog[]
+
+@@map("users")
 }
 
 model Role {
@@ -135,6 +141,7 @@ model RolePermission {
 model AuditLog {
   id              String    @id @default(uuid()) @db.Uuid
   user_id         String?   @db.Uuid
+  user User? @relation(fields: [user_id], references: [id])
   action          String
   module          String
   entity_type     String?
@@ -174,9 +181,10 @@ model Account {
 
   user User @relation(fields: [user_id], references: [id])
 
+  transactions Transaction[]
+
   @@index([user_id])
   @@unique([user_id, name])
-  @@map("accounts")
   @@map("accounts")
 }
 // Category model
@@ -199,34 +207,46 @@ model Category {
   parent Category? @relation("CategoryToParent", fields: [parent_category_id], references: [id])
   children Category[] @relation("CategoryToParent")
 
+  transactions Transaction[]
+
   @@index([user_id])
   @@unique([user_id, name, type])
   @@map("categories")
 }
 
 // Transaction model
-model Transaction {
-  id               String   @id @default(uuid()) @db.Uuid
-  user_id          String   @db.Uuid
-  account_id       String   @db.Uuid
-  category_id      String   @db.Uuid
-  transaction_type String
-  amount_cents     BigInt  @db.BigInt
-  transaction_date DateTime
-  note             String?
-  reference_number String?
-  attachment_url   String?
-  location         String?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-  deleted_at       DateTime? @db.Timestamptz
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
 
-  user User @relation(fields: [user_id], references: [id])
-  account Account @relation(fields: [account_id], references: [id])
+model Transaction {
+  id                String   @id @default(uuid()) @db.Uuid
+  user_id           String   @db.Uuid
+  account_id        String   @db.Uuid
+  category_id       String   @db.Uuid
+
+  transaction_type  TransactionType
+
+  amount_cents      BigInt   @db.BigInt
+  transaction_date  DateTime
+  note              String?
+  reference_number  String?
+  attachment_url    String?
+  location          String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime? @db.Timestamptz
+  transfer_group_id String? @db.Uuid
+  transfer_reference String?
+
+  user     User     @relation(fields: [user_id], references: [id])
+  account  Account  @relation(fields: [account_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
 
   @@index([user_id])
   @@index([account_id])
   @@index([category_id])
+  @@index([transfer_group_id])
   @@map("transactions")
 }
