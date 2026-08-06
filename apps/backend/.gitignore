@@ -1,21 +1,23 @@
-# dependencies
-/node_modules
+# ======================================
+# Backend specific
+# ======================================
 
-# build output
-/dist
-
-# testing
-/coverage
-
-# env files (never commit real secrets; keep only .env.example)
-.env
+# Local environment
 .env.development
 .env.production
 .env.test
 
-# logs
-*.log
-npm-debug.log*
+build2.log
+lint.log
 
-# misc
-.DS_Store
+# Local logs
+build2.log
+lint.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
