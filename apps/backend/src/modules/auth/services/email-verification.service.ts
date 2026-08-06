@@ -5,6 +5,7 @@ import { MailService } from '../../../common/mail/mail.service';
 import { MailConfigService } from '../../../config/mail-config.service';
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
+import { PrismaUsersRepository } from '../../users/repositories/prisma-users.repository';
 
 @Injectable()
 export class EmailVerificationService {
@@ -14,6 +15,7 @@ export class EmailVerificationService {
     private readonly users: UsersService,
     private readonly mail: MailService,
     private readonly mailCfg: MailConfigService,
+    private readonly usersRepo: PrismaUsersRepository,
   ) {}
 
   private hashToken(token: string): string {
@@ -37,16 +39,16 @@ export class EmailVerificationService {
     const hash = this.hashToken(raw);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Store hash and expiry
-    await this.users.update(user.id, {
+    // Store hash and expiry using users repository (accepts Partial<UserEntity>)
+    await this.usersRepo.update(user.id, {
       verification_token_hash: hash,
       verification_token_expires_at: expiresAt,
-    } as any);
+    });
 
     // Build verification link (frontend will handle token)
     const link = `${process.env.APP_URL ?? 'http://localhost:3001'}/api/v1/auth/email/verify?token=${raw}&id=${user.id}`;
 
-    await this.mail.sendVerification(user.email, user.full_name, link);
+    this.mail.sendVerification(user.email, user.full_name, link);
 
     this.logger.log(`Verification Sent: user=${user.id} email=${user.email}`);
   }
@@ -63,10 +65,10 @@ export class EmailVerificationService {
     if (new Date() > new Date(user.verification_token_expires_at)) {
       this.logger.warn(`Verification Failed: token expired user=${userId}`);
       // invalidate stored token
-      await this.users.update(user.id, {
+      await this.usersRepo.update(user.id, {
         verification_token_hash: null,
         verification_token_expires_at: null,
-      } as any);
+      });
       throw ErrorService.create(ErrorCode.EXPIRED_TOKEN);
     }
 
@@ -77,12 +79,12 @@ export class EmailVerificationService {
     }
 
     // Success: update email_verified_at and clear token fields
-    await this.users.update(user.id, {
+    await this.usersRepo.update(user.id, {
       email_verified_at: new Date(),
       verification_token_hash: null,
       verification_token_expires_at: null,
       status: 'ACTIVE',
-    } as any);
+    });
 
     this.logger.log(`Verification Success: user=${userId}`);
     return { success: true };

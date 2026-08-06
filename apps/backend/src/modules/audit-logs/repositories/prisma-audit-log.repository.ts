@@ -26,7 +26,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     e.request_method = rec.request_method;
     e.request_path = rec.request_path;
     e.response_status = rec.response_status;
-    e.metadata = (rec.metadata as unknown) as Record<string, unknown> | null;
+    e.metadata = rec.metadata as unknown as Record<string, unknown> | null;
     e.created_at = rec.created_at;
     return e;
   }

@@ -7,6 +7,20 @@ export class MailConfigService {
   constructor(private readonly cfg: ConfigService) {}
 
   get config(): MailConfig {
-    return this.cfg.get<MailConfig>('mail', { infer: true });
+    const raw = this.cfg.get<MailConfig>('mail');
+
+    if (raw) {
+      return raw;
+    }
+
+    return {
+      host: '',
+      port: 587,
+      user: '',
+      password: '',
+      from: 'no-reply@cashflow.example.com',
+      emailVerificationEnabled: false,
+      passwordResetEnabled: true,
+    };
   }
 }

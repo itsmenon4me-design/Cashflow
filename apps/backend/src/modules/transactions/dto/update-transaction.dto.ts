@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsIn,
+  IsInt,
+  Min,
+  IsDateString,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateTransactionDto {
@@ -12,10 +19,10 @@ export class UpdateTransactionDto {
   @IsString()
   category_id?: string;
 
-  @ApiPropertyOptional({ enum: ['INCOME','EXPENSE'] })
+  @ApiPropertyOptional({ enum: ['INCOME', 'EXPENSE'] })
   @IsOptional()
   @IsString()
-  @IsIn(['INCOME','EXPENSE'])
+  @IsIn(['INCOME', 'EXPENSE'])
   transaction_type?: 'INCOME' | 'EXPENSE';
 
   @ApiPropertyOptional({ description: 'Amount in cents' })

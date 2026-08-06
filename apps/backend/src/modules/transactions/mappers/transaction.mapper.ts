@@ -1,7 +1,9 @@
 import { TransactionEntity } from '../entities/transaction.entity';
 import { TransactionResponseDto } from '../dto/transaction-response.dto';
 
-export function toTransactionResponse(t: TransactionEntity): TransactionResponseDto {
+export function toTransactionResponse(
+  t: TransactionEntity,
+): TransactionResponseDto {
   return {
     id: t.id,
     account_id: t.account_id,

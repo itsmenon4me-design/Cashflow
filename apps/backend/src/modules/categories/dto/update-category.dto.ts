@@ -7,10 +7,10 @@ export class UpdateCategoryDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ enum: ['INCOME','EXPENSE'] })
+  @ApiPropertyOptional({ enum: ['INCOME', 'EXPENSE'] })
   @IsOptional()
   @IsString()
-  @IsIn(['INCOME','EXPENSE'])
+  @IsIn(['INCOME', 'EXPENSE'])
   type?: 'INCOME' | 'EXPENSE';
 
   @ApiPropertyOptional()

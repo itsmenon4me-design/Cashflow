@@ -10,6 +10,7 @@ import type { JwtConfig } from '../../config/jwt.config';
 import type { JwtModuleOptions } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { EmailVerificationService } from './services/email-verification.service';
+import { PrismaUsersRepository } from '../users/repositories/prisma-users.repository';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../../database/prisma.module';
 import { PrismaRefreshTokenRepository } from './repositories/prisma-refresh-token.repository';
@@ -57,6 +58,8 @@ import { PermissionsService } from './services/permissions.service';
     RefreshTokensService,
     // Email verification service
     EmailVerificationService,
+    // Users repo provider for Auth module internal updates
+    PrismaUsersRepository,
   ],
   exports: [AuthService, SessionService, RolesService, PermissionsService],
 })

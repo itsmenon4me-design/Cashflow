@@ -8,10 +8,28 @@ export class UpdateAccountDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ enum: ['CASH','BANK','E_WALLET','CREDIT_CARD','SAVINGS','INVESTMENT','OTHER'] })
+  @ApiPropertyOptional({
+    enum: [
+      'CASH',
+      'BANK',
+      'E_WALLET',
+      'CREDIT_CARD',
+      'SAVINGS',
+      'INVESTMENT',
+      'OTHER',
+    ],
+  })
   @IsOptional()
   @IsString()
-  @IsIn(['CASH','BANK','E_WALLET','CREDIT_CARD','SAVINGS','INVESTMENT','OTHER'])
+  @IsIn([
+    'CASH',
+    'BANK',
+    'E_WALLET',
+    'CREDIT_CARD',
+    'SAVINGS',
+    'INVESTMENT',
+    'OTHER',
+  ])
   account_type?: AccountType;
 
   @ApiPropertyOptional()
@@ -19,7 +37,9 @@ export class UpdateAccountDto {
   @IsString()
   currency?: string;
 
-  @ApiPropertyOptional({ description: 'Opening balance in smallest currency unit (cents)' })
+  @ApiPropertyOptional({
+    description: 'Opening balance in smallest currency unit (cents)',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

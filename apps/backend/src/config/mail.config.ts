@@ -10,9 +10,9 @@ export interface MailConfig {
   passwordResetEnabled: boolean;
 }
 
-export const mailConfig = registerAs<MailConfig>('mail', () => ({
+export const mailConfig = registerAs('mail', (): MailConfig => ({
   host: process.env.SMTP_HOST ?? '',
-  port: Number.parseInt(process.env.SMTP_PORT ?? '587', 10),
+  port: parseInt(process.env.SMTP_PORT ?? '587', 10),
   user: process.env.SMTP_USER ?? '',
   password: process.env.SMTP_PASSWORD ?? '',
   from: process.env.SMTP_FROM ?? 'no-reply@cashflow.example.com',

@@ -6,18 +6,20 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   constructor(private readonly cfg: MailConfigService) {}
 
-  async sendVerification(email: string, name: string | undefined, link: string) {
+  sendVerification(email: string, name: string | undefined, link: string) {
     if (!this.cfg.config.emailVerificationEnabled) {
       this.logger.debug('Email verification disabled, skipping send');
       return;
     }
 
     // No external mailer configured in this environment. Log the email for now.
-    this.logger.log(`(EMAIL) To=${email} Subject=Verify your email Link=${link}`);
+    this.logger.log(
+      `(EMAIL) To=${email} Subject=Verify your email Link=${link}`,
+    );
     this.logger.log(`Verification Sent: email=${email}`);
   }
 
-  async sendPasswordReset(email: string, name: string | undefined, link: string) {
+  sendPasswordReset(email: string, name: string | undefined, link: string) {
     if (!this.cfg.config.passwordResetEnabled) {
       this.logger.debug('Password reset disabled, skipping send');
       return;

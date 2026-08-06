@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsIn, IsInt, Min, IsDateString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsIn,
+  IsInt,
+  Min,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTransactionDto {
@@ -12,9 +19,9 @@ export class CreateTransactionDto {
   @IsString()
   category_id!: string;
 
-  @ApiProperty({ enum: ['INCOME','EXPENSE'] })
+  @ApiProperty({ enum: ['INCOME', 'EXPENSE'] })
   @IsString()
-  @IsIn(['INCOME','EXPENSE'])
+  @IsIn(['INCOME', 'EXPENSE'])
   transaction_type!: 'INCOME' | 'EXPENSE';
 
   @ApiProperty({ description: 'Amount in cents' })

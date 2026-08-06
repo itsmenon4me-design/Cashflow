@@ -2,10 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { IUsersRepository } from './users.repository.interface';
 import { UserEntity } from '../entities/user.entity';
-import type { User as PrismaUser, Role as PrismaRole } from '@prisma/client';
+import type {
+  User as PrismaUser,
+  Role as PrismaRole,
+  Prisma,
+} from '@prisma/client';
 import type { UserStatus } from '../entities/user.entity';
 
-type UserWithRole = PrismaUser & { role?: PrismaRole | null };
+type UserWithRole = PrismaUser & {
+  role?: PrismaRole | null;
+  verification_token_hash?: string | null;
+  verification_token_expires_at?: Date | null;
+  password_reset_token_hash?: string | null;
+  password_reset_expires_at?: Date | null;
+  password_reset_requested_at?: Date | null;
+};
 
 @Injectable()
 export class PrismaUsersRepository implements IUsersRepository {
@@ -23,16 +34,17 @@ export class PrismaUsersRepository implements IUsersRepository {
     u.password_hash = record.password_hash;
     u.avatar_url = record.avatar_url ?? null;
     u.phone_number = record.phone_number ?? null;
-    u.status = record.status as unknown as UserStatus;
+    u.status = record.status as UserStatus;
     u.email_verified_at = record.email_verified_at ?? null;
     u.last_login_at = record.last_login_at ?? null;
 
-    u.verification_token_hash = (record as any).verification_token_hash ?? null;
-    u.verification_token_expires_at = (record as any).verification_token_expires_at ?? null;
+    u.verification_token_hash = record.verification_token_hash ?? null;
+    u.verification_token_expires_at =
+      record.verification_token_expires_at ?? null;
 
-    u.password_reset_token_hash = (record as any).password_reset_token_hash ?? null;
-    u.password_reset_expires_at = (record as any).password_reset_expires_at ?? null;
-    u.password_reset_requested_at = (record as any).password_reset_requested_at ?? null;
+    u.password_reset_token_hash = record.password_reset_token_hash ?? null;
+    u.password_reset_expires_at = record.password_reset_expires_at ?? null;
+    u.password_reset_requested_at = record.password_reset_requested_at ?? null;
 
     u.role_id = record.role_id ?? null;
     u.role_code = record.role?.code ?? null;
@@ -46,7 +58,7 @@ export class PrismaUsersRepository implements IUsersRepository {
         username: user.username as string,
         full_name: user.full_name as string,
         password_hash: user.password_hash as string,
-        status: user.status as string,
+        status: user.status as UserStatus,
         avatar_url: user.avatar_url ?? null,
         phone_number: user.phone_number ?? null,
         role_id: user.role_id,
@@ -77,9 +89,41 @@ export class PrismaUsersRepository implements IUsersRepository {
   }
 
   async update(id: string, updates: Partial<UserEntity>): Promise<UserEntity> {
+    // Build a Prisma-compatible update object from allowed fields
+    const data: Prisma.UserUncheckedUpdateInput = {};
+    if (updates.email !== undefined) data.email = updates.email;
+    if (updates.username !== undefined) data.username = updates.username;
+    if (updates.full_name !== undefined) data.full_name = updates.full_name;
+    if (updates.password_hash !== undefined)
+      data.password_hash = updates.password_hash;
+    if (updates.status !== undefined) data.status = updates.status;
+    if (updates.avatar_url !== undefined) data.avatar_url = updates.avatar_url;
+    if (updates.phone_number !== undefined)
+      data.phone_number = updates.phone_number;
+    if (updates.role_id !== undefined) data.role_id = updates.role_id;
+    if (updates.email_verified_at !== undefined)
+      data.email_verified_at = updates.email_verified_at;
+    if (updates.last_login_at !== undefined)
+      data.last_login_at = updates.last_login_at;
+
+    if (updates.verification_token_hash !== undefined)
+      data.verification_token_hash = updates.verification_token_hash;
+    if (updates.verification_token_expires_at !== undefined)
+      data.verification_token_expires_at =
+        updates.verification_token_expires_at;
+
+    if (updates.password_reset_token_hash !== undefined)
+      data.password_reset_token_hash = updates.password_reset_token_hash;
+    if (updates.password_reset_expires_at !== undefined)
+      data.password_reset_expires_at = updates.password_reset_expires_at;
+    if (updates.password_reset_requested_at !== undefined)
+      data.password_reset_requested_at = updates.password_reset_requested_at;
+
+    if (updates.deleted_at !== undefined) data.deleted_at = updates.deleted_at;
+
     const rec = await this.prisma.user.update({
       where: { id },
-      data: updates,
+      data,
       include: { role: true },
     });
     return this.map(rec);

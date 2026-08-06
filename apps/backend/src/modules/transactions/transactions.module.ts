@@ -9,7 +9,11 @@ import { TransactionValidationService } from './services/validation/transaction-
 @Module({
   imports: [PrismaModule, AuditLogsModule],
   controllers: [TransactionsController],
-  providers: [TransactionsService, PrismaTransactionsRepository, TransactionValidationService],
+  providers: [
+    TransactionsService,
+    PrismaTransactionsRepository,
+    TransactionValidationService,
+  ],
   exports: [TransactionsService],
 })
 export class TransactionsModule {}

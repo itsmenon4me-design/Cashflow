@@ -7,9 +7,9 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty({ enum: ['INCOME','EXPENSE'] })
+  @ApiProperty({ enum: ['INCOME', 'EXPENSE'] })
   @IsString()
-  @IsIn(['INCOME','EXPENSE'])
+  @IsIn(['INCOME', 'EXPENSE'])
   type!: 'INCOME' | 'EXPENSE';
 
   @ApiProperty({ required: false })

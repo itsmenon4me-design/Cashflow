@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsOptional, IsString, IsIn, Min, IsInt } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsIn,
+  Min,
+  IsInt,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import type { AccountType } from '../entities/account.entity';
 
@@ -8,9 +15,27 @@ export class CreateAccountDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty({ enum: ['CASH','BANK','E_WALLET','CREDIT_CARD','SAVINGS','INVESTMENT','OTHER'] })
+  @ApiProperty({
+    enum: [
+      'CASH',
+      'BANK',
+      'E_WALLET',
+      'CREDIT_CARD',
+      'SAVINGS',
+      'INVESTMENT',
+      'OTHER',
+    ],
+  })
   @IsString()
-  @IsIn(['CASH','BANK','E_WALLET','CREDIT_CARD','SAVINGS','INVESTMENT','OTHER'])
+  @IsIn([
+    'CASH',
+    'BANK',
+    'E_WALLET',
+    'CREDIT_CARD',
+    'SAVINGS',
+    'INVESTMENT',
+    'OTHER',
+  ])
   account_type!: AccountType;
 
   @ApiProperty({ description: 'Currency (ISO code)', default: 'IDR' })
@@ -18,7 +43,9 @@ export class CreateAccountDto {
   @IsString()
   currency?: string = 'IDR';
 
-  @ApiProperty({ description: 'Opening balance in smallest currency unit (cents)' })
+  @ApiProperty({
+    description: 'Opening balance in smallest currency unit (cents)',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

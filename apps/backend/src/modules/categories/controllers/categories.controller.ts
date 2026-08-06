@@ -1,5 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CategoriesService } from '../services/categories.service';
 import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
@@ -25,7 +35,10 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Get category by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(@Req() req: Request & { user?: { sub?: string } }, @Param('id') id: string) {
+  async get(
+    @Req() req: Request & { user?: { sub?: string } },
+    @Param('id') id: string,
+  ) {
     const userId = req.user?.sub as string;
     const c = await this.categories.getById(userId, id);
     return { success: true, data: toCategoryResponse(c) };
@@ -35,7 +48,10 @@ export class CategoriesController {
   @ApiOperation({ summary: 'List categories by type' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async listByType(@Req() req: Request & { user?: { sub?: string } }, @Param('type') type: string) {
+  async listByType(
+    @Req() req: Request & { user?: { sub?: string } },
+    @Param('type') type: string,
+  ) {
     const userId = req.user?.sub as string;
     const items = await this.categories.listByType(userId, type);
     return { success: true, data: items.map((i) => toCategoryResponse(i)) };
@@ -45,9 +61,12 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Create category' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async create(@Req() req: Request & { user?: { sub?: string } }, @Body() body: CreateCategoryDto) {
+  async create(
+    @Req() req: Request & { user?: { sub?: string } },
+    @Body() body: CreateCategoryDto,
+  ) {
     const userId = req.user?.sub as string;
-    const created = await this.categories.create(userId, body as any);
+    const created = await this.categories.create(userId, body);
     return { success: true, data: toCategoryResponse(created) };
   }
 
@@ -55,9 +74,13 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Update category' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async update(@Req() req: Request & { user?: { sub?: string } }, @Param('id') id: string, @Body() body: UpdateCategoryDto) {
+  async update(
+    @Req() req: Request & { user?: { sub?: string } },
+    @Param('id') id: string,
+    @Body() body: UpdateCategoryDto,
+  ) {
     const userId = req.user?.sub as string;
-    const updated = await this.categories.update(userId, id, body as any);
+    const updated = await this.categories.update(userId, id, body);
     return { success: true, data: toCategoryResponse(updated) };
   }
 
@@ -65,7 +88,10 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Soft delete category' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(@Req() req: Request & { user?: { sub?: string } }, @Param('id') id: string) {
+  async delete(
+    @Req() req: Request & { user?: { sub?: string } },
+    @Param('id') id: string,
+  ) {
     const userId = req.user?.sub as string;
     await this.categories.softDelete(userId, id);
     return { success: true };

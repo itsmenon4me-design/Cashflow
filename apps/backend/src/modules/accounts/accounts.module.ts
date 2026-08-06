@@ -5,11 +5,12 @@ import { PrismaAccountsRepository } from './repositories/prisma-accounts.reposit
 import { PrismaModule } from '../../database/prisma.module';
 import { LoggerModule } from '../../common/logger/logger.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
+import { BalanceService } from './services/balance.service';
 
 @Module({
   imports: [PrismaModule, LoggerModule, AuditLogsModule],
   controllers: [AccountsController],
-  providers: [AccountsService, PrismaAccountsRepository],
-  exports: [AccountsService],
+  providers: [AccountsService, PrismaAccountsRepository, BalanceService],
+  exports: [AccountsService, BalanceService],
 })
 export class AccountsModule {}
