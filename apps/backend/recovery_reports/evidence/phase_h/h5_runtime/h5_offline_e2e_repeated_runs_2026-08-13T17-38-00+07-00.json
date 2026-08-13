@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-08-13T17:38:00+07:00",
+  "runs": [
+    {
+      "name": "f2_income_offline_e2e_2026-08-13T17-38-15-234Z.json",
+      "enqueue_ok": true,
+      "pendingAfterEnqueue": 1,
+      "flushResult": "synced",
+      "remainingAfterFlush": 0,
+      "dbCount": 1
+    },
+    {
+      "name": "f3_expense_offline_e2e_2026-08-13T17-38-28-610Z.json",
+      "enqueue_ok": true,
+      "pendingAfterEnqueue": 1,
+      "flushResult": "synced",
+      "remainingAfterFlush": 0,
+      "dbCount": 1
+    },
+    {
+      "name": "f2_income_offline_e2e_2026-08-13T17-38-40-302Z.json",
+      "enqueue_ok": true,
+      "pendingAfterEnqueue": 1,
+      "flushResult": "synced",
+      "remainingAfterFlush": 0,
+      "dbCount": 1
+    },
+    {
+      "name": "f3_expense_offline_e2e_2026-08-13T17-38-53-369Z.json",
+      "enqueue_ok": true,
+      "pendingAfterEnqueue": 1,
+      "flushResult": "synced",
+      "remainingAfterFlush": 0,
+      "dbCount": 1
+    }
+  ],
+  "conclusion": "isFlushing guard effective; queued transactions persisted exactly once; IndexedDB emptied after flush; syncController.flush() returns 'synced'",
+  "notes": "No backend changes; evidence saved to phase_f and phase_h/h5_runtime folders."
+}
