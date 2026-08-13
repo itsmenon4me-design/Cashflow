@@ -20,11 +20,11 @@ function Card({
       data-variant={variant}
       data-interactive={interactive || undefined}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground shadow-card ring-1 ring-foreground/10 transition-[box-shadow,border-color,transform] duration-200 ease-[var(--transition-easing)] [--card-spacing:--spacing(6)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(4)] *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-lg bg-card py-(--card-spacing) text-sm text-card-foreground shadow-card ring-1 ring-foreground/10 transition-[box-shadow,border-color,transform] duration-200 ease-[var(--transition-easing)] [--card-spacing:--spacing(4)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
         variant === "glass" &&
-          "border border-foreground/10 bg-white/[0.04] shadow-xs backdrop-blur-xl",
+          "border border-foreground/10 bg-foreground/[0.04] shadow-xs backdrop-blur-xl",
         interactive &&
-          "cursor-pointer data-[variant=default]:hover:shadow-[var(--shadow-card-hover)] data-[variant=glass]:hover:bg-white/[0.06] hover:-translate-y-0.5 hover:ring-foreground/15",
+          "cursor-pointer data-[variant=default]:hover:shadow-[var(--shadow-card-hover)] data-[variant=glass]:hover:bg-foreground/[0.06] hover:-translate-y-0.5 hover:ring-foreground/15",
         className
       )}
       {...props}
