@@ -1,0 +1,94 @@
+{
+  "phase": "E.6.1N",
+  "status": "WAITING_EXTERNAL_EVIDENCE_AND_HUMAN_APPROVAL",
+  "timestamp": "2026-08-13T15:18:33.821+07:00",
+  "candidate_count": 38,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "stored_amount_cents": 100000000,
+    "proposed_amount_cents": 1000000,
+    "candidate_timestamp": "2026-08-11T14:08:31.606Z",
+    "endpoint": "POST /api/v1/transactions"
+  },
+  "evidence_searched": [
+    "apps/backend/recovery_reports/review_full.json",
+    "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+    "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1l/e6_1l_final_external_evidence_human_approval_intake_2026-08-13T15-09-52-769+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1m/e6_1m_external_authoritative_evidence_2026-08-13T15-14-24-131+07-00.json",
+    "apps/backend/server.out.log",
+    "archive and mounted log exports under apps/backend and its recovery_reports artifacts",
+    "gateway/proxy/access log patterns for POST /api/v1/transactions at 2026-08-11T14:08:31.606Z",
+    "request-body, correlation-id, and amount_cents patterns for the exact record_id/account_id pair"
+  ],
+  "evidence_found": [],
+  "evidence_classification": {
+    "new_authoritative_evidence_found": false,
+    "classification": "INSUFFICIENT",
+    "request_payload_evidence": "UNAVAILABLE",
+    "independent_evidence": "UNAVAILABLE",
+    "direct_mismatch_proven": false,
+    "exact_mismatch_proven": false,
+    "db_evidence_notes": "Database state suggests a possible ×100 scaling issue, but it is not authoritative request payload evidence and does not prove the client-submitted amount for the exact transaction.",
+    "reason": "No local or mounted centralized log export, gateway record, archived application request log, or independent authoritative source was found for the exact candidate and timestamp."
+  },
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "authorization_found": false,
+    "mutation_authorized": 0,
+    "decision": "PENDING_HUMAN_REVIEW",
+    "required_fields_present": false,
+    "missing_fields": [
+      "reviewer",
+      "reviewer_id",
+      "review_timestamp",
+      "decision",
+      "approval_rationale",
+      "evidence_references",
+      "explicit authorization",
+      "mutation_authorized=true"
+    ]
+  },
+  "production_mutation_count": 0,
+  "production_recovery_status": "NOT_EXECUTED",
+  "technical_gates": "PASS",
+  "e62_permission": "NOT_PERMITTED",
+  "blockers": [
+    "No authoritative request-payload evidence for the exact record_id, account_id, endpoint, and timestamp was found.",
+    "No equivalent independent authoritative source proving submitted amount_cents=1000000 or a client-to-database mismatch for the exact transaction was found.",
+    "No explicit human approval for the exact candidate with reviewer identity, rationale, timestamp, and mutation_authorized=true was found.",
+    "E.6.2 remains blocked until both authoritative evidence and explicit human approval are available."
+  ],
+  "external_actions_required": [
+    "Retrieve archived API gateway or reverse-proxy request logs for 2026-08-11T14:00:00Z through 2026-08-11T14:15:00Z for POST /api/v1/transactions.",
+    "Locate centralized logging exports (ELK/OpenSearch/CloudWatch/S3/MinIO) containing the exact record_id or account_id and the full request payload with amount_cents.",
+    "Inspect front-end telemetry or immutable external records that independently preserve the submitted amount for the exact transaction.",
+    "Obtain explicit human approval for record_id 97b76766-d13a-4db6-8baf-572292b83913 with reviewer identity, rationale, timestamp, and mutation_authorized=true.",
+    "Maintain production mutation at 0 and E.6.2 as NOT_PERMITTED until both evidence and approval gates are satisfied."
+  ],
+  "artifact_references": [
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1l/e6_1l_final_external_evidence_human_approval_intake_2026-08-13T15-09-52-769+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1m/e6_1m_external_authoritative_evidence_2026-08-13T15-14-24-131+07-00.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json"
+  ],
+  "tests": {
+    "suites": 5,
+    "passed": 39,
+    "failed": 0,
+    "command": "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/tools/recovery/classifier.spec.ts src/modules/audit/historical-data-recovery.service.spec.ts src/modules/audit/e6_1_staging_verification.spec.ts src/modules/audit/e6_1b_persisted_artifact_store.spec.ts src/modules/audit/e6_1c_staging_verification.spec.ts"
+  },
+  "safety": {
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "statement": "NO PRODUCTION DATABASE MUTATION PERFORMED."
+  }
+}

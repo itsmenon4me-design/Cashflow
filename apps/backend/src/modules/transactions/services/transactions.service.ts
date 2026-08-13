@@ -67,7 +67,10 @@ export class TransactionsService {
     accountId: string,
     amountCents: bigint,
   ): Promise<string | null> {
-    if (amountCents <= 0n || typeof this.repo.findByUserWithFilter !== 'function') {
+    if (
+      amountCents <= 0n ||
+      typeof this.repo.findByUserWithFilter !== 'function'
+    ) {
       return null;
     }
 
@@ -78,7 +81,9 @@ export class TransactionsService {
     );
     const knownAmounts = (recent?.items ?? [])
       .map((item) => item.amount_cents)
-      .filter((value): value is bigint => typeof value === 'bigint' && value > 0n);
+      .filter(
+        (value): value is bigint => typeof value === 'bigint' && value > 0n,
+      );
 
     const suspicious = knownAmounts.some(
       (value) =>
@@ -120,7 +125,10 @@ export class TransactionsService {
     // Idempotent replay for offline sync: if the client supplied an
     // idempotency key (reference_number) and a transaction already exists for
     // this user, return the existing one instead of inserting a duplicate.
-    if (input.reference_number && typeof this.repo.findByReferenceNumber === 'function') {
+    if (
+      input.reference_number &&
+      typeof this.repo.findByReferenceNumber === 'function'
+    ) {
       const existing = await this.repo.findByReferenceNumber(
         userId,
         input.reference_number,
@@ -216,8 +224,14 @@ export class TransactionsService {
     }
 
     // Fire Finance Bot evaluation asynchronously; failures must not affect transaction flow
-    const evaluation = this.financeBot?.evaluateOnTransaction?.(userId, created);
-    if (evaluation && typeof (evaluation as Promise<unknown>).catch === 'function') {
+    const evaluation = this.financeBot?.evaluateOnTransaction?.(
+      userId,
+      created,
+    );
+    if (
+      evaluation &&
+      typeof (evaluation as Promise<unknown>).catch === 'function'
+    ) {
       (evaluation as Promise<unknown>).catch((err) => {
         this.logger.warn(
           `FinanceBot evaluation failed for user=${userId} ${(err as Error).message}`,
@@ -289,7 +303,10 @@ export class TransactionsService {
       );
     }
 
-    if (normalizedUpdates.amount_cents !== undefined && normalizedUpdates.amount_cents <= 0n)
+    if (
+      normalizedUpdates.amount_cents !== undefined &&
+      normalizedUpdates.amount_cents <= 0n
+    )
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
         'Amount must be greater than zero',
@@ -303,7 +320,9 @@ export class TransactionsService {
       merged[key] = (t as unknown as Record<string, unknown>)[key];
     }
     for (const key of Object.keys(normalizedUpdates)) {
-      const value = (normalizedUpdates as unknown as Record<string, unknown>)[key];
+      const value = (normalizedUpdates as unknown as Record<string, unknown>)[
+        key
+      ];
       if (value !== undefined) merged[key] = value;
     }
 
@@ -312,7 +331,9 @@ export class TransactionsService {
 
     const data: Record<string, unknown> = {};
     for (const key of Object.keys(normalizedUpdates)) {
-      const value = (normalizedUpdates as unknown as Record<string, unknown>)[key];
+      const value = (normalizedUpdates as unknown as Record<string, unknown>)[
+        key
+      ];
       if (value !== undefined) data[key] = value;
     }
     const updated = await this.repo.update(id, data);

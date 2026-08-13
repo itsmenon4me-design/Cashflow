@@ -1,0 +1,108 @@
+{
+  "phase": "H.2",
+  "status": "PARTIAL",
+  "timestamp": "2026-08-13T17:35:00+07:00",
+  "environment": "LOCAL_STAGING_POSTGRES",
+  "postgresql": "PASS",
+  "prisma": "PASS",
+  "migration": "PASS",
+  "transfer_integration": "PASS",
+  "concurrency": "PASS",
+  "idempotency": "PASS",
+  "financial_integrity": "PASS",
+  "frontend_backend_integration": "PASS",
+  "cors": "PASS",
+  "pwa": "PARTIAL",
+  "offline": "PARTIAL",
+  "mobile_responsive": "PARTIAL",
+  "real_device": "NOT_AVAILABLE",
+  "database_performance": "PARTIAL",
+  "performance_benchmark": "BLOCKED",
+  "typescript_status": "PASS",
+  "jest_status": {
+    "result": "541 passed / 0 failed",
+    "passed": 541,
+    "failed": 0,
+    "total": 541,
+    "success": true
+  },
+  "build_status": "PASS",
+  "security_exception": "UNRESOLVED_UPSTREAM",
+  "historical_recovery_status": {
+    "status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "authoritative_evidence": "UNAVAILABLE",
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": 0,
+    "production_mutation_count": 0,
+    "production_recovery_executed": false,
+    "e_6_2_status": "NOT_PERMITTED"
+  },
+  "provisioning_result": {
+    "docker_available": true,
+    "database_instance": "postgres:15",
+    "host": "localhost",
+    "port": 5433,
+    "database_name": "cashflow",
+    "database_user": "postgres",
+    "evidence": "pg_isready succeeded on localhost:5433 before Prisma migration and tests"
+  },
+  "prisma_result": {
+    "validate": "PASS",
+    "generate": "PASS",
+    "migrate_deploy": "PASS",
+    "schema": "prisma/schema.prisma"
+  },
+  "seed_result": "PASS",
+  "transfer_integration_result": {
+    "suite": "src/modules/transfers/services/transfers.service.integration.spec.ts",
+    "status": "PASS",
+    "cases": 3,
+    "cases_passed": 3,
+    "cases_failed": 0
+  },
+  "concurrency_result": "PASS",
+  "idempotency_result": "PASS",
+  "financial_integrity_result": "PASS",
+  "frontend_backend_integration_result": {
+    "backend_health_url": "http://localhost:3001/api/v1/health",
+    "backend_status": "200 OK",
+    "frontend_url": "http://localhost:3000",
+    "frontend_status": "200 OK",
+    "cors_status": "PASS"
+  },
+  "pwa_result": {
+    "manifest_exists": true,
+    "service_worker_exists": true,
+    "registration_observed": "not fully exercised in local emulation",
+    "status": "PARTIAL"
+  },
+  "offline_result": {
+    "offline_banner_present": true,
+    "network_transition_observed": "limited browser-only validation",
+    "status": "PARTIAL"
+  },
+  "mobile_responsive_result": {
+    "viewport_emulation": "limited to default browser viewport and local smoke UI checks",
+    "status": "PARTIAL"
+  },
+  "real_device_result": "NOT_AVAILABLE",
+  "database_performance_result": {
+    "status": "PARTIAL",
+    "notes": "No benchmark harness or p50/p95/p99 measurement suite was established in this repo; query timing was not measured beyond environment correctness checks."
+  },
+  "performance_benchmark_result": {
+    "status": "BLOCKED",
+    "notes": "No repository benchmark harness was present for dashboard, transaction, reports, or transfer load measurement."
+  },
+  "blockers": [
+    "No real Android or iOS device is available for physical validation.",
+    "There is no repository benchmark harness for p50/p95/p99 latency, throughput, or error-rate measurement in local staging.",
+    "PWA and offline validation are limited to code inspection and browser smoke checks without an actual installable native/device flow."
+  ],
+  "recommendations": [
+    "Keep the local PostgreSQL staging database as the working validation target for transfer/integrity testing.",
+    "Add a minimal local benchmark harness for dashboard, transaction-list, transfer, and report endpoints before proceeding to broader performance claims.",
+    "Use a real Android/iOS device or device farm for actual installability and offline behavior validation.",
+    "Maintain the documented upstream @nestjs/swagger/js-yaml security exception until a verified upstream fix is available."
+  ]
+}

@@ -1,0 +1,15 @@
+﻿                                                                                                             QUERY PLAN                                                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=0.01..0.02 rows=1 width=44) (actual time=0.023..0.024 rows=0 loops=1)
+   Output: transaction_type, count(*), sum(amount_cents)
+   Group Key: transactions.transaction_type
+   Batches: 1  Memory Usage: 24kB
+   ->  Seq Scan on public.transactions  (cost=0.00..0.00 rows=1 width=12) (actual time=0.021..0.021 rows=0 loops=1)
+         Output: id, user_id, account_id, category_id, transaction_type, amount_cents, transaction_date, note, reference_number, attachment_url, location, created_at, updated_at, deleted_at, transfer_group_id, transfer_reference
+         Filter: (transactions.user_id = 'da79c915-7de5-4b8d-8b29-5b391b93cc03'::uuid)
+ Planning:
+   Buffers: shared hit=126 read=3
+ Planning Time: 40.783 ms
+ Execution Time: 0.216 ms
+(11 rows)
+

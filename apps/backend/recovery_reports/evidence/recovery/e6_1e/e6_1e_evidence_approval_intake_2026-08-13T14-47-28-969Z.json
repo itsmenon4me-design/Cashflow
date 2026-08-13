@@ -1,0 +1,103 @@
+{
+  "phase": "E.6.1E",
+  "status": "BLOCKED",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T14:47:28.969+07:00",
+  "production_mutation_count": 0,
+  "production_recovery_executed": "NOT EXECUTED",
+  "candidate_count_total": 38,
+  "candidate_count_primary": 1,
+  "candidate_count_suspicious": 37,
+  "approved_count": 0,
+  "mutation_authorized_true_count": 0,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "stored_amount_cents": "100000000",
+    "proposed_amount_cents": "1000000",
+    "opening_balance_cents": "1000000",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "status_text": "LIKELY_CORRUPTED / HIGH"
+  },
+  "request_payload_evidence": {
+    "status": "UNAVAILABLE",
+    "endpoint": "POST /api/v1/transactions",
+    "timestamp": "2026-08-11T14:08:31.606Z",
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "reason": "No accessible authoritative application/gateway/proxy log contains the client-submitted payload for this exact request.",
+    "provenance": "Read-only review of repository logs, Docker logs, and application log configuration; request_payload_found=false in the evidence verification output.",
+    "redacted": false,
+    "sha256": "a681c356879c4a829c289d98d8d686a610f4b081f2a77ab3976474838c617e60",
+    "evidence_reference": [
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json"
+    ]
+  },
+  "independent_evidence": {
+    "status": "UNAVAILABLE",
+    "requirement": "authoritative request payload OR equivalent independent source proving intended amount",
+    "reason": "No gateway/import/queue/archive or other independent authoritative source was identified in the accessible artifacts.",
+    "evidence_reference": [],
+    "sha256": null,
+    "provenance": "Read-only evidence intake; no authoritatively independent source found."
+  },
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "decision": "PENDING_HUMAN_REVIEW",
+    "mutation_authorized": false,
+    "reviewer": null,
+    "reviewer_id": null,
+    "review_timestamp": null,
+    "approval_rationale": null,
+    "candidate_record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "reason": "No explicit human approval exists for the exact candidate and no mutation_authorized=true was recorded.",
+    "sha256": "7c13bf9389a6c9c0788da1fbed46ca779ede7cac49e9e167f8c656cdb3d85eaf",
+    "evidence_reference": [
+      "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+      "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json"
+    ]
+  },
+  "staging_status": "STAGING_VERIFIED",
+  "staging_evidence": {
+    "suite_count": 4,
+    "test_count": 34,
+    "status": "PASS",
+    "evidence_reference": [
+      "apps/backend/recovery_reports/evidence/recovery/staging/e6_1c/e6_1c_run_2026-08-13T07-42-45-261Z/final.verification.report.json"
+    ],
+    "sha256": "89dd17a084bf3955c7709e454b4527d29c15b07e7b6ee0d05790e83cf448d37d"
+  },
+  "technical_test_suite": {
+    "status": "PASS",
+    "suite_count": 5,
+    "test_count": 39,
+    "evidence_reference": [
+      "apps/backend/src/tools/recovery/classifier.spec.ts",
+      "apps/backend/src/modules/audit/historical-data-recovery.service.spec.ts",
+      "apps/backend/src/modules/audit/e6_1_staging_verification.spec.ts",
+      "apps/backend/src/modules/audit/e6_1b_persisted_artifact_store.spec.ts",
+      "apps/backend/src/modules/audit/e6_1c_staging_verification.spec.ts"
+    ]
+  },
+  "final_gate_logic": {
+    "status": "BLOCKED",
+    "e6_2_permitted": false,
+    "reason": "E.6.2 may only proceed when authoritative payload evidence and explicit human approval are both present and recorded with mutation_authorized=true.",
+    "required_conditions": [
+      "authoritative request payload OR equivalent independent evidence",
+      "evidence directly supports the proposed correction",
+      "explicit human approval exists for the exact candidate",
+      "mutation_authorized=true is explicitly recorded by authorized human",
+      "all E.6.1D technical gates remain PASS",
+      "x100 safety guard remains active",
+      "candidate scope is explicitly approved"
+    ]
+  },
+  "remaining_blockers": [
+    "authoritative request-payload or equivalent independent evidence",
+    "explicit human approval for the exact candidate(s)"
+  ],
+  "e6_2_permitted": false,
+  "final_decision": "E.6.2 remains NOT_PERMITTED"
+}

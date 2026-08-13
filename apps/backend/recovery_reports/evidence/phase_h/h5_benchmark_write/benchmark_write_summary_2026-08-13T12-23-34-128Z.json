@@ -1,0 +1,16 @@
+{
+  "phase": "H.5-benchmark-write",
+  "timestamp": "2026-08-13T12:23:33.502Z",
+  "target": "http://localhost:3001/api/v1",
+  "config": {
+    "total": 50,
+    "concurrency": 5,
+    "pacingMs": 10
+  },
+  "runs": {
+    "writes": {
+      "json": "D:\\Project 2\\CashFlow\\apps\\backend\\recovery_reports\\evidence\\phase_h\\h5_benchmark_write\\benchmark_write_result_writes_2026-08-13T12-23-34-126Z.json",
+      "md": "D:\\Project 2\\CashFlow\\apps\\backend\\recovery_reports\\evidence\\phase_h\\h5_benchmark_write\\benchmark_write_result_writes_2026-08-13T12-23-34-126Z.md"
+    }
+  }
+}

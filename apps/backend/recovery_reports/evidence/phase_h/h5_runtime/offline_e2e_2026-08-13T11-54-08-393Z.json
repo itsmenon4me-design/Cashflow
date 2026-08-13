@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-08-13T11:54:08.655Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend root",
+    "login attempted",
+    {
+      "accountsFound": 5,
+      "categoriesFound": 16,
+      "accountId": "68ad9184-dd9a-4b7b-9400-cb32429a45c5",
+      "categoryId": "3d2c42f8-364a-499b-b178-e05447b77943",
+      "txType": "EXPENSE"
+    },
+    "set offline",
+    "set online"
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "onlineCreate": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "ebd5c949-763e-4ced-8231-b68ca1b42f67",
+        "account_id": "68ad9184-dd9a-4b7b-9400-cb32429a45c5",
+        "category_id": "3d2c42f8-364a-499b-b178-e05447b77943",
+        "transaction_type": "EXPENSE",
+        "amount_cents": "12345",
+        "transaction_date": "2026-08-13T11:54:12.247Z",
+        "note": "e2e-online-online-1786622052247-stgrhog040k",
+        "created_at": "2026-08-13T11:54:12.314Z",
+        "updated_at": "2026-08-13T11:54:12.314Z"
+      }
+    }
+  },
+  "enqueue": {
+    "ok": true,
+    "id": "cfg:admin@cashflow.local:1786622052367-flkcy17h0qp"
+  },
+  "queuedCount": 1,
+  "flushed": false,
+  "flushedRecord": null
+}

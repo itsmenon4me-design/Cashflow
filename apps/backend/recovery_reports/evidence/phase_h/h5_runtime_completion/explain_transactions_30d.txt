@@ -1,0 +1,13 @@
+﻿                                                                                                             QUERY PLAN                                                                                                              
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..0.01 rows=1 width=8) (actual time=0.012..0.013 rows=1 loops=1)
+   Output: count(*)
+   ->  Seq Scan on public.transactions  (cost=0.00..0.00 rows=1 width=0) (actual time=0.009..0.009 rows=0 loops=1)
+         Output: id, user_id, account_id, category_id, transaction_type, amount_cents, transaction_date, note, reference_number, attachment_url, location, created_at, updated_at, deleted_at, transfer_group_id, transfer_reference
+         Filter: (transactions.created_at >= (now() - '30 days'::interval))
+ Planning:
+   Buffers: shared hit=101
+ Planning Time: 39.652 ms
+ Execution Time: 0.100 ms
+(9 rows)
+

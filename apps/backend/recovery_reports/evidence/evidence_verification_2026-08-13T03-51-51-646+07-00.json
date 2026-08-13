@@ -1,0 +1,93 @@
+{
+  "phase": "E.5.2",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T03:51:51.646+07:00",
+  "database_mutation": 0,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "original_classification": "LIKELY_CORRUPTED",
+    "original_confidence": "MEDIUM",
+    "evidence_classification": "LIKELY_CORRUPTED",
+    "evidence_confidence": "MEDIUM",
+    "stored_value": "100000000",
+    "proposed_value": "1000000",
+    "evidence": [
+      "Classifier report (review_full.json) contains evidence: account opening balance equals stored/100",
+      "Temporal cluster of large IDR values near 2026-08-11T14:04:03Z–2026-08-11T14:11:03Z (multiple accounts) — potential correlated event",
+      "No request-body logs discovered in repository for 2026-08-11T14:08:31Z"
+    ],
+    "missing_evidence": [
+      "Direct account row fields from the database (name, opening_balance_cents, current_balance_cents, created_at, updated_at) — read attempt from the container was not completed",
+      "Server request logs showing the POST /transactions payload for 2026-08-11T14:08:31Z (request payload evidence unavailable in repo)",
+      "Peer transaction in same account with amount == stored/100 within ±2 minutes (not found in available artifacts)"
+    ],
+    "recommendation": "Classify as LIKELY_CORRUPTED (evidence_confidence=MEDIUM). Acquire direct DB account row and server request logs before any mutation; if server payload shows amount_cents=100000000 for this transaction and client-side payload shows 1000000, CONFIRMED_CORRUPTED can be considered."
+  },
+  "account_context": {
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "account_name": null,
+    "currency": "IDR",
+    "opening_balance_cents": "1000000",
+    "current_balance_cents": null,
+    "created_at": null,
+    "updated_at": null,
+    "notes": "opening_balance_cents == stored_value/100 was present in classifier evidence (review_full.json). Direct database row retrieval was not completed in this run — see missing_evidence."
+  },
+  "neighbor_transactions": [
+    {
+      "id": "8ce442b3-410e-423b-8a14-a16238f1bc64",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "created_at": "2026-08-11T14:04:03.634Z",
+      "stored_value": "1000000000",
+      "relation": "temporal_cluster"
+    },
+    {
+      "id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "created_at": "2026-08-11T14:08:31.606Z",
+      "stored_value": "100000000",
+      "relation": "primary_candidate"
+    },
+    {
+      "id": "d0c31e40-53ef-45fb-bcae-155d60549ed6",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "created_at": "2026-08-11T14:11:03.900Z",
+      "stored_value": "100000000",
+      "relation": "temporal_cluster"
+    }
+  ],
+  "suspicious_clusters": [
+    {
+      "cluster_time_span_start": "2026-08-06T06:05:46.496Z",
+      "cluster_time_span_end": "2026-08-06T06:05:46.564Z",
+      "accounts": ["7b2b8bae-b261-4dcf-b3ac-52e8e651485d"],
+      "records": ["d07bf0a0-49b3-4e35-a9aa-5b4c19b3806d","9e297411-6fa5-4386-9b7c-9115bcd6b0df","c2e5bc10-3285-4cbd-a4ab-ea24f1f824e3","8f7a07ba-2305-4bf2-8720-74c51ab0550d","0627fa78-56f8-46af-aba5-51a877f753f7"]
+    },
+    {
+      "cluster_time_span_start": "2026-08-07T19:50:15.539Z",
+      "cluster_time_span_end": "2026-08-07T19:54:31.622Z",
+      "accounts": ["509306f3-2800-4f14-a496-8da5d6fa1f4e"],
+      "records": ["ec51fedf-0c04-44d7-b308-3ce4cd2693e7","809c0d38-90cc-4588-95e7-ba5e0dfb1e4e","810c9bcb-a477-4a60-9650-870b046492d2"]
+    },
+    {
+      "cluster_time_span_start": "2026-08-11T14:04:03.634Z",
+      "cluster_time_span_end": "2026-08-11T14:11:03.900Z",
+      "accounts": ["8fd53ecd-aa10-4a00-977d-80540836ed2b","e673f9a8-2e2a-4e58-af4f-1728be9bdfa1"],
+      "records": ["8ce442b3-410e-423b-8a14-a16238f1bc64","97b76766-d13a-4db6-8baf-572292b83913","d0c31e40-53ef-45fb-bcae-155d60549ed6"],
+      "notes": "Temporal cluster spanning ~7 minutes that contains multiple large IDR values across two accounts — candidate sits in the middle of this window"
+    }
+  ],
+  "evidence_summary": {
+    "direct_request_payload_found": false,
+    "db_account_row_retrieved": false,
+    "peer_in_same_account_with_div100_within_2min": false,
+    "temporal_cluster_present": true,
+    "opening_balance_matches_div100": true
+  },
+  "recommendations": [
+    "Do NOT perform any DB mutation — read-only verification only.",
+    "Run a targeted, read-only DB query inside the backend container to fetch the account row (id: e673f9a8-2e2a-4e58-af4f-1728be9bdfa1) and transactions in ±30 minutes of 2026-08-11T14:08:31.606Z. Example (runs inside project root):\n  docker compose -f \"D:\\Project 2\\CashFlow\\docker\\docker-compose.yml\" exec backend sh -c \"cd /app/apps/backend && node -e \"/* small JS using generated prisma client to query */\"\"",
+    "Collect server request logs for 2026-08-11T14:08:31Z (application, proxy, or ingestion logs). If found, compare client-submitted amount to stored amount. If client payload shows the smaller amount (stored/100) while DB record shows larger value, consider CONFIRMED_CORRUPTED after human review.",
+    "If direct DB account opening_balance_cents == stored/100 and a peer transaction in the same account equal to stored/100 within ±2 minutes is found, confidence increases to HIGH (LIKELY_CORRUPTED)."
+  ]
+}

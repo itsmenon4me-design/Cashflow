@@ -1,0 +1,45 @@
+{
+  "group": "auth",
+  "timestamp": "2026-08-13T12:18:12.516Z",
+  "measurementsCount": 200,
+  "summary": {
+    "total": 200,
+    "successes": 0,
+    "failures": 200,
+    "errorRate": 1,
+    "min": 6,
+    "avg": 17.95,
+    "p50": 21,
+    "p95": 24,
+    "p99": 26.359999999999673,
+    "max": 63,
+    "throughput_rps": 1.1194300356952283e-7,
+    "statusDistribution": {
+      "400": 4,
+      "403": 196
+    }
+  },
+  "errorCategories": {
+    "validation": 4,
+    "forbidden": 196
+  },
+  "statusDistribution": {
+    "400": 4,
+    "403": 196
+  },
+  "sampleErrors": {
+    "400": [
+      "Validation failed",
+      "Validation failed",
+      "Validation failed",
+      "Validation failed"
+    ],
+    "403": [
+      "Forbidden resource",
+      "Forbidden resource",
+      "Forbidden resource",
+      "Forbidden resource",
+      "Forbidden resource"
+    ]
+  }
+}

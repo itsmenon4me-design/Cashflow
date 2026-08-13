@@ -1,0 +1,93 @@
+{
+  "phase": "E.6.1 FINAL HOLD",
+  "status": "FINAL_HOLD_WAITING_EXTERNAL_EVIDENCE",
+  "timestamp": "2026-08-13T15:23:53.653+07:00",
+  "incident": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "stored_amount_cents": 100000000,
+    "opening_balance_cents": 1000000,
+    "transaction_timestamp": "2026-08-11T14:08:31.606Z",
+    "endpoint": "POST /api/v1/transactions",
+    "exact_mismatch_proven": false,
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": false,
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2_permitted": false
+  },
+  "safety": {
+    "technical_and_staging_gates_passed": true,
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "status": "FINAL_HOLD_WAITING_EXTERNAL_EVIDENCE"
+  },
+  "evidence_references": [
+    "apps/backend/recovery_reports/review_full.json",
+    "apps/backend/recovery_reports/dry_run_report_2026-08-12T20-05-52-501Z.json",
+    "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json",
+    "apps/backend/recovery_reports/evidence/pre_mutation_validation/pre_mutation_validation_2026-08-13T04-34-57-763+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/staging/e6_1c/e6_1c_run_2026-08-13T08-11-37-061Z/e6_1c_staging_verification.json",
+    "apps/backend/recovery_reports/evidence/recovery/staging/persisted_run_2026-08-13T08-11-36-879Z/final.verification.report.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1g_external_evidence_coordination_2026-08-13T14-52-52-421Z.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1i/e6_1i_external_evidence_intake_2026-08-13T14-58-53-643+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1j/e6_1j_external_evidence_and_approval_gate_2026-08-13T15-03-56-325+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1k/e6_1k_external_evidence_and_human_approval_intake_2026-08-13T15-07-16-409+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1l/e6_1l_final_external_evidence_human_approval_intake_2026-08-13T15-09-52-769+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1m/e6_1m_external_authoritative_evidence_2026-08-13T15-14-24-131+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1_external_resolution/e6_1_external_resolution_2026-08-13T15-18-33-821+07-00.json"
+  ],
+  "external_actions_required": [
+    {
+      "type": "INFRA_EVIDENCE_RETRIEVAL",
+      "utc_timestamp": "2026-08-11T14:08:31.606Z",
+      "endpoint": "POST /api/v1/transactions",
+      "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "candidate_stored_amount_cents": 100000000,
+      "potential_intended_amount_cents": 1000000,
+      "acceptable_evidence": [
+        "raw request payload",
+        "gateway log",
+        "reverse proxy request archive",
+        "centralized log extract",
+        "import source",
+        "other independent authoritative record"
+      ]
+    },
+    {
+      "type": "AUTHORIZED_HUMAN_REVIEW",
+      "required_fields": [
+        "reviewer",
+        "reviewer_id",
+        "review_timestamp",
+        "candidate_record_id",
+        "decision",
+        "rationale",
+        "mutation_authorized=true"
+      ],
+      "notes": "No automated approval is allowed. The reviewer must inspect actual evidence and record explicit authorization only if policy permits recovery."
+    }
+  ],
+  "next_automated_action": "NONE",
+  "production_safeguards": {
+    "no_database_mutation": true,
+    "no_recovery_execution": true,
+    "no_automatic_approval": true,
+    "no_repetitive_e61_phase": true,
+    "status": "FINAL_HOLD_WAITING_EXTERNAL_EVIDENCE"
+  },
+  "tests": {
+    "suites": 5,
+    "passed": 39,
+    "failed": 0,
+    "command": "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/tools/recovery/classifier.spec.ts src/modules/audit/historical-data-recovery.service.spec.ts src/modules/audit/e6_1_staging_verification.spec.ts src/modules/audit/e6_1b_persisted_artifact_store.spec.ts src/modules/audit/e6_1c_staging_verification.spec.ts"
+  }
+}

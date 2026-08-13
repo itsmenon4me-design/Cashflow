@@ -1,0 +1,6 @@
+{
+  "status": "PENDING",
+  "before_balance_cents": "1000000",
+  "expected_after_cents": "1000000",
+  "actual_after_cents": "1000000"
+}

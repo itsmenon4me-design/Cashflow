@@ -1,0 +1,102 @@
+{
+  "phase": "F.1",
+  "status": "COMPLETED",
+  "incident_hold_status": "FINAL_HOLD_WAITING_EXTERNAL_EVIDENCE",
+  "production_mutation_count": 0,
+  "production_recovery": "NOT_EXECUTED",
+  "historical_recovery_gate": "FINAL_HOLD",
+  "human_approval": "NOT_APPROVED",
+  "request_payload_evidence": "UNAVAILABLE",
+  "e6_2_permitted": false,
+  "amount_integrity": "PASS",
+  "request_traceability": "PASS",
+  "audit_traceability": "PASS",
+  "anomaly_detection": "PASS",
+  "automatic_correction": "MUST REMAIN DISABLED",
+  "current_transaction_data_flow": {
+    "request_path": [
+      "JWT-authenticated HTTP request",
+      "TransactionsController.create/update",
+      "TransactionsService.create/update",
+      "TransactionValidationService",
+      "PrismaTransactionsRepository",
+      "BalanceService.recalculateAccount",
+      "AuditLogService.record",
+      "response serialization"
+    ],
+    "amount_storage": "minor units in integer cents / BigInt",
+    "request_metadata": "correlationId and requestId propagated by controller when present in request headers",
+    "sensitive_data_policy": "No passwords, tokens, or full request bodies are logged by default"
+  },
+  "identified_risks": [
+    "Amount validation relied on integer checks but did not explicitly reject malformed numeric representations before conversion.",
+    "The transaction flow did not carry structured request metadata into the audit trail for create/update operations.",
+    "Scale anomalies such as exact x100 / x1/100 patterns were not explicitly surfaced as signals without mutating the record."
+  ],
+  "changes_made": [
+    "Added strict integer-cent normalization in the transaction service before persistence.",
+    "Rejected decimal values, NaN, Infinity, and malformed numeric strings before writing to the repository.",
+    "Attached correlationId and requestId to transaction audit metadata when available.",
+    "Added AMOUNT_SCALE_ANOMALY detection that emits a signal without altering the transaction record.",
+    "Ensured finance-bot evaluation failures do not break transaction creation flow."
+  ],
+  "security_considerations": [
+    "No secrets are stored in audit metadata.",
+    "Request tracing intentionally excludes authorization headers and sensitive personal data.",
+    "Amount values are logged only as structured minor-unit integers, not as user-facing decimals or raw payloads."
+  ],
+  "privacy_considerations": [
+    "The trace stores only minimal identifiers and amount_cents in minor-unit form.",
+    "Full request bodies remain out of scope for default logging.",
+    "Log retention and centralized export workflows should be governed by the existing privacy policy."
+  ],
+  "anomaly_detection_behavior": {
+    "signal": "AMOUNT_SCALE_ANOMALY",
+    "trigger": "An exact 100x or 1/100 relation with recent account transactions is detected.",
+    "mutation_policy": "No automatic correction or rebalance mutation occurs."
+  },
+  "audit_behavior": {
+    "correlates": [
+      "userId",
+      "entityId",
+      "accountId",
+      "transactionType",
+      "amountCents",
+      "correlationId",
+      "requestId",
+      "operation result",
+      "anomalyCode"
+    ],
+    "persisted_as": "structured metadata with the audit log record"
+  },
+  "correlation_id_behavior": {
+    "source": "x-correlation-id and x-request-id request headers",
+    "storage": "persisted in audit metadata and logger output",
+    "privacy": "no direct secret leakage"
+  },
+  "tests": {
+    "targeted": [
+      "src/modules/transactions/services/transactions.service.spec.ts",
+      "src/modules/transactions/controllers/transactions.controller.spec.ts"
+    ],
+    "full_related_set": [
+      "src/modules/transactions",
+      "src/modules/audit-logs",
+      "src/modules/audit"
+    ],
+    "result": "PASSED",
+    "command": "npm test -- --runInBand src/modules/transactions src/modules/audit-logs src/modules/audit",
+    "exit_code": 0
+  },
+  "typescript_validation": {
+    "command": "npx tsc --noEmit",
+    "result": "PASSED",
+    "exit_code": 0
+  },
+  "evidence_links": [
+    "apps/backend/recovery_reports/evidence/recovery/final_hold/final_hold_2026-08-13T15-23-53-653+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_hold/final_hold_2026-08-13T15-23-53-653+07-00.md",
+    "apps/backend/recovery_reports/evidence/recovery/final_hold/transaction_observability_improvement_proposal_2026-08-13T15-23-53-653+07-00.md"
+  ],
+  "status_note": "The historical recovery case remains in FINAL_HOLD. The codebase improvements are preventive only and do not reopen the E.6 recovery loop."
+}

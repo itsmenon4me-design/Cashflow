@@ -1,0 +1,39 @@
+{
+  "group": "writes",
+  "timestamp": "2026-08-13T12:19:47.185Z",
+  "measurementsCount": 200,
+  "summary": {
+    "total": 200,
+    "successes": 97,
+    "failures": 103,
+    "errorRate": 0.515,
+    "min": 8,
+    "avg": 30.745,
+    "p50": 26,
+    "p95": 65.04999999999998,
+    "p99": 122.05999999999995,
+    "max": 131,
+    "throughput_rps": 1.1194299763786257e-7,
+    "statusDistribution": {
+      "201": 97,
+      "400": 103
+    }
+  },
+  "errorCategories": {
+    "validation": 103,
+    "other": 97
+  },
+  "statusDistribution": {
+    "201": 97,
+    "400": 103
+  },
+  "sampleErrors": {
+    "400": [
+      "Transaction type does not match category type",
+      "Transaction type does not match category type",
+      "Transaction type does not match category type",
+      "Transaction type does not match category type",
+      "Transaction type does not match category type"
+    ]
+  }
+}

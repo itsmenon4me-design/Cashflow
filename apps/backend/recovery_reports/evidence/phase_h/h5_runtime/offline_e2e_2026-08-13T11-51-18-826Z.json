@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-08-13T11:51:19.095Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto login",
+    "login attempted"
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "error": "Error: Too many arguments. If you need to pass more than 1 argument to the function wrap them in an object."
+}

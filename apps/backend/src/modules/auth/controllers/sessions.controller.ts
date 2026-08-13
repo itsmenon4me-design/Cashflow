@@ -14,7 +14,9 @@ export class SessionsController {
   @Get()
   @ApiOperation({ summary: 'List active sessions for current user' })
   @ApiResponse({ status: 200, type: [SessionResponseDto] })
-  async list(@CurrentUser('sub') userId: string): Promise<SessionResponseDto[]> {
+  async list(
+    @CurrentUser('sub') userId: string,
+  ): Promise<SessionResponseDto[]> {
     const items = await this.sessions.listForUser(userId);
     // map to DTO without sensitive fields
     return items.map((s) => ({

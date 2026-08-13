@@ -1,0 +1,45 @@
+{
+  "phase": "H.3 - PWA Validation",
+  "timestamp": "2026-08-13T10:40:00Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "manifest": {
+    "exists": true,
+    "path": "apps/frontend/src/app/manifest.ts",
+    "checks": {
+      "name": true,
+      "short_name": true,
+      "start_url": true,
+      "display": "standalone",
+      "icons": true
+    }
+  },
+  "icons": {
+    "exists": true,
+    "paths": ["/icons/icon-192.png","/icons/icon-512.png","/icons/icon-maskable-512.png","/icon.svg"]
+  },
+  "service_worker": {
+    "exists": true,
+    "path": "apps/frontend/public/sw.js",
+    "behavior": "Caches shell/static assets; ignores API requests; navigation falls back to cached '/'.",
+    "registration": "Registered in OfflineProvider only when NODE_ENV=production and serviceWorker available."
+  },
+  "installability": {
+    "note": "Installability requires secure context (HTTPS) or localhost. The app exposes manifest + service worker but registration occurs only in production build. Local dev may not fully exercise installability. Marked PARTIAL.",
+    "status": "PARTIAL / REQUIRES_HTTPS_OR_PRODUCTION_SERVE"
+  },
+  "cache_strategy": "Shell & static caching; API requests are not cached by service worker.",
+  "offline_fallback": "Navigation requests fall back to cached '/' when fetch fails.",
+  "api_offline_behavior": "Service worker ignores API; frontend implements IndexedDB queue + sync-controller for offline writes.",
+  "offline_write_support": {
+    "code_level_supported": true,
+    "runtime_validation": "BLOCKED / BACKEND_NOT_RUNNING",
+    "notes": "Frontend queues create/update/delete operations into IndexedDB; sync executor calls transactionService which posts to backend. Backend implements idempotency via reference_number. End-to-end runtime validation requires backend running and reachable."
+  },
+  "online_offline_state_handling": "useNetworkStatus and OfflineProvider exist; offline banners and sync status present.",
+  "data_safety_when_offline": "Client assigns reference_number to queued transactions and backend deduplicates via reference_number; update merges with pending create; delete cancels pending create—these are protective rules at code level. Runtime validation blocked.",
+  "mobile_responsive": {
+    "checked_files": ["apps/frontend/src/app/layout.tsx","apps/frontend/src/components/layout/header-bar.tsx"],
+    "status": "PARTIAL / EMULATION_ONLY"
+  },
+  "real_device": "NOT_AVAILABLE"
+}

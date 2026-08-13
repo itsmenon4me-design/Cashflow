@@ -1,0 +1,25 @@
+{
+  "phase": "H.4 - Backend Full Tests",
+  "timestamp": "2026-08-13T17:38:00Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "commands_executed": [
+    "Set-Location apps/backend; npx tsc --noEmit",
+    "Set-Location apps/backend; npm test -- --runInBand"
+  ],
+  "typescript_status": "PASS",
+  "test_summary": {
+    "total": 541,
+    "passed": 538,
+    "failed": 3,
+    "skipped": 0
+  },
+  "failures": [
+    {
+      "file": "src/modules/transfers/services/transfers.service.integration.spec.ts",
+      "test": "TransfersService integration concurrency (requires real Postgres) › Case A: two concurrent transfers that exactly consume balance",
+      "error": "PrismaClientKnownRequestError: Invalid prisma.user.create() invocation (Postgres unreachable / ECONNREFUSED)"
+    }
+  ],
+  "failure_cause": "ENVIRONMENT_BLOCKED (missing Postgres). The failing tests are integration tests that require a running Postgres instance; these are NOT code defects detected here.",
+  "notes": "Run tests again after provisioning a staging Postgres and starting backend to validate integration suites. No production DB or credentials were used."
+}

@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-08-13T17:38:53.811Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend",
+    "fetch accounts and categories",
+    "go offline",
+    "enqueue via syncController",
+    "go online and flush"
+  ],
+  "consoleLogs": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "timestamp": "2026-08-13T17:38:54.415Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "timestamp": "2026-08-13T17:38:54.788Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "timestamp": "2026-08-13T17:38:54.831Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:38:55.714Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "timestamp": "2026-08-13T17:38:55.725Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "timestamp": "2026-08-13T17:38:55.725Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:38:55.790Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 1 failedCount= 0",
+      "timestamp": "2026-08-13T17:38:55.798Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flushing item cfg:admin@cashflow.local:0d0b8d1c-defd-4254-9756-33e31f1656e8 action= create entityId= offline-e2e-expense-1786642735755-5qnj37",
+      "timestamp": "2026-08-13T17:38:55.798Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:38:55.819Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] executor succeeded for cfg:admin@cashflow.local:0d0b8d1c-defd-4254-9756-33e31f1656e8 deleting from idb",
+      "timestamp": "2026-08-13T17:38:55.855Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() completed, remainingPending= 0 remainingFailed= 0",
+      "timestamp": "2026-08-13T17:38:55.856Z"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "appClientReady": true,
+  "offline": false,
+  "enqueue": {
+    "ok": true,
+    "pending": 1
+  },
+  "pendingAfterEnqueue": 1,
+  "flushResult": {
+    "status": "synced"
+  },
+  "remainingAfterFlush": 0,
+  "dbCount": "1"
+}

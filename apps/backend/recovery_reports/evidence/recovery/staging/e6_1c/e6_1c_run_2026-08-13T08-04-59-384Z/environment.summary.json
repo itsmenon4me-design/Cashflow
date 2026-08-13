@@ -1,0 +1,15 @@
+{
+  "node_env": "test",
+  "database_url_present": false,
+  "database_url_redacted": "NOT_SET",
+  "database_host": "unknown",
+  "environment_status": "STAGING_SAFE",
+  "production_indicators_blocked": [
+    "prod",
+    "production",
+    "rds",
+    "amazonaws.com",
+    "db.prod",
+    "live"
+  ]
+}

@@ -20,7 +20,6 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { BalanceService } from '../services/balance.service';
 import { Request } from 'express';
 
-
 @ApiTags('Accounts')
 @Controller('accounts')
 export class AccountsController {
@@ -42,10 +41,7 @@ export class AccountsController {
   @ApiOperation({ summary: 'Get account by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     const acc = await this.accounts.getById(userId, id);
     return { success: true, data: toAccountResponse(acc) };
   }
@@ -54,7 +50,10 @@ export class AccountsController {
   @ApiOperation({ summary: 'Create new account' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async create(@CurrentUser('sub') userId: string, @Body() body: CreateAccountDto) {
+  async create(
+    @CurrentUser('sub') userId: string,
+    @Body() body: CreateAccountDto,
+  ) {
     const created = await this.accounts.create(userId, body);
     return { success: true, data: toAccountResponse(created) };
   }
@@ -76,10 +75,7 @@ export class AccountsController {
   @ApiOperation({ summary: 'Soft delete account' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     await this.accounts.softDelete(userId, id);
     return { success: true };
   }

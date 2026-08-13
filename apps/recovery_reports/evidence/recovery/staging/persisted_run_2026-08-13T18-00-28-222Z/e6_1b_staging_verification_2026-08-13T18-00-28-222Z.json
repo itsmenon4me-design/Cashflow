@@ -1,0 +1,40 @@
+{
+  "phase": "E.6.1B",
+  "environment": "staging-local",
+  "production_target_detected": false,
+  "production_database_mutation": 0,
+  "staging_database_mutation": 0,
+  "artifact_store": "D:\\Project 2\\CashFlow\\apps\\recovery_reports\\evidence\\recovery\\staging\\persisted_run_2026-08-13T18-00-28-222Z",
+  "snapshot_manifest": {
+    "snapshot_file": "snapshot.json",
+    "sha256": "92597f681b0e7ad9d0dd5bf2d0c3fa3fb3796f2cc6d642c37d3cf7d4c274c05e"
+  },
+  "audits": [
+    {
+      "file": "exec_stg-op-1786644028258.json",
+      "content": {
+        "operation_id": "stg-op-1786644028258",
+        "action": "execute",
+        "result": "EXECUTED",
+        "timestamp": "2026-08-13T18:00:28.344Z",
+        "record_id": "stg-tx-ps-corrupt",
+        "snapshot_hash": "92597f681b0e7ad9d0dd5bf2d0c3fa3fb3796f2cc6d642c37d3cf7d4c274c05e"
+      }
+    },
+    {
+      "file": "exec_stg-op-1786644028258_second.json",
+      "content": {
+        "operation_id": "stg-op-1786644028258",
+        "action": "execute",
+        "result": "EXECUTED",
+        "timestamp": "2026-08-13T18:00:28.366Z",
+        "record_id": "stg-tx-ps-corrupt",
+        "snapshot_hash": "92597f681b0e7ad9d0dd5bf2d0c3fa3fb3796f2cc6d642c37d3cf7d4c274c05e"
+      }
+    }
+  ],
+  "test_results": {
+    "snapshot_verified": true
+  },
+  "final_gate": "STAGING_VERIFIED"
+}

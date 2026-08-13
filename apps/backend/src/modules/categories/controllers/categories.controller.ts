@@ -34,10 +34,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Get category by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     const c = await this.categories.getById(userId, id);
     return { success: true, data: toCategoryResponse(c) };
   }
@@ -83,10 +80,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Soft delete category' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     await this.categories.softDelete(userId, id);
     return { success: true };
   }

@@ -111,7 +111,10 @@ describe('TransactionsService (filter & pagination & search)', () => {
     const createdTransaction = dummyTx('t3');
     repoMock.create = jest.fn().mockResolvedValue(createdTransaction);
     const auditMock = { record: jest.fn() };
-    const validatorMock = { validateForCreate: jest.fn(), validateForUpdate: jest.fn() };
+    const validatorMock = {
+      validateForCreate: jest.fn(),
+      validateForUpdate: jest.fn(),
+    };
     const notificationsMock = { create: jest.fn() };
     const balanceMock = { recalculateAccount: jest.fn() };
     const financeBotMock = {
@@ -130,7 +133,8 @@ describe('TransactionsService (filter & pagination & search)', () => {
       ],
     }).compile();
 
-    const serviceWithFinanceBot = module.get<TransactionsService>(TransactionsService);
+    const serviceWithFinanceBot =
+      module.get<TransactionsService>(TransactionsService);
     const result = await serviceWithFinanceBot.create('u1', {
       account_id: 'a1',
       category_id: 'c1',
@@ -154,15 +158,25 @@ describe('TransactionsService (filter & pagination & search)', () => {
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         {
           provide: TransactionValidationService,
-          useValue: { validateForCreate: jest.fn(), validateForUpdate: jest.fn() },
+          useValue: {
+            validateForCreate: jest.fn(),
+            validateForUpdate: jest.fn(),
+          },
         },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
-        { provide: BalanceService, useValue: { recalculateAccount: jest.fn() } },
-        { provide: FinanceBotService, useValue: { evaluateOnTransaction: jest.fn() } },
+        {
+          provide: BalanceService,
+          useValue: { recalculateAccount: jest.fn() },
+        },
+        {
+          provide: FinanceBotService,
+          useValue: { evaluateOnTransaction: jest.fn() },
+        },
       ],
     }).compile();
 
-    const serviceWithValidation = module.get<TransactionsService>(TransactionsService);
+    const serviceWithValidation =
+      module.get<TransactionsService>(TransactionsService);
 
     await expect(
       serviceWithValidation.create('u1', {
@@ -191,15 +205,25 @@ describe('TransactionsService (filter & pagination & search)', () => {
         { provide: AuditLogService, useValue: auditMock },
         {
           provide: TransactionValidationService,
-          useValue: { validateForCreate: jest.fn(), validateForUpdate: jest.fn() },
+          useValue: {
+            validateForCreate: jest.fn(),
+            validateForUpdate: jest.fn(),
+          },
         },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
-        { provide: BalanceService, useValue: { recalculateAccount: jest.fn() } },
-        { provide: FinanceBotService, useValue: { evaluateOnTransaction: jest.fn() } },
+        {
+          provide: BalanceService,
+          useValue: { recalculateAccount: jest.fn() },
+        },
+        {
+          provide: FinanceBotService,
+          useValue: { evaluateOnTransaction: jest.fn() },
+        },
       ],
     }).compile();
 
-    const serviceWithTrace = module.get<TransactionsService>(TransactionsService);
+    const serviceWithTrace =
+      module.get<TransactionsService>(TransactionsService);
     await serviceWithTrace.create(
       'u1',
       {

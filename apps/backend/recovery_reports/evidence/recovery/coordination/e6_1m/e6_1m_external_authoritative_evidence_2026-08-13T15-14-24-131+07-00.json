@@ -1,0 +1,110 @@
+{
+  "phase": "E.6.1M",
+  "timestamp": "2026-08-13T15:14:24.131+07:00",
+  "status": "BLOCKED",
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "currency": "IDR",
+    "transaction_type": "INCOME",
+    "transaction_created_at": "2026-08-11T14:08:31.606Z",
+    "stored_amount_cents": 100000000,
+    "contextual_expected_amount_cents": 1000000
+  },
+  "search_scope": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "timestamp": "2026-08-11T14:08:31.606Z",
+    "timestamp_window": {
+      "start": "2026-08-11T14:00:00Z",
+      "end": "2026-08-11T14:15:00Z"
+    },
+    "amounts": [1000000, 100000000],
+    "possible_paths": [
+      "POST /transactions",
+      "POST /api/v1/transactions",
+      "/transactions",
+      "/api/v1/transactions"
+    ],
+    "possible_fields": [
+      "amount",
+      "amount_cents",
+      "transaction_type",
+      "account_id",
+      "category_id",
+      "record_id",
+      "correlation_id",
+      "request_id"
+    ]
+  },
+  "sources_inspected": [
+    "apps/backend/recovery_reports/review_full.json",
+    "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-51-51-646+07-00.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1d_production_gate_revalidation_2026-08-13T14-44-47-089Z.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1f_final_evidence_approval_reconciliation_2026-08-13T14-50-48-562Z.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1h/e6_1h_final_production_gate_2026-08-13T14-56-17-609+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1i/e6_1i_external_evidence_intake_2026-08-13T14-58-53-643+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1j/e6_1j_external_evidence_and_approval_gate_2026-08-13T15-03-56-325+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1k/e6_1k_external_evidence_and_human_approval_intake_2026-08-13T15-07-16-409+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1l/e6_1l_final_external_evidence_human_approval_intake_2026-08-13T15-09-52-769+07-00.json",
+    "apps/backend/server.out.log"
+  ],
+  "evidence_found": [],
+  "evidence_not_found": [
+    "Request payload for POST /api/v1/transactions at 2026-08-11T14:08:31.606Z showing submitted amount_cents=1000000.",
+    "Proxy / API gateway log record for the exact candidate and timestamp.",
+    "Centralized logging archive for the exact request window.",
+    "Independent authoritative source showing client-submitted value 1000000 cents for the same transaction record.",
+    "Authorized human approval for the exact candidate with reviewer identity, rationale, timestamp, and mutation_authorized=true."
+  ],
+  "evidence_classification": {
+    "request_payload_evidence": "UNAVAILABLE",
+    "independent_evidence": "UNAVAILABLE",
+    "exact_mismatch_result": "NOT_PROVEN",
+    "classification": "LIKELY_CORRUPTED / HIGH",
+    "status": "BLOCKED"
+  },
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "decision": "PENDING_HUMAN_REVIEW",
+    "mutation_authorized": false,
+    "required_fields_missing": [
+      "reviewer",
+      "reviewer_id",
+      "review_timestamp",
+      "candidate_record_id",
+      "decision",
+      "evidence_references",
+      "approval_rationale",
+      "mutation_authorized"
+    ],
+    "notes": "No valid human approval for the exact candidate was located; approvals were absent or incomplete."
+  },
+  "production_mutation_count": 0,
+  "production_recovery_status": "NOT_EXECUTED",
+  "technical_gates": "PASS",
+  "e62_gate_result": "NOT_PERMITTED",
+  "remaining_blockers": [
+    "Authoritative request-payload or equivalent independent evidence for the exact record_id/account_id/timestamp is unavailable.",
+    "Explicit human approval for the exact candidate is not available.",
+    "mutation_authorized=true was not explicitly recorded by an authorized reviewer."
+  ],
+  "tests": {
+    "suites": 5,
+    "passed": 39,
+    "failed": 0,
+    "command": "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/tools/recovery/classifier.spec.ts src/modules/audit/historical-data-recovery.service.spec.ts src/modules/audit/e6_1_staging_verification.spec.ts src/modules/audit/e6_1b_persisted_artifact_store.spec.ts src/modules/audit/e6_1c_staging_verification.spec.ts"
+  },
+  "safety": {
+    "protection": "NO PRODUCTION DATABASE MUTATION PERFORMED.",
+    "production_safe": true,
+    "not_mutating": true
+  }
+}

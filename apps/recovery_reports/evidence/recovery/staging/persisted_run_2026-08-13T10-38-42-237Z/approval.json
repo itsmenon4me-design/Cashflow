@@ -1,0 +1,11 @@
+{
+  "reviewer_id": "rev-1",
+  "reviewer": "staging-reviewer",
+  "review_timestamp": "2026-08-13T10:38:42.277Z",
+  "decision": "APPROVED",
+  "rationale": "Staging synthetic approval",
+  "mutation_authorized": true,
+  "approver_id": "rev-1",
+  "approver": "staging-reviewer",
+  "approved_at": "2026-08-13T10:38:42.279Z"
+}

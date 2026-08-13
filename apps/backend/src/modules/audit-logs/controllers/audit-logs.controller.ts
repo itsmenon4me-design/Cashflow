@@ -67,7 +67,10 @@ export class AuditLogsController {
     type: [AuditLogResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async myList(@CurrentUser('sub') userId: string, @Query() query: AuditLogQueryDto) {
+  async myList(
+    @CurrentUser('sub') userId: string,
+    @Query() query: AuditLogQueryDto,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const { items, total } = await this.auditLogs.findOwnByUser(

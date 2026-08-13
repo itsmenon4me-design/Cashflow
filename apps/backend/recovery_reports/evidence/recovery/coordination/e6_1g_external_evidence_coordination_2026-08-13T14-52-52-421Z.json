@@ -1,0 +1,98 @@
+{
+  "phase": "E.6.1G",
+  "status": "WAITING_EXTERNAL_EVIDENCE_AND_HUMAN_APPROVAL",
+  "timestamp": "2026-08-13T14:52:52.421+07:00",
+  "production_mutation_count": 0,
+  "production_recovery_executed": false,
+  "candidate_count_total": 38,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "stored_value_cents": "100000000",
+    "proposed_value_cents": "1000000",
+    "opening_balance_cents": "1000000",
+    "current_balance_cents": "1000000"
+  },
+  "final_local_state": {
+    "production_mutation": 0,
+    "production_recovery": false,
+    "request_payload_evidence": "UNAVAILABLE",
+    "independent_evidence": "UNAVAILABLE",
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized_true_count": 0,
+    "e6_2_permitted": false
+  },
+  "evidence_requested": {
+    "request_payload": {
+      "endpoint": "POST /api/v1/transactions",
+      "event_timestamp": "2026-08-11T14:08:31.606Z",
+      "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "source_types": [
+        "application logs",
+        "reverse proxy logs",
+        "gateway logs",
+        "WAF logs",
+        "archived request logs",
+        "centralized logging archives",
+        "import/ingestion records"
+      ],
+      "required_fields": [
+        "client-submitted amount",
+        "request timestamp",
+        "request/correlation ID if available",
+        "source system",
+        "provenance",
+        "redaction status",
+        "checksum/hash when available"
+      ]
+    },
+    "independent_authoritative_evidence": {
+      "required_types": [
+        "gateway event",
+        "import event",
+        "signed event",
+        "message queue archive",
+        "external financial record",
+        "authoritative ingestion record"
+      ],
+      "must_establish": "Intended amount independently and without relying only on database state or classifier inference"
+    },
+    "human_approval": {
+      "required_fields": [
+        "reviewer",
+        "reviewer_id",
+        "review_timestamp",
+        "decision",
+        "approval_status",
+        "approval_rationale",
+        "proposed value",
+        "exact candidate record_id",
+        "explicit authorization"
+      ],
+      "valid_decisions": [
+        "APPROVE_FOR_RECOVERY",
+        "REJECT_RECOVERY",
+        "NEEDS_MORE_EVIDENCE"
+      ]
+    }
+  },
+  "gate_status": {
+    "request_payload_evidence": "UNAVAILABLE",
+    "independent_evidence": "UNAVAILABLE",
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": false,
+    "e6_2_permitted": false
+  },
+  "required_external_actions": [
+    "Infra/logging evidence retrieval for the exact request and timestamp",
+    "Authorized human review and explicit approval for the exact candidate"
+  ],
+  "safety": {
+    "production_database_mutation": 0,
+    "production_read_only": true,
+    "statement": "NO PRODUCTION DATABASE MUTATION PERFORMED."
+  }
+}

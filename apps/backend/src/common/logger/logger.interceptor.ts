@@ -27,7 +27,8 @@ export class LoggerInterceptor implements NestInterceptor {
       (headers && (headers[CORRELATION_ID_HEADER] as string | undefined)) ||
       req?.correlationId;
     const requestId =
-      (headers && (headers['x-request-id'] as string | undefined)) || req?.requestId;
+      (headers && (headers['x-request-id'] as string | undefined)) ||
+      req?.requestId;
     const now = Date.now();
 
     return next.handle().pipe(

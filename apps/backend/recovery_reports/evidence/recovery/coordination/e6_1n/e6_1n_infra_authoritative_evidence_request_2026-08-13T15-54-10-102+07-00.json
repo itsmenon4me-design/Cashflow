@@ -1,0 +1,218 @@
+{
+  "phase": "E.6.1N",
+  "status": "WAITING_INFRA_EVIDENCE",
+  "generated_at": "2026-08-13T15:54:10.102+07:00",
+  "candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "transaction_type": "INCOME",
+    "currency": "IDR",
+    "stored_amount_cents": 100000000,
+    "proposed_amount_cents": 1000000,
+    "opening_balance_cents": 1000000,
+    "historical_recovery_gate": "FINAL_HOLD",
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": false,
+    "production_mutation_count": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2_permitted": false
+  },
+  "known_context": {
+    "transaction_timestamp_utc": "2026-08-11T14:08:31.606Z",
+    "endpoint": "POST /api/v1/transactions",
+    "http_method": "POST",
+    "request_id": "UNKNOWN/UNAVAILABLE",
+    "correlation_id": "UNKNOWN/UNAVAILABLE",
+    "trace_id": "UNKNOWN/UNAVAILABLE",
+    "known_evidence_references": [
+      "apps/backend/recovery_reports/evidence/recovery/final_hold/final_hold_2026-08-13T15-23-53-653+07-00.json",
+      "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json"
+    ],
+    "known_blockers": [
+      "No authoritative request-payload evidence proving the submitted amount for the exact historical transaction.",
+      "No equivalent independent authoritative evidence proving submitted amount_cents=1000000 for the exact transaction.",
+      "No explicit authorized human approval exists."
+    ],
+    "database_derived_context_status": "DATABASE_DERIVED_CONTEXT_ONLY",
+    "database_derived_context_is_authoritative": false
+  },
+  "investigation_target": {
+    "question": "Was amount_cents=1000000 actually submitted by the client/request for this exact transaction?",
+    "required_proof": "Directly tie the submitted amount to the exact candidate record_id/account_id and the exact transaction timestamp or a tightly-bounded corroborated window.",
+    "search_window_start_utc": "2026-08-11T14:00:00Z",
+    "search_window_end_utc": "2026-08-11T14:15:00Z",
+    "fallback_window_start_utc": "2026-08-11T13:30:00Z",
+    "fallback_window_end_utc": "2026-08-11T14:45:00Z",
+    "search_terms": [
+      "97b76766-d13a-4db6-8baf-572292b83913",
+      "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "2026-08-11T14:08:31.606Z",
+      "POST /api/v1/transactions",
+      "amount_cents",
+      "1000000",
+      "100000000",
+      "correlation id",
+      "request id",
+      "trace id"
+    ]
+  },
+  "evidence_priority": [
+    {
+      "priority": 1,
+      "classification": "AUTHORITATIVE_DIRECT_REQUEST_PAYLOAD",
+      "source": "Original API request payload from centralized or archived request logs"
+    },
+    {
+      "priority": 2,
+      "classification": "AUTHORITATIVE_INDEPENDENT_EVIDENCE",
+      "source": "Gateway, reverse proxy, WAF, or API gateway request capture containing the original payload or request metadata sufficient to identify the exact transaction"
+    },
+    {
+      "priority": 3,
+      "classification": "AUTHORITATIVE_INDEPENDENT_EVIDENCE",
+      "source": "Distributed tracing span or service telemetry showing the request amount, request_id, correlation_id, and transaction identity"
+    },
+    {
+      "priority": 4,
+      "classification": "AUTHORITATIVE_INDEPENDENT_EVIDENCE",
+      "source": "Independently preserved application telemetry or import/audit source with the exact request amount"
+    },
+    {
+      "priority": 5,
+      "classification": "DATABASE_DERIVED_CONTEXT",
+      "source": "Database record, stored amount, or balance state only. This does not prove the original client-submitted amount.",
+      "not_authoritative_for_submission_proof": true
+    },
+    {
+      "priority": 6,
+      "classification": "INSUFFICIENT_EVIDENCE",
+      "source": "Any log or record that cannot uniquely tie the submitted amount to the exact candidate transaction"
+    }
+  ],
+  "acceptable_sources": [
+    "Centralized application or infrastructure logs retaining the original request payload",
+    "API gateway or reverse proxy archival logs",
+    "Distributed tracing spans or application telemetry",
+    "WAF/API protection logs containing request metadata",
+    "Independently preserved import/audit records or external source data",
+    "Other authoritative infrastructure evidence that proves the exact submitted amount for the matching request"
+  ],
+  "required_fields": [
+    "source_system",
+    "source_artifact",
+    "event_timestamp",
+    "request_timestamp",
+    "endpoint",
+    "http_method",
+    "correlation_id",
+    "request_id",
+    "trace_id",
+    "authenticated_user_or_account_identifier",
+    "record_id",
+    "account_id",
+    "transaction_type",
+    "currency",
+    "submitted_amount_cents",
+    "response_status",
+    "response_timestamp",
+    "relevant_request_metadata",
+    "evidence_retention_reference_id",
+    "evidence_hash_if_available",
+    "redaction_summary"
+  ],
+  "privacy_constraints": {
+    "do_not_request": [
+      "passwords",
+      "access tokens",
+      "refresh tokens",
+      "authorization headers",
+      "cookies",
+      "secrets",
+      "unrelated PII"
+    ],
+    "allowed_if_policy_permits": [
+      "authenticated user identifier",
+      "account identifier",
+      "client IP",
+      "request metadata necessary to correlate the request"
+    ],
+    "preferred_mode": "Provide redacted excerpts or minimally necessary fields that preserve request identity and amount without exposing credentials or sensitive payloads."
+  },
+  "exact_match_requirements": {
+    "sufficient_evidence": "Evidence must connect the submitted amount to the exact candidate record_id/account_id and the correct request timestamp or a tightly bounded, independently corroborated time window.",
+    "accepted_match": "submitted_amount_cents == 1000000 for the exact candidate.",
+    "rejected_match": "Any evidence that cannot uniquely tie the request amount to the candidate or that relies solely on DB state without independent request evidence.",
+    "database_only_evidence": "NOT SUFFICIENT to prove the original submitted amount."
+  },
+  "evidence_classification_rules": {
+    "A": {
+      "name": "AUTHORITATIVE_MATCH",
+      "meaning": "The evidence directly proves submitted amount_cents=1000000 for the exact candidate."
+    },
+    "B": {
+      "name": "AUTHORITATIVE_NON_MATCH",
+      "meaning": "The evidence directly proves a different submitted amount for the exact candidate."
+    },
+    "C": {
+      "name": "INDEPENDENT_CORROBORATION",
+      "meaning": "No direct payload exists, but an independent authoritative source proves the submitted amount with sufficient identity and time correlation."
+    },
+    "D": {
+      "name": "INSUFFICIENT",
+      "meaning": "Evidence exists but cannot uniquely establish the submitted amount."
+    },
+    "E": {
+      "name": "UNAVAILABLE",
+      "meaning": "Infrastructure cannot retrieve the evidence or it is outside retention."
+    }
+  },
+  "human_approval_requirements": {
+    "default_status": "NOT_APPROVED",
+    "decision_default": "PENDING_HUMAN_REVIEW",
+    "mutation_authorized_default": false,
+    "required_fields_if_evidence_later_arrives": [
+      "candidate_record_id",
+      "evidence_classification",
+      "evidence_references",
+      "submitted_amount",
+      "stored_amount",
+      "proposed_correction",
+      "exact_mismatch_determination",
+      "reviewer",
+      "reviewer_id",
+      "review_timestamp",
+      "decision",
+      "approval_rationale",
+      "rejection_rationale",
+      "mutation_authorized"
+    ],
+    "approval_policies": [
+      "Only an authorized reviewer may approve the candidate after reviewing authoritative evidence.",
+      "No automated approval is permitted.",
+      "Mutation authorization remains false unless explicitly recorded by an authorized human reviewer and policy permits the action."
+    ]
+  },
+  "safety_gate": {
+    "e6_2_condition_1": "authoritative request-payload or equivalent independent evidence must prove the exact submitted amount for the exact candidate.",
+    "e6_2_condition_2": "an authorized human reviewer must explicitly approve the exact candidate with reviewer identity, rationale, timestamp, and mutation_authorized=true.",
+    "technical_staging_pass": "NOT SUFFICIENT for E.6.2 eligibility.",
+    "status": "E.6.2 remains NOT_PERMITTED until both conditions are satisfied.",
+    "production_mutation_count": 0,
+    "production_recovery": "NOT_EXECUTED"
+  },
+  "next_action": {
+    "required": "Await authoritative infrastructure evidence from logs/gateway/telemetry for the exact transaction and timestamp window.",
+    "then": "An authorized human reviewer evaluates the evidence and records explicit approval or rejection. Only after both conditions are met should E.6.2 be reopened.",
+    "do_not_do": [
+      "Do not mutate production data.",
+      "Do not execute historical recovery.",
+      "Do not infer missing request payload values from database state.",
+      "Do not create another E.6.1 resolution artifact without new external evidence."
+    ]
+  },
+  "production_mutation_count": 0
+}

@@ -1,0 +1,40 @@
+# Development override: eksplisit dijalankan via
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up -d --build
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+      args:
+        NODE_ENV: development
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ../apps/backend:/app/apps/backend:cached
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    command: ["npm", "run", "start:dev", "-w", "backend"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        NODE_ENV: development
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ../apps/frontend:/app/apps/frontend:cached
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "dev", "-w", "frontend"]
+    depends_on:
+      backend:
+        condition: service_healthy

@@ -104,10 +104,19 @@ export class CashflowAnalyticsService {
     const expense = current.exp;
     const net = income - expense;
 
-    const compIncome = previous.inc === 0n ? 0 : Number(((income - previous.inc) * 100n / previous.inc).toString());
-    const compExpense = previous.exp === 0n ? 0 : Number(((expense - previous.exp) * 100n / previous.exp).toString());
+    const compIncome =
+      previous.inc === 0n
+        ? 0
+        : Number((((income - previous.inc) * 100n) / previous.inc).toString());
+    const compExpense =
+      previous.exp === 0n
+        ? 0
+        : Number((((expense - previous.exp) * 100n) / previous.exp).toString());
     const prevNet = previous.inc - previous.exp;
-    const compNet = prevNet === 0n ? 0 : Number(((net - prevNet) * 100n / prevNet).toString());
+    const compNet =
+      prevNet === 0n
+        ? 0
+        : Number((((net - prevNet) * 100n) / prevNet).toString());
 
     return {
       income: income.toString(),

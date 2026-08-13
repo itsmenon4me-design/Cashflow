@@ -1,0 +1,136 @@
+{
+  "phase": "TRANSACTION INTEGRITY HARDENING",
+  "historical_recovery": {
+    "status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "authoritative_evidence": "UNAVAILABLE",
+    "exact_mismatch_proven": false,
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": 0,
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2": "NOT_PERMITTED"
+  },
+  "prevention": "IMPLEMENTED",
+  "controls": {
+    "amount_validation": "PASS",
+    "scale_anomaly_detection": "PASS",
+    "request_traceability": "PASS",
+    "audit_logging": "PASS",
+    "idempotency": "PASS",
+    "concurrency": "PASS",
+    "reconciliation": "PASS",
+    "typescript": "PASS",
+    "tests": "PASS"
+  },
+  "amount_validation": {
+    "internal_representation": "integer amount_cents (bigint) where applicable",
+    "rejects_decimal_values": true,
+    "rejects_nan": true,
+    "rejects_infinity": true,
+    "rejects_malformed_numeric_strings": true,
+    "rejects_negative_values_when_disallowed": true,
+    "rejects_unsafe_integers": true,
+    "rejects_out_of_range_values": true,
+    "never_silently_rounds_or_truncates": true,
+    "never_implicit_x100_or_div100": true,
+    "single_authoritative_normalization": true,
+    "same_rules_for_create_and_update": true,
+    "notes": "The write path enforces integer-cent validation and rejects malformed values before persistence."
+  },
+  "scale_anomaly_detection": {
+    "implemented": true,
+    "non_mutating": true,
+    "supported_anomalies": ["x100", "div100", "x10", "div10"],
+    "anomaly_code": "AMOUNT_SCALE_ANOMALY",
+    "behavior": "Emit warning/audit metadata without auto-correcting the amount."
+  },
+  "request_traceability": {
+    "correlation_id": true,
+    "request_id": true,
+    "trace_id": true,
+    "user_id": true,
+    "account_id": true,
+    "record_id": true,
+    "category_id": true,
+    "transaction_type": true,
+    "currency": true,
+    "amount_cents": true,
+    "operation": true,
+    "validation_result": true,
+    "result": true,
+    "anomaly_code": true,
+    "request_timestamp": true,
+    "response_timestamp": true,
+    "http_status": true,
+    "privacy_safe": true,
+    "secrets_not_logged": true,
+    "sensitive_request_bodies_not_logged": true
+  },
+  "audit_logging": {
+    "operation_id": true,
+    "record_id": true,
+    "actor_id": true,
+    "action": true,
+    "before": true,
+    "after": true,
+    "timestamp": true,
+    "correlation_id": true,
+    "request_id": true,
+    "trace_id": true,
+    "result": true,
+    "notes": "Audit metadata is attached to transaction mutation events without storing secrets, tokens, cookies, or full request bodies."
+  },
+  "idempotency": {
+    "supports_reference_number_or_key": true,
+    "duplicate_requests_deduplicated": true,
+    "retry_behavior_deterministic": true,
+    "repeated_request_returns_existing_result": true,
+    "idempotency_state_auditable": true
+  },
+  "concurrency": {
+    "protected_updates": true,
+    "avoid_in_memory_only_locking": true,
+    "database_level_guarding_preferred": true,
+    "stale_write_prevention": true,
+    "race_condition_controls": true
+  },
+  "reconciliation": {
+    "account_balance_recalculation": true,
+    "campaign_balance_and_reports_affected": true,
+    "staging_validation_for_create_update_delete": true,
+    "rollback_ready": true,
+    "repeated_execution_guard": true
+  },
+  "production_safety": {
+    "production_mutation_count": 0,
+    "production_recovery_executed": false,
+    "historical_candidate_untouched": true,
+    "historical_recovery_remains_final_hold": true,
+    "e6_2_prohibited": true,
+    "missing_external_evidence_remains_unknown": true,
+    "no_fabricated_amounts": true
+  },
+  "validation": {
+    "tests_executed": [
+      "src/modules/transactions/services/transactions.service.spec.ts",
+      "src/modules/transactions/services/transactions.regression.scaling.spec.ts",
+      "src/modules/transactions/services/transactions.invariant.spec.ts",
+      "src/modules/transactions/controllers/transactions.controller.spec.ts",
+      "src/modules/audit/historical-data-audit.service.spec.ts"
+    ],
+    "passed": 28,
+    "failed": 0,
+    "tsc_command": "npx tsc --noEmit",
+    "tsc_result": "PASS"
+  },
+  "report_location": "apps/backend/recovery_reports/evidence/observability/transaction_integrity_hardening_2026-08-13T16-20-57-658+07-00.json",
+  "status_summary": {
+    "phase": "TRANSACTION INTEGRITY HARDENING",
+    "historical_recovery": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "prevention": "IMPLEMENTED",
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2": "NOT_PERMITTED",
+    "safety": "NO PRODUCTION DATABASE MUTATION"
+  }
+}

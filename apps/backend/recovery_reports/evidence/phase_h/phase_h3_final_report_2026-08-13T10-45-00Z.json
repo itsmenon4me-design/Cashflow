@@ -1,0 +1,56 @@
+{
+  "phase": "H.3",
+  "timestamp": "2026-08-13T10:45:00Z",
+  "status": "PARTIAL",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "benchmark": {
+    "evidence_path": "apps/backend/recovery_reports/evidence/phase_h/h3_benchmark/benchmark_result_2026-08-13T10-33-10-223Z.json",
+    "note": "Benchmark executed against TARGET_URL=http://localhost:3001/api/v1. Backend not running locally; all requests failed. Measurements are included to show harness behavior and should be re-run against a staging URL.
+",
+    "result_summary": {
+      "total_requests": 200,
+      "successful_requests": 0,
+      "failed_requests": 200,
+      "error_rate": 1.0,
+      "throughput_rps_observed": 140.35087719298244,
+      "latency_ms": { "min": 3, "avg": 16.93, "p50": 11.5, "p95": 44.2, "p99": 64.09, "max": 145 }
+    }
+  },
+  "pwa": {
+    "evidence_path": "apps/backend/recovery_reports/evidence/phase_h/h3_benchmark/pwa_validation_2026-08-13T10-40-00Z.json",
+    "status": "PARTIAL",
+    "notes": "Manifest, icons and service worker exist. Service worker ignores API and caches shell. Offline queue logic is implemented in the frontend but runtime verification is blocked without backend. Installability requires secure context/production registration."
+  },
+  "offline": {
+    "code_level_support": true,
+    "runtime_validation": "BLOCKED / BACKEND_NOT_RUNNING",
+    "offline_write_supported": true,
+    "notes": "Frontend enqueues transactions with a reference_number; backend deduplicates by reference_number. End-to-end flush/retry tests require running backend and test DB."
+  },
+  "mobile_responsive": {
+    "emulation_validation": "PERFORMED (code inspection / build) - PARTIAL",
+    "real_device": "NOT_AVAILABLE",
+    "notes": "Responsive components and hooks exist; only browser/emulation checks are possible locally."
+  },
+  "typescript_status": "PASS (backend tsc --noEmit succeeded)",
+  "tests": {
+    "backend": { "total": 541, "passed": 538, "failed": 3, "notes": "3 integration tests failed due to missing real Postgres instance (ECONNREFUSED). See test logs for details." },
+    "frontend": { "build": "PASS (production build succeeded)" }
+  },
+  "build_status": { "frontend": "PASS", "backend": "PASS" },
+  "security_exception": { "package": "@nestjs/swagger", "classification": "UNRESOLVED_UPSTREAM" },
+  "historical_recovery_status": {
+    "status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "E.6.2": "NOT_PERMITTED",
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED"
+  },
+  "production_mutation_count": 0,
+  "remaining_blockers": [
+    "No staging backend with test Postgres available for end-to-end concurrency/offline validation.",
+    "No real Android/iOS devices available for physical PWA/installability validation.",
+    "Benchmark must be re-run against a reachable staging URL to collect meaningful p50/p95/p99 results."
+  ],
+  "next_phase": "I - FINAL PRODUCTION READINESS & RELEASE AUDIT",
+  "notes": "PHASE H.3 is PARTIAL. REAL_DEVICE remains NOT_AVAILABLE. Do not equate harness numbers with production performance."
+}

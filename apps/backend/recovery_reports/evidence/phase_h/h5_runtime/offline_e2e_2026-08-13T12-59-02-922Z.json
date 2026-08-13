@@ -1,0 +1,473 @@
+{
+  "timestamp": "2026-08-13T12:59:03.650Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend root",
+    "login attempted",
+    {
+      "accountsFound": 5,
+      "categoriesFound": 16,
+      "accountId": "68ad9184-dd9a-4b7b-9400-cb32429a45c5",
+      "categoryId": "3d2c42f8-364a-499b-b178-e05447b77943",
+      "txType": "EXPENSE"
+    },
+    "set offline",
+    "set online"
+  ],
+  "consoleLogs": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:04.073Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:04.081Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:04.088Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:04.093Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:31.365Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:32.379Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:33.440Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:34.463Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:35.477Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:36.512Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:37.530Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:38.556Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:39.581Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:40.610Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:41.626Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:42.652Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:43.684Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:44.710Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:45.739Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:46.764Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:47.789Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:48.823Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:49.850Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:50.874Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:51.893Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:52.917Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:53.932Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:54.946Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:55.961Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:56.981Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:58.004Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T12:59:59.024Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T13:00:00.044Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/transactions?query=offline-1786625969715-wx4wbdrn9do&limit=10",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T13:00:01.069Z"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "appClientReady": false,
+  "appClientReadyAfterNavigation": false,
+  "onlineCreate": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "75eb9559-6b8e-4154-9728-782b155e90da",
+        "account_id": "68ad9184-dd9a-4b7b-9400-cb32429a45c5",
+        "category_id": "3d2c42f8-364a-499b-b178-e05447b77943",
+        "transaction_type": "EXPENSE",
+        "amount_cents": "12345",
+        "transaction_date": "2026-08-13T12:59:29.620Z",
+        "note": "e2e-online-online-1786625969620-o78unx5bukn",
+        "created_at": "2026-08-13T12:59:29.636Z",
+        "updated_at": "2026-08-13T12:59:29.636Z"
+      }
+    }
+  },
+  "enqueue": {
+    "ok": true,
+    "id": "cfg:admin@cashflow.local:1786625969720-i8qyqafg9vb"
+  },
+  "queuedCount": 1,
+  "serviceWorkerRegs": [
+    {
+      "scope": "http://localhost:3000/"
+    }
+  ],
+  "syncControllerState": {
+    "hasSyncController": false,
+    "syncControllerType": "undefined"
+  },
+  "screenshot": "offline_e2e_screenshot_2026-08-13T12-59-02-922Z.png",
+  "syncControllerFlushCall": {
+    "ok": false,
+    "reason": "no-sync-controller"
+  },
+  "flushed": false,
+  "flushedRecord": null,
+  "manualQueuedRecord": null
+}

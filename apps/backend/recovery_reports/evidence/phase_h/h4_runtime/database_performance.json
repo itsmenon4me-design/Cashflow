@@ -1,0 +1,11 @@
+{
+  "phase": "H.4 - Database Performance",
+  "timestamp": "2026-08-13T17:38:00Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "scope": "Slow queries, missing indexes, transaction plans, transfer/query performance",
+  "commands": [
+    "(Requires staging Postgres with data)
+  "],
+  "result": "BLOCKED / STAGING_POSTGRES_NOT_AVAILABLE",
+  "notes": "Database performance inspection requires a running staging Postgres instance with representative data and access to EXPLAIN ANALYZE. Pending staging provisioning."
+}

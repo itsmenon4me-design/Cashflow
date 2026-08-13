@@ -1,0 +1,93 @@
+{
+  "phase": "H.3",
+  "timestamp": "2026-08-13T11:43:37.990Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "target": "http://localhost:3001/api/v1",
+  "config": {
+    "totalRequests": 500,
+    "concurrency": 10,
+    "pacingMs": 10
+  },
+  "overall": {
+    "total": 500,
+    "successes": 0,
+    "failures": 500,
+    "errorRate": 1,
+    "throughput_rps": 367.91758646063283,
+    "min": 2,
+    "avg": 10.198,
+    "p50": 8,
+    "p95": 22,
+    "p99": 26,
+    "max": 33
+  },
+  "perEndpoint": {
+    "GET /transactions": {
+      "total": 100,
+      "successes": 0,
+      "failures": 100,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 3,
+      "avg": 9.58,
+      "p50": 7,
+      "p95": 22.049999999999997,
+      "p99": 25.010000000000005,
+      "max": 26
+    },
+    "GET /dashboard/summary": {
+      "total": 100,
+      "successes": 0,
+      "failures": 100,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 2,
+      "avg": 9.05,
+      "p50": 7,
+      "p95": 20.14999999999999,
+      "p99": 25.02000000000001,
+      "max": 27
+    },
+    "GET /reports": {
+      "total": 100,
+      "successes": 0,
+      "failures": 100,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 2,
+      "avg": 10.91,
+      "p50": 9,
+      "p95": 22,
+      "p99": 25.010000000000005,
+      "max": 26
+    },
+    "GET /budgets": {
+      "total": 100,
+      "successes": 0,
+      "failures": 100,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 2,
+      "avg": 10.41,
+      "p50": 8,
+      "p95": 22.049999999999997,
+      "p99": 26,
+      "max": 26
+    },
+    "POST /transactions": {
+      "total": 100,
+      "successes": 0,
+      "failures": 100,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 3,
+      "avg": 11.04,
+      "p50": 8,
+      "p95": 22.099999999999994,
+      "p99": 31.02000000000001,
+      "max": 33
+    }
+  },
+  "measurementsCount": 500,
+  "wallTimeSec": 1.359
+}

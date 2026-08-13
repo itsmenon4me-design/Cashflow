@@ -192,14 +192,14 @@ describe('DashboardWidgetsService', () => {
         total: '0',
         categories: [],
       }),
-    ) as unknown as typeof mocks.categorySvc.getBreakdown;
+    );
 
     mocks.trendSvc.getTrend = jest.fn(() =>
       Promise.resolve({
         type: 'monthly' as const,
         data: [],
       }),
-    ) as unknown as typeof mocks.trendSvc.getTrend;
+    );
 
     mocks.budgetSvc.analyzeMonth = jest.fn(() =>
       Promise.resolve(null),
@@ -229,7 +229,7 @@ describe('DashboardWidgetsService', () => {
 
     mocks.monthlySvc.getMonthlyReport = jest.fn(() =>
       Promise.reject(new Error('fail monthly')),
-    ) as unknown as typeof mocks.monthlySvc.getMonthlyReport;
+    );
 
     const svc = new DashboardWidgetsService(
       mocks.summarySvc,

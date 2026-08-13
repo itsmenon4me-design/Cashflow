@@ -1,0 +1,78 @@
+{
+  "phase": "E.6.1H",
+  "status": "WAITING_EXTERNAL_EVIDENCE_AND_HUMAN_APPROVAL",
+  "timestamp": "2026-08-13T14:56:17.609+07:00",
+  "candidate_count_total": 38,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "stored_amount_cents": "100000000",
+    "proposed_amount_cents": "1000000",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "opening_balance_cents": "1000000",
+    "current_balance_cents": "1000000"
+  },
+  "request_payload_evidence": {
+    "status": "UNAVAILABLE",
+    "target_endpoint": "POST /api/v1/transactions",
+    "target_timestamp": "2026-08-11T14:08:31.606Z",
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "reason": "No authoritative application, gateway, proxy, WAF, or archived request-body evidence for the exact request was found in accessible local artifacts.",
+    "evidence_references": [
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+      "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+      "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1f_final_evidence_approval_reconciliation_2026-08-13T14-50-48-562Z.json"
+    ]
+  },
+  "independent_evidence": {
+    "status": "UNAVAILABLE",
+    "reason": "No equivalent authoritative independent source proving the intended amount was identified in accessible local evidence.",
+    "evidence_references": []
+  },
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "decision": "PENDING_HUMAN_REVIEW",
+    "reviewer": null,
+    "reviewer_id": null,
+    "review_timestamp": null,
+    "approval_rationale": null,
+    "candidate_record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "mutation_authorized": false,
+    "manifest_reference": "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json"
+  },
+  "technical_gate_status": {
+    "snapshot_integrity": "PASS",
+    "snapshot_hash": "PASS",
+    "immutable_artifact_handling": "PASS",
+    "rollback": "PASS",
+    "audit_persistence": "PASS",
+    "balance_reconciliation": "PASS",
+    "concurrency": "PASS",
+    "idempotency": "PASS",
+    "x100_automatic_correction_prohibition": "PASS",
+    "staging_verification": "STAGING_VERIFIED"
+  },
+  "e6_2_permission": "NOT_PERMITTED",
+  "remaining_blockers": [
+    "authoritative request-payload or equivalent independent evidence for the exact transaction and timestamp",
+    "explicit human approval for the exact candidate with reviewer identity, rationale, timestamp, and explicit authorization"
+  ],
+  "production_mutation_count": 0,
+  "production_recovery_executed": false,
+  "safety": {
+    "production_database_mutation": 0,
+    "production_read_only": true,
+    "statement": "NO PRODUCTION DATABASE MUTATION PERFORMED."
+  },
+  "tests": {
+    "commands_executed": [
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/tools/recovery/classifier.spec.ts src/modules/audit/historical-data-recovery.service.spec.ts src/modules/audit/e6_1_staging_verification.spec.ts src/modules/audit/e6_1b_persisted_artifact_store.spec.ts src/modules/audit/e6_1c_staging_verification.spec.ts"
+    ],
+    "suite_count": 5,
+    "tests_passed": 39,
+    "tests_failed": 0,
+    "status": "PASS"
+  }
+}

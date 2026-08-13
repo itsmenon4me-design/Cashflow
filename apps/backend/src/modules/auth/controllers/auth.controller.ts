@@ -22,7 +22,6 @@ import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
-
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
@@ -63,7 +62,7 @@ export class AuthController {
     @CurrentUser('sub') userId: string,
     @CurrentUser('sessionId') sessionId?: string,
   ) {
-    await this.sessions.logoutCurrent(sessionId as string, userId as string);
+    await this.sessions.logoutCurrent(sessionId as string, userId);
     return { success: true };
   }
 

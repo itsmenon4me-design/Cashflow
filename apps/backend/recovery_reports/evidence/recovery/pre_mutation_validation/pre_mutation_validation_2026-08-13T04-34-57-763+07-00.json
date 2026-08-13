@@ -1,0 +1,129 @@
+{
+  "phase": "E.6.0",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T04:34:57.763+07:00",
+  "database_mutation": 0,
+  "candidate_count": 38,
+  "approval_summary": {
+    "approved": 0,
+    "pending": 38,
+    "rejected": 0,
+    "mutation_authorized_count": 0,
+    "manifest_path": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "template_path": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json"
+  },
+  "database_revalidation_summary": {
+    "method": "Read authoritative DB context artifact produced in Phase E.5.2",
+    "db_context_path": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "primary_candidate_check": {
+      "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "expected_amount_cents": "100000000",
+      "observed_amount_cents": "100000000",
+      "account_id_expected": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "account_id_observed": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "status": "MATCH"
+    }
+  },
+  "proposed_value_validation": {
+    "primary_candidate": {
+      "stored_value_cents": "100000000",
+      "proposed_value_cents": "1000000",
+      "ratio": 0.01,
+      "proposed_value_supported_by_evidence": false,
+      "notes": "Proposed value (stored/100) is hypothesized by classifier and supported indirectly by account opening_balance, but direct client request payload evidence is missing. Do not apply automatically."
+    }
+  },
+  "idempotency_validation": {
+    "required_guard": "Future mutation MUST include WHERE amount_cents = approved_original_value to avoid accidental overwrite",
+    "conceptual_query_example": "UPDATE transactions SET amount_cents = <approved_proposed_value> WHERE id = <approved_record_id> AND amount_cents = <approved_original_value>",
+    "status": "DESIGN_OK (no implementation in this phase)"
+  },
+  "snapshot_validation": {
+    "required_fields": [
+      "record_id",
+      "account_id",
+      "original_amount_cents",
+      "proposed_amount_cents",
+      "currency",
+      "transaction_type",
+      "category_id",
+      "note",
+      "created_at",
+      "updated_at",
+      "account_opening_balance",
+      "account_current_balance",
+      "evidence_hashes_references",
+      "approval_identity",
+      "approval_timestamp"
+    ],
+    "status": "SNAPSHOT_MECHANISM_NOT_READY",
+    "notes": "No immutable snapshot mechanism verified in this environment. Snapshot must be captured before any mutation."
+  },
+  "rollback_validation": {
+    "required": true,
+    "status": "ROLLBACK_NOT_READY",
+    "notes": "No verified rollback mechanism found; rollback must restore exact original value from immutable snapshot; must not infer old value from new."
+  },
+  "audit_validation": {
+    "required_fields": [
+      "operation_id",
+      "record_id",
+      "account_id",
+      "original_value",
+      "new_value",
+      "currency",
+      "reason",
+      "evidence_references",
+      "reviewer_identity",
+      "approval_timestamp",
+      "execution_timestamp",
+      "operator_identity",
+      "before_after_state",
+      "result",
+      "rollback_reference"
+    ],
+    "status": "AUDIT_NOT_READY",
+    "notes": "Audit record design described in manifest, but no concrete audit storage/emit mechanism verified here."
+  },
+  "balance_integrity_validation": {
+    "status": "BALANCE_INTEGRITY_NOT_READY",
+    "notes": "Relationship between transaction amount updates and account.current_balance requires explicit, tested reconciliation steps. Changing transaction amounts will affect balances and possibly downstream artifacts. A clear balance update strategy (ledger-style or recalculation) is required before mutation."
+  },
+  "concurrency_validation": {
+    "status": "CONCURRENCY_GUARD_NOT_READY",
+    "notes": "No runtime locking or operation-id based guard verified in this environment; future mutation must ensure idempotent operation and protection against concurrent edits."
+  },
+  "dry_run_summary": {
+    "description": "Simulation using existing artifacts only; no DB writes performed",
+    "primary_candidate_effect": {
+      "if_applied_change_cents": "-99000000",
+      "if_applied_balance_delta_cents": "-99000000",
+      "current_account_balance_cents": "1000000",
+      "simulated_new_balance_cents": "-98000000"
+    },
+    "notes": "This arithmetic is illustrative of the numeric delta between stored and proposed transaction amounts; do NOT treat as authoritative because account balance model may differ (e.g., current_balance may already reflect other adjustments). A full ledger-based reconciliation is required before mutation."
+  },
+  "tests": {
+    "commands_run": [
+      "npm --prefix \"D:\\Project 2\\CashFlow\\apps\\backend\" test -- src/tools/recovery/classifier.spec.ts --runInBand"
+    ],
+    "results": {
+      "recovery_classifier_spec": "PENDING"
+    }
+  },
+  "blockers": [
+    "No explicit human approvals recorded (all candidates PENDING_HUMAN_REVIEW)",
+    "Direct client request payload evidence unavailable locally (infra retrieval required)",
+    "Snapshot mechanism not verified (SNAPSHOT_MECHANISM_NOT_READY)",
+    "Rollback mechanism not verified (ROLLBACK_NOT_READY)",
+    "Audit emission/storage not verified (AUDIT_NOT_READY)",
+    "Account balance reconciliation strategy not verified (BALANCE_INTEGRITY_NOT_READY)",
+    "Concurrency/idempotency runtime guards not verified (CONCURRENCY_GUARD_NOT_READY)"
+  ],
+  "final_gate": "BLOCKED",
+  "final_notes": "Phase E.6.0 validation BLOCKED. Address blockers and obtain explicit human approvals and infra-log evidence before re-running pre-mutation validation.",
+  "artifact_paths": {
+    "pre_mutation_json": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery/pre_mutation_validation/pre_mutation_validation_2026-08-13T04-34-57-763+07-00.json",
+    "pre_mutation_md": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery/pre_mutation_validation/pre_mutation_validation_2026-08-13T04-34-57-763+07-00.md"
+  }
+}

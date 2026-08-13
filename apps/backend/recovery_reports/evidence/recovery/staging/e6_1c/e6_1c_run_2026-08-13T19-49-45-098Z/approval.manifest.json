@@ -1,0 +1,7 @@
+{
+  "reviewer_id": "stg-reviewer",
+  "reviewer": "synthetic-staging-reviewer",
+  "decision": "APPROVED_FOR_TESTING",
+  "mutation_authorized": false,
+  "phase": "E.6.1C"
+}

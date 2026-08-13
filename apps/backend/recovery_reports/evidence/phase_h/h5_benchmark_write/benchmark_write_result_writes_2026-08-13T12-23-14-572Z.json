@@ -1,0 +1,28 @@
+{
+  "group": "writes",
+  "timestamp": "2026-08-13T12:23:14.572Z",
+  "measurementsCount": 200,
+  "summary": {
+    "total": 200,
+    "successes": 200,
+    "failures": 0,
+    "errorRate": 0,
+    "min": 19,
+    "avg": 33.32,
+    "p50": 31,
+    "p95": 50.19999999999993,
+    "p99": 74.03999999999996,
+    "max": 99,
+    "throughput_rps": 85.6164383561644,
+    "statusDistribution": {
+      "201": 200
+    }
+  },
+  "errorCategories": {
+    "other": 200
+  },
+  "statusDistribution": {
+    "201": 200
+  },
+  "sampleErrors": {}
+}

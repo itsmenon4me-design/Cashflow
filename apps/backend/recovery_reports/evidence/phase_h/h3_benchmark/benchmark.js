@@ -1,0 +1,267 @@
+/*
+Enhanced benchmark harness for H.5 write-endpoint remediation.
+- Logs per-endpoint and per-run group stats
+- Authenticates once and reuses token
+- Fetches accounts and categories from staging to use valid IDs
+- Produces detailed JSON + Markdown into configurable output directory
+
+Usage:
+  $env:TARGET_URL = 'http://localhost:3001/api/v1'
+  $env:BENCH_RUN_TYPE = 'auth'|'reads'|'writes'|'reports'|'' (empty for full mixed run)
+  $env:BENCH_TOTAL = '200'
+  $env:BENCH_CONC = '5'
+  $env:BENCH_PACING = '10'
+  $env:BENCH_USER / BENCH_PASS
+  $env:OUTPUT_DIR = './h5_benchmark_write'
+
+IMPORTANT: Point TARGET_URL to local/staging only. Do NOT use production.
+*/
+
+const fs = require('fs');
+const path = require('path');
+
+function now(){ return Date.now(); }
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+function percentile(sorted, p){ if(sorted.length===0) return null; const idx = (p/100)*(sorted.length-1); const l=Math.floor(idx), u=Math.ceil(idx); if(l===u) return sorted[l]; const w=idx-l; return sorted[l]*(1-w)+sorted[u]*w; }
+
+async function doRequest(method, url, opts){
+  const start = now();
+  try{
+    const res = await fetch(url, { method, ...opts });
+    const text = await res.text();
+    const duration = now()-start;
+    let body = null;
+    try{ body = text?JSON.parse(text):null; }catch(e){ body = text; }
+    return { status: res.status, duration, body };
+  }catch(err){
+    const duration = now()-start;
+    return { status: 0, duration, error: String(err) };
+  }
+}
+
+function summarize(measurements){
+  const lat = measurements.map(m=>m.duration).sort((a,b)=>a-b);
+  const total = measurements.length;
+  const successes = measurements.filter(m=>m.status>=200 && m.status<300).length;
+  const failures = total - successes;
+  const errorRate = total===0?null:(failures/total);
+  const min = lat.length?lat[0]:null;
+  const avg = lat.length?lat.reduce((a,b)=>a+b,0)/lat.length:null;
+  const p50 = percentile(lat,50);
+  const p95 = percentile(lat,95);
+  const p99 = percentile(lat,99);
+  const max = lat.length?lat[lat.length-1]:null;
+  return { total, successes, failures, errorRate, min, avg, p50, p95, p99, max };
+}
+
+function statusDistribution(ms){
+  const dist = {};
+  for(const m of ms){ const s = String(m.status||0); dist[s] = (dist[s]||0)+1; }
+  return dist;
+}
+
+function categorizeError(m){
+  if(!m || !m.status) return 'network/timeout';
+  const s = m.status;
+  if(s>=500) return '5xx';
+  if(s===429) return 'rate_limit';
+  if(s===409) return 'conflict/idempotency';
+  if(s===404) return 'not_found';
+  if(s===403) return 'forbidden';
+  if(s===401) return 'unauthorized';
+  if(s===400) return 'validation';
+  return 'other';
+}
+
+async function login(cfg){
+  if(!(cfg.auth && cfg.auth.username && cfg.auth.password)){
+    if(process.env.AUTH_TOKEN) return { token: process.env.AUTH_TOKEN };
+    return { token: null };
+  }
+  const url = `${cfg.target}/auth/login`;
+  const res = await doRequest('POST', url, { headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '127.0.0.1', 'User-Agent':'bench-client/1.0' }, body: JSON.stringify({ email: cfg.auth.username, password: cfg.auth.password }) });
+  if(res.status>=200 && res.status<300){
+    // token may be in several places
+    const token = (res.body && res.body.data && (res.body.data.accessToken || res.body.data.token || res.body.data.access_token)) || (res.body && (res.body.accessToken || res.body.token || res.body.access_token)) || null;
+    return { token, raw: res.body };
+  }
+  return { token: null, raw: res.body || res.error, status: res.status };
+}
+
+async function fetchAccountsAndCategories(target, token){
+  const headers = token? { 'Accept':'application/json', 'Authorization': `Bearer ${token}` } : { 'Accept':'application/json' };
+  const accRes = await doRequest('GET', `${target}/accounts`, { headers });
+  const catRes = await doRequest('GET', `${target}/categories`, { headers });
+  const accounts = accRes.body && (accRes.body.data || accRes.body) ? (accRes.body.data || accRes.body) : null;
+  const categories = catRes.body && (catRes.body.data || catRes.body) ? (catRes.body.data || catRes.body) : null;
+  return { accounts, categories, accountsMeta: accRes, categoriesMeta: catRes };
+}
+
+async function runGroup(cfg, opts){
+  const measurements = [];
+  const endpoints = opts.endpoints;
+  const total = cfg.totalRequests;
+  const concurrency = cfg.concurrency;
+  let issued = 0;
+
+  async function worker(){
+    while(true){
+      const i = ++issued; if(i>total) break;
+      const ep = endpoints[(i-1)%endpoints.length];
+      const method = ep.method||'GET';
+      const url = cfg.target + (ep.path.startsWith('/')?ep.path:'/'+ep.path);
+      let body = null; let headers = { 'Accept':'application/json' };
+      if(cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
+
+      if(method.toUpperCase()==='POST' || method.toUpperCase()==='PUT'){
+        if(ep.name && ep.name.toLowerCase().includes('transaction')){
+          // build valid CreateTransactionDto
+          const txType = Math.random()<0.5?'EXPENSE':'INCOME';
+          const amount_cents = Math.floor(Math.random()*100000)+100; // cents
+          const ref = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const payload = {
+            account_id: cfg.testData && cfg.testData.accountId ? cfg.testData.accountId : null,
+            category_id: (txType === 'EXPENSE' ? (cfg.testData && cfg.testData.categoryExpenseId) : (cfg.testData && cfg.testData.categoryIncomeId)) || (cfg.testData && cfg.testData.categoryId) || null,
+            transaction_type: txType,
+            amount_cents,
+            transaction_date: new Date().toISOString(),
+            note: `bench write ${ref}`,
+            reference_number: ref
+          };
+          body = JSON.stringify(payload);
+          headers['Content-Type'] = 'application/json';
+        } else if(ep.body){ body = JSON.stringify(ep.body); headers['Content-Type']='application/json'; }
+      }
+
+      const res = await doRequest(method, url, { headers, body });
+      measurements.push({ endpoint: ep.name||ep.path, method, path: ep.path, status: res.status, duration: res.duration, body: res.body, error: res.error });
+      if(cfg.pacingMs) await sleep(cfg.pacingMs);
+    }
+  }
+
+  const workers = [];
+  const startTime = now();
+  for(let w=0; w<concurrency; w++) workers.push(worker());
+  await Promise.all(workers);
+  const wallTimeSec = Math.max(0.0001, (now()-startTime)/1000);
+  return { measurements, wallTimeSec };
+}
+
+async function main(){
+  const args = process.argv.slice(2);
+  const envTarget = process.env.TARGET_URL || process.env.BASE_URL || 'http://localhost:3001/api/v1';
+  const outputDir = process.env.OUTPUT_DIR || path.join(__dirname, 'h5_benchmark_write');
+  if(!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  const cfg = {
+    target: envTarget.replace(/\/$/,''),
+    totalRequests: parseInt(process.env.BENCH_TOTAL||'200',10),
+    concurrency: parseInt(process.env.BENCH_CONC||'5',10),
+    pacingMs: parseInt(process.env.BENCH_PACING||'10',10),
+    auth: { username: process.env.BENCH_USER||null, password: process.env.BENCH_PASS||null }
+  };
+
+  console.log('Target:', cfg.target, 'total:', cfg.totalRequests, 'concurrency:', cfg.concurrency);
+
+  // login once
+  const loginRes = await login(cfg);
+  cfg.token = loginRes.token;
+  if(!cfg.token){
+    console.warn('Login failed or no token returned:', loginRes.raw || loginRes.status);
+  } else {
+    console.log('Authenticated, token length:', String(cfg.token).length);
+  }
+
+  // fetch accounts/categories when authenticated
+  let acctInfo = null;
+  if(cfg.token){ acctInfo = await fetchAccountsAndCategories(cfg.target, cfg.token); }
+  // pick sane defaults
+  const testData = { accountId: process.env.BENCH_ACCOUNT_ID || null, categoryId: process.env.BENCH_CATEGORY_ID || null, categoryExpenseId: null, categoryIncomeId: null };
+  if(acctInfo && acctInfo.accounts && acctInfo.accounts.length){
+    testData.accountId = testData.accountId || (acctInfo.accounts[0].id || acctInfo.accounts[0].account_id || acctInfo.accounts[0].uuid);
+  }
+  if(acctInfo && acctInfo.categories && acctInfo.categories.length){
+    // try to find an explicit expense/income category
+    for(const c of acctInfo.categories){
+      const t = (c.type || c.category_type || '').toString().toUpperCase();
+      if(t === 'EXPENSE' && !testData.categoryExpenseId) testData.categoryExpenseId = c.id || c.category_id || c.uuid;
+      if(t === 'INCOME' && !testData.categoryIncomeId) testData.categoryIncomeId = c.id || c.category_id || c.uuid;
+    }
+    // fallback to first category for unspecified types
+    testData.categoryExpenseId = testData.categoryExpenseId || (acctInfo.categories[0].id || acctInfo.categories[0].category_id || acctInfo.categories[0].uuid);
+    testData.categoryIncomeId = testData.categoryIncomeId || testData.categoryExpenseId;
+    testData.categoryId = testData.categoryId || testData.categoryExpenseId;
+  }
+
+  console.log('Using accountId:', testData.accountId, 'categoryId:', testData.categoryId);
+
+  const runType = process.env.BENCH_RUN_TYPE || '';
+
+  // endpoint groups
+  const groups = {
+    auth: [ { name:'login', path:'/auth/login', method:'POST' } ],
+    reads: [ { name:'transaction_list', path:'/transactions', method:'GET' }, { name:'dashboard_summary', path:'/dashboard/summary', method:'GET' }, { name:'budgets', path:'/budgets', method:'GET' }, { name:'reports', path:'/reports', method:'GET' } ],
+    writes: [ { name:'transaction_create', path:'/transactions', method:'POST' } ],
+    reports: [ { name:'reports', path:'/reports', method:'GET' } ]
+  };
+
+  const selectedGroups = runType ? (runType.split(',').map(g=>g.trim()).filter(Boolean)) : ['auth','reads','writes','reports'];
+
+  const summaryAll = { phase: 'H.5-benchmark-write', timestamp: new Date().toISOString(), target: cfg.target, config: { total: cfg.totalRequests, concurrency: cfg.concurrency, pacingMs: cfg.pacingMs }, runs: {} };
+
+  for(const grp of selectedGroups){
+    if(!groups[grp]){ console.warn('Unknown group', grp); continue; }
+    const endpoints = groups[grp];
+    // prepare cfg for this run
+    const runCfg = { ...cfg, totalRequests: cfg.totalRequests, concurrency: cfg.concurrency, pacingMs: cfg.pacingMs, token: cfg.token, testData };
+    console.log('Starting run group:', grp);
+
+    // special-case auth run: we will hit /auth/login with payloads
+    const endpointsToRun = endpoints.map(e=> ({...e}) );
+    const result = await runGroup(runCfg, { endpoints: endpointsToRun });
+    const measurements = result.measurements;
+    const wallTimeSec = result.wallTimeSec;
+
+    const summary = summarize(measurements);
+    summary.throughput_rps = summary.total / wallTimeSec;
+    summary.statusDistribution = statusDistribution(measurements);
+    // categorize failures
+    const errorCats = {};
+    for(const m of measurements){ if(m.status>=400){ const cat = categorizeError(m); errorCats[cat] = (errorCats[cat]||0)+1; } }
+
+    // collect representative error messages
+    const errors = {};
+    for(const m of measurements){ if(m.status>=400){ const key = `${m.status}`; if(!errors[key]) errors[key]=[]; const message = m.body && m.body.message ? m.body.message : (m.body && JSON.stringify(m.body).slice(0,200)) || m.error || 'unknown'; if(errors[key].length<5) errors[key].push(message); } }
+    const runOut = { group: grp, timestamp: new Date().toISOString(), measurementsCount: measurements.length, summary, errorCategories: errorCats, statusDistribution: summary.statusDistribution, sampleErrors: errors };
+
+    const ts = new Date().toISOString().replace(/[:.]/g,'-');
+    const base = path.join(outputDir, `benchmark_write_result_${grp}_${ts}`);
+    fs.writeFileSync(base + '.json', JSON.stringify(runOut, null, 2));
+
+    let md = `# Benchmark write run - ${grp}\n\n`;
+    md += `- timestamp: ${runOut.timestamp}\n`;
+    md += `- group: ${grp}\n`;
+    md += `- target: ${cfg.target}\n`;
+    md += `- total requests: ${cfg.totalRequests}\n`;
+    md += `- concurrency: ${cfg.concurrency}\n`;
+    md += `\n## Summary\n\n`;
+    md += `- total: ${runOut.summary.total}\n- successes: ${runOut.summary.successes}\n- failures: ${runOut.summary.failures}\n- error_rate: ${runOut.summary.errorRate}\n`;
+    md += `- status distribution: ${JSON.stringify(runOut.statusDistribution)}\n`;
+    md += `- error categories: ${JSON.stringify(runOut.errorCategories)}\n\n`;
+    md += `## Sample errors\n\n`;
+    for(const k of Object.keys(runOut.sampleErrors)){
+      md += `### HTTP ${k}\n`;
+      for(const m of runOut.sampleErrors[k]) md += `- ${m}\n`;
+    }
+
+    fs.writeFileSync(base + '.md', md, 'utf8');
+    summaryAll.runs[grp] = { json: base + '.json', md: base + '.md' };
+    console.log('Wrote run results for', grp, base + '.json');
+  }
+
+  const allOut = path.join(outputDir, `benchmark_write_summary_${new Date().toISOString().replace(/[:.]/g,'-')}.json`);
+  fs.writeFileSync(allOut, JSON.stringify(summaryAll, null, 2));
+  console.log('All runs complete, summary:', allOut);
+}
+
+main().catch(e=>{ console.error('Benchmark failed', e); process.exit(1); });

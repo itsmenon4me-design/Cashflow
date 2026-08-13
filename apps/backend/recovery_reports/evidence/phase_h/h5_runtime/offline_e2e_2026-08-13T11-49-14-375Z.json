@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-08-13T11:49:14.860Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto login"
+  ],
+  "error": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#email')\u001b[22m\n"
+}

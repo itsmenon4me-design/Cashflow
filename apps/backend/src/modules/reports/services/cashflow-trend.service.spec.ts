@@ -10,7 +10,9 @@ const makePrismaMock = (
 ): PrismaService => {
   return {
     transaction: {
-      findMany: jest.fn(() => Promise.resolve(recs)) as unknown as PrismaService['transaction']['findMany'],
+      findMany: jest.fn(() =>
+        Promise.resolve(recs),
+      ) as unknown as PrismaService['transaction']['findMany'],
     } as unknown as PrismaService['transaction'],
     account: {
       findMany: jest.fn(() =>

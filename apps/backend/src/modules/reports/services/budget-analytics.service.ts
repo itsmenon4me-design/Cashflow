@@ -97,7 +97,8 @@ export class BudgetAnalyticsService {
       select: { currency: true, is_default: true },
     });
     const defaultAcc = accounts.find((a) => a.is_default);
-    const targetCurrency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+    const targetCurrency =
+      defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     // transactions
     const groups = await this.prisma.transaction
@@ -157,7 +158,8 @@ export class BudgetAnalyticsService {
 
       const spentAmount = spentByCategory[b.category_id] ?? 0n;
 
-      const remainingAmount = budgetAmount > spentAmount ? budgetAmount - spentAmount : 0n;
+      const remainingAmount =
+        budgetAmount > spentAmount ? budgetAmount - spentAmount : 0n;
 
       const percentageUsed =
         budgetAmount === 0n
@@ -184,15 +186,10 @@ export class BudgetAnalyticsService {
       0n,
     );
 
-    const overallSpent = items.reduce(
-      (s, i) => s + BigInt(i.spentAmount),
-      0n,
-    );
+    const overallSpent = items.reduce((s, i) => s + BigInt(i.spentAmount), 0n);
 
     const overallRemaining =
-      overallBudget > overallSpent
-        ? overallBudget - overallSpent
-        : 0n;
+      overallBudget > overallSpent ? overallBudget - overallSpent : 0n;
 
     const overallPercentage =
       overallBudget === 0n

@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-08-13T11:53:06.584Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend root",
+    "login attempted",
+    {
+      "accountsFound": 5,
+      "categoriesFound": 16,
+      "accountId": "68ad9184-dd9a-4b7b-9400-cb32429a45c5",
+      "categoryId": "2de70a2d-dd56-46b6-9b35-8564b2044a83"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "onlineCreate": {
+    "status": 400,
+    "body": {
+      "success": false,
+      "message": "Transaction type does not match category type",
+      "errorCode": "ERR_INVALID_INPUT",
+      "timestamp": "2026-08-13T11:53:10.263Z",
+      "path": "/api/v1/transactions",
+      "statusCode": 400
+    }
+  },
+  "error": "Error: Online transaction creation failed: {\"status\":400,\"body\":{\"success\":false,\"message\":\"Transaction type does not match category type\",\"errorCode\":\"ERR_INVALID_INPUT\",\"timestamp\":\"2026-08-13T11:53:10.263Z\",\"path\":\"/api/v1/transactions\",\"statusCode\":400}}"
+}

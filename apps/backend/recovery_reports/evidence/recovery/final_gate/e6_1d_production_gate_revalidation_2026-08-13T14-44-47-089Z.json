@@ -1,0 +1,130 @@
+{
+  "phase": "E.6.1D",
+  "status": "PRODUCTION_BLOCKED",
+  "decision": "PRODUCTION_BLOCKED",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T14:44:47.089+07:00",
+  "database_mutation": 0,
+  "production_mutation_count": 0,
+  "production_recovery_executed": "NOT EXECUTED",
+  "staging_mutation_count": 1,
+  "candidate_count_total": 38,
+  "candidate_count_primary": 1,
+  "candidate_count_suspicious": 37,
+  "approved_count": 0,
+  "rejected_count": 0,
+  "pending_count": 38,
+  "mutation_authorized_true_count": 0,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "stored_amount_cents": "100000000",
+    "proposed_amount_cents": "1000000",
+    "opening_balance_cents": "1000000",
+    "current_classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "classification_text": "LIKELY_CORRUPTED / HIGH"
+  },
+  "gates": {
+    "human_approval": {
+      "status": "BLOCKED",
+      "approval_status": "NOT_APPROVED",
+      "decision": "PENDING_HUMAN_REVIEW",
+      "mutation_authorized": false,
+      "reason": "No explicit human approval exists for the exact primary candidate and mutation_authorized is false.",
+      "evidence_reference": [
+        "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+        "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json"
+      ]
+    },
+    "request_payload_evidence": {
+      "status": "BLOCKED",
+      "expected": "UNAVAILABLE",
+      "reason": "Direct request-payload evidence for POST /api/v1/transactions at 2026-08-11T14:08:31.606Z is unavailable; request_payload_found = false.",
+      "evidence_reference": [
+        "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json"
+      ]
+    },
+    "staging_technical_gate": {
+      "status": "PASS",
+      "suite_count": 4,
+      "test_count": 34,
+      "evidence_reference": [
+        "apps/backend/src/modules/audit/e6_1_staging_verification.spec.ts",
+        "apps/backend/src/modules/audit/e6_1b_persisted_artifact_store.spec.ts",
+        "apps/backend/src/modules/audit/e6_1c_staging_verification.spec.ts",
+        "apps/backend/recovery_reports/evidence/recovery/staging/e6_1c/e6_1c_run_2026-08-13T07-42-45-261Z/final.verification.report.json"
+      ],
+      "reason": "All staging technical checks passed, including environment safety, immutable snapshot hashing, x100 rejection, non-x100 execution, reconciliation, rollback, audit persistence, concurrency, and idempotency."
+    },
+    "production_safety_infrastructure": {
+      "status": "PASS",
+      "immutable_snapshot": "VERIFIED",
+      "rollback": "VERIFIED",
+      "audit": "VERIFIED",
+      "balance_reconciliation": "VERIFIED",
+      "concurrency_guard": "VERIFIED",
+      "idempotency": "VERIFIED",
+      "x100_protection": "VERIFIED",
+      "reason": "The staged execution infrastructure demonstrates the required controls. This does not permit production recovery absent approval and authoritative request evidence."
+    },
+    "candidate_scope": {
+      "status": "PASS",
+      "total": 38,
+      "primary": 1,
+      "suspicious": 37,
+      "approved": 0,
+      "rejected": 0,
+      "pending": 38,
+      "reason": "Candidate scope is correctly limited to 38 pending candidates and none are approved."
+    },
+    "production_execution_authorization": {
+      "status": "BLOCKED",
+      "all_conditions_met": false,
+      "required_conditions": [
+        "Human approval exists for the exact candidate",
+        "mutation_authorized=true is explicitly recorded by authorized reviewer",
+        "Required request-payload or equivalent independent evidence exists",
+        "Snapshot mechanism is verified",
+        "Rollback is verified",
+        "Audit is verified",
+        "Balance reconciliation is verified",
+        "Concurrency is verified",
+        "Idempotency is verified",
+        "x100 safety guard remains active",
+        "Candidate scope is explicitly approved",
+        "All pre-mutation checks pass"
+      ],
+      "blocked_by": [
+        "Human approval remains NOT_APPROVED",
+        "request-payload evidence remains UNAVAILABLE",
+        "mutation_authorized remains false"
+      ]
+    }
+  },
+  "e6_2_permitted": false,
+  "final_gate": "PRODUCTION_BLOCKED",
+  "request_payload_evidence_status": "UNAVAILABLE / BLOCKED",
+  "human_approval_status": "NOT_APPROVED / BLOCKED",
+  "staging_status": "STAGING_VERIFIED",
+  "remaining_blockers": [
+    "authoritative request-payload or equivalent independent evidence",
+    "explicit human approval for the exact candidate(s)"
+  ],
+  "conditions_to_unblock_e6_2": [
+    "Obtain explicit human approval for the exact candidate record_id 97b76766-d13a-4db6-8baf-572292b83913.",
+    "Record mutation_authorized=true in the approval manifest with reviewer identity and timestamp.",
+    "Obtain authoritative request-payload or equivalent independent evidence showing the submitted amount for POST /api/v1/transactions at 2026-08-11T14:08:31.606Z.",
+    "Confirm reviewer and evidence are consistent with the DB and staging outputs.",
+    "Complete all pre-mutation checks and keep production mutation count at 0 until E.6.2 is separately authorized."
+  ],
+  "evidence_reference": [
+    "apps/backend/recovery_reports/review_full.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/staging/e6_1c/e6_1c_run_2026-08-13T07-42-45-261Z/final.verification.report.json",
+    "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/pre_mutation_validation/pre_mutation_validation_2026-08-13T04-34-57-763+07-00.json"
+  ]
+}

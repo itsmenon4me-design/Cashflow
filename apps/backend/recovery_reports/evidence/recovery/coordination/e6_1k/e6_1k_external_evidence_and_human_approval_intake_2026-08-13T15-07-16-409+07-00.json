@@ -1,0 +1,88 @@
+{
+  "phase": "E.6.1K",
+  "status": "WAITING_EXTERNAL_EVIDENCE_AND_HUMAN_APPROVAL",
+  "timestamp": "2026-08-13T15:07:16.409+07:00",
+  "candidate_count_total": 38,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "stored_value_cents": "100000000",
+    "proposed_value_cents": "1000000",
+    "candidate_timestamp": "2026-08-11T14:08:31.606Z",
+    "endpoint": "POST /api/v1/transactions"
+  },
+  "request_payload_evidence": {
+    "status": "UNAVAILABLE",
+    "found": false,
+    "required_condition": "client submitted 1000000 and DB stored 100000000 must be directly established",
+    "reason": "No authoritative application, gateway, proxy, WAF, or archived request-body evidence for the exact request was found in the accessible local evidence set.",
+    "sources_inspected": [
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+      "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+      "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1f_final_evidence_approval_reconciliation_2026-08-13T14-50-48-562Z.json",
+      "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1i/e6_1i_external_evidence_intake_2026-08-13T14-58-53-643+07-00.json",
+      "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1j/e6_1j_external_evidence_and_approval_gate_2026-08-13T15-03-56-325+07-00.json"
+    ]
+  },
+  "independent_evidence": {
+    "status": "UNAVAILABLE",
+    "found": false,
+    "reason": "No equivalent authoritative independent source was found that independently established the intended amount without relying on the database row or classifier inference.",
+    "acceptable_sources_checked": [
+      "gateway event",
+      "import event",
+      "signed event",
+      "message queue archive",
+      "external financial record",
+      "authoritative ingestion record"
+    ]
+  },
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "decision": "PENDING_HUMAN_REVIEW",
+    "reviewer": null,
+    "reviewer_id": null,
+    "review_timestamp": null,
+    "rationale": null,
+    "authorization_scope": null,
+    "mutation_authorized": false,
+    "source_manifest": "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json"
+  },
+  "technical_gate_status": {
+    "snapshot_integrity": "PASS",
+    "snapshot_hash": "PASS",
+    "immutable_artifact_handling": "PASS",
+    "rollback": "PASS",
+    "audit_persistence": "PASS",
+    "balance_reconciliation": "PASS",
+    "concurrency": "PASS",
+    "idempotency": "PASS",
+    "x100_automatic_correction_prohibition": "PASS",
+    "staging_verification": "STAGING_VERIFIED",
+    "status": "PASS"
+  },
+  "production_mutation_count": 0,
+  "production_recovery_executed": false,
+  "mutation_authorized_count": 0,
+  "e6_2_permission": "NOT_PERMITTED",
+  "gate_evaluation": {
+    "gate_a_request_or_independent_evidence": "FAIL",
+    "gate_b_human_approval_for_exact_candidate": "FAIL",
+    "gate_c_reviewer_identity_rationale_timestamp_authorization": "FAIL",
+    "gate_d_technical_gates_pass": "PASS",
+    "gate_e_production_safety_intact": "PASS",
+    "final_result": "WAITING_EXTERNAL_EVIDENCE_AND_HUMAN_APPROVAL"
+  },
+  "remaining_blockers": [
+    "authoritative request-payload or equivalent independent evidence for the exact candidate and timestamp",
+    "explicit human approval for the exact candidate with reviewer identity, rationale, timestamp, and explicit authorization"
+  ],
+  "next_action": "Obtain archived request evidence or an equivalent authoritative independent source and obtain explicit human approval for the exact candidate. Do not proceed to E.6.2 or to production recovery until both gates are satisfied.",
+  "safety": {
+    "production_database_mutation": 0,
+    "production_read_only": true,
+    "statement": "NO PRODUCTION DATABASE MUTATION PERFORMED."
+  }
+}

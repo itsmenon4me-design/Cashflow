@@ -60,7 +60,10 @@ export class AuthService {
     const user = await this.users.findByEmail(input.email);
 
     // derive obfuscated identifier key so both existing and non-existing emails behave the same
-    const idHash = crypto.createHash('sha256').update(input.email.toLowerCase()).digest('hex');
+    const idHash = crypto
+      .createHash('sha256')
+      .update(input.email.toLowerCase())
+      .digest('hex');
     const failKey = `auth:fail:${idHash}`;
     const authCfg = this.authConfig.config;
     const failWindow = authCfg.failWindowSeconds;
@@ -129,7 +132,9 @@ export class AuthService {
     } as Record<string, unknown>;
 
     const token = this.jwtService.sign(payload);
-    const expiresIn = this.parseExpiresToSeconds(jwtCfg.accessExpiresIn || '15m');
+    const expiresIn = this.parseExpiresToSeconds(
+      jwtCfg.accessExpiresIn || '15m',
+    );
 
     void this.auditLogService.record({
       userId: user.id,

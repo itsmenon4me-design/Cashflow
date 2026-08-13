@@ -33,7 +33,8 @@ export class TransactionsController {
   constructor(private readonly tx: TransactionsService) {}
 
   private getHeaderValue(
-    req: { headers?: Record<string, string | string[] | undefined> } | undefined,
+    req:
+      { headers?: Record<string, string | string[] | undefined> } | undefined,
     headerName: string,
   ): string | undefined {
     const value = req?.headers?.[headerName.toLowerCase()];
@@ -85,10 +86,7 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Get transaction by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     const t = await this.tx.getById(userId, id);
     return { success: true, data: toTransactionResponse(t) };
   }
@@ -100,10 +98,16 @@ export class TransactionsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateTransactionDto,
-    @Req() req: { headers?: Record<string, string | string[] | undefined>; correlationId?: string; requestId?: string },
+    @Req()
+    req: {
+      headers?: Record<string, string | string[] | undefined>;
+      correlationId?: string;
+      requestId?: string;
+    },
   ) {
     const trace = {
-      correlationId: req?.correlationId ?? this.getHeaderValue(req, 'x-correlation-id'),
+      correlationId:
+        req?.correlationId ?? this.getHeaderValue(req, 'x-correlation-id'),
       requestId: req?.requestId ?? this.getHeaderValue(req, 'x-request-id'),
     };
     const created = await this.tx.create(
@@ -126,10 +130,16 @@ export class TransactionsController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateTransactionDto,
-    @Req() req: { headers?: Record<string, string | string[] | undefined>; correlationId?: string; requestId?: string },
+    @Req()
+    req: {
+      headers?: Record<string, string | string[] | undefined>;
+      correlationId?: string;
+      requestId?: string;
+    },
   ) {
     const trace = {
-      correlationId: req?.correlationId ?? this.getHeaderValue(req, 'x-correlation-id'),
+      correlationId:
+        req?.correlationId ?? this.getHeaderValue(req, 'x-correlation-id'),
       requestId: req?.requestId ?? this.getHeaderValue(req, 'x-request-id'),
     };
     const prepared:
@@ -149,10 +159,7 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Soft delete transaction' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-  ) {
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     await this.tx.softDelete(userId, id);
     return { success: true };
   }

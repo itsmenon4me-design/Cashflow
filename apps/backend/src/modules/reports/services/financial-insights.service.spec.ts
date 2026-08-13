@@ -10,7 +10,8 @@ const makePrismaMock = (opts?: {
   groups?: Prisma.TransactionGroupByOutputType[];
   largest?: Transaction | null;
   recs?: Array<{ amount_cents: number; transaction_date: Date }>;
-}): PrismaService => {  const {
+}): PrismaService => {
+  const {
     inc = 10000,
     exp = 8000,
     prevInc = 9000,
@@ -59,7 +60,7 @@ const makePrismaMock = (opts?: {
       ) as unknown as PrismaService['account']['findMany'],
     } as unknown as PrismaService['account'],
   };
-    return mock as unknown as PrismaService;
+  return mock as unknown as PrismaService;
 };
 
 describe('FinancialInsightsService', () => {

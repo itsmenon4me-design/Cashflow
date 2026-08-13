@@ -1,0 +1,15 @@
+{
+  "phase": "H.4 - Benchmark Runtime",
+  "timestamp": "2026-08-13T17:38:00Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "harness_path": "apps/backend/recovery_reports/evidence/phase_h/h3_benchmark/benchmark.js",
+  "commands_recommended": [
+    "$env:TARGET_URL = '\"http://localhost:3001/api/v1\''",
+    "$env:BENCH_TOTAL = '500'",
+    "$env:BENCH_CONC = '10'",
+    "$env:BENCH_PACING = '10'",
+    "pwsh ./run_benchmark.ps1"
+  ],
+  "result": "BLOCKED / STAGING_BACKEND_NOT_REACHABLE",
+  "notes": "Benchmark harness exists but cannot produce meaningful staging measurements because the staging backend/Postgres was not started in this environment. Do NOT use previous localhost non-running run as evidence."
+}

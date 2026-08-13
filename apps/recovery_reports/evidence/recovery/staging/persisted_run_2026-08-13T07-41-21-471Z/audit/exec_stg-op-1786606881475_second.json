@@ -1,0 +1,8 @@
+{
+  "operation_id": "stg-op-1786606881475",
+  "action": "execute",
+  "result": "EXECUTED",
+  "timestamp": "2026-08-13T07:41:21.534Z",
+  "record_id": "stg-tx-ps-corrupt",
+  "snapshot_hash": "71a8b5addb857df654cf0753d11149f6f380bf215ab97bd8d563d19ee6356ab9"
+}

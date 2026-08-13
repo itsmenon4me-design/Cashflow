@@ -1,0 +1,851 @@
+{
+  "summary": {
+    "scanned": 48,
+    "counts": {
+      "SAFE": 10,
+      "SUSPICIOUS": 37,
+      "LIKELY_CORRUPTED": 1,
+      "CONFIRMED_CORRUPTED": 0,
+      "REVIEW_REQUIRED": 0
+    },
+    "generated_at": "2026-08-12T20:05:52.501Z"
+  },
+  "likely_corrupted": [
+    {
+      "id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "100000000",
+      "classification": "LIKELY_CORRUPTED",
+      "confidence": "MEDIUM",
+      "proposed_value": "1000000",
+      "evidence": [
+        "account opening balance equals stored/100"
+      ],
+      "created_at": "2026-08-11T14:08:31.606Z"
+    }
+  ],
+  "suspicious": [
+    {
+      "id": "5881c75f-37d1-43f2-accc-f60b7334c08c",
+      "account_id": "be28ddee-dbb8-4194-a5a9-226f90010409",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "175000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:00:30.135Z"
+    },
+    {
+      "id": "d07bf0a0-49b3-4e35-a9aa-5b4c19b3806d",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "7500000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:05:46.496Z"
+    },
+    {
+      "id": "9e297411-6fa5-4386-9b7c-9115bcd6b0df",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "2000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:05:46.519Z"
+    },
+    {
+      "id": "c2e5bc10-3285-4cbd-a4ab-ea24f1f824e3",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "1250000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:05:46.534Z"
+    },
+    {
+      "id": "8f7a07ba-2305-4bf2-8720-74c51ab0550d",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "850000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:05:46.549Z"
+    },
+    {
+      "id": "0627fa78-56f8-46af-aba5-51a877f753f7",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "300000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T06:05:46.564Z"
+    },
+    {
+      "id": "df829ef3-a6d7-495f-a76c-352ab46d5dd6",
+      "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "7500000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-06T16:46:59.501Z"
+    },
+    {
+      "id": "ec51fedf-0c04-44d7-b308-3ce4cd2693e7",
+      "account_id": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "250000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T19:50:15.539Z"
+    },
+    {
+      "id": "809c0d38-90cc-4588-95e7-ba5e0dfb1e4e",
+      "account_id": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "90000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T19:54:31.505Z"
+    },
+    {
+      "id": "810c9bcb-a477-4a60-9650-870b046492d2",
+      "account_id": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "15000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T19:54:31.622Z"
+    },
+    {
+      "id": "de65b63f-32fd-468e-898e-b7a3f0857060",
+      "account_id": "a8226c46-dd98-4075-b796-bdf0d27b31ee",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "90000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:01:22.367Z"
+    },
+    {
+      "id": "9f68da60-5f9e-4bc8-b0ff-3043e44f1f43",
+      "account_id": "a8226c46-dd98-4075-b796-bdf0d27b31ee",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "15000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:01:22.517Z"
+    },
+    {
+      "id": "7826df9f-e59d-4cba-b08b-257f857a3088",
+      "account_id": "67c0d683-9975-4fe2-810f-267e9c7d3a94",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "5000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:01:45.959Z"
+    },
+    {
+      "id": "43a511a4-3f2c-48d0-8d22-5040b14991c9",
+      "account_id": "dab63b43-495e-4891-b460-45c4688fc106",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "250000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:32:02.680Z"
+    },
+    {
+      "id": "891f7c02-4269-4618-87e4-0d8aa606a7a4",
+      "account_id": "dab63b43-495e-4891-b460-45c4688fc106",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "20000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:32:52.081Z"
+    },
+    {
+      "id": "423d264d-789c-40fa-b0c5-07ec814e940e",
+      "account_id": "dab63b43-495e-4891-b460-45c4688fc106",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "20000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:32:52.099Z"
+    },
+    {
+      "id": "cc70a5a9-0804-4b35-8519-864c8d63e6e9",
+      "account_id": "dab63b43-495e-4891-b460-45c4688fc106",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "77700",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:33:23.991Z"
+    },
+    {
+      "id": "befa1520-76fd-4301-b337-33c1124e89e4",
+      "account_id": "efec5eb5-dad6-41d7-b96d-ffb9cde4f1ea",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "15000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:47:39.306Z"
+    },
+    {
+      "id": "fbe3a142-75b4-4749-8d00-b07f67c8fbe2",
+      "account_id": "efec5eb5-dad6-41d7-b96d-ffb9cde4f1ea",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "5000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T20:47:39.353Z"
+    },
+    {
+      "id": "e5cf1d8a-e589-42ff-9ee9-07f3179cbc81",
+      "account_id": "484f1e37-69e2-4ff5-a934-33def8419fe1",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "200000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T21:09:14.217Z"
+    },
+    {
+      "id": "65dd2b6c-e973-4220-8aa0-65d2bd6573e9",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "100000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-07T22:13:45.510Z"
+    },
+    {
+      "id": "0a69f955-cb55-4cba-9eee-f3f3466d4833",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "25100",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T11:30:32.172Z"
+    },
+    {
+      "id": "fd819ee9-42ee-4ff9-b545-795f47a32b12",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "7300",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T11:30:32.488Z"
+    },
+    {
+      "id": "762e8944-62f0-47e3-84d3-f99426796edc",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "5000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T12:06:45.112Z"
+    },
+    {
+      "id": "f237b82b-f265-4cb6-b7a2-39366cc16148",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "10000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T12:08:58.251Z"
+    },
+    {
+      "id": "db0f3113-08bf-479c-8e0b-5451f02cf59d",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "25000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T12:08:58.666Z"
+    },
+    {
+      "id": "d29041a7-326d-4451-b1d7-56a0e3472058",
+      "account_id": "57366241-9107-4741-ae35-eddf1f2539ae",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "70000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T19:11:47.269Z"
+    },
+    {
+      "id": "bc3b5c9d-679b-4681-925e-ab0430994f99",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "1000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T19:14:57.104Z"
+    },
+    {
+      "id": "55f2cca0-a1c6-49fc-aed7-2139e5e7cf00",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "90000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:42:07.529Z"
+    },
+    {
+      "id": "b0aae28a-fad8-4540-b128-b974598da398",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "20000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:42:07.620Z"
+    },
+    {
+      "id": "d2d7fb91-0372-4ea3-a0be-7cbde8120df0",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "90000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:45:33.790Z"
+    },
+    {
+      "id": "7fa294da-80f6-4f56-9f66-092277b16e80",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "90000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:49:40.384Z"
+    },
+    {
+      "id": "992b9cc8-dd69-4a99-b975-12c4e52639aa",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "1000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:52:54.350Z"
+    },
+    {
+      "id": "418eccf2-6408-41af-95df-d4d2469d0593",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "10000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:52:54.396Z"
+    },
+    {
+      "id": "f2705204-8ebb-4a49-bfae-1574dcffb841",
+      "account_id": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+      "currency": "IDR",
+      "transaction_type": "EXPENSE",
+      "stored_value": "5000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-08T22:53:17.943Z"
+    },
+    {
+      "id": "8ce442b3-410e-423b-8a14-a16238f1bc64",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "1000000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-11T14:04:03.634Z"
+    },
+    {
+      "id": "d0c31e40-53ef-45fb-bcae-155d60549ed6",
+      "account_id": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "100000000",
+      "classification": "SUSPICIOUS",
+      "confidence": "LOW",
+      "proposed_value": null,
+      "evidence": [
+        "Divisible by 100 but no immediate contextual match — manual review recommended"
+      ],
+      "created_at": "2026-08-11T14:11:03.900Z"
+    }
+  ],
+  "proposed": [
+    {
+      "id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "currency": "IDR",
+      "transaction_type": "INCOME",
+      "stored_value": "100000000",
+      "classification": "LIKELY_CORRUPTED",
+      "confidence": "MEDIUM",
+      "proposed_value": "1000000",
+      "evidence": [
+        "account opening balance equals stored/100"
+      ],
+      "created_at": "2026-08-11T14:08:31.606Z"
+    }
+  ],
+  "idr_clusters": [
+    [
+      {
+        "id": "d07bf0a0-49b3-4e35-a9aa-5b4c19b3806d",
+        "account": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+        "created_at": "2026-08-06T06:05:46.496Z",
+        "stored_value": "7500000"
+      },
+      {
+        "id": "9e297411-6fa5-4386-9b7c-9115bcd6b0df",
+        "account": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+        "created_at": "2026-08-06T06:05:46.519Z",
+        "stored_value": "2000000"
+      },
+      {
+        "id": "c2e5bc10-3285-4cbd-a4ab-ea24f1f824e3",
+        "account": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+        "created_at": "2026-08-06T06:05:46.534Z",
+        "stored_value": "1250000"
+      },
+      {
+        "id": "8f7a07ba-2305-4bf2-8720-74c51ab0550d",
+        "account": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+        "created_at": "2026-08-06T06:05:46.549Z",
+        "stored_value": "850000"
+      },
+      {
+        "id": "0627fa78-56f8-46af-aba5-51a877f753f7",
+        "account": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d",
+        "created_at": "2026-08-06T06:05:46.564Z",
+        "stored_value": "300000"
+      }
+    ],
+    [
+      {
+        "id": "ec51fedf-0c04-44d7-b308-3ce4cd2693e7",
+        "account": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+        "created_at": "2026-08-07T19:50:15.539Z",
+        "stored_value": "250000"
+      },
+      {
+        "id": "809c0d38-90cc-4588-95e7-ba5e0dfb1e4e",
+        "account": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+        "created_at": "2026-08-07T19:54:31.505Z",
+        "stored_value": "90000000"
+      },
+      {
+        "id": "810c9bcb-a477-4a60-9650-870b046492d2",
+        "account": "509306f3-2800-4f14-a496-8da5d6fa1f4e",
+        "created_at": "2026-08-07T19:54:31.622Z",
+        "stored_value": "15000000"
+      }
+    ],
+    [
+      {
+        "id": "de65b63f-32fd-468e-898e-b7a3f0857060",
+        "account": "a8226c46-dd98-4075-b796-bdf0d27b31ee",
+        "created_at": "2026-08-07T20:01:22.367Z",
+        "stored_value": "90000000"
+      },
+      {
+        "id": "9f68da60-5f9e-4bc8-b0ff-3043e44f1f43",
+        "account": "a8226c46-dd98-4075-b796-bdf0d27b31ee",
+        "created_at": "2026-08-07T20:01:22.517Z",
+        "stored_value": "15000000"
+      },
+      {
+        "id": "7826df9f-e59d-4cba-b08b-257f857a3088",
+        "account": "67c0d683-9975-4fe2-810f-267e9c7d3a94",
+        "created_at": "2026-08-07T20:01:45.959Z",
+        "stored_value": "5000000"
+      }
+    ],
+    [
+      {
+        "id": "43a511a4-3f2c-48d0-8d22-5040b14991c9",
+        "account": "dab63b43-495e-4891-b460-45c4688fc106",
+        "created_at": "2026-08-07T20:32:02.680Z",
+        "stored_value": "250000"
+      },
+      {
+        "id": "891f7c02-4269-4618-87e4-0d8aa606a7a4",
+        "account": "dab63b43-495e-4891-b460-45c4688fc106",
+        "created_at": "2026-08-07T20:32:52.081Z",
+        "stored_value": "20000000"
+      },
+      {
+        "id": "423d264d-789c-40fa-b0c5-07ec814e940e",
+        "account": "dab63b43-495e-4891-b460-45c4688fc106",
+        "created_at": "2026-08-07T20:32:52.099Z",
+        "stored_value": "20000000"
+      },
+      {
+        "id": "cc70a5a9-0804-4b35-8519-864c8d63e6e9",
+        "account": "dab63b43-495e-4891-b460-45c4688fc106",
+        "created_at": "2026-08-07T20:33:23.991Z",
+        "stored_value": "77700"
+      }
+    ],
+    [
+      {
+        "id": "befa1520-76fd-4301-b337-33c1124e89e4",
+        "account": "efec5eb5-dad6-41d7-b96d-ffb9cde4f1ea",
+        "created_at": "2026-08-07T20:47:39.306Z",
+        "stored_value": "15000000"
+      },
+      {
+        "id": "fbe3a142-75b4-4749-8d00-b07f67c8fbe2",
+        "account": "efec5eb5-dad6-41d7-b96d-ffb9cde4f1ea",
+        "created_at": "2026-08-07T20:47:39.353Z",
+        "stored_value": "5000000"
+      }
+    ],
+    [
+      {
+        "id": "0a69f955-cb55-4cba-9eee-f3f3466d4833",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-08T11:30:32.172Z",
+        "stored_value": "25100"
+      },
+      {
+        "id": "fd819ee9-42ee-4ff9-b545-795f47a32b12",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-08T11:30:32.488Z",
+        "stored_value": "7300"
+      }
+    ],
+    [
+      {
+        "id": "762e8944-62f0-47e3-84d3-f99426796edc",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-08T12:06:45.112Z",
+        "stored_value": "5000"
+      },
+      {
+        "id": "c7d99ed8-9b3c-4089-a1b5-92e4acb1c47a",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-08T12:07:50.791Z",
+        "stored_value": "99999"
+      },
+      {
+        "id": "f237b82b-f265-4cb6-b7a2-39366cc16148",
+        "account": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+        "created_at": "2026-08-08T12:08:58.251Z",
+        "stored_value": "10000"
+      },
+      {
+        "id": "db0f3113-08bf-479c-8e0b-5451f02cf59d",
+        "account": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+        "created_at": "2026-08-08T12:08:58.666Z",
+        "stored_value": "25000"
+      }
+    ],
+    [
+      {
+        "id": "cfd8a39e-7f29-439d-ada2-89c34f60e81d",
+        "account": "0d6a5cec-9d55-4a64-aa1d-8d7c5e175a9a",
+        "created_at": "2026-08-08T12:32:29.133Z",
+        "stored_value": "7777"
+      },
+      {
+        "id": "e19eabee-0ecf-4a6b-b5d7-191b90c8f2af",
+        "account": "b2606a32-1142-4846-9102-448fc90c59f9",
+        "created_at": "2026-08-08T12:34:49.491Z",
+        "stored_value": "7777"
+      }
+    ],
+    [
+      {
+        "id": "bab9a4a4-f756-4a2f-ac24-b04ec29dd146",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:34:23.234Z",
+        "stored_value": "150001"
+      },
+      {
+        "id": "57b48872-987c-4ca8-a450-b44326450890",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:34:51.629Z",
+        "stored_value": "150001"
+      },
+      {
+        "id": "c69cb2d6-dcb9-4b31-b14d-50080a65fff5",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:39:48.388Z",
+        "stored_value": "150001"
+      }
+    ],
+    [
+      {
+        "id": "a2f5e421-2183-4bed-b038-79e7c3c76ef2",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:45:44.608Z",
+        "stored_value": "150001"
+      },
+      {
+        "id": "1fd5338c-8a53-41fe-a5cf-e68e48eb0750",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:47:03.602Z",
+        "stored_value": "150001"
+      },
+      {
+        "id": "1fb474b9-e552-4dca-863a-5579add4c5e8",
+        "account": "4d633513-0b90-4cfa-988f-f5152036ff28",
+        "created_at": "2026-08-08T16:47:21.784Z",
+        "stored_value": "150001"
+      }
+    ],
+    [
+      {
+        "id": "d29041a7-326d-4451-b1d7-56a0e3472058",
+        "account": "57366241-9107-4741-ae35-eddf1f2539ae",
+        "created_at": "2026-08-08T19:11:47.269Z",
+        "stored_value": "70000"
+      },
+      {
+        "id": "bc3b5c9d-679b-4681-925e-ab0430994f99",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-08T19:14:57.104Z",
+        "stored_value": "1000000"
+      }
+    ],
+    [
+      {
+        "id": "55f2cca0-a1c6-49fc-aed7-2139e5e7cf00",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:42:07.529Z",
+        "stored_value": "90000"
+      },
+      {
+        "id": "b0aae28a-fad8-4540-b128-b974598da398",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:42:07.620Z",
+        "stored_value": "20000"
+      },
+      {
+        "id": "d2d7fb91-0372-4ea3-a0be-7cbde8120df0",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:45:33.790Z",
+        "stored_value": "90000"
+      },
+      {
+        "id": "7fa294da-80f6-4f56-9f66-092277b16e80",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:49:40.384Z",
+        "stored_value": "90000"
+      },
+      {
+        "id": "992b9cc8-dd69-4a99-b975-12c4e52639aa",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:52:54.350Z",
+        "stored_value": "1000"
+      },
+      {
+        "id": "418eccf2-6408-41af-95df-d4d2469d0593",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:52:54.396Z",
+        "stored_value": "10000"
+      },
+      {
+        "id": "f2705204-8ebb-4a49-bfae-1574dcffb841",
+        "account": "16a3c96c-574c-4ca1-9db9-7de85300e4fc",
+        "created_at": "2026-08-08T22:53:17.943Z",
+        "stored_value": "5000"
+      }
+    ],
+    [
+      {
+        "id": "8ce442b3-410e-423b-8a14-a16238f1bc64",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-11T14:04:03.634Z",
+        "stored_value": "1000000000"
+      },
+      {
+        "id": "97b76766-d13a-4db6-8baf-572292b83913",
+        "account": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+        "created_at": "2026-08-11T14:08:31.606Z",
+        "stored_value": "100000000"
+      },
+      {
+        "id": "d0c31e40-53ef-45fb-bcae-155d60549ed6",
+        "account": "8fd53ecd-aa10-4a00-977d-80540836ed2b",
+        "created_at": "2026-08-11T14:11:03.900Z",
+        "stored_value": "100000000"
+      }
+    ]
+  ]
+}

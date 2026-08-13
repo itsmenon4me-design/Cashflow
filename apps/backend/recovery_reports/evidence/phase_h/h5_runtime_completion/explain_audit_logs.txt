@@ -1,0 +1,14 @@
+﻿                                                                           QUERY PLAN                                                                           
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..12.32 rows=50 width=56) (actual time=0.031..0.033 rows=2 loops=1)
+   Output: id, action, created_at
+   Buffers: shared hit=3 dirtied=1
+   ->  Index Scan Backward using audit_logs_created_at_idx on public.audit_logs  (cost=0.14..51.30 rows=210 width=56) (actual time=0.029..0.031 rows=2 loops=1)
+         Output: id, action, created_at
+         Buffers: shared hit=3 dirtied=1
+ Planning:
+   Buffers: shared hit=172
+ Planning Time: 0.509 ms
+ Execution Time: 0.061 ms
+(10 rows)
+

@@ -1,0 +1,83 @@
+{
+  "phase": "G.2",
+  "title": "Final Dependency Vulnerability Resolution",
+  "status": "BLOCKED",
+  "installed": {
+    "@nestjs/swagger": "11.4.6",
+    "js-yaml": "5.2.1"
+  },
+  "latest_stable_registry": {
+    "@nestjs/swagger": "11.4.6",
+    "js-yaml": "5.2.3"
+  },
+  "dependency_tree": [
+    "@nestjs/swagger@11.4.6 -> js-yaml@5.2.1",
+    "node_modules/js-yaml from @nestjs/swagger@11.4.6",
+    "root workspace apps/backend -> backend@0.0.1 -> @nestjs/swagger@^11.4.6"
+  ],
+  "advisories": [
+    {
+      "ghsa": "GHSA-pm4m-ph32-ghv5",
+      "cve": "CVE-2026-59870? (npm advisory record names the package advisory as GHSA-pm4m-ph32-ghv5; exact CVE mapping is advisory-specific and not separately asserted here)",
+      "severity": "high",
+      "affected_versions": ">=5.0.0 <=5.2.1",
+      "patched_versions": ">=5.2.2 (current registry latest is 5.2.3)",
+      "dependency_path": "@nestjs/swagger@11.4.6 -> js-yaml@5.2.1",
+      "installed_affected": true,
+      "direct_or_transitive": "transitive dependency of @nestjs/swagger"
+    },
+    {
+      "ghsa": "GHSA-5p4m-2wfm-xmqj",
+      "cve": "CVE-2026-59870",
+      "severity": "high",
+      "affected_versions": ">=4.0.0 <4.3.1",
+      "patched_versions": ">=4.3.1",
+      "dependency_path": "@nestjs/swagger@11.4.5 -> js-yaml@4.3.0 (attempted workaround)",
+      "installed_affected": true,
+      "direct_or_transitive": "transitive dependency of attempted downgrade path"
+    }
+  ],
+  "security_check": {
+    "npm_audit_command": "npm audit --audit-level=high --json",
+    "npm_audit_status": "FAIL",
+    "high_vulnerabilities": 2,
+    "vulnerable_packages": [
+      "@nestjs/swagger",
+      "js-yaml"
+    ]
+  },
+  "remediation_attempted": [
+    "Re-verified the current registry and install tree.",
+    "Confirmed the latest stable @nestjs/swagger remains 11.4.6 and still depends on js-yaml 5.2.1.",
+    "Checked whether a package override to js-yaml 5.2.3 can resolve the issue.",
+    "Attempted a downgrade path to @nestjs/swagger 11.4.5 to reach js-yaml 4.3.0, which remained vulnerable under a different advisory.",
+    "No safe supported fix was found within the current stable @nestjs/swagger release line."
+  ],
+  "remediation_result": "UNRESOLVED_UPSTREAM",
+  "production_reachability_assessment": {
+    "enabled_in_production": "Swagger is present in the backend application and may be enabled in non-production or controlled admin/dev environments, but the advisory is not a direct user request-path vulnerability in the app's business logic.",
+    "yaml_parsing_exposure": "The vulnerability is associated with the transitive js-yaml dependency used by @nestjs/swagger, not with application-owned YAML parsing of customer requests.",
+    "runtime_exploitability": "Residual risk is real at the dependency level, but the app's direct production request path is not the same as parsing arbitrary YAML content from user input.",
+    "classification": "Upstream dependency blocker with limited application-level exploitability; unresolved in the currently supported stable package tree."
+  },
+  "typescript_result": {
+    "command": "cd D:\\Project 2\\CashFlow\\apps\\backend && npx tsc --noEmit --pretty false",
+    "status": "PASS",
+    "exit_code": 0
+  },
+  "tests": {
+    "command": "cd D:\\Project 2\\CashFlow\\apps\\backend && npx jest --runInBand src/modules/auth src/modules/transactions src/modules/audit src/modules/audit-logs --json --outputFile=./.tmp-jest-results.json",
+    "status": "PASS",
+    "passed": 130,
+    "failed": 0,
+    "suites_passed": 20,
+    "suites_failed": 0
+  },
+  "production_mutation_count": 0,
+  "production_recovery": "NOT_EXECUTED",
+  "human_approval": "NOT_APPROVED",
+  "mutation_authorized": false,
+  "e_6_2_status": "NOT_PERMITTED",
+  "historical_recovery_status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+  "final_classification": "UNRESOLVED_UPSTREAM"
+}

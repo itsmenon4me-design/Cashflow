@@ -1,0 +1,77 @@
+{
+  "phase": "E.6.1C",
+  "snapshot_version": "1.0.0",
+  "artifact_version": "artifact-v1",
+  "snapshot_ts": "2026-08-13T18:00:28.227Z",
+  "recovery_id": "recovery-stg-e61c-001",
+  "record_id": "stg-tx-e61c-candidate",
+  "account_id": "stg-acc-e61c-01",
+  "account": {
+    "id": "stg-acc-e61c-01",
+    "user_id": "stg-user-e61c-01",
+    "currency": "IDR",
+    "opening_balance_cents": "1000000",
+    "account_type": "CHECKING"
+  },
+  "candidate_transaction": {
+    "id": "stg-tx-e61c-candidate",
+    "account_id": "stg-acc-e61c-01",
+    "user_id": "stg-user-e61c-01",
+    "transaction_type": "INCOME",
+    "amount_cents": "100000000",
+    "currency": "IDR",
+    "note": "STAGING_TEST_DATA: synthetic suspicious candidate",
+    "created_at": "2026-08-13T18:00:28.218Z"
+  },
+  "related_transactions": [
+    {
+      "id": "stg-tx-e61c-before-1",
+      "account_id": "stg-acc-e61c-01",
+      "user_id": "stg-user-e61c-01",
+      "transaction_type": "INCOME",
+      "amount_cents": "250000",
+      "currency": "IDR",
+      "note": "STAGING_TEST_DATA: historical income before candidate",
+      "created_at": "2026-08-13T18:00:28.218Z"
+    },
+    {
+      "id": "stg-tx-e61c-candidate",
+      "account_id": "stg-acc-e61c-01",
+      "user_id": "stg-user-e61c-01",
+      "transaction_type": "INCOME",
+      "amount_cents": "100000000",
+      "currency": "IDR",
+      "note": "STAGING_TEST_DATA: synthetic suspicious candidate",
+      "created_at": "2026-08-13T18:00:28.218Z"
+    },
+    {
+      "id": "stg-tx-e61c-after-1",
+      "account_id": "stg-acc-e61c-01",
+      "user_id": "stg-user-e61c-01",
+      "transaction_type": "EXPENSE",
+      "amount_cents": "150000",
+      "currency": "IDR",
+      "note": "STAGING_TEST_DATA: expense after candidate",
+      "created_at": "2026-08-13T18:00:28.218Z"
+    }
+  ],
+  "opening_balance_cents": "1000000",
+  "expected_current_balance_cents": "101400000",
+  "balance_related_fields": {
+    "start_balance_cents": "1000000",
+    "current_balance_cents": "101400000",
+    "ledger_delta_cents": "100000000",
+    "transaction_delta_cents": "100000000"
+  },
+  "recovery_plan": {
+    "actor_id": "stg-reviewer",
+    "approved_value_cents": "1000000",
+    "requires_manual_approval": true,
+    "mode": "staging-only"
+  },
+  "metadata": {
+    "fixture_label": "STAGING_TEST_DATA",
+    "storage_kind": "durable-staging-artifact-store",
+    "mutable_copy_allowed": false
+  }
+}

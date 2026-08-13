@@ -1,0 +1,144 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useNotificationStore } from '@/stores/notification.store';
+import { notificationService } from '@/services/notification.service';
+import { NotificationsPage } from './notifications-page';
+import { uiText } from '@/locales';
+
+type NotificationListResult = {
+  items: Array<{
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    isRead: boolean;
+    readAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    metadata: Record<string, unknown> | null;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+};
+
+vi.mock('@/services/notification.service', () => ({
+  notificationService: {
+    list: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
+
+describe('NotificationsPage', () => {
+  beforeEach(() => {
+    useNotificationStore.setState({
+      markRead: async () => {},
+      markAllRead: async () => {},
+      remove: () => {},
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows loading skeleton while notifications load', async () => {
+    let resolveList: (value: NotificationListResult) => void = () => {};
+    const listPromise = new Promise<NotificationListResult>((resolve) => {
+      resolveList = resolve;
+    });
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      () => listPromise,
+    );
+
+    const { container } = render(<NotificationsPage />);
+
+    expect(screen.queryByText(uiText.notificationsPage.empty)).not.toBeInTheDocument();
+    expect(container.querySelectorAll('ul[aria-hidden="true"] > li').length).toBeGreaterThan(0);
+
+    await act(async () => {
+      resolveList({
+        items: [],
+        pagination: { page: 1, limit: 20, totalItems: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+      });
+    });
+  });
+
+  it('renders Finance Bot notification details and handles mark read and delete', async () => {
+    const items = [
+      {
+        id: 'n-1',
+        type: 'BUDGET_THRESHOLD',
+        title: 'Budget threshold alert',
+        message: 'You are nearing your budget limit.',
+        isRead: false,
+        readAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        metadata: { ruleType: 'BUDGET_THRESHOLD', priority: 'MEDIUM' },
+      },
+      {
+        id: 'n-2',
+        type: 'SYSTEM',
+        title: 'System update',
+        message: 'A system update was applied.',
+        isRead: true,
+        readAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        metadata: null,
+      },
+    ];
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items,
+      pagination: { page: 1, limit: 20, totalItems: 2, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+    const markRead = vi.fn().mockResolvedValue({});
+    const markAllRead = vi.fn().mockResolvedValue(1);
+    const removeMock = vi.fn().mockResolvedValue(undefined);
+
+    useNotificationStore.setState({
+      markRead: markRead,
+      markAllRead: markAllRead,
+      remove: removeMock,
+    });
+
+    await act(async () => {
+      render(<NotificationsPage />);
+    });
+
+    expect(screen.getByText('Budget threshold alert')).toBeInTheDocument();
+    expect(screen.getByText(uiText.financeBot.title)).toBeInTheDocument();
+    expect(screen.getByText(uiText.financeBot.notificationTypeLabels.budgetThreshold)).toBeInTheDocument();
+    expect(screen.getByText(uiText.financeBot.notificationPriorityLabels.MEDIUM)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: `${uiText.notificationsPage.markAsRead}: ${items[0].title}` }));
+    expect(notificationService.markRead).toHaveBeenCalledWith(items[0].id);
+
+    fireEvent.click(screen.getByRole('button', { name: uiText.notificationsPage.markAllRead }));
+    expect(notificationService.markAllRead).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: `${uiText.notificationsPage.delete}: ${items[0].title}` }));
+    expect(notificationService.remove).toHaveBeenCalledWith(items[0].id);
+  });
+
+  it('renders empty state when there are no notifications', async () => {
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [],
+      pagination: { page: 1, limit: 20, totalItems: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+    });
+
+    await act(async () => {
+      render(<NotificationsPage />);
+    });
+
+    expect(screen.getByText(uiText.notificationsPage.empty)).toBeInTheDocument();
+  });
+});

@@ -101,7 +101,3 @@ describe('SessionService', () => {
     expect(spy).toHaveBeenCalledWith('s1', 'u1');
   });
 });
-
-
-
-

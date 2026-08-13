@@ -1,0 +1,131 @@
+{
+  "phase": "E.6.1L",
+  "status": "BLOCKED",
+  "timestamp": "2026-08-13T15:09:52.769+07:00",
+  "candidate_count_total": 38,
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "stored_amount_cents": "100000000",
+    "proposed_amount_cents": "1000000",
+    "candidate_timestamp": "2026-08-11T14:08:31.606Z",
+    "endpoint": "POST /api/v1/transactions"
+  },
+  "evidence_classification": {
+    "authoritative_evidence": "UNAVAILABLE",
+    "equivalent_independent_evidence": "UNAVAILABLE",
+    "request_payload_evidence": "UNAVAILABLE",
+    "independent_evidence": "UNAVAILABLE",
+    "direct_proof_of_submitted_amount": false,
+    "exception_note": "No authoritative or equivalent independent evidence was found for the exact candidate and timestamp. The available evidence only supports a contextual suspicion and a pending review state."
+  },
+  "acceptable_evidence_types": [
+    "raw request payload from centralized/proxy/API gateway logs",
+    "archived application request log",
+    "trusted gateway/import record",
+    "frontend telemetry that is independently verifiable",
+    "immutable external record",
+    "human confirmation that refers to an independent source"
+  ],
+  "evidence_sources_inspected": [
+    "apps/backend/recovery_reports/review_full.json",
+    "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+    "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+    "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery_approval_manifest_2026-08-13T04-22-31-999+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/approval_template/approval_template_2026-08-13T04-28-31-640+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1d_production_gate_revalidation_2026-08-13T14-44-47-089Z.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1f_final_evidence_approval_reconciliation_2026-08-13T14-50-48-562Z.json",
+    "apps/backend/recovery_reports/evidence/recovery/final_gate/e6_1h/e6_1h_final_production_gate_2026-08-13T14-56-17-609+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1i/e6_1i_external_evidence_intake_2026-08-13T14-58-53-643+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1j/e6_1j_external_evidence_and_approval_gate_2026-08-13T15-03-56-325+07-00.json",
+    "apps/backend/recovery_reports/evidence/recovery/coordination/e6_1k/e6_1k_external_evidence_and_human_approval_intake_2026-08-13T15-07-16-409+07-00.json"
+  ],
+  "human_approval": {
+    "status": "NOT_APPROVED",
+    "decision": "PENDING_HUMAN_REVIEW",
+    "required_fields": [
+      "reviewer",
+      "reviewer_id",
+      "review_timestamp",
+      "candidate_record_id",
+      "decision",
+      "evidence_references",
+      "approval_rationale",
+      "rejection_rationale",
+      "mutation_authorized"
+    ],
+    "reviewer": null,
+    "reviewer_id": null,
+    "review_timestamp": null,
+    "candidate_record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "decision": null,
+    "evidence_references": [],
+    "approval_rationale": null,
+    "rejection_rationale": null,
+    "mutation_authorized": false,
+    "valid_decisions": [
+      "APPROVE_FOR_RECOVERY",
+      "REJECT_RECOVERY",
+      "NEEDS_MORE_EVIDENCE"
+    ]
+  },
+  "production_gate": {
+    "status": "BLOCKED",
+    "e6_2_permitted": false,
+    "conditions": {
+      "authoritative_or_equivalent_independent_evidence_available": false,
+      "candidate_and_timestamp_match": false,
+      "human_approval_available": false,
+      "reviewer_identity_available": false,
+      "rationale_available": false,
+      "review_timestamp_available": false,
+      "mutation_authorized_true_by_authorized_human": false,
+      "technical_gates_pass": true,
+      "safety_violation": false,
+      "pre_mutation_snapshot_ready": true,
+      "execution_idempotency_ready": true,
+      "production_target_validated": true
+    }
+  },
+  "technical_gate_status": {
+    "snapshot_integrity": "PASS",
+    "snapshot_hash": "PASS",
+    "immutable_artifact_handling": "PASS",
+    "rollback": "PASS",
+    "audit_persistence": "PASS",
+    "balance_reconciliation": "PASS",
+    "concurrency": "PASS",
+    "idempotency": "PASS",
+    "x100_automatic_correction_prohibition": "PASS",
+    "staging_verification": "VERIFIED",
+    "status": "PASS"
+  },
+  "production_mutation_count": 0,
+  "production_recovery_executed": false,
+  "mutation_authorized_count": 0,
+  "candidate_matrix": [
+    {
+      "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+      "classification": "LIKELY_CORRUPTED",
+      "confidence": "HIGH",
+      "decision": "PENDING_HUMAN_REVIEW",
+      "approval_status": "NOT_APPROVED",
+      "mutation_authorized": false
+    }
+  ],
+  "remaining_blockers": [
+    "authoritative request-payload or equivalent independent evidence for the exact candidate and timestamp",
+    "explicit human approval for the exact candidate with reviewer identity, rationale, timestamp, and mutation_authorized=true assigned by an authorized human reviewer"
+  ],
+  "safety": {
+    "production_database_mutation": 0,
+    "production_read_only": true,
+    "statement": "NO PRODUCTION DATABASE MUTATION PERFORMED."
+  }
+}

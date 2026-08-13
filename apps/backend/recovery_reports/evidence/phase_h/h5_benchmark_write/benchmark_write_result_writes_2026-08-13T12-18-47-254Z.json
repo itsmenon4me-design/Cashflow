@@ -1,0 +1,36 @@
+{
+  "group": "writes",
+  "timestamp": "2026-08-13T12:18:47.254Z",
+  "measurementsCount": 200,
+  "summary": {
+    "total": 200,
+    "successes": 0,
+    "failures": 200,
+    "errorRate": 1,
+    "min": 3,
+    "avg": 17.48,
+    "p50": 20,
+    "p95": 27.049999999999983,
+    "p99": 42.12999999999988,
+    "max": 56,
+    "throughput_rps": 1.1194300139290984e-7,
+    "statusDistribution": {
+      "401": 200
+    }
+  },
+  "errorCategories": {
+    "unauthorized": 200
+  },
+  "statusDistribution": {
+    "401": 200
+  },
+  "sampleErrors": {
+    "401": [
+      "Unauthorized",
+      "Unauthorized",
+      "Unauthorized",
+      "Unauthorized",
+      "Unauthorized"
+    ]
+  }
+}

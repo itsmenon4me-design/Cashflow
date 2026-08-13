@@ -15,6 +15,9 @@
     "tsx": "^4.20.5"
   },
   "overrides": {
+    "@nestjs/swagger": {
+      "js-yaml": "5.2.3"
+    },
     "js-yaml": "5.2.3"
   }
 }

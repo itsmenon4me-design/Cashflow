@@ -1,0 +1,148 @@
+{
+  "phase": "E.6.1",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T04:39:40.400+07:00",
+  "production_database_mutation": 0,
+  "blocker_status": {
+    "HUMAN_APPROVAL_NOT_READY": "BLOCKED",
+    "REQUEST_PAYLOAD_EVIDENCE_UNAVAILABLE": "BLOCKED",
+    "SNAPSHOT_MECHANISM_NOT_READY": "BLOCKED",
+    "ROLLBACK_NOT_READY": "PENDING_STAGING_VERIFICATION",
+    "AUDIT_NOT_READY": "PENDING_STAGING_VERIFICATION",
+    "BALANCE_INTEGRITY_NOT_READY": "BLOCKED",
+    "CONCURRENCY_GUARD_NOT_READY": "PENDING_STAGING_VERIFICATION"
+  },
+  "snapshot_validation": {
+    "preferred_store": "staging S3 / artifact store or isolated filesystem (immutable), not production DB",
+    "minimum_fields": [
+      "recovery_operation_id",
+      "record_id",
+      "account_id",
+      "currency",
+      "transaction_type",
+      "category_id",
+      "note",
+      "original_amount_cents",
+      "proposed_amount_cents",
+      "transaction_created_at",
+      "transaction_updated_at",
+      "account_opening_balance_cents",
+      "account_current_balance_cents",
+      "evidence_references",
+      "evidence_hashes",
+      "reviewer_identity",
+      "approval_timestamp",
+      "snapshot_timestamp",
+      "application_version",
+      "schema_version"
+    ],
+    "design": "Deterministic JSON file per recovery_operation_id, signed/hashed, stored in immutable staging artifact store. Must be read-only after creation.",
+    "staging_test_plan": [
+      "Create synthetic fixture in staging (not production)",
+      "Capture snapshot to artifact store (JSON + SHA256)",
+      "Read snapshot and reconstruct transaction/account object in test harness",
+      "Assert equality with original fixture",
+      "Attempt forbidden modification of snapshot and verify immutability (should fail)"
+    ],
+    "status": "BLOCKED (staging tests not executed in this environment yet)"
+  },
+  "rollback_validation": {
+    "design": "Rollback reads immutable snapshot.original_amount_cents and restores exact original values. Must include optimistic check before applying: only apply if current state matches expected post-recovery state. Otherwise fail with CONFLICT.",
+    "staging_test_plan": [
+      "In staging, create fixture with amount=100000000",
+      "Simulate recovery to 1000000 (in staging only)",
+      "Run rollback reading snapshot and verify amount restored to 100000000",
+      "Simulate conflict: change current amount to 2000000 before rollback; verify rollback refuses and reports CONFLICT"
+    ],
+    "existing_evidence": "HistoricalDataRecoveryService exists in modules/audit with unit tests that exercise approve/execute/rollback flows (see modules/audit/historical-data-recovery.service.spec.ts)",
+    "status": "PENDING_STAGING_VERIFICATION (unit tests present; staging run required)"
+  },
+  "audit_validation": {
+    "design": "Audit events must record full recovery lifecycle (scanner, evidence verification, human decision, snapshot, execution, verification, rollback). Must be emitted to an immutable audit store (append-only) with unique operation id.",
+    "staging_test_plan": [
+      "Configure staging audit sink (file or test DB)",
+      "Simulate recovery lifecycle and ensure audit events emitted with required fields",
+      "Verify audit event can reconstruct the full lifecycle and includes evidence references and checksums"
+    ],
+    "existing_evidence": "modules/audit/historical-data-audit.service.ts indicates an audit component; further verification required in staging",
+    "status": "PENDING_STAGING_VERIFICATION"
+  },
+  "balance_validation": {
+    "design": "Define whether account.current_balance_cents is a materialized aggregate or must be recomputed from transactions. Recovery must either: (A) update the balance deterministically and atomically with the transaction change, or (B) reconstruct balances from ledger entries in a validated process. A reconciliation test must be run in staging.",
+    "staging_test_plan": [
+      "Create staging account with opening_balance_cents=1000000 and transactions including an amount of 100000000",
+      "Simulate applying correction to 1000000 in staging under controlled code path",
+      "Verify account.current_balance_cents is updated according to documented strategy (or ledger recalculation confirms expected totals)",
+      "Run rollback and verify balances restored"
+    ],
+    "status": "BLOCKED (reconciliation strategy not verified)"
+  },
+  "concurrency_idempotency_validation": {
+    "design": "recovery_operation_id must be required for any execution; mutations must include guards WHERE amount_cents = approved_original_value. Implement lock/transaction/operation ledger in staging to prevent double-apply.",
+    "staging_test_plan": [
+      "Simulate concurrent recovery attempts against the same candidate and verify only one succeeds",
+      "Simulate retry scenarios and ensure idempotent behavior",
+      "Simulate candidate state change before execution resulting in zero rows affected and classification STALE_OR_ALREADY_CHANGED"
+    ],
+    "existing_evidence": "HistoricalDataRecoveryService includes a recoveryLedger and unit tests for concurrency/duplicate handling (see modules/audit/historical-data-recovery.service.spec.ts)",
+    "status": "PENDING_STAGING_VERIFICATION"
+  },
+  "staging_validation": {
+    "synthetic_fixture": {
+      "account": {
+        "currency": "IDR",
+        "opening_balance_cents": "1000000",
+        "current_balance_cents": "1000000"
+      },
+      "transaction": {
+        "amount_cents": "100000000",
+        "proposed_value_cents": "1000000"
+      }
+    },
+    "lifecycle_tests": [
+      "snapshot capture and verification",
+      "execute simulated recovery (staging only)",
+      "balance reconciliation",
+      "audit emission verification",
+      "rollback and verification",
+      "concurrency/idempotency scenarios"
+    ],
+    "status": "PENDING (must be executed in staging by operator)"
+  },
+  "request_payload_status": "UNAVAILABLE (infra retrieval required; see infra_request artifact)",
+  "human_approval_status": "NOT_APPROVED",
+  "test_results": {
+    "recovery_classifier_spec": "PASS",
+    "historical_data_recovery_service_spec": "PASS"
+  },
+  "static_safety_review": {
+    "search_terms": ["prisma.$executeRaw","prisma.$queryRaw","UPDATE","DELETE","INSERT","UPSERT"],
+    "findings_summary": "No raw executeRaw usages were found in quick repo scan; mutation paths are encapsulated in recovery service modules. Unit tests exist that simulate execution and rollback in a safe layer.",
+    "recommendation": "Ensure production code paths that perform mutations are guarded by recovery gate and explicit approval checks. Enforce safe environment flags for any execute path."
+  },
+  "readiness_matrix": {
+    "human_approval": "BLOCKED",
+    "request_payload_evidence": "BLOCKED",
+    "snapshot": "BLOCKED",
+    "rollback": "PENDING_STAGING_VERIFICATION",
+    "audit": "PENDING_STAGING_VERIFICATION",
+    "balance_integrity": "BLOCKED",
+    "concurrency": "PENDING_STAGING_VERIFICATION",
+    "idempotency": "PENDING_STAGING_VERIFICATION",
+    "staging_simulation": "PENDING"
+  },
+  "remaining_blockers": [
+    "Human approval must be recorded explicitly in approval manifest",
+    "Infra must retrieve centralized request payload logs for candidate",
+    "Implement & verify immutable snapshot capture in staging",
+    "Implement & verify rollback in staging",
+    "Implement & verify audit emission and storage in staging",
+    "Define & test balance reconciliation strategy in staging",
+    "Implement concurrency/idempotency guards and test in staging"
+  ],
+  "final_gate": "BLOCKED",
+  "artifact_paths": {
+    "safety_json": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery/safety_infrastructure/safety_infrastructure_validation_2026-08-13T04-39-40-400+07-00.json",
+    "safety_md": "D:/Project 2/CashFlow/apps/backend/recovery_reports/evidence/recovery/safety_infrastructure/safety_infrastructure_validation_2026-08-13T04-39-40-400+07-00.md"
+  }
+}

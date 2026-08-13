@@ -1,0 +1,39 @@
+{
+  "group": "reads",
+  "timestamp": "2026-08-13T12:19:44.954Z",
+  "measurementsCount": 200,
+  "summary": {
+    "total": 200,
+    "successes": 150,
+    "failures": 50,
+    "errorRate": 0.25,
+    "min": 4,
+    "avg": 16.98,
+    "p50": 15,
+    "p95": 32,
+    "p99": 50.02999999999997,
+    "max": 59,
+    "throughput_rps": 1.119429977776485e-7,
+    "statusDistribution": {
+      "200": 150,
+      "404": 50
+    }
+  },
+  "errorCategories": {
+    "not_found": 50,
+    "other": 150
+  },
+  "statusDistribution": {
+    "200": 150,
+    "404": 50
+  },
+  "sampleErrors": {
+    "404": [
+      "Cannot GET /api/v1/reports",
+      "Cannot GET /api/v1/reports",
+      "Cannot GET /api/v1/reports",
+      "Cannot GET /api/v1/reports",
+      "Cannot GET /api/v1/reports"
+    ]
+  }
+}

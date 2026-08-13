@@ -1,0 +1,15 @@
+{
+  "node_env": "test",
+  "database_url_present": true,
+  "database_url_redacted": "postgresql://***:***@localhost:5433/cashflow?schema=public",
+  "database_host": "postgres",
+  "environment_status": "STAGING_SAFE",
+  "production_indicators_blocked": [
+    "prod",
+    "production",
+    "rds",
+    "amazonaws.com",
+    "db.prod",
+    "live"
+  ]
+}

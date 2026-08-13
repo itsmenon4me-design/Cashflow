@@ -1,0 +1,38 @@
+{
+  "phase": "E.6.1C",
+  "final_gate": "STAGING_VERIFIED",
+  "production_mutation_count": 0,
+  "production_recovery_executed": "NO",
+  "staging_mutation_count": 1,
+  "staging_fixtures_used": [
+    "STAGING_TEST_DATA"
+  ],
+  "snapshot_status": "IMMUTABLE_HASH_VERIFIED",
+  "artifact_store_status": "DURABLE_STAGING_ARTIFACT_STORE_ACTIVE",
+  "reconciliation_status": "SERVICE_RECONCILE_OK",
+  "rollback_status": "PASSED",
+  "audit_status": "PERSISTED",
+  "concurrency_status": "PASS",
+  "idempotency_status": "PASS",
+  "x100_safety_status": "BLOCKED_REQUIRES_HUMAN_REVIEW",
+  "test_results": {
+    "historical_data_recovery_service": "PASS",
+    "e6_1_staging_verification": "PASS",
+    "e6_1b_persisted_artifact_store": "PASS",
+    "e6_1c_staging_verification": "PASS"
+  },
+  "request_payload_evidence_status": "UNAVAILABLE",
+  "human_approval_status": "NOT_APPROVED",
+  "remaining_blockers": [
+    "Human approval remains not approved.",
+    "Direct request-payload evidence remains unavailable."
+  ],
+  "e6_2_permitted": false,
+  "integrity": {
+    "before_balance_cents": "1000000",
+    "after_balance_cents": "1000000",
+    "transaction_count_before": 3,
+    "transaction_count_after": 3,
+    "unrelated_transaction_hashes_unchanged": true
+  }
+}

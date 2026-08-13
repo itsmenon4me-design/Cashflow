@@ -1,0 +1,151 @@
+{
+  "phase": "E.5.4",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T04:16:39.066+07:00",
+  "database_mutation": 0,
+  "evidence_sources": {
+    "dry_run_report": "apps/backend/recovery_reports/dry_run_report_2026-08-12T20-05-52-501Z.json (not present under dry_run/ path; review_full.json used instead)",
+    "review_full": "apps/backend/recovery_reports/review_full.json",
+    "db_context": "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+    "db_verified": "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+    "request_logs": "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json"
+  },
+  "primary_candidate": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "currency": "IDR",
+    "transaction_type": "INCOME",
+    "stored_value": "100000000",
+    "proposed_value": "1000000",
+    "correction_ratio": "0.01",
+    "created_at": "2026-08-11T14:08:31.606Z",
+    "current_classification": "LIKELY_CORRUPTED",
+    "current_confidence": "HIGH"
+  },
+  "evidence_matrix": [
+    {
+      "source": "classifier (review_full.json)",
+      "evidence_found": "account opening balance equals stored/100; transaction flagged LIKELY_CORRUPTED (MEDIUM)",
+      "supports_corruption": true,
+      "confidence_contribution": "medium",
+      "limitations": "Classifier uses heuristics and required DB verification for higher confidence"
+    },
+    {
+      "source": "authoritative DB (db_context)",
+      "evidence_found": "account.opening_balance_cents = '1000000'; current_balance_cents = '1000000'; primary transaction amount_cents = '100000000'",
+      "supports_corruption": true,
+      "confidence_contribution": "high",
+      "limitations": "No same-account peer with amount == stored/100 within ±2 minutes; account transaction history sample limited to 1000 rows"
+    },
+    {
+      "source": "db-verified evidence (db_verified.json)",
+      "evidence_found": "Reiterates authoritative DB findings and temporal cluster membership; upgrades classifier confidence to HIGH",
+      "supports_corruption": true,
+      "confidence_contribution": "high",
+      "limitations": "Still lacks direct client request payload evidence"
+    },
+    {
+      "source": "request-log search (request_logs.json)",
+      "evidence_found": "No request-body payloads found in local logs; LoggerMiddleware does not capture request bodies; TransactionsController.create is not audited by @Audit",
+      "supports_corruption": false,
+      "confidence_contribution": "none",
+      "limitations": "Request payloads may be in centralized logging (not accessible locally). Observability gap identified."
+    },
+    {
+      "source": "neighboring transaction analysis (review_full.json & db_context)",
+      "evidence_found": "Temporal cluster across accounts at 2026-08-11T14:04:03Z to 2026-08-11T14:11:03Z includes large IDR entries; primary account has no other large entries in ±30m",
+      "supports_corruption": "indirect",
+      "confidence_contribution": "low-to-medium",
+      "limitations": "Cross-account clusters may indicate shared client bug but are not definitive for this account"
+    }
+  ],
+  "suspicious_summary": {
+    "total_suspicious_candidates": 37,
+    "grouped_by_account": {
+      "7b2b8bae-b261-4dcf-b3ac-52e8e651485d": [
+        "d07bf0a0-49b3-4e35-a9aa-5b4c19b3806d",
+        "9e297411-6fa5-4386-9b7c-9115bcd6b0df",
+        "c2e5bc10-3285-4cbd-a4ab-ea24f1f824e3",
+        "8f7a07ba-2305-4bf2-8720-74c51ab0550d",
+        "0627fa78-56f8-46af-aba5-51a877f753f7"
+      ],
+      "8fd53ecd-aa10-4a00-977d-80540836ed2b": [
+        "0a69f955-cb55-4cba-9eee-f3f3466d4833",
+        "fd819ee9-42ee-4ff9-b545-795f47a32b12",
+        "762e8944-62f0-47e3-84d3-f99426796edc",
+        "c7d99ed8-9b3c-4089-a1b5-92e4acb1c47a",
+        "8ce442b3-410e-423b-8a14-a16238f1bc64",
+        "d0c31e40-53ef-45fb-bcae-155d60549ed6",
+        "65dd2b6c-e973-4220-8aa0-65d2bd6573e9",
+        "bc3b5c9d-679b-4681-925e-ab0430994f99"
+      ],
+      "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1": [
+        "f237b82b-f265-4cb6-b7a2-39366cc16148",
+        "db0f3113-08bf-479c-8e0b-5451f02cf59d",
+        "97b76766-d13a-4db6-8baf-572292b83913"
+      ],
+      "509306f3-2800-4f14-a496-8da5d6fa1f4e": [
+        "ec51fedf-0c04-44d7-b308-3ce4cd2693e7",
+        "809c0d38-90cc-4588-95e7-ba5e0dfb1e4e",
+        "810c9bcb-a477-4a60-9650-870b046492d2"
+      ],
+      "others": "See review_full.json idr_clusters for cluster grouping"
+    },
+    "default_decision_for_suspicious": "NEEDS_MORE_EVIDENCE"
+  },
+  "approval_decisions": [
+    {
+      "candidate_id": "97b76766-d13a-4db6-8baf-572292b83913",
+      "decision": "NEEDS_MORE_EVIDENCE",
+      "rationale": "Authoritative DB evidence strongly supports ×100 hypothesis (opening_balance == stored/100) but direct client request payload is unavailable. Per policy do not approve correction without request-payload or equivalent authoritative source.",
+      "evidence_references": [
+        "apps/backend/recovery_reports/review_full.json",
+        "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+        "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+        "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json"
+      ]
+    }
+  ],
+  "suspicious_candidates_decisions": {
+    "total": 37,
+    "approved_for_correction": 0,
+    "needs_more_evidence": 37
+  },
+  "minimum_evidence_requirements_for_correction": [
+    "Direct request payload showing client-submitted amount_cents (e.g., 1000000) for the candidate's create request timestamp",
+    "Authoritative external source (import file, payment gateway record) that records the smaller unit amount",
+    "Reproducible frontend bug report with code/build id and matching timestamps linking a frontend ×100 scaling bug to these events",
+    "Or explicit human confirmation from the account owner/operator after verifying records",
+    "If request-body logs are not available, at least one independent authoritative corroborating source is required before correction"
+  ],
+  "phase_e6_entry_requirements": {
+    "human_approval_required": true,
+    "approval_manifest": "must list candidate IDs, original and proposed values, evidence references, reviewer and timestamp",
+    "original_value_recorded": true,
+    "proposed_value_recorded": true,
+    "rollback_strategy_defined": true,
+    "idempotency_strategy_defined": true,
+    "audit_trail_defined": true,
+    "pre_mutation_verification_steps": [
+      "Verify request payload evidence or equivalent authoritative source",
+      "Verify transaction isolation and locking behavior in staging environment",
+      "Dry-run apply in staging (no production mutation) and compare balances",
+      "Human sign-off on the approval manifest"
+    ]
+  },
+  "correction_approval_specification_template": {
+    "candidate_id": "<uuid>",
+    "original_value": "<decimal string>",
+    "proposed_value": "<decimal string>",
+    "reason": "<text — e.g., frontend ×100 scaling bug evidenced>",
+    "evidence_references": ["<paths to JSON/MD evidence files>"],
+    "reviewer": "<name/email>",
+    "approval_timestamp": "<ISO timestamp>",
+    "approval_decision": "APPROVE_CORRECTION | REJECT_CORRECTION | NEEDS_MORE_EVIDENCE",
+    "rollback_requirement": "Describe how to undo the change and validate balances",
+    "idempotency_requirement": "Describe how to ensure applying correction twice has no adverse effect",
+    "audit_requirement": "Describe audit logs to capture before/after state and operator who approved"
+  },
+  "safety_statement": "This decision package was prepared in READ_ONLY mode. No database mutations were executed. Phase E.6 must not begin until human approval manifest and all Phase E.6 entry requirements are satisfied.",
+  "notes": "Direct request-payload evidence was not available in local logs. The strongest supporting evidence is authoritative DB opening_balance == stored/100. Recommendation: obtain archived request logs or other authoritative source before approving any correction."
+}

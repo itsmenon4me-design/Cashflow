@@ -1,0 +1,54 @@
+{
+  "phase": "E.5.7",
+  "mode": "READ_ONLY",
+  "generated_at": "2026-08-13T04:28:31.640+07:00",
+  "database_mutation": 0,
+  "template_status": "PENDING_HUMAN_REVIEW",
+  "decision_enum": ["APPROVE_FOR_RECOVERY", "REJECT_RECOVERY", "NEEDS_MORE_EVIDENCE"],
+  "primary_candidate_template": {
+    "record_id": "97b76766-d13a-4db6-8baf-572292b83913",
+    "account_id": "e673f9a8-2e2a-4e58-af4f-1728be9bdfa1",
+    "currency": "IDR",
+    "transaction_type": "INCOME",
+    "created_at": "2026-08-11T14:08:31.606Z",
+    "stored_value_cents": "100000000",
+    "proposed_value_cents": "1000000",
+    "correction_ratio": 0.01,
+    "classification": "LIKELY_CORRUPTED",
+    "confidence": "HIGH",
+    "opening_balance_cents": "1000000",
+    "current_balance_cents": "1000000",
+    "evidence_references": [
+      "apps/backend/recovery_reports/dry_run/dry_run_report_2026-08-12T20-05-52-501Z.json",
+      "apps/backend/recovery_reports/review_full.json",
+      "apps/backend/recovery_reports/evidence/db_context_2026-08-12T21-00-50-843Z.json",
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T03-59-12-901+07-00_db_verified.json",
+      "apps/backend/recovery_reports/evidence/evidence_verification_2026-08-13T04-04-15-705+07-00_request_logs.json",
+      "apps/backend/recovery_reports/evidence/recovery_decision_package_2026-08-13T04-16-39-066+07-00.json",
+      "apps/backend/recovery_reports/evidence/infra_request_phase_e5_5_2026-08-13T04-20-27-531+07-00.json"
+    ],
+    "missing_evidence": [
+      "Direct client request payload from centralized logs",
+      "External authoritative source (gateway/import)"
+    ],
+    "decision": "PENDING_HUMAN_REVIEW",
+    "approval_status": "NOT_APPROVED",
+    "mutation_authorized": false,
+    "reviewer": null,
+    "reviewer_id": null,
+    "review_timestamp": null,
+    "evidence_reviewed": null,
+    "approval_rationale": null,
+    "rejection_rationale": null
+  },
+  "suspicious_candidate_templates": [
+    { "record_id": "5881c75f-37d1-43f2-accc-f60b7334c08c", "account_id": "be28ddee-dbb8-4194-a5a9-226f90010409", "created_at": "2026-08-06T06:00:30.135Z", "original_amount_cents": "175000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "d07bf0a0-49b3-4e35-a9aa-5b4c19b3806d", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T06:05:46.496Z", "original_amount_cents": "7500000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "9e297411-6fa5-4386-9b7c-9115bcd6b0df", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T06:05:46.519Z", "original_amount_cents": "2000000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "c2e5bc10-3285-4cbd-a4ab-ea24f1f824e3", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T06:05:46.534Z", "original_amount_cents": "1250000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "8f7a07ba-2305-4bf2-8720-74c51ab0550d", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T06:05:46.549Z", "original_amount_cents": "850000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "0627fa78-56f8-46af-aba5-51a877f753f7", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T06:05:46.564Z", "original_amount_cents": "300000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "df829ef3-a6d7-495f-a76c-352ab46d5dd6", "account_id": "7b2b8bae-b261-4dcf-b3ac-52e8e651485d", "created_at": "2026-08-06T16:46:59.501Z", "original_amount_cents": "7500000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "ec51fedf-0c04-44d7-b308-3ce4cd2693e7", "account_id": "509306f3-2800-4f14-a496-8da5d6fa1f4e", "created_at": "2026-08-07T19:50:15.539Z", "original_amount_cents": "250000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null },
+    { "record_id": "809c0d38-90cc-4588-95e7-ba5e0dfb1e4e", "account_id": "509306f3-2800-4f14-a496-8da5d6fa1f4e", "created_at": "2026-08-07T19:54:31.505Z", "original_amount_cents": "90000000", "proposed_value_cents": null, "classification": "SUSPICIOUS", "confidence": "LOW", "decision": "PENDING_HUMAN_REVIEW", "approval_status": "NOT_APPROVED", "mutation_authorized": false, "evidence_references": ["apps/backend/recovery_reports/review_full.json"], "missing_evidence": ["Contextual account history or request payload"], "reviewer": null, "reviewer_id": null, "review_timestamp": null, "evidence_reviewed": null, "approval_rationale": null, "rejection_rationale": null }]
+}

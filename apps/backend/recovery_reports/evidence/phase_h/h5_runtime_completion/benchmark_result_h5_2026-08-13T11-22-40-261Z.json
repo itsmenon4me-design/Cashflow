@@ -1,0 +1,106 @@
+{
+  "phase": "H.5",
+  "timestamp": "2026-08-13T11:22:40.261Z",
+  "environment": "LOCAL_VALIDATION_ONLY",
+  "target": "http://localhost:3001/api/v1",
+  "config": {
+    "totalRequests": 500,
+    "concurrency": 10,
+    "pacingMs": 10
+  },
+  "overall": {
+    "total": 500,
+    "successes": 249,
+    "failures": 251,
+    "errorRate": 0.502,
+    "throughput_rps": 336.47375504710635,
+    "min": 4,
+    "avg": 17.63,
+    "p50": 13,
+    "p95": 44.09999999999991,
+    "p99": 88.05999999999995,
+    "max": 137
+  },
+  "perEndpoint": {
+    "POST /auth/login": {
+      "total": 84,
+      "successes": 0,
+      "failures": 84,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 4,
+      "avg": 12.904761904761905,
+      "p50": 11,
+      "p95": 21,
+      "p99": 46.380000000000024,
+      "max": 58
+    },
+    "GET /reports": {
+      "total": 83,
+      "successes": 0,
+      "failures": 83,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 4,
+      "avg": 9.397590361445783,
+      "p50": 8,
+      "p95": 17,
+      "p99": 25.799999999999926,
+      "max": 34
+    },
+    "POST /transactions": {
+      "total": 84,
+      "successes": 0,
+      "failures": 84,
+      "errorRate": 1,
+      "throughput_rps": null,
+      "min": 4,
+      "avg": 10.30952380952381,
+      "p50": 8,
+      "p95": 23.799999999999955,
+      "p99": 51.510000000000005,
+      "max": 54
+    },
+    "GET /budgets": {
+      "total": 83,
+      "successes": 83,
+      "failures": 0,
+      "errorRate": 0,
+      "throughput_rps": null,
+      "min": 8,
+      "avg": 18.710843373493976,
+      "p50": 15,
+      "p95": 45.19999999999993,
+      "p99": 69.93999999999976,
+      "max": 97
+    },
+    "GET /transactions": {
+      "total": 83,
+      "successes": 83,
+      "failures": 0,
+      "errorRate": 0,
+      "throughput_rps": null,
+      "min": 8,
+      "avg": 20.14457831325301,
+      "p50": 16,
+      "p95": 55.19999999999985,
+      "p99": 91.59999999999985,
+      "max": 108
+    },
+    "GET /dashboard/summary": {
+      "total": 83,
+      "successes": 83,
+      "failures": 0,
+      "errorRate": 0,
+      "throughput_rps": null,
+      "min": 17,
+      "avg": 34.45783132530121,
+      "p50": 29,
+      "p95": 85.09999999999984,
+      "p99": 120.59999999999985,
+      "max": 137
+    }
+  },
+  "measurementsCount": 500,
+  "wallTimeSec": 1.486
+}

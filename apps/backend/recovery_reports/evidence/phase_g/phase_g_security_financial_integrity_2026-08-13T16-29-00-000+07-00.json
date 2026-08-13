@@ -1,0 +1,80 @@
+{
+  "phase": "G",
+  "title": "FULL SECURITY & FINANCIAL INTEGRITY AUDIT",
+  "status": "PARTIAL / BLOCKED",
+  "historical_recovery": {
+    "status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "authoritative_evidence": "UNAVAILABLE",
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": 0,
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2": "NOT_PERMITTED"
+  },
+  "g1_authentication_security": { "status": "PASS", "summary": "Password hashing uses Argon2id; login flow applies rate limiting and invalid credential handling without revealing account existence. Token rotation and session handling are present in the auth service and related modules." },
+  "g2_authorization_and_idor": { "status": "PASS", "summary": "Services check ownership (userId/accountId ownership) before mutation/read access; no explicit IDOR exploit was found in the audited code paths." },
+  "g3_input_validation": { "status": "PASS", "summary": "DTO validation is fail-closed for malformed numeric values, negative/zero/decimal inputs, and invalid enums in the transaction write path." },
+  "g4_financial_security": { "status": "PASS", "summary": "Financial operations continue to operate on integer cents and maintain balance invariants in the tested modules. The transaction invariant suite confirms balance arithmetic remains consistent." },
+  "g5_database_integrity": { "status": "PASS", "summary": "The schema and repository patterns enforce key relationships and integrity safeguards in the audited modules; no destructive migration was performed. Full real Postgres-backed integration remains environment-dependent." },
+  "g6_api_security": { "status": "PARTIAL", "summary": "Authentication and validation guards are present, but a full API abuse/threat test run against production-like rate limiting, request-size, and CORS policy remains environment-dependent." },
+  "g7_logging_observability_security": { "status": "PASS", "summary": "The project avoids logging raw passwords, JWTs, refresh tokens, or sensitive request bodies; structured logs keep request correlation metadata without secret leakage." },
+  "g8_audit_log_integrity": { "status": "PASS", "summary": "Audit events include actor, action, target, time, and correlation metadata; sensitive fields are not included in the audited record format." },
+  "g9_transaction_concurrency": { "status": "PASS", "summary": "The transactional flow includes idempotent dedupe and balance recalculation within the audited service operations. Full concurrency validation beyond unit/integration coverage remains environment-dependent." },
+  "g10_idempotency": { "status": "PASS", "summary": "Reference-number/idempotency replay protection is present for the transaction write path and returns the same result for duplicates in the audited service behavior." },
+  "g11_abuse_rate_limiting": { "status": "PARTIAL", "summary": "Login and auth flows include rate-limit patterns and failure counters, but full abuse simulation and production-like rate limit tuning are not fully validated here." },
+  "g12_security_headers_cors": { "status": "PARTIAL", "summary": "Security header patterns are likely present at app config level, but a full production-like CORS/security-header verification was not executed in this local environment." },
+  "g13_secrets_configuration": { "status": "PASS", "summary": "No obvious hardcoded credentials or live secrets were found in the inspected auth/config modules; no secret values were printed in outputs." },
+  "g14_dependency_security": { "status": "BLOCKED", "severity": "HIGH", "summary": "npm audit reports a high-severity vulnerability in @nestjs/swagger caused by js-yaml in the transitive dependency tree. The issue remains unresolved in the current project dependency state and requires an explicit security/compatibility review before production use.", "evidence": "npm audit --audit-level=high --json" },
+  "g15_security_regression_tests": { "status": "PASS", "summary": "Existing auth, transaction, and audit tests pass; the current codebase includes regression protection around transaction amount validation and anomaly handling. No dedicated full security regression suite covering all API abuse vectors was present in the repo." },
+  "g16_financial_invariant_testing": { "status": "PASS", "summary": "Balance arithmetic and integer-cent invariants were validated via the transaction invariant tests. The model remains consistent for the audited financial flows." },
+  "g17_historical_recovery_boundary": { "status": "PASS", "summary": "Historical recovery remains externally blocked, no production mutation was performed, and the boundary remains intentionally preserved as FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY." },
+  "g18_testing": { "status": "PASS", "summary": "Relevant backend tests and TypeScript validation were executed successfully; full real Postgres-backed transfer integration remains environment-blocked and is tracked as such." },
+  "g19_phase_g_artifact": { "status": "PASS", "summary": "This artifact was written to the non-recovery evidence area and records the audit findings and blockers." },
+  "security_findings": [
+    {
+      "severity": "HIGH",
+      "area": "Dependency security",
+      "finding": "@nestjs/swagger pulls a vulnerable js-yaml transitively in the current backend dependency tree.",
+      "evidence": "npm audit --audit-level=high --json",
+      "status": "UNRESOLVED_IN_LOCAL_ENVIRONMENT"
+    }
+  ],
+  "financial_integrity_findings": [
+    {
+      "severity": "INFO",
+      "area": "Amount validation",
+      "finding": "The app uses integer minor-unit values and rejects malformed and decimal monetary input in the transaction write path.",
+      "status": "PASS"
+    }
+  ],
+  "tests": {
+    "commands_executed": [
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/modules/transactions src/modules/budgets src/modules/categories src/modules/saving-goals src/modules/dashboard src/modules/reports src/modules/notifications src/modules/auth --passWithNoTests",
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx tsc --noEmit",
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npm audit --audit-level=high --json"
+    ],
+    "targeted_backend_tests": { "status": "PASS", "suites": 39, "tests": 167, "failed": 0 },
+    "typescript": { "status": "PASS", "command": "npx tsc --noEmit" },
+    "dependency_audit": { "status": "BLOCKED / HIGH_FINDING", "evidence": "npm audit --audit-level=high --json" }
+  },
+  "environment_blockers": [
+    "Real Postgres-backed transfer integration validation remains environment-dependent and not executable in the current local context.",
+    "Full PWA/mobile end-to-end validation is not available in the repository or local environment.",
+    "Production-like security hardening and CORS header verification remain partially environment-bound."
+  ],
+  "remaining_risks": [
+    "High-severity dependency vulnerability in the current backend dependency tree remains unresolved until a compatibility-safe package upgrade is approved and tested.",
+    "Real mobile/PWA and real-device performance validation remains deferred to Phase H.",
+    "Full abuse simulation and security hardening remain partly dependent on a production-like environment."
+  ],
+  "next_phase": "PHASE H — PERFORMANCE, MOBILE/PWA & REAL-DEVICE VALIDATION",
+  "artifact_path": "apps/backend/recovery_reports/evidence/phase_g/phase_g_security_financial_integrity_2026-08-13T16-29-00-000+07-00.json",
+  "safety": {
+    "production_mutation_count": 0,
+    "production_database_migration": "NOT_PERFORMED",
+    "historical_recovery_untouched": true,
+    "mutation_authorized": false,
+    "e6_2": "NOT_PERMITTED",
+    "status_statement": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY"
+  }
+}

@@ -16,7 +16,13 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     // 1. Fetch user accounts grouped by currency
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
-      select: { id: true, currency: true, current_balance_cents: true, is_default: true, updated_at: true },
+      select: {
+        id: true,
+        currency: true,
+        current_balance_cents: true,
+        is_default: true,
+        updated_at: true,
+      },
     });
 
     // 2. Fetch income transactions with account currency
@@ -27,7 +33,11 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         transaction_type: TransactionType.INCOME,
         transaction_date: { gte: monthStart, lte: monthEnd },
       },
-      select: { amount_cents: true, updated_at: true, account: { select: { currency: true } } },
+      select: {
+        amount_cents: true,
+        updated_at: true,
+        account: { select: { currency: true } },
+      },
     });
 
     // 3. Fetch expense transactions with account currency
@@ -38,7 +48,11 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         transaction_type: TransactionType.EXPENSE,
         transaction_date: { gte: monthStart, lte: monthEnd },
       },
-      select: { amount_cents: true, updated_at: true, account: { select: { currency: true } } },
+      select: {
+        amount_cents: true,
+        updated_at: true,
+        account: { select: { currency: true } },
+      },
     });
 
     // 4. Total counts
@@ -58,8 +72,15 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     // Map account balances
     for (const acc of accounts) {
       const curr = acc.currency ?? 'IDR';
-      const entry = currencyMap.get(curr) ?? { assets: 0n, income: 0n, expense: 0n };
-      const bal = typeof acc.current_balance_cents === 'bigint' ? acc.current_balance_cents : BigInt(acc.current_balance_cents ?? 0);
+      const entry = currencyMap.get(curr) ?? {
+        assets: 0n,
+        income: 0n,
+        expense: 0n,
+      };
+      const bal =
+        typeof acc.current_balance_cents === 'bigint'
+          ? acc.current_balance_cents
+          : BigInt(acc.current_balance_cents ?? 0);
       entry.assets += bal;
       currencyMap.set(curr, entry);
     }
@@ -67,8 +88,15 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     // Map income
     for (const tx of txIncome) {
       const curr = tx.account?.currency ?? 'IDR';
-      const entry = currencyMap.get(curr) ?? { assets: 0n, income: 0n, expense: 0n };
-      const amt = typeof tx.amount_cents === 'bigint' ? tx.amount_cents : BigInt(tx.amount_cents ?? 0);
+      const entry = currencyMap.get(curr) ?? {
+        assets: 0n,
+        income: 0n,
+        expense: 0n,
+      };
+      const amt =
+        typeof tx.amount_cents === 'bigint'
+          ? tx.amount_cents
+          : BigInt(tx.amount_cents ?? 0);
       entry.income += amt;
       currencyMap.set(curr, entry);
     }
@@ -76,8 +104,15 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     // Map expense
     for (const tx of txExpense) {
       const curr = tx.account?.currency ?? 'IDR';
-      const entry = currencyMap.get(curr) ?? { assets: 0n, income: 0n, expense: 0n };
-      const amt = typeof tx.amount_cents === 'bigint' ? tx.amount_cents : BigInt(tx.amount_cents ?? 0);
+      const entry = currencyMap.get(curr) ?? {
+        assets: 0n,
+        income: 0n,
+        expense: 0n,
+      };
+      const amt =
+        typeof tx.amount_cents === 'bigint'
+          ? tx.amount_cents
+          : BigInt(tx.amount_cents ?? 0);
       entry.expense += amt;
       currencyMap.set(curr, entry);
     }
@@ -89,18 +124,25 @@ export class PrismaDashboardRepository implements IDashboardRepository {
 
     // Determine primary currency (default account currency, or first currency in map)
     const defaultAcc = accounts.find((a) => a.is_default);
-    const primaryCurrency = defaultAcc?.currency ?? Array.from(currencyMap.keys())[0] ?? 'IDR';
+    const primaryCurrency =
+      defaultAcc?.currency ?? Array.from(currencyMap.keys())[0] ?? 'IDR';
 
     // Build per-currency list
-    const byCurrency = Array.from(currencyMap.entries()).map(([curr, data]) => ({
-      currency: curr,
-      total_assets_cents: data.assets.toString(),
-      total_income_cents: data.income.toString(),
-      total_expense_cents: data.expense.toString(),
-      net_cash_flow_cents: (data.income - data.expense).toString(),
-    }));
+    const byCurrency = Array.from(currencyMap.entries()).map(
+      ([curr, data]) => ({
+        currency: curr,
+        total_assets_cents: data.assets.toString(),
+        total_income_cents: data.income.toString(),
+        total_expense_cents: data.expense.toString(),
+        net_cash_flow_cents: (data.income - data.expense).toString(),
+      }),
+    );
 
-    const primaryData = currencyMap.get(primaryCurrency) ?? { assets: 0n, income: 0n, expense: 0n };
+    const primaryData = currencyMap.get(primaryCurrency) ?? {
+      assets: 0n,
+      income: 0n,
+      expense: 0n,
+    };
 
     // Build last_updated_at
     const candidates: Date[] = [];
@@ -118,7 +160,9 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       total_assets_cents: primaryData.assets.toString(),
       total_income_cents: primaryData.income.toString(),
       total_expense_cents: primaryData.expense.toString(),
-      net_cash_flow_cents: (primaryData.income - primaryData.expense).toString(),
+      net_cash_flow_cents: (
+        primaryData.income - primaryData.expense
+      ).toString(),
       total_accounts: accounts.length,
       total_categories: catsCount,
       total_transactions: txTotalCount,

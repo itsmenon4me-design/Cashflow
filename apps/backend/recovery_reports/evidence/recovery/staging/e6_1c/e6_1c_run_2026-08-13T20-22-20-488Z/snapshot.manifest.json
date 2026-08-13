@@ -1,0 +1,8 @@
+{
+  "snapshot_file": "snapshot.json",
+  "sha256": "250ed34617299c0a31d693b1cdfe9260d2f06971a2a68106edd19772dc7e1156",
+  "artifact_version": "artifact-v1",
+  "immutable": true,
+  "fixture_label": "STAGING_TEST_DATA",
+  "generated_at": "2026-08-13T20:22:20.502Z"
+}

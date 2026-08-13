@@ -1,0 +1,7 @@
+{
+  "operation_id": "stg-op-1786606678654",
+  "action": "rollback",
+  "timestamp": "2026-08-13T07:37:58.859Z",
+  "restored_snapshot": "snapshot.json",
+  "repeat": true
+}

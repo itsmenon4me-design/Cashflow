@@ -1,0 +1,94 @@
+{
+  "phase": "G.1",
+  "title": "Dependency Security Remediation",
+  "status": "PARTIAL / BLOCKED",
+  "security_findings": [
+    {
+      "severity": "HIGH",
+      "category": "Dependency vulnerability",
+      "package": "@nestjs/swagger",
+      "dependency_chain": "@nestjs/swagger -> js-yaml",
+      "vulnerability": "JS-YAML DoS / exponential parsing / quadratic CPU consumption advisories",
+      "evidence": [
+        "npm audit --audit-level=high --json",
+        "npm ls @nestjs/swagger js-yaml --all"
+      ],
+      "remediation_status": "blocked_by_dependency_conflict"
+    }
+  ],
+  "vulnerability_identified": {
+    "target": "@nestjs/swagger",
+    "chain": [
+      "@nestjs/swagger@11.4.6",
+      "js-yaml@5.2.1"
+    ],
+    "advisory": "GHSA-pm4m-ph32-ghv5",
+    "summary": "js-yaml: Exponential parsing time in flow collections leads to denial of service",
+    "affected_range": ">=5.0.0 <=5.2.1"
+  },
+  "secondary_conflict": {
+    "target": "@nestjs/swagger",
+    "chain": [
+      "@nestjs/swagger@11.4.5",
+      "js-yaml@4.3.0"
+    ],
+    "advisory": "GHSA-5p4m-2wfm-xmqj",
+    "summary": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
+    "affected_range": ">=4.0.0 <4.3.1"
+  },
+  "previous_versions": {
+    "@nestjs/swagger": "11.4.6",
+    "js-yaml": "5.2.1"
+  },
+  "updated_versions_attempted": {
+    "@nestjs/swagger": "11.4.5",
+    "js-yaml": "4.3.0"
+  },
+  "remediation_performed": [
+    "Reviewed root and backend package manifests.",
+    "Inspected npm lock state and audited dependency tree.",
+    "Attempted the minimal non-breaking patch by pinning @nestjs/swagger to 11.4.5.",
+    "Confirmed that this only changes js-yaml from 5.2.1 to 4.3.0 and triggers a different high-severity advisory.",
+    "Reverted the attempted remedial change to avoid forcing an unsafe dependency upgrade while documenting the blocker clearly."
+  ],
+  "npm_audit_result": {
+    "command": "npm audit --audit-level=high --json",
+    "status": "FAIL",
+    "remaining_high_vulnerabilities": 2,
+    "remaining_packages": [
+      "@nestjs/swagger",
+      "js-yaml"
+    ],
+    "note": "The package ecosystem currently provides no safe, consistent fixed version for this dependency chain. The latest version still points to a vulnerable js-yaml, and the previous patch still points to another vulnerable js-yaml minor line."
+  },
+  "npm_ls_result": {
+    "command": "npm ls @nestjs/swagger js-yaml --all",
+    "status": "FAIL_BLOCKED",
+    "results": [
+      "@nestjs/swagger@11.4.6 -> js-yaml@5.2.1",
+      "@nestjs/swagger@11.4.5 -> js-yaml@4.3.0"
+    ],
+    "conclusion": "No valid safe dependency resolution exists in the currently supported @nestjs/swagger range without a broader ecosystem change or major package update that is outside the scope of this minimal remediation task."
+  },
+  "typescript_result": {
+    "command": "cd D:\\Project 2\\CashFlow\\apps\\backend && npx tsc --noEmit",
+    "status": "PASS"
+  },
+  "tests": {
+    "command": "cd D:\\Project 2\\CashFlow\\apps\\backend && npm test -- --runInBand src/modules/auth src/modules/transactions src/modules/audit src/modules/audit-logs",
+    "status": "PASS",
+    "passed": true,
+    "failed": 0,
+    "environment_blocked": [],
+    "notes": "Targeted security/transaction/audit suites completed successfully; no external dependency requirement surfaced during these runs."
+  },
+  "environment_blockers": [],
+  "production_mutation_count": 0,
+  "historical_recovery_status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+  "e_6_2_status": "NOT_PERMITTED",
+  "human_approval": "NOT_APPROVED",
+  "mutation_authorized": false,
+  "production_recovery": "NOT_EXECUTED",
+  "dependency_resolution_outcome": "BLOCKED_DUE_TO_NO_SAFE_SUPPORTED_VERSION",
+  "risk_summary": "The current @nestjs/swagger package family does not provide a simultaneously safe js-yaml version. A patch attempt reversed to 11.4.5 still leaves a different high-severity js-yaml issue. This is an upstream library incompatibility rather than a code-level issue in the application."
+}
