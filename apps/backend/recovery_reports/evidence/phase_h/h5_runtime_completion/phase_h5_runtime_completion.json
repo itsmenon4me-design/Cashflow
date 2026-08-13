@@ -1,6 +1,6 @@
-{
+﻿{
   "phase": "H.5 - STAGING ENVIRONMENT COMPLETION & FULL RUNTIME VALIDATION",
-  "timestamp": "2026-08-13T11:57:30Z",
+  "timestamp": "2026-08-13T21:16:07.505+07:00",
   "staging_runtime": "PASS",
   "postgresql": "PASS",
   "prisma": "PASS",
@@ -50,13 +50,42 @@
     ],
     "playwright_script": "apps/backend/recovery_reports/evidence/phase_h/h5_runtime/offline_e2e_playwright.js"
   },
-
   "limitations": [
     "Offline E2E validated in headed mode: two consecutive Playwright runs confirmed automatic sync flush behavior with isFlushing guard active; each offline reference was persisted exactly once, syncController.flush() returned 'synced', and IndexedDB final state was remainingPending=0 and remainingFailed=0. See evidence files for run artifacts and screenshots.",
     "PWA runtime and mobile device installability verified by build and code inspection and browser/emulation tests; physical Android/iOS device testing remains NOT_AVAILABLE.",
-    "Benchmark shows a 50.2% error rate for the initial run; subsequent harness rework reduced some errors but write endpoints require correct payloads and per-endpoint tuning. See raw benchmark JSON/MD for details and per-endpoint breakdown.",
+    "Benchmark shows a 50.2% error rate for the initial harness run; subsequent harness rework reduced some errors but write endpoints require correct payloads and per-endpoint tuning. See raw benchmark JSON/MD for details and per-endpoint breakdown.",
     "Database EXPLAINs show Seq Scan on transactions for the sampled queries — possible missing indexes (e.g., transactions(user_id, created_at)). Propose index changes only after further workload-driven evidence."
   ],
+  "blocker_audit": {
+    "summary": "Current blockers that prevent progression to Phase I are primarily non-local: unresolved upstream security exception and a historical recovery FINAL_HOLD that depends on external infrastructure. Secondary items (benchmark error-rate and database EXPLAIN issues) are PARTIAL and should be remediated but are not blockers that alone prevent progression if risk acceptance allows.",
+    "items": {
+      "SECURITY_EXCEPTION": {
+        "status": "BLOCKED",
+        "detail": "UNRESOLVED_UPSTREAM — an outstanding security exception remains unresolved upstream. This is a hard blocker for progression to production-sensitive phases. Action: engage upstream maintainers/security team to remediate."
+      },
+      "HISTORICAL_RECOVERY": {
+        "status": "BLOCKED",
+        "detail": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY — historical recovery is on final hold due to external infra dependency. Cannot proceed with historical recovery operations until external dependency is satisfied."
+      },
+      "BENCHMARK_ERROR_RATE": {
+        "status": "PARTIAL",
+        "detail": "Observed benchmark error_rate=50.2% (initial harness). Many endpoints succeed but write-heavy endpoints require payload and concurrency tuning. Not a hard blocker for Phase I if acceptable risk thresholds are agreed, but needs remediation prior to production." 
+      },
+      "DATABASE_PERFORMANCE": {
+        "status": "PARTIAL",
+        "detail": "EXPLAINs show sequential scans for sampled queries; possible missing indexes or suboptimal query patterns. Recommend workload-driven index additions and re-run EXPLAIN/ANALYZE after representative load."
+      },
+      "REAL_DEVICE_TESTING": {
+        "status": "NOT_AVAILABLE",
+        "detail": "Physical device validation for Android/iOS not executed in this phase. Recommended before broader release." 
+      }
+    }
+  },
+  "final_assessment": "BLOCKED",
+  "blocking_reasons": [
+    "SECURITY_EXCEPTION: UNRESOLVED_UPSTREAM",
+    "HISTORICAL_RECOVERY: FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY"
+  ],
   "safety_status": "NO_PRODUCTION_ACCESS; NO_PRODUCTION_MUTATION; HISTORICAL_RECOVERY_UNCHANGED",
-  "next_phase": "H.6 or I depending on unresolved offline/PWA/device validations"
+  "next_phase": "Hold: resolve upstream security exception and external historical recovery dependency. After remediation, re-run remaining benchmark and real-device validations before advancing to Phase I."
 }
