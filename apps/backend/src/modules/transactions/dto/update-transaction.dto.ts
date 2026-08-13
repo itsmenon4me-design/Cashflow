@@ -6,6 +6,7 @@ import {
   Min,
   IsDateString,
 } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateTransactionDto {
@@ -27,6 +28,24 @@ export class UpdateTransactionDto {
 
   @ApiPropertyOptional({ description: 'Amount in cents' })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!/^[-+]?\d+$/.test(trimmed)) {
+        throw new Error('amount_cents must be a whole integer cent value');
+      }
+      return Number(trimmed);
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || !Number.isInteger(value)) {
+        throw new Error('amount_cents must be a whole integer cent value');
+      }
+      return value;
+    }
+    return value;
+  })
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   amount_cents?: number;

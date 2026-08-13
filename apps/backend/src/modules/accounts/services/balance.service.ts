@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
 
 @Injectable()
 export class BalanceService {

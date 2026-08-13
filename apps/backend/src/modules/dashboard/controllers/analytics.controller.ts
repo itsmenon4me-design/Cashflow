@@ -1,11 +1,15 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { CashflowAnalyticsService } from '../services/cashflow-analytics.service';
-import type { Request } from 'express';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { AnalyticsQueryDto } from '../dto/analytics-query.dto';
 import { AnalyticsResponseDto } from '../dto/analytics-response.dto';
-
-type RequestWithUser = Request & { user?: { id?: string } };
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
@@ -13,6 +17,8 @@ export class AnalyticsController {
   constructor(private readonly service: CashflowAnalyticsService) {}
 
   @Get('analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
   @ApiOperation({ summary: 'Get cash flow analytics for authenticated user' })
   @ApiResponse({
     status: 200,
@@ -20,11 +26,9 @@ export class AnalyticsController {
     type: AnalyticsResponseDto,
   })
   async getAnalytics(
-    @Req() req: RequestWithUser,
+    @CurrentUser('sub') userId: string,
     @Query() query: AnalyticsQueryDto,
   ) {
-    const userId = req.user?.id as string;
-
     let s: Date | undefined;
     let e: Date | undefined;
     if (query.startDate) s = new Date(query.startDate);

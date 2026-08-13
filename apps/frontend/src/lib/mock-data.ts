@@ -1,5 +1,4 @@
 import type {
-  ActivityItem,
   AnalyticsCashFlowPoint,
   AnalyticsDataset,
   AnalyticsRangeKey,
@@ -76,14 +75,6 @@ export const recentTransactions: TransactionItem[] = [
   { id: "txn-016", date: "2026-07-24", category: "Belanja", description: "Belanja kebutuhan dapur", account: "Kas Tunai", amount: 640000, type: "expense", status: "completed" },
   { id: "txn-017", date: "2026-07-23", category: "Investasi", description: "Beli obligasi negara", account: "Bank BCA", amount: 2000000, type: "expense", status: "cancelled" },
   { id: "txn-018", date: "2026-07-22", category: "Bisnis", description: "Penjualan merchandise", account: "E-Wallet GoPay", amount: 1875000, type: "income", status: "completed" },
-];
-
-export const recentActivities: ActivityItem[] = [
-  { id: "act-001", user: "Ariana Wells", action: "menerima gaji bulanan", time: "2 jam lalu", status: "completed" },
-  { id: "act-002", user: "Ariana Wells", action: "membayar tagihan listrik", time: "5 jam lalu", status: "completed" },
-  { id: "act-003", user: "Ariana Wells", action: "melakukan transfer antar akun", time: "Kemarin", status: "pending" },
-  { id: "act-004", user: "Ariana Wells", action: "memperbarui anggaran Makanan", time: "Kemarin", status: "completed" },
-  { id: "act-005", user: "Ariana Wells", action: "membayar tagihan internet", time: "2 hari lalu", status: "failed" },
 ];
 
 export const monthlyTargets: MonthlyTargetItem[] = [

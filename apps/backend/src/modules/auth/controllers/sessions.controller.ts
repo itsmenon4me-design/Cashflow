@@ -1,9 +1,9 @@
-import { Controller, Delete, Get, Param, UseGuards, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { SessionService } from '../services/session.service';
 import { SessionResponseDto } from '../dto/session-response.dto';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @ApiTags('Authentication')
 @UseGuards(JwtAuthGuard)
@@ -14,10 +14,7 @@ export class SessionsController {
   @Get()
   @ApiOperation({ summary: 'List active sessions for current user' })
   @ApiResponse({ status: 200, type: [SessionResponseDto] })
-  async list(
-    @Req() req: Request & { user?: { sub?: string; sessionId?: string } },
-  ): Promise<SessionResponseDto[]> {
-    const userId = req.user?.sub as string;
+  async list(@CurrentUser('sub') userId: string): Promise<SessionResponseDto[]> {
     const items = await this.sessions.listForUser(userId);
     // map to DTO without sensitive fields
     return items.map((s) => ({
@@ -40,11 +37,7 @@ export class SessionsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Revoke a specific session' })
   @ApiResponse({ status: 200 })
-  async revoke(
-    @Req() req: Request & { user?: { sub?: string; sessionId?: string } },
-    @Param('id') id: string,
-  ) {
-    const userId = req.user?.sub as string;
+  async revoke(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     await this.sessions.revoke(id, userId);
     return { success: true };
   }
@@ -53,10 +46,9 @@ export class SessionsController {
   @ApiOperation({ summary: 'Revoke all sessions except current' })
   @ApiResponse({ status: 200 })
   async revokeAllExceptCurrent(
-    @Req() req: Request & { user?: { sub?: string; sessionId?: string } },
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('sessionId') currentSession?: string,
   ) {
-    const userId = req.user?.sub as string;
-    const currentSession = req.user?.sessionId;
     await this.sessions.revokeAllExcept(userId, currentSession);
     return { success: true };
   }

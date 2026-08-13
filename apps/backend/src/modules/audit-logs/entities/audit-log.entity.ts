@@ -3,6 +3,7 @@ export class AuditLogEntity {
   user_id?: string | null;
   action!: string;
   module!: string;
+  description?: string | null;
   entity_type?: string | null;
   entity_id?: string | null;
   ip_address?: string | null;

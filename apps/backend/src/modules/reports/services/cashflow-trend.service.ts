@@ -1,13 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { toMinorUnitsExact } from '../../../common/types/money';
 
 export type TrendType = 'daily' | 'weekly' | 'monthly';
 
 export interface TrendPoint {
   period: string;
-  income: number;
-  expense: number;
-  netCashFlow: number;
+  /** Exact minor units as strings (BigInt-safe at the API boundary). */
+  income: string;
+  expense: string;
+  netCashFlow: string;
 }
 
 export interface TrendResult {
@@ -19,15 +21,15 @@ export interface TrendResult {
 export class CashflowTrendService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private normalizeToNumber(v: unknown): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'bigint') return Number(v);
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isNaN(n) ? 0 : n;
-    }
-    if (typeof v === 'number') return v;
-    return 0;
+  // Resolve primary account currency so income/expense/net aggregates never
+  // mix different currencies (Phase C multi-currency rule).
+  private async resolveTargetCurrency(userId: string): Promise<string> {
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
   private validateDates(start: Date, end: Date) {
@@ -69,11 +71,14 @@ export class CashflowTrendService {
       throw new BadRequestException('Invalid type');
     this.validateDates(startDate, endDate);
 
-    // fetch transactions in range
+    const targetCurrency = await this.resolveTargetCurrency(userId);
+
+    // fetch transactions in range (single currency only)
     const recs = await this.prisma.transaction.findMany({
       where: {
         user_id: userId,
         deleted_at: null,
+        account: { currency: targetCurrency },
         transaction_date: { gte: startDate, lte: endDate },
       },
       select: {
@@ -87,14 +92,14 @@ export class CashflowTrendService {
 
     const map = new Map<
       string,
-      { income: number; expense: number; count: number }
+      { income: bigint; expense: bigint; count: number }
     >();
 
     for (const r of recs) {
       const dt = r.transaction_date;
       const key = this.getPeriodKey(new Date(dt), type);
-      const entry = map.get(key) ?? { income: 0, expense: 0, count: 0 };
-      const amt = this.normalizeToNumber(r.amount_cents ?? 0);
+      const entry = map.get(key) ?? { income: 0n, expense: 0n, count: 0 };
+      const amt = toMinorUnitsExact(r.amount_cents);
       if (String(r.transaction_type).toUpperCase() === 'INCOME')
         entry.income += amt;
       else entry.expense += amt;
@@ -106,9 +111,9 @@ export class CashflowTrendService {
     const data: TrendPoint[] = Array.from(map.entries())
       .map(([period, v]) => ({
         period,
-        income: v.income,
-        expense: v.expense,
-        netCashFlow: v.income - v.expense,
+        income: v.income.toString(),
+        expense: v.expense.toString(),
+        netCashFlow: (v.income - v.expense).toString(),
       }))
       .sort((a, b) => (a.period < b.period ? -1 : a.period > b.period ? 1 : 0));
 

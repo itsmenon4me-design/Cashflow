@@ -25,8 +25,9 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const rawUser = request.user as unknown;
     if (typeof rawUser !== 'object' || rawUser === null) {
-      this.logger.warn('Unauthorized Access Attempt - no role present');
-      throw ErrorService.create(ErrorCode.FORBIDDEN, 'Insufficient role');
+      this.logger.warn('Unauthorized Access Attempt - no authenticated user');
+      // No user -> unauthorized
+      throw ErrorService.create(ErrorCode.UNAUTHORIZED, 'Unauthorized');
     }
     const user = rawUser as { sub?: string; role?: string };
     const roleCode = user.role;

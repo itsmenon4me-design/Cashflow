@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 
 class SummaryDto {
   @ApiProperty()
-  income: number;
+  income: string;
 
   @ApiProperty()
-  expense: number;
+  expense: string;
 
   @ApiProperty()
-  netCashFlow: number;
+  netCashFlow: string;
 
   @ApiProperty()
   transactions: number;
@@ -22,7 +22,7 @@ class CategoryTotalDto {
   name: string | null;
 
   @ApiProperty()
-  total: number;
+  total: string;
 }
 
 export class MonthlyReportResponseDto {

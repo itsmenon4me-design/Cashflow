@@ -12,6 +12,7 @@ import { Request, Response } from 'express';
 
 interface ExtendedRequest extends Request {
   correlationId?: string;
+  requestId?: string;
 }
 
 @Injectable()
@@ -25,6 +26,8 @@ export class LoggerInterceptor implements NestInterceptor {
     const correlationId =
       (headers && (headers[CORRELATION_ID_HEADER] as string | undefined)) ||
       req?.correlationId;
+    const requestId =
+      (headers && (headers['x-request-id'] as string | undefined)) || req?.requestId;
     const now = Date.now();
 
     return next.handle().pipe(
@@ -38,6 +41,7 @@ export class LoggerInterceptor implements NestInterceptor {
             responseTimeMs: responseTime,
             payloadSizeBytes: payloadSize,
             correlationId,
+            requestId,
           },
           'HTTP',
         );

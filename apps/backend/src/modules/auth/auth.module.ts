@@ -9,6 +9,7 @@ import { JwtConfigService } from '../../config/jwt-config.service';
 import type { JwtConfig } from '../../config/jwt.config';
 import type { JwtModuleOptions } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
+import { AuthRateLimitGuard } from './auth-rate-limit.guard';
 import { EmailVerificationService } from './services/email-verification.service';
 import { PrismaUsersRepository } from '../users/repositories/prisma-users.repository';
 import { PassportModule } from '@nestjs/passport';
@@ -60,6 +61,8 @@ import { PermissionsService } from './services/permissions.service';
     EmailVerificationService,
     // Users repo provider for Auth module internal updates
     PrismaUsersRepository,
+    // Rate limiting guard for auth endpoints
+    AuthRateLimitGuard,
   ],
   exports: [AuthService, SessionService, RolesService, PermissionsService],
 })

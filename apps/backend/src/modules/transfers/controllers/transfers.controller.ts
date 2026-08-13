@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Body,
-  Req,
   Get,
   Param,
   UseGuards,
@@ -17,18 +16,12 @@ import { CreateTransferDto } from '../dto/create-transfer.dto';
 import { TransfersService } from '../services/transfers.service';
 import { TransferResponseDto } from '../dto/transfer-response.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import type { Request } from 'express';
-import type { JwtPayload } from 'jsonwebtoken';
-
-// AuthenticatedRequest has user typed from JwtPayload with optional id/sub
-interface AuthenticatedRequest extends Request {
-  user: JwtPayload & { id?: string; sub?: string };
-}
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @ApiTags('transfers')
 @ApiBearerAuth('jwt')
 @UseGuards(JwtAuthGuard)
-@Controller('api/v1/transfers')
+@Controller('transfers')
 export class TransfersController {
   constructor(private readonly service: TransfersService) {}
 
@@ -36,10 +29,9 @@ export class TransfersController {
   @ApiOperation({ summary: 'Create a transfer between accounts' })
   @ApiResponse({ status: 201, type: TransferResponseDto })
   async create(
-    @Req() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
     @Body() body: CreateTransferDto,
   ) {
-    const userId = req.user?.id ?? req.user?.sub;
     if (!userId) throw new Error('Unauthorized');
     const result = await this.service.create(userId, {
       source_account_id: body.source_account_id,
@@ -57,8 +49,7 @@ export class TransfersController {
   @Get()
   @ApiOperation({ summary: 'List transfers for current user' })
   @ApiResponse({ status: 200, type: [TransferResponseDto] })
-  async list(@Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id ?? req.user?.sub;
+  async list(@CurrentUser('sub') userId: string) {
     if (!userId) throw new Error('Unauthorized');
     return this.service.list(userId);
   }
@@ -66,8 +57,7 @@ export class TransfersController {
   @Get(':id')
   @ApiOperation({ summary: 'Get transfer by id (transfer_group_id)' })
   @ApiResponse({ status: 200, type: TransferResponseDto })
-  async findById(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
-    const userId = req.user?.id ?? req.user?.sub;
+  async findById(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     if (!userId) throw new Error('Unauthorized');
     return this.service.findById(userId, id);
   }

@@ -32,6 +32,8 @@ import { MailConfigService } from './mail-config.service';
         corsConfig,
         swaggerConfig,
         securityConfig,
+        // Auth config
+        require('./auth.config').authConfig,
         mailConfig,
       ],
       validate,
@@ -46,6 +48,8 @@ import { MailConfigService } from './mail-config.service';
     CorsConfigService,
     SwaggerConfigService,
     SecurityConfigService,
+    // Auth config service
+    require('./auth-config.service').AuthConfigService,
     MailConfigService,
   ],
   exports: [
@@ -56,6 +60,7 @@ import { MailConfigService } from './mail-config.service';
     CorsConfigService,
     SwaggerConfigService,
     SecurityConfigService,
+    require('./auth-config.service').AuthConfigService,
     MailConfigService,
   ],
 })

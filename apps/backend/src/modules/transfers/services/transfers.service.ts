@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '@prisma/client';
-import type { PrismaClient, Transaction } from '@prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
+import type {
+  PrismaClient,
+  Transaction,
+} from '../../../generated/prisma/client';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import {
   AuditAction,
@@ -85,6 +88,12 @@ export class TransfersService {
         ErrorCode.INVALID_INPUT,
         'Destination account is not active',
       );
+    if (src.currency !== dst.currency) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        `Cross-currency transfers between ${src.currency} and ${dst.currency} require FX conversion which is not currently supported`,
+      );
+    }
 
     // Create transfer group id
     const transferGroupId = crypto.randomUUID();
@@ -134,19 +143,29 @@ export class TransfersService {
             },
           });
 
-          // Update account balances atomically
-          const newSrcBal =
-            BigInt(src.current_balance_cents ?? '0') - amount_cents;
-          await tx.account.update({
-            where: { id: source_account_id },
-            data: { current_balance_cents: newSrcBal },
+          // Atomically decrement source balance only if sufficient funds exist
+          const srcUpdate = await tx.account.updateMany({
+            where: {
+              id: source_account_id,
+              current_balance_cents: { gte: amount_cents },
+            },
+            data: {
+              current_balance_cents: { decrement: amount_cents },
+            },
           });
 
-          const newDstBal =
-            BigInt(dst.current_balance_cents ?? '0') + amount_cents;
+          // If no rows were affected, the source had insufficient balance
+          if (!srcUpdate || srcUpdate.count === 0) {
+            throw ErrorService.create(
+              ErrorCode.INVALID_INPUT,
+              'Insufficient balance',
+            );
+          }
+
+          // Atomically increment destination balance
           await tx.account.update({
             where: { id: destination_account_id },
-            data: { current_balance_cents: newDstBal },
+            data: { current_balance_cents: { increment: amount_cents } },
           });
 
           return { out, inp };

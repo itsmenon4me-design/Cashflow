@@ -14,7 +14,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "sticky top-0 z-40 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out md:flex",
+        "sticky top-0 z-40 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out md:flex",
         collapsed ? "w-[76px]" : "w-64"
       )}
     >
@@ -35,7 +35,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <ScrollArea className="flex-1 px-3 py-4">
+      <ScrollArea className="min-h-0 flex-1 px-3 pb-5 pt-4">
         <SidebarNav collapsed={collapsed} />
       </ScrollArea>
 

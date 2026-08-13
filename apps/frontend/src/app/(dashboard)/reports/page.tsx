@@ -1,6 +1,5 @@
-﻿import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+﻿import { ReportsPage } from "@/features/reports/reports-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.reports} />;
+  return <ReportsPage />;
 }

@@ -2,11 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "CashFlow Enterprise",
     short_name: "CashFlow",
     description: "Production-first CashFlow enterprise platform blueprint",
     start_url: "/",
+    scope: "/",
     display: "standalone",
+    display_override: ["standalone", "minimal-ui"],
     background_color: "#020202",
     theme_color: "#020202",
     lang: "id",

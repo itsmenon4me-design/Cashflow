@@ -5,11 +5,24 @@ import {
   IsDateString,
   IsInt,
   Min,
+  Max,
+  MaxLength,
   IsBooleanString,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TransactionFilterDto {
+  @ApiPropertyOptional({
+    description: 'Search keyword (note, reference, amount, type, id)',
+    minLength: 1,
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
   @ApiPropertyOptional({ description: 'Account id to filter' })
   @IsOptional()
   @IsString()
@@ -69,4 +82,19 @@ export class TransactionFilterDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
 }

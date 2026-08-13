@@ -8,6 +8,24 @@ function ScrollArea({
   children,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+  const viewportRef = React.useRef<React.ComponentRef<typeof ScrollAreaPrimitive.Viewport>>(null);
+
+  React.useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const scrollable = el.scrollHeight > el.clientHeight;
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      const goingDown = e.deltaY > 0;
+      if (!scrollable || (goingDown && atBottom) || (!goingDown && atTop)) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -15,8 +33,9 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
+        ref={viewportRef}
         data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+        className="focus-visible:ring-ring/50 size-full overscroll-contain rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

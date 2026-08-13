@@ -154,6 +154,14 @@ class EnvironmentVariables {
   @IsOptional()
   RATE_LIMIT_LIMIT: number = 100;
 
+  @IsInt()
+  @IsOptional()
+  AUDIT_ADMIN_RATE_LIMIT_TTL_SECONDS: number = 60;
+
+  @IsInt()
+  @IsOptional()
+  AUDIT_ADMIN_RATE_LIMIT_LIMIT: number = 120;
+
   @IsBoolean()
   @IsOptional()
   SECURE_COOKIES: boolean = false;

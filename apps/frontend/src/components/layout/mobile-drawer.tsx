@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Wallet } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -10,6 +11,15 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 gap-0 bg-sidebar p-0">
@@ -19,7 +29,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           </div>
           <SheetTitle className="text-sidebar-foreground">CashFlow</SheetTitle>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-5 pt-4">
           <SidebarNav onNavigate={() => onOpenChange(false)} />
         </div>
       </SheetContent>

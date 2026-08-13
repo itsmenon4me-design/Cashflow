@@ -1,17 +1,13 @@
-import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { MonthlyTargetCard } from "@/components/dashboard/MonthlyTargetCard";
 import { NotificationCard } from "@/components/dashboard/NotificationCard";
-import { QuickActionCard } from "@/components/dashboard/QuickActionCard";
-import { monthlyTargets, notifications, recentActivities } from "@/lib/mock-data";
+import { monthlyTargets } from "@/lib/mock-data";
 
 export function RightPanel() {
   return (
-    <aside className="hidden xl:block" aria-label="Panel samping">
-      <div className="sticky top-24 space-y-5">
-        <ActivityCard items={recentActivities} />
+    <aside className="xl:block" aria-label="Panel samping">
+      <div className="grid gap-5 md:grid-cols-2 xl:sticky xl:top-24 xl:grid-cols-1">
         <MonthlyTargetCard items={monthlyTargets} />
-        <NotificationCard items={notifications} />
-        <QuickActionCard />
+        <NotificationCard />
       </div>
     </aside>
   );

@@ -1,35 +1,27 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
+import { toMinorUnitsExact } from '../../../common/types/money';
 
 export interface CategoryBreakdownItem {
   categoryId: string;
   categoryName: string | null;
-  totalAmount: number;
+  /** Exact minor units as a string (BigInt-safe at the API boundary). */
+  totalAmount: string;
   percentage: number;
   transactionCount: number;
 }
 
 export interface CategoryBreakdownResult {
   type: 'income' | 'expense';
-  total: number;
+  /** Exact minor units as a string (BigInt-safe at the API boundary). */
+  total: string;
   categories: CategoryBreakdownItem[];
 }
 
 @Injectable()
 export class CategoryBreakdownService {
   constructor(private readonly prisma: PrismaService) {}
-
-  private normalizeToNumber(v: unknown): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'bigint') return Number(v);
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isNaN(n) ? 0 : n;
-    }
-    return 0;
-  }
 
   private validateMonthYear(month: number, year: number) {
     if (!Number.isInteger(month) || month < 1 || month > 12) {
@@ -41,14 +33,28 @@ export class CategoryBreakdownService {
     }
   }
 
+  private validateRange(range?: { start?: Date; end?: Date }): {
+    start: Date;
+    end: Date;
+  } {
+    if (!range?.start || !range?.end)
+      throw new BadRequestException(
+        'Date range requires both startDate and endDate',
+      );
+    if (isNaN(range.start.getTime()) || isNaN(range.end.getTime()))
+      throw new BadRequestException('Invalid date range');
+    if (range.start.getTime() > range.end.getTime())
+      throw new BadRequestException('startDate must be before endDate');
+    return { start: range.start, end: range.end };
+  }
+
   async getBreakdown(
     userId: string,
     type: 'income' | 'expense',
-    month: number,
-    year: number,
+    month?: number | string,
+    year?: number | string,
+    range?: { start?: Date; end?: Date },
   ): Promise<CategoryBreakdownResult> {
-    this.validateMonthYear(month, year);
-
     if (type !== 'income' && type !== 'expense') {
       throw new BadRequestException('Invalid type');
     }
@@ -56,14 +62,40 @@ export class CategoryBreakdownService {
     const txType =
       type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE;
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    let start: Date;
+    let end: Date;
+
+    // Parse month/year from string if needed
+    const monthNum = month !== undefined ? Number(month) : undefined;
+    const yearNum = year !== undefined ? Number(year) : undefined;
+
+    if (range && range.start && range.end) {
+      const resolved = this.validateRange(range);
+      start = resolved.start;
+      end = resolved.end;
+    } else {
+      if (monthNum === undefined || yearNum === undefined)
+        throw new BadRequestException('Month and year are required');
+      this.validateMonthYear(monthNum, yearNum);
+      start = new Date(yearNum, monthNum - 1, 1);
+      end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+    }
+
+    // Resolve primary account currency to prevent cross-currency summation
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    const targetCurrency =
+      defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     const totalAgg = await this.prisma.transaction.aggregate({
       where: {
         user_id: userId,
         deleted_at: null,
         transaction_type: txType,
+        account: { currency: targetCurrency },
         transaction_date: {
           gte: start,
           lte: end,
@@ -74,7 +106,7 @@ export class CategoryBreakdownService {
       },
     });
 
-    const total = this.normalizeToNumber(totalAgg._sum?.amount_cents ?? 0);
+    const total = toMinorUnitsExact(totalAgg._sum?.amount_cents);
 
     const groups = await this.prisma.transaction.groupBy({
       by: ['category_id'],
@@ -82,6 +114,7 @@ export class CategoryBreakdownService {
         user_id: userId,
         deleted_at: null,
         transaction_type: txType,
+        account: { currency: targetCurrency },
         transaction_date: {
           gte: start,
           lte: end,
@@ -103,7 +136,7 @@ export class CategoryBreakdownService {
     if (groups.length === 0) {
       return {
         type,
-        total,
+        total: total.toString(),
         categories: [],
       };
     }
@@ -125,25 +158,30 @@ export class CategoryBreakdownService {
     }
 
     const items: CategoryBreakdownItem[] = groups.map((g) => {
-      const amount = this.normalizeToNumber(g._sum.amount_cents ?? 0);
+      const amount = toMinorUnitsExact(g._sum.amount_cents ?? 0);
 
       const percentage =
-        total === 0 ? 0 : Number(((amount / total) * 100).toFixed(2));
+        total === 0n
+          ? 0
+          : Number(((Number(amount) / Number(total)) * 100).toFixed(2));
 
       return {
         categoryId: g.category_id,
         categoryName: nameById[g.category_id] ?? null,
-        totalAmount: amount,
+        totalAmount: amount.toString(),
         percentage,
         transactionCount: g._count.id,
       };
     });
 
-    items.sort((a, b) => b.totalAmount - a.totalAmount);
+    items.sort((a, b) => {
+      const diff = BigInt(b.totalAmount) - BigInt(a.totalAmount);
+      return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+    });
 
     return {
       type,
-      total,
+      total: total.toString(),
       categories: items,
     };
   }

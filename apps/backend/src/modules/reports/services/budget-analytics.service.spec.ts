@@ -1,6 +1,6 @@
 import { BudgetAnalyticsService } from './budget-analytics.service';
 import type { PrismaService } from '../../../database/prisma.service';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../generated/prisma/client';
 
 const makePrismaMock = (
   opts: {
@@ -8,7 +8,7 @@ const makePrismaMock = (
     groups?: Prisma.TransactionGroupByOutputType[];
     categories?: unknown[];
   } = {},
-): Partial<PrismaService> => {
+): PrismaService => {
   const { budgets = [], groups = [], categories = [] } = opts;
 
   const mock: Partial<PrismaService> = {
@@ -16,18 +16,19 @@ const makePrismaMock = (
       Promise.resolve(budgets),
     ) as unknown as PrismaService['$queryRaw'],
     transaction: {
-      groupBy: jest.fn(() =>
-        Promise.resolve(groups),
-      ) as unknown as PrismaService['transaction']['groupBy'],
-    },
+      groupBy: jest.fn(() => Promise.resolve(groups)),
+    } as unknown as PrismaService['transaction'],
     category: {
+      findMany: jest.fn(() => Promise.resolve(categories)),
+    } as unknown as PrismaService['category'],
+    account: {
       findMany: jest.fn(() =>
-        Promise.resolve(categories),
-      ) as unknown as PrismaService['category']['findMany'],
-    },
+        Promise.resolve([{ currency: 'IDR', is_default: true }]),
+      ) as unknown as PrismaService['account']['findMany'],
+    } as unknown as PrismaService['account'],
   };
 
-  return mock;
+  return mock as unknown as PrismaService;
 };
 
 describe('BudgetAnalyticsService', () => {
@@ -42,7 +43,7 @@ describe('BudgetAnalyticsService', () => {
     ];
     const cats = [{ id: 'c1', name: 'Food' }];
     const prisma = makePrismaMock({ budgets, groups, categories: cats });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 8, 2026);
     expect(res.categories[0].status).toBe('SAFE');
     expect(res.categories[0].percentageUsed).toBe(70);
@@ -59,7 +60,7 @@ describe('BudgetAnalyticsService', () => {
     ];
     const cats = [{ id: 'c1', name: 'Food' }];
     const prisma = makePrismaMock({ budgets, groups, categories: cats });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 8, 2026);
     expect(res.categories[0].status).toBe('WARNING');
     expect(res.categories[0].percentageUsed).toBe(90);
@@ -76,7 +77,7 @@ describe('BudgetAnalyticsService', () => {
     ];
     const cats = [{ id: 'c1', name: 'Food' }];
     const prisma = makePrismaMock({ budgets, groups, categories: cats });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 8, 2026);
     expect(res.categories[0].status).toBe('OVER_BUDGET');
     expect(res.categories[0].percentageUsed).toBe(120);
@@ -88,10 +89,10 @@ describe('BudgetAnalyticsService', () => {
       groups: [],
       categories: [],
     });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 2, 2025);
     expect(res.categories).toEqual([]);
-    expect(res.overall.budget).toBe(0);
+    expect(res.overall.budget).toBe('0');
   });
 
   it('handles zero budget preventing division by zero', async () => {
@@ -105,7 +106,7 @@ describe('BudgetAnalyticsService', () => {
     ];
     const cats = [{ id: 'c1', name: 'Misc' }];
     const prisma = makePrismaMock({ budgets, groups, categories: cats });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 8, 2026);
     expect(res.categories[0].percentageUsed).toBe(0);
     expect(res.categories[0].status).toBe('SAFE');
@@ -133,7 +134,7 @@ describe('BudgetAnalyticsService', () => {
       { id: 'c2', name: 'Travel' },
     ];
     const prisma = makePrismaMock({ budgets, groups, categories: cats });
-    const svc = new BudgetAnalyticsService(prisma as unknown as PrismaService);
+    const svc = new BudgetAnalyticsService(prisma);
     const res = await svc.analyzeMonth('user-1', 8, 2026);
     expect(res.categories[0].percentageUsed).toBeGreaterThanOrEqual(
       res.categories[1].percentageUsed,

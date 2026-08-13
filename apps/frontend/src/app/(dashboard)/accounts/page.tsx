@@ -1,6 +1,5 @@
-﻿import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+﻿import { AccountsPage } from "@/features/accounts/accounts-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.accounts} />;
+  return <AccountsPage />;
 }

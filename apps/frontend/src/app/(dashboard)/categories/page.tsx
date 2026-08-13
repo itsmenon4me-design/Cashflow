@@ -1,6 +1,5 @@
-﻿import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+﻿import { CategoriesPage } from "@/features/categories/categories-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.categories} />;
+  return <CategoriesPage />;
 }

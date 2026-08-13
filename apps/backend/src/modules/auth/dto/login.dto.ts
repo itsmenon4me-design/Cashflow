@@ -8,6 +8,6 @@ export class LoginDto {
 
   @ApiProperty({ example: 'S3cur3P@ssw0rd!' })
   @IsNotEmpty()
-  @Length(12, 128)
+  @Length(6, 128)
   password!: string;
 }

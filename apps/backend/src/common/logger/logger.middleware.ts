@@ -9,22 +9,37 @@ import {
 
 interface ExtendedRequest extends Request {
   correlationId?: string;
+  requestId?: string;
 }
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
   constructor(private readonly logger: LoggerService) {}
 
+  private normalizeRequestId(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(trimmed)) {
+      return undefined;
+    }
+    return trimmed;
+  }
+
   use(req: ExtendedRequest, res: Response, next: NextFunction): void {
     // Skip some paths
     if (REQUEST_LOG_WHITELIST.includes(req.path)) return next();
 
-    const headerVal =
-      (req.headers[CORRELATION_ID_HEADER] as string) || undefined;
-    const correlationId = headerVal || randomUUID();
+    const correlationHeader = req.headers[CORRELATION_ID_HEADER];
+    const correlationId =
+      this.normalizeRequestId(correlationHeader) ?? randomUUID();
+    const requestIdHeader = req.headers['x-request-id'];
+    const requestId = this.normalizeRequestId(requestIdHeader) ?? randomUUID();
+
     // attach to request and response headers
     req.correlationId = correlationId;
+    req.requestId = requestId;
     res.setHeader(CORRELATION_ID_HEADER, correlationId);
+    res.setHeader('x-request-id', requestId);
 
     // log request arrival
     const ip =
@@ -39,6 +54,7 @@ export class LoggerMiddleware implements NestMiddleware {
       ip: ip,
       userAgent,
       correlationId,
+      requestId,
     });
 
     // measure response time

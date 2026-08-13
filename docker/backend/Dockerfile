@@ -1,5 +1,6 @@
 # ==========================
 # Backend Dockerfile (NestJS)
+# Monorepo (npm workspaces) aware: install once from the root lockfile.
 # ==========================
 
 ARG NODE_ENV=production
@@ -8,9 +9,9 @@ ARG NODE_ENV=production
 # Builder
 # ==========================
 
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Install tools untuk compile native module (argon2)
 RUN apt-get update && \
@@ -23,42 +24,57 @@ RUN apt-get update && \
 # Agar node-gyp menemukan python
 ENV PYTHON=/usr/bin/python3
 
-# Copy package files
-COPY apps/backend/package*.json ./
+# Copy package manifests (all workspace members) + single root lockfile
+COPY package.json package-lock.json ./
+COPY apps/backend/package.json ./apps/backend/package.json
+COPY apps/frontend/package.json ./apps/frontend/package.json
 
-# Install dependencies
+# Install dependencies for the whole monorepo from the root lockfile
 RUN npm ci
 
-# Copy source code
-COPY apps/backend/ ./
+# Copy Prisma schema/config + backend source
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
+COPY apps/backend ./apps/backend
+
+# Generate Prisma client into apps/backend/src/generated/prisma
+RUN npx prisma generate
 
 # Build NestJS
-RUN npm run build
+ARG NODE_ENV
+ENV NODE_ENV=${NODE_ENV}
+RUN npm run build -w backend
 
 # ==========================
 # Runtime
 # ==========================
 
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-ENV NODE_ENV=production
+ARG NODE_ENV
+ENV NODE_ENV=${NODE_ENV}
 
-# Runtime library untuk argon2
+# Runtime library untuk argon2 + curl untuk healthcheck
 RUN apt-get update && \
-    apt-get install -y libstdc++6 && \
+    apt-get install -y libstdc++6 curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY --from=builder /usr/src/app/package*.json ./
+# Copy the full monorepo node_modules (installed from root lockfile)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Install production dependencies
-RUN npm ci --omit=dev
+# Copy backend build output + generated client
+COPY --from=builder /app/apps/backend ./apps/backend
 
-# Copy hasil build
-COPY --from=builder /usr/src/app/dist ./dist
+# Copy Prisma schema/config/seed (used by migrate deploy + db seed)
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
+
+COPY docker/backend/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3001
 
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["./entrypoint.sh"]

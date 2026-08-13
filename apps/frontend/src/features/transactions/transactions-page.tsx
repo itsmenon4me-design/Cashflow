@@ -12,6 +12,7 @@ import { TransactionPagination } from "@/components/transactions/TransactionPagi
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { TransactionToolbar } from "@/components/transactions/TransactionToolbar";
 import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_PAGE_SIZE,
@@ -19,75 +20,223 @@ import {
 } from "@/features/transactions/constants";
 import type { TransactionFiltersState } from "@/features/transactions/types";
 import type { TransactionFormValues } from "@/features/transactions/schema";
-import { recentTransactions } from "@/lib/mock-data";
 import { uiText } from "@/locales";
+import { useDataRefreshStore } from "@/stores/refresh.store";
+import {
+  syncCreateTransaction,
+  syncDeleteTransaction,
+  syncUpdateTransaction,
+} from "@/lib/offline/sync-client";
+import { accountService } from "@/services/account.service";
+import { categoryService } from "@/services/category.service";
+import {
+  findIdByName,
+  toCreateTransactionPayload,
+  toTransactionItem,
+  toUpdateTransactionPayload,
+  transactionService,
+  type TransactionListParams,
+} from "@/services/transaction.service";
+import type { AccountResponse, CategoryResponse } from "@/types/backend";
 import type { TransactionItem } from "@/types/dashboard";
 
-const LOADING_DURATION_MS = 500;
+const SEARCH_DEBOUNCE_MS = 300;
+
+type SortKey = NonNullable<TransactionListParams["sortBy"]>;
+type SortOrder = NonNullable<TransactionListParams["sortOrder"]>;
 
 interface FormState {
   open: boolean;
   mode: TransactionFormMode;
   transaction: TransactionItem | null;
+  session: number;
+}
+
+type NameLookup = Record<string, string>;
+type CategoryTypeLookup = Record<string, ("INCOME" | "EXPENSE")[]>;
+
+function buildCategoryTypes(categories: CategoryResponse[]): CategoryTypeLookup {
+  const lookup: CategoryTypeLookup = {};
+  for (const category of categories) {
+    (lookup[category.name] ??= []).push(category.type);
+  }
+  return lookup;
 }
 
 export function TransactionsPage() {
-  const [transactions, setTransactions] = useState<TransactionItem[]>(recentTransactions);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const dataVersion = useDataRefreshStore((state) => state.version);
+
   const [filters, setFilters] = useState<TransactionFiltersState>(EMPTY_FILTERS);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
+    key: "date",
+    order: "desc",
+  });
+
+  const [lookupsReady, setLookupsReady] = useState(false);
+  const [accountNames, setAccountNames] = useState<NameLookup>({});
+  const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
+  const [categoryNames, setCategoryNames] = useState<NameLookup>({});
+  const [categoryTypes, setCategoryTypes] = useState<CategoryTypeLookup>({});
+
   const [formState, setFormState] = useState<FormState>({
     open: false,
     mode: "create",
     transaction: null,
+    session: 0,
   });
   const [deleting, setDeleting] = useState<TransactionItem | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), LOADING_DURATION_MS);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    void (async () => {
+      const [accounts, categories] = await Promise.all([
+        accountService.list().catch(() => [] as AccountResponse[]),
+        categoryService.list().catch(() => [] as CategoryResponse[]),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      setAccountNames(Object.fromEntries(accounts.map((a) => [a.id, a.name])));
+      setAccountCurrencies(Object.fromEntries(accounts.map((a) => [a.id, a.currency])));
+      setCategoryNames(
+        Object.fromEntries(categories.map((c) => [c.id, c.name])),
+      );
+      setCategoryTypes(buildCategoryTypes(categories));
+      setLookupsReady(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const categories = useMemo(
-    () => Array.from(new Set(transactions.map((txn) => txn.category))).sort(),
-    [transactions]
-  );
-  const accounts = useMemo(
-    () => Array.from(new Set(transactions.map((txn) => txn.account))).sort(),
-    [transactions]
-  );
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [filters.search]);
 
-  const filtered = useMemo(() => {
-    const keyword = filters.search.trim().toLowerCase();
-    return transactions.filter((txn) => {
-      const matchesKeyword =
-        keyword === "" ||
-        txn.description.toLowerCase().includes(keyword) ||
-        txn.category.toLowerCase().includes(keyword) ||
-        txn.account.toLowerCase().includes(keyword);
-      const matchesCategory = filters.category === "all" || txn.category === filters.category;
-      const matchesAccount = filters.account === "all" || txn.account === filters.account;
-      const matchesType = filters.type === "all" || txn.type === filters.type;
-      const matchesStatus = filters.status === "all" || txn.status === filters.status;
-      const matchesStartDate = filters.startDate === "" || txn.date >= filters.startDate;
-      const matchesEndDate = filters.endDate === "" || txn.date <= filters.endDate;
-      return (
-        matchesKeyword &&
-        matchesCategory &&
-        matchesAccount &&
-        matchesType &&
-        matchesStatus &&
-        matchesStartDate &&
-        matchesEndDate
-      );
-    });
-  }, [transactions, filters]);
+  const queryConfig = useMemo(() => {
+    return {
+      categoryId:
+        filters.category === "all"
+          ? undefined
+          : findIdByName(categoryNames, filters.category),
+      accountId:
+        filters.account === "all"
+          ? undefined
+          : findIdByName(accountNames, filters.account),
+      type:
+        filters.type === "all"
+          ? undefined
+          : filters.type === "income"
+            ? ("INCOME" as const)
+            : ("EXPENSE" as const),
+      fromDate: filters.startDate || undefined,
+      toDate: filters.endDate || undefined,
+    };
+  }, [filters, accountNames, categoryNames]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * pageSize;
-  const visibleRows = filtered.slice(startIndex, startIndex + pageSize);
+  useEffect(() => {
+    if (!lookupsReady) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const params: TransactionListParams = {
+      page,
+      limit: pageSize,
+      sortBy: sort.key,
+      sortOrder: sort.order,
+    };
+    if (search) params.q = search;
+    if (queryConfig.type) params.type = queryConfig.type;
+    if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
+    if (queryConfig.accountId) params.accountId = queryConfig.accountId;
+    if (queryConfig.fromDate) params.fromDate = queryConfig.fromDate;
+    if (queryConfig.toDate) params.toDate = queryConfig.toDate;
+
+    const run = async () => {
+      await Promise.resolve();
+      if (cancelled) {
+        return;
+      }
+      setLoading(true);
+      setError(false);
+
+      try {
+        const result = await transactionService.list(params);
+        if (cancelled) {
+          return;
+        }
+        setTransactions(
+          result.data.map((dto) =>
+            toTransactionItem(dto, accountNames, categoryNames),
+          ),
+        );
+        setTotalItems(result.pagination.totalItems);
+        if (page > result.pagination.totalPages) {
+          setPage(result.pagination.totalPages);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    lookupsReady,
+    refreshKey,
+    dataVersion,
+    page,
+    pageSize,
+    sort.key,
+    sort.order,
+    search,
+    queryConfig,
+    accountNames,
+    categoryNames,
+  ]);
+
+  const refresh = () => setRefreshKey((key) => key + 1);
+
+  const categoryOptions = useMemo(
+    () => [...new Set(Object.values(categoryNames))].sort(),
+    [categoryNames],
+  );
+  const accountOptions = useMemo(
+    () => [...new Set(Object.values(accountNames))].sort(),
+    [accountNames],
+  );
+  const accountCurrencyByName = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [id, currency] of Object.entries(accountCurrencies)) {
+      const name = accountNames[id];
+      if (name !== undefined) map[name] = currency;
+    }
+    return map;
+  }, [accountNames, accountCurrencies]);
 
   const handleFiltersChange = (nextFilters: TransactionFiltersState) => {
     setFilters(nextFilters);
@@ -104,53 +253,110 @@ export function TransactionsPage() {
     setPage(1);
   };
 
-  const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => {
-    setFormState({ open: true, mode, transaction });
+  const handleSortChange = (key: SortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, order: prev.order === "asc" ? "desc" : "asc" }
+        : { key, order: "desc" },
+    );
+    setPage(1);
   };
 
-  const handleFormSubmit = (values: TransactionFormValues) => {
+  const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => {
+    setFormState((state) => ({
+      open: true,
+      mode,
+      transaction,
+      session: state.session + 1,
+    }));
+  };
+
+  const handleFormSubmit = async (values: TransactionFormValues) => {
     if (formState.mode === "edit" && formState.transaction) {
-      const current = formState.transaction;
-      const description = values.description?.trim() || current.description;
-      setTransactions((prev) =>
-        prev.map((txn) =>
-          txn.id === current.id
-            ? { ...txn, ...values, id: txn.id, status: txn.status, description }
-            : txn
-        )
+      const payload = toUpdateTransactionPayload(
+        values,
+        accountNames,
+        categoryNames,
+        accountCurrencies,
       );
+      if (payload) {
+        try {
+          await syncUpdateTransaction(formState.transaction.id, payload);
+        } catch {
+          // list tetap disinkronkan dengan state server
+        }
+        refresh();
+      }
       return;
     }
-    const nextTransaction: TransactionItem = {
-      id: `txn-${Date.now()}`,
-      date: values.date,
-      category: values.category,
-      description: values.description?.trim() || values.category,
-      account: values.account,
-      amount: values.amount,
-      type: values.type,
-      status: "completed",
-    };
-    setTransactions((prev) => [nextTransaction, ...prev]);
+
+    const payload = toCreateTransactionPayload(
+      values,
+      accountNames,
+      categoryNames,
+      accountCurrencies,
+    );
+    if (payload) {
+      try {
+        await syncCreateTransaction(payload);
+      } catch {
+        // list tetap disinkronkan dengan state server
+      }
+      setPage(1);
+      refresh();
+    }
   };
 
-  const handleDuplicate = (transaction: TransactionItem) => {
-    const duplicate: TransactionItem = {
-      ...transaction,
-      id: `txn-${Date.now()}`,
+  const handleDuplicate = async (transaction: TransactionItem) => {
+    const values: TransactionFormValues = {
+      date: transaction.date,
+      type: transaction.type,
+      category: transaction.category,
+      account: transaction.account,
+      amount: transaction.amount,
+      description: transaction.description,
+      notes: "",
     };
-    setTransactions((prev) => [duplicate, ...prev]);
+
+    const payload = toCreateTransactionPayload(
+      values,
+      accountNames,
+      categoryNames,
+      accountCurrencies,
+    );
+    if (payload) {
+      try {
+        await syncCreateTransaction(payload);
+      } catch {
+        // list tetap disinkronkan dengan state server
+      }
+      setPage(1);
+      refresh();
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleting) {
       return;
     }
-    setTransactions((prev) => prev.filter((txn) => txn.id !== deleting.id));
+
+    const target = deleting;
     setDeleting(null);
+
+    try {
+      await syncDeleteTransaction(target.id);
+    } catch {
+      // list tetap disinkronkan dengan state server
+    }
+
+    if (transactions.length === 1 && page > 1) {
+      setPage((value) => value - 1);
+    } else {
+      refresh();
+    }
   };
 
-  const isEmpty = !loading && filtered.length === 0;
+  const isEmpty = !loading && !error && totalItems === 0;
 
   return (
     <div className="space-y-6">
@@ -162,7 +368,7 @@ export function TransactionsPage() {
       </div>
 
       <TransactionToolbar
-        count={filtered.length}
+        count={totalItems}
         loading={loading}
         onAdd={() => openForm("create", null)}
         onExport={() => undefined}
@@ -171,13 +377,19 @@ export function TransactionsPage() {
 
       <TransactionFilters
         filters={filters}
-        categories={categories}
-        accounts={accounts}
+        categories={categoryOptions}
+        accounts={accountOptions}
         onChange={handleFiltersChange}
         onReset={handleResetFilters}
       />
 
-      {isEmpty ? (
+      {error ? (
+        <ErrorState
+          title={uiText.states.errorTitle}
+          description={uiText.states.errorDescription}
+          onRetry={refresh}
+        />
+      ) : isEmpty ? (
         <EmptyState
           title={uiText.transactions.emptyTitle}
           description={uiText.transactions.emptySubtitle}
@@ -192,17 +404,20 @@ export function TransactionsPage() {
       ) : (
         <>
           <TransactionTable
-            transactions={visibleRows}
+            transactions={transactions}
             loading={loading}
+            sortBy={sort.key}
+            sortOrder={sort.order}
+            onSortChange={handleSortChange}
             onView={(transaction) => openForm("view", transaction)}
             onEdit={(transaction) => openForm("edit", transaction)}
-            onDuplicate={handleDuplicate}
+            onDuplicate={(transaction) => void handleDuplicate(transaction)}
             onDelete={setDeleting}
           />
           <TransactionPagination
-            page={currentPage}
+            page={page}
             pageSize={pageSize}
-            totalItems={filtered.length}
+            totalItems={totalItems}
             onPageChange={setPage}
             onPageSizeChange={handlePageSizeChange}
           />
@@ -210,13 +425,16 @@ export function TransactionsPage() {
       )}
 
       <TransactionForm
+        key={formState.session}
         open={formState.open}
         onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
         mode={formState.mode}
         transaction={formState.transaction}
-        categories={categories}
-        accounts={accounts}
-        onSubmit={handleFormSubmit}
+        categories={categoryOptions}
+        categoryTypes={categoryTypes}
+        accounts={accountOptions}
+        accountCurrencyByName={accountCurrencyByName}
+        onSubmit={(values) => void handleFormSubmit(values)}
       />
 
       <DeleteTransactionDialog
@@ -226,7 +444,7 @@ export function TransactionsPage() {
             setDeleting(null);
           }
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => void handleConfirmDelete()}
       />
     </div>
   );

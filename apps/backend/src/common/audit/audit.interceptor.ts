@@ -87,6 +87,7 @@ export class AuditInterceptor implements NestInterceptor {
       userId: request.user?.sub ?? null,
       action: meta.action,
       module: meta.module,
+      description: meta.description ?? null,
       entityType: meta.entityType ?? null,
       entityId,
       ipAddress: ip,

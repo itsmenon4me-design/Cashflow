@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import type { Transaction, Category } from '@prisma/client';
-import { TransactionType } from '@prisma/client';
+import type { Transaction, Category } from '../../../generated/prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
+import { CURRENCY_SPECS } from '../../../common/types/money';
 
 export interface FinancialStatistics {
   averageDailyExpense: number;
@@ -37,12 +38,39 @@ export class FinancialInsightsService {
     );
   }
 
-  private formatCurrency(amount: number): string {
-    // simple formatter without locale dependency
-    return `Rp ${amount.toLocaleString('en-US')}`;
+  private formatCurrency(amount: number, currency: string): string {
+    // simple formatter without locale dependency; displays minor units
+    return `${CURRENCY_SPECS[currency]?.symbol ?? 'Rp'} ${amount.toLocaleString('en-US')}`;
+  }
+
+  // Resolve primary account currency so income/expense aggregates never mix
+  // different currencies (Phase C multi-currency rule).
+  private async resolveTargetCurrency(userId: string): Promise<string> {
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
   async getInsights(userId: string, month?: number, year?: number) {
+    if (
+      month !== undefined &&
+      (!Number.isInteger(Number(month)) ||
+        Number(month) < 1 ||
+        Number(month) > 12)
+    ) {
+      throw new BadRequestException('Invalid month');
+    }
+    if (
+      year !== undefined &&
+      (!Number.isInteger(Number(year)) ||
+        Number(year) < 1970 ||
+        Number(year) > 3000)
+    ) {
+      throw new BadRequestException('Invalid year');
+    }
     const now = new Date();
     const m = month ?? now.getMonth() + 1;
     const y = year ?? now.getFullYear();
@@ -53,6 +81,8 @@ export class FinancialInsightsService {
     // previous month
     const prevEnd = new Date(start.getTime() - 1);
     const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), 1);
+
+    const targetCurrency = await this.resolveTargetCurrency(userId);
 
     const insights: string[] = [];
     const stats: FinancialStatistics = {
@@ -69,6 +99,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
@@ -78,6 +109,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
@@ -87,6 +119,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
+            account: { currency: targetCurrency },
             transaction_date: { gte: prevStart, lte: prevEnd },
           },
           _sum: { amount_cents: true },
@@ -96,6 +129,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: prevStart, lte: prevEnd },
           },
           _sum: { amount_cents: true },
@@ -157,6 +191,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
@@ -215,6 +250,7 @@ export class FinancialInsightsService {
           where: {
             user_id: userId,
             deleted_at: null,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           orderBy: { amount_cents: 'desc' },
@@ -227,7 +263,7 @@ export class FinancialInsightsService {
         const amt = this.normalizeToNumber(largest.amount_cents ?? 0);
         stats.largestTransactionAmount = amt;
         insights.push(
-          `Largest single transaction this month is ${this.formatCurrency(amt)}.`,
+          `Largest single transaction this month is ${this.formatCurrency(amt, targetCurrency)}.`,
         );
       }
 
@@ -251,6 +287,7 @@ export class FinancialInsightsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: monthsStart, lte: monthsEnd },
           },
           select: { amount_cents: true, transaction_date: true },

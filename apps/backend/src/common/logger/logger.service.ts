@@ -101,12 +101,14 @@ export class LoggerService {
       ip,
       userAgent,
       correlationId,
+      requestId,
     }: {
       method: string;
       url: string;
       ip?: string;
       userAgent?: string;
       correlationId?: string;
+      requestId?: string;
     },
     context?: string,
   ): void {
@@ -116,6 +118,7 @@ export class LoggerService {
       ip,
       userAgent,
       correlationId,
+      requestId,
     });
   }
 
@@ -125,11 +128,13 @@ export class LoggerService {
       responseTimeMs,
       payloadSizeBytes,
       correlationId,
+      requestId,
     }: {
       statusCode: number;
       responseTimeMs?: number;
       payloadSizeBytes?: number;
       correlationId?: string;
+      requestId?: string;
     },
     context?: string,
   ): void {
@@ -138,6 +143,7 @@ export class LoggerService {
       responseTimeMs,
       payloadSizeBytes,
       correlationId,
+      requestId,
     });
   }
 

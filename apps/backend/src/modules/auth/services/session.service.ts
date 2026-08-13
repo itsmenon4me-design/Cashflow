@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ISessionRepository } from '../repositories/session.repository.interface';
-import type { IRefreshTokenRepository } from '../repositories/refresh-token.repository.interface';
+import { PrismaSessionRepository } from '../repositories/prisma-session.repository';
+import { PrismaRefreshTokenRepository } from '../repositories/prisma-refresh-token.repository';
 import { SessionEntity } from '../entities/session.entity';
 
 @Injectable()
@@ -8,8 +8,8 @@ export class SessionService {
   private readonly logger = new Logger(SessionService.name);
 
   constructor(
-    private readonly repo: ISessionRepository,
-    private readonly refreshRepo: IRefreshTokenRepository,
+    private readonly repo: PrismaSessionRepository,
+    private readonly refreshRepo: PrismaRefreshTokenRepository,
   ) {}
 
   async create(data: {

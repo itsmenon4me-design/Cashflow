@@ -31,6 +31,10 @@ export class AppConfigService {
   }
 
   get host(): string {
+    const host = process.env.HOST;
+    if (host) {
+      return host;
+    }
     const appUrl = new URL(this.app.url);
     return appUrl.hostname;
   }

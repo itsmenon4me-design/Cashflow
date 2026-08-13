@@ -7,12 +7,17 @@ const makePrismaMock = (
     transaction_type: string;
     amount_cents: number | bigint | string;
   }> = [],
-): Partial<PrismaService> => {
+): PrismaService => {
   return {
     transaction: {
-      findMany: jest.fn(() => Promise.resolve(recs)),
-    },
-  };
+      findMany: jest.fn(() => Promise.resolve(recs)) as unknown as PrismaService['transaction']['findMany'],
+    } as unknown as PrismaService['transaction'],
+    account: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ currency: 'IDR', is_default: true }]),
+      ) as unknown as PrismaService['account']['findMany'],
+    } as unknown as PrismaService['account'],
+  } as unknown as PrismaService;
 };
 
 describe('CashflowTrendService', () => {
@@ -35,7 +40,7 @@ describe('CashflowTrendService', () => {
       },
     ];
     const prisma = makePrismaMock(recs);
-    const svc = new CashflowTrendService(prisma as unknown as PrismaService);
+    const svc = new CashflowTrendService(prisma);
     const res = await svc.getTrend(
       'user-1',
       'daily',
@@ -45,8 +50,8 @@ describe('CashflowTrendService', () => {
     expect(res.type).toBe('daily');
     expect(res.data.length).toBeGreaterThanOrEqual(2);
     const p1 = res.data.find((d) => d.period === '2026-08-01');
-    expect(p1?.income).toBe(100);
-    expect(p1?.expense).toBe(40);
+    expect(p1?.income).toBe('100');
+    expect(p1?.expense).toBe('40');
   });
 
   it('weekly trend aggregates correctly', async () => {
@@ -69,7 +74,7 @@ describe('CashflowTrendService', () => {
       },
     ];
     const prisma = makePrismaMock(recs);
-    const svc = new CashflowTrendService(prisma as unknown as PrismaService);
+    const svc = new CashflowTrendService(prisma);
     const res = await svc.getTrend(
       'user-1',
       'weekly',
@@ -79,7 +84,7 @@ describe('CashflowTrendService', () => {
     expect(res.type).toBe('weekly');
     expect(res.data.length).toBeGreaterThanOrEqual(2);
     // period format like '2026-W31' or similar; ensure totals present
-    expect(res.data.some((d) => d.income >= 100)).toBe(true);
+    expect(res.data.some((d) => BigInt(d.income) >= 100n)).toBe(true);
   });
 
   it('monthly trend aggregates correctly', async () => {
@@ -96,7 +101,7 @@ describe('CashflowTrendService', () => {
       },
     ];
     const prisma = makePrismaMock(recs);
-    const svc = new CashflowTrendService(prisma as unknown as PrismaService);
+    const svc = new CashflowTrendService(prisma);
     const res = await svc.getTrend(
       'user-1',
       'monthly',
@@ -110,7 +115,7 @@ describe('CashflowTrendService', () => {
 
   it('returns empty data when no transactions', async () => {
     const prisma = makePrismaMock([]);
-    const svc = new CashflowTrendService(prisma as unknown as PrismaService);
+    const svc = new CashflowTrendService(prisma);
     const res = await svc.getTrend(
       'user-1',
       'daily',
@@ -122,7 +127,7 @@ describe('CashflowTrendService', () => {
 
   it('validates date range', async () => {
     const prisma = makePrismaMock([]);
-    const svc = new CashflowTrendService(prisma as unknown as PrismaService);
+    const svc = new CashflowTrendService(prisma);
     await expect(
       svc.getTrend(
         'user-1',

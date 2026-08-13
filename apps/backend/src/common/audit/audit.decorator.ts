@@ -6,6 +6,7 @@ export interface AuditMetadata {
   action: string;
   module: string;
   entityType?: string;
+  description?: string;
 }
 
 /**
@@ -21,9 +22,11 @@ export const Audit = (
   action: string,
   module: string,
   entityType?: string,
+  description?: string,
 ): MethodDecorator =>
   SetMetadata(AUDIT_METADATA_KEY, {
     action,
     module,
     entityType: entityType ?? undefined,
+    description: description ?? undefined,
   } satisfies AuditMetadata);

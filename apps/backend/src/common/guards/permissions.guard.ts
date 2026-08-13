@@ -29,8 +29,9 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const rawUser = request.user as unknown;
     if (typeof rawUser !== 'object' || rawUser === null) {
-      this.logger.warn('Permission Denied - no user');
-      throw ErrorService.create(ErrorCode.FORBIDDEN, 'Permission denied');
+      this.logger.warn('Permission Denied - no authenticated user');
+      // No auth context -> unauthorized
+      throw ErrorService.create(ErrorCode.UNAUTHORIZED, 'Unauthorized');
     }
     const user = rawUser as { sub?: string; role?: string; role_id?: string };
     const roleId = user.role_id;

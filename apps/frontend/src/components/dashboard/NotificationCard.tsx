@@ -1,70 +1,149 @@
-import { Bell, CalendarClock, PiggyBank, TrendingUp, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { useEffect } from "react";
+import { ArrowUpRight, Bell, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
-import type { NotificationItem, NotificationType } from "@/types/dashboard";
+import { formatRelativeTime } from "@/features/notifications/relative-time";
+import {
+  NOTIFICATION_TYPE_CONFIG,
+  getFinanceBotPriorityLabel,
+  getFinanceBotPriorityVariant,
+  getFinanceBotRuleLabel,
+  getFinanceBotRuleRoute,
+  isFinanceBotNotification,
+} from "@/features/notifications/notification-config";
+import { useNotificationStore } from "@/stores/notification.store";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
+import { NotificationListSkeleton } from "@/components/notifications/notification-list-skeleton";
 
-const notificationConfig: Record<
-  NotificationType,
-  { label: string; icon: LucideIcon; iconClassName: string; badgeClassName: string }
-> = {
-  bill: {
-    label: uiText.notification.bill,
-    icon: CalendarClock,
-    iconClassName: "bg-amber-500/10 text-amber-500",
-    badgeClassName: "border-amber-500/30 bg-amber-500/10 text-amber-500",
-  },
-  goal: {
-    label: uiText.notification.goal,
-    icon: PiggyBank,
-    iconClassName: "bg-primary/10 text-primary",
-    badgeClassName: "border-primary/30 bg-primary/10 text-primary",
-  },
-  income: {
-    label: uiText.notification.income,
-    icon: TrendingUp,
-    iconClassName: "bg-emerald-500/10 text-emerald-500",
-    badgeClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-  },
-};
+export function NotificationCard() {
+  const { unreadCount, recent, initialized, loading, error, fetch, markRead } = useNotificationStore();
 
-interface NotificationCardProps {
-  items: NotificationItem[];
-}
+  useEffect(() => {
+    if (!initialized && !loading) {
+      void fetch();
+    }
+  }, [initialized, loading, fetch]);
 
-export function NotificationCard({ items }: NotificationCardProps) {
+  const notifications = recent.slice(0, 5);
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <CardTitle>{uiText.navigation.notifications}</CardTitle>
+        <div>
+          <CardTitle>{uiText.navigation.notifications}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {unreadCount > 0
+              ? `${unreadCount} ${uiText.notificationsPage.unread}`
+              : uiText.notificationsPage.empty}
+          </p>
+        </div>
         <Bell className="size-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="space-y-3">
-        {items.map((item) => {
-          const config = notificationConfig[item.type];
-          const Icon = config.icon;
+        {loading ? (
+          <NotificationListSkeleton rows={3} />
+        ) : error ? (
+          <ErrorState
+            title={uiText.states.errorTitle}
+            description={uiText.states.errorDescription}
+            onRetry={() => void fetch()}
+          />
+        ) : notifications.length === 0 ? (
+          <EmptyState title={uiText.notificationsPage.empty} description={uiText.states.emptyDefault} />
+        ) : (
+          <ul className="space-y-3">
+            {notifications.map((item) => {
+              const config = NOTIFICATION_TYPE_CONFIG[item.type] ?? NOTIFICATION_TYPE_CONFIG.SYSTEM;
+              const Icon = config.icon;
+              const isFinanceBot = isFinanceBotNotification(item);
+              const ruleLabel = isFinanceBot ? getFinanceBotRuleLabel(item) : undefined;
+              const priorityLabel = isFinanceBot ? getFinanceBotPriorityLabel(item) : undefined;
+              const priorityVariant = isFinanceBot ? getFinanceBotPriorityVariant(item) : "secondary";
+              const ruleRoute = getFinanceBotRuleRoute(item);
+              const ruleActionLabel =
+                ruleRoute === "/budgets" ? uiText.financeBot.openBudget : uiText.financeBot.openTransactions;
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    "flex items-start gap-3 rounded-xl border p-3",
+                    item.isRead
+                      ? "border-border bg-card"
+                      : "border-primary/20 bg-primary/5"
+                  )}
+                >
+                  <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", config.iconClassName)}>
+                    <Icon className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                      {!item.isRead && (
+                        <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                      )}
+                      {isFinanceBot && (
+                        <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+                          {uiText.financeBot.title}
+                        </Badge>
+                      )}
+                      {ruleLabel && (
+                        <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
+                          {ruleLabel}
+                        </Badge>
+                      )}
+                      {priorityLabel && (
+                        <Badge variant={priorityVariant} className="shrink-0 px-1.5 py-0 text-[10px]">
+                          {priorityLabel}
+                        </Badge>
+                      )}
+                      {!item.isRead && (
+                        <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
+                          {uiText.notificationsPage.unread}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">{item.message}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatRelativeTime(item.createdAt)}</p>
+                  </div>
+                  {ruleRoute && (
+                    <Button
+                      asChild
+                      variant="ghost"
+                      className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                      aria-label={ruleActionLabel}
+                    >
+                      <Link href={ruleRoute}>
+                        <ArrowUpRight className="size-4" />
+                      </Link>
+                    </Button>
+                  )}
+                  {!item.isRead && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => void markRead(item.id)}
+                      aria-label={`Mark ${item.title} as read`}
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-          return (
-            <div key={item.id} className="flex items-start gap-3 rounded-xl bg-muted p-3">
-              <div
-                className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-xl",
-                  config.iconClassName
-                )}
-              >
-                <Icon className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-foreground">{item.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{item.time}</p>
-              </div>
-              <Badge variant="outline" className={cn("shrink-0 rounded-lg", config.badgeClassName)}>
-                {config.label}
-              </Badge>
-            </div>
-          );
-        })}
+        <div className="flex justify-end">
+          <Link href="/notifications" className="text-sm font-medium text-primary">
+            {uiText.common.viewAll}
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );

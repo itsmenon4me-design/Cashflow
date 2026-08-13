@@ -13,4 +13,14 @@ export interface IAuditLogRepository {
     pagination: AuditLogPagination,
   ): Promise<AuditLogEntity[]>;
   count(filter: AuditLogFilter): Promise<number>;
+  findByUser(
+    userId: string,
+    filter: Omit<AuditLogFilter, 'userId'>,
+    pagination: AuditLogPagination,
+  ): Promise<AuditLogEntity[]>;
+  countByUser(
+    userId: string,
+    filter: Omit<AuditLogFilter, 'userId'>,
+  ): Promise<number>;
+  findByIdOwned(id: string, userId: string): Promise<AuditLogEntity | null>;
 }

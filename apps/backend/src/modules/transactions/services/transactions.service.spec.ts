@@ -3,6 +3,9 @@ import { TransactionsService } from './transactions.service';
 import { PrismaTransactionsRepository } from '../repositories/prisma-transactions.repository';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { TransactionValidationService } from './validation/transaction-validation.service';
+import { NotificationsService } from '../../notifications/services/notifications.service';
+import { BalanceService } from '../../accounts/services/balance.service';
+import { FinanceBotService } from '../../finance-bot/services/finance-bot.service';
 
 const dummyTx = (id: string) => ({
   id,
@@ -44,6 +47,18 @@ describe('TransactionsService (filter & pagination & search)', () => {
             validateForCreate: jest.fn(),
             validateForUpdate: jest.fn(),
           },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { create: jest.fn() },
+        },
+        {
+          provide: BalanceService,
+          useValue: { recalculateAccount: jest.fn() },
+        },
+        {
+          provide: FinanceBotService,
+          useValue: { evaluateOnTransaction: jest.fn() },
         },
       ],
     }).compile();
@@ -90,5 +105,122 @@ describe('TransactionsService (filter & pagination & search)', () => {
       page: 1,
       limit: 20,
     });
+  });
+
+  it('creates a transaction and invokes Finance Bot evaluation without blocking', async () => {
+    const createdTransaction = dummyTx('t3');
+    repoMock.create = jest.fn().mockResolvedValue(createdTransaction);
+    const auditMock = { record: jest.fn() };
+    const validatorMock = { validateForCreate: jest.fn(), validateForUpdate: jest.fn() };
+    const notificationsMock = { create: jest.fn() };
+    const balanceMock = { recalculateAccount: jest.fn() };
+    const financeBotMock = {
+      evaluateOnTransaction: jest.fn().mockResolvedValue(undefined),
+    } as unknown as FinanceBotService;
+
+    const module = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaTransactionsRepository, useValue: repoMock },
+        { provide: AuditLogService, useValue: auditMock },
+        { provide: TransactionValidationService, useValue: validatorMock },
+        { provide: NotificationsService, useValue: notificationsMock },
+        { provide: BalanceService, useValue: balanceMock },
+        { provide: FinanceBotService, useValue: financeBotMock },
+      ],
+    }).compile();
+
+    const serviceWithFinanceBot = module.get<TransactionsService>(TransactionsService);
+    const result = await serviceWithFinanceBot.create('u1', {
+      account_id: 'a1',
+      category_id: 'c1',
+      transaction_type: 'EXPENSE',
+      amount_cents: BigInt(1000),
+      transaction_date: new Date('2026-08-09T12:00:00Z'),
+    });
+
+    expect(result).toEqual(createdTransaction);
+    expect(financeBotMock.evaluateOnTransaction).toHaveBeenCalledWith(
+      'u1',
+      createdTransaction,
+    );
+  });
+
+  it('rejects decimal amount representations before persistence', async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaTransactionsRepository, useValue: repoMock },
+        { provide: AuditLogService, useValue: { record: jest.fn() } },
+        {
+          provide: TransactionValidationService,
+          useValue: { validateForCreate: jest.fn(), validateForUpdate: jest.fn() },
+        },
+        { provide: NotificationsService, useValue: { create: jest.fn() } },
+        { provide: BalanceService, useValue: { recalculateAccount: jest.fn() } },
+        { provide: FinanceBotService, useValue: { evaluateOnTransaction: jest.fn() } },
+      ],
+    }).compile();
+
+    const serviceWithValidation = module.get<TransactionsService>(TransactionsService);
+
+    await expect(
+      serviceWithValidation.create('u1', {
+        account_id: 'a1',
+        category_id: 'c1',
+        transaction_type: 'EXPENSE',
+        amount_cents: 10.5 as unknown as bigint,
+        transaction_date: new Date('2026-08-09T12:00:00Z'),
+      }),
+    ).rejects.toThrow('whole integer cent value');
+  });
+
+  it('records request correlation ids and anomaly metadata for suspicious scale patterns', async () => {
+    const createdTransaction = dummyTx('t3');
+    repoMock.create = jest.fn().mockResolvedValue(createdTransaction);
+    repoMock.findByUserWithFilter = jest.fn().mockResolvedValue({
+      items: [{ ...dummyTx('t-prev'), amount_cents: BigInt(100000000) }],
+      total: 1,
+    });
+    const auditMock = { record: jest.fn() };
+
+    const module = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaTransactionsRepository, useValue: repoMock },
+        { provide: AuditLogService, useValue: auditMock },
+        {
+          provide: TransactionValidationService,
+          useValue: { validateForCreate: jest.fn(), validateForUpdate: jest.fn() },
+        },
+        { provide: NotificationsService, useValue: { create: jest.fn() } },
+        { provide: BalanceService, useValue: { recalculateAccount: jest.fn() } },
+        { provide: FinanceBotService, useValue: { evaluateOnTransaction: jest.fn() } },
+      ],
+    }).compile();
+
+    const serviceWithTrace = module.get<TransactionsService>(TransactionsService);
+    await serviceWithTrace.create(
+      'u1',
+      {
+        account_id: 'a1',
+        category_id: 'c1',
+        transaction_type: 'EXPENSE',
+        amount_cents: BigInt(1000000),
+        transaction_date: new Date('2026-08-09T12:00:00Z'),
+      },
+      { correlationId: 'corr-123', requestId: 'req-456' },
+    );
+
+    expect(auditMock.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          correlationId: 'corr-123',
+          requestId: 'req-456',
+          amountCents: '1000000',
+          anomalyCode: 'AMOUNT_SCALE_ANOMALY',
+        }),
+      }),
+    );
   });
 });

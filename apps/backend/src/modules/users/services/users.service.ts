@@ -1,18 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { IUsersRepository } from '../repositories/users.repository.interface';
+import { PrismaUsersRepository } from '../repositories/prisma-users.repository';
 import { UserEntity } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { LoggerService } from '../../../common/logger/logger.service';
 import { PasswordService } from '../../../common/security/password/password.service';
 import { PrismaRoleRepository } from '../../auth/repositories/prisma-role.repository';
+import { ErrorService } from '../../../common/errors/error.service';
+import { ErrorCode } from '../../../common/errors/error-codes';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
-    private readonly repo: IUsersRepository,
+    private readonly repo: PrismaUsersRepository,
     private readonly loggerService: LoggerService,
     private readonly passwordService: PasswordService,
     private readonly roleRepo: PrismaRoleRepository,
@@ -43,17 +45,31 @@ export class UsersService {
       );
     }
 
-    const created = await this.repo.create(u);
-    this.loggerService.log('User Created', 'UsersService', {
-      userId: created.id,
-      email: created.email,
-    });
+    try {
+      const created = await this.repo.create(u);
+      this.loggerService.log('User Created', 'UsersService', {
+        userId: created.id,
+        email: created.email,
+      });
 
-    if (userCount === 0) {
-      this.logger.log(`Role Assigned user=${created.id} role=SUPER_ADMIN`);
+      if (userCount === 0) {
+        this.logger.log(`Role Assigned user=${created.id} role=SUPER_ADMIN`);
+      }
+
+      return created;
+    } catch (err) {
+      // Map Prisma unique constraint error to a friendly conflict error
+      // Prisma error code for unique constraint is P2002
+      const code = (err as any)?.code;
+      if (code === 'P2002') {
+        throw ErrorService.create(
+          ErrorCode.CONFLICT,
+          'Email or username already exists',
+        );
+      }
+      // Unknown error -> internal
+      throw ErrorService.create(ErrorCode.INTERNAL);
     }
-
-    return created;
   }
 
   async findById(id: string): Promise<UserEntity | null> {

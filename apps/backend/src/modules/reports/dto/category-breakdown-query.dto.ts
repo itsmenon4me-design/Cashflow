@@ -1,19 +1,36 @@
-import { IsInt, Min, Max, IsIn } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, Min, Max, IsIn, IsOptional, IsISO8601 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CategoryBreakdownQueryDto {
   @ApiProperty({ description: 'Type', enum: ['income', 'expense'] })
   @IsIn(['income', 'expense'])
   type: 'income' | 'expense';
 
-  @ApiProperty({ description: 'Month (1-12)', minimum: 1, maximum: 12 })
+  @ApiPropertyOptional({ description: 'Month (1-12)', minimum: 1, maximum: 12 })
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(12)
-  month: number;
+  month?: number;
 
-  @ApiProperty({ description: 'Year (>=2000)' })
+  @ApiPropertyOptional({ description: 'Year (>=2000)' })
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(2000)
-  year: number;
+  year?: number;
+
+  @ApiPropertyOptional({
+    description: 'Start date (ISO 8601). Precedence over month/year.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: 'End date (ISO 8601, inclusive).' })
+  @IsOptional()
+  @IsISO8601()
+  endDate?: string;
 }

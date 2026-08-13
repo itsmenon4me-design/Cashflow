@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { ITransactionsRepository } from './transactions.repository.interface';
 import { TransactionEntity } from '../entities/transaction.entity';
-import type { Transaction, Prisma } from '@prisma/client';
+import type { Transaction, Prisma } from '../../../generated/prisma/client';
 import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 
@@ -69,6 +69,29 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     return this.map(rec);
   }
 
+  async getAccountCurrency(accountId: string): Promise<string> {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { currency: true },
+    });
+    return account?.currency ?? 'IDR';
+  }
+
+  async findByReferenceNumber(
+    userId: string,
+    referenceNumber: string,
+  ): Promise<TransactionEntity | null> {
+    const rec = await this.prisma.transaction.findFirst({
+      where: {
+        user_id: userId,
+        reference_number: referenceNumber,
+        deleted_at: null,
+      },
+    });
+    if (!rec) return null;
+    return this.map(rec);
+  }
+
   async findAllByUser(userId: string): Promise<TransactionEntity[]> {
     const recs: TxRec[] = await this.prisma.transaction.findMany({
       where: { user_id: userId, deleted_at: null },
@@ -118,6 +141,32 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       else where.attachment_url = null;
     }
 
+    // Search keyword (combines with filters via AND)
+    let qWhere: Prisma.TransactionWhereInput | undefined;
+    if (filter?.q) {
+      const query = filter.q.trim();
+      const or: Prisma.TransactionWhereInput[] = [
+        { note: { contains: query, mode: 'insensitive' } },
+        { reference_number: { contains: query, mode: 'insensitive' } },
+      ];
+      if (/^[0-9a-fA-F-]{8,}$/.test(query)) {
+        or.push({ id: query });
+      }
+      const num = Number(query);
+      if (!Number.isNaN(num)) {
+        try {
+          or.push({ amount_cents: BigInt(Math.round(num)) });
+        } catch {
+          // ignore non-numeric
+        }
+      }
+      const up = query.toUpperCase();
+      if (up === 'INCOME' || up === 'EXPENSE') {
+        or.push({ transaction_type: up });
+      }
+      qWhere = { OR: or };
+    }
+
     // Sorting
     let orderBy: Prisma.TransactionOrderByWithRelationInput = {
       transaction_date: 'desc',
@@ -135,10 +184,14 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const baseWhere: Prisma.TransactionWhereInput = qWhere
+      ? { AND: [where, qWhere] }
+      : where;
+
     // Build prisma query
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
-        where,
+        where: baseWhere,
         orderBy,
         skip,
         take,
@@ -146,7 +199,7 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
           account: true,
         },
       }),
-      this.prisma.transaction.count({ where }),
+      this.prisma.transaction.count({ where: baseWhere }),
     ]);
 
     // If currency filter present, filter items by account currency post-query (safe fallback)
@@ -221,13 +274,18 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     id: string,
     updates: Partial<TransactionEntity>,
   ): Promise<TransactionEntity> {
-    const data: Prisma.TransactionUpdateInput = {};
+    const data: Prisma.TransactionUncheckedUpdateInput = {};
     if (updates.amount_cents !== undefined) {
       data.amount_cents =
         typeof updates.amount_cents === 'bigint'
           ? updates.amount_cents
           : BigInt(String(updates.amount_cents));
     }
+    if (updates.account_id !== undefined) data.account_id = updates.account_id;
+    if (updates.category_id !== undefined)
+      data.category_id = updates.category_id;
+    if (updates.transaction_type !== undefined)
+      data.transaction_type = updates.transaction_type;
     // copy other updatable fields
     if (updates.note !== undefined) data.note = updates.note;
     if (updates.reference_number !== undefined)

@@ -46,6 +46,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);var dark=t==='dark';document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';}catch(e){document.documentElement.classList.add('dark')}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <AppProviders>{children}</AppProviders>
       </body>

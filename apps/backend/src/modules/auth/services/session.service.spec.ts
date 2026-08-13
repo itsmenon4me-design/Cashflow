@@ -1,7 +1,9 @@
-import { SessionService } from './session.service';
+﻿import { SessionService } from './session.service';
 import type { ISessionRepository } from '../repositories/session.repository.interface';
 import type { IRefreshTokenRepository } from '../repositories/refresh-token.repository.interface';
 import type { SessionEntity } from '../entities/session.entity';
+import { PrismaSessionRepository } from '../repositories/prisma-session.repository';
+import { PrismaRefreshTokenRepository } from '../repositories/prisma-refresh-token.repository';
 
 const now = new Date();
 
@@ -12,14 +14,17 @@ describe('SessionService', () => {
 
   beforeEach(() => {
     repo = {
-      create: jest.fn((d: Partial<SessionEntity>) =>
-        Promise.resolve({
-          ...d,
-          id: d.id ?? 'sid',
+      create: jest.fn((d: Partial<SessionEntity>) => {
+        const dd = d;
+        return Promise.resolve({
+          ...(dd as unknown as Record<string, unknown>),
+          id: dd.id ?? 'sid',
+          user_id: dd.user_id ?? 'u1',
+          refresh_token_id: dd.refresh_token_id ?? 'r1',
           created_at: now,
           updated_at: now,
-        }),
-      ),
+        } as SessionEntity);
+      }),
       findActiveByUserId: jest.fn(() => Promise.resolve([])),
       findById: jest.fn(() => Promise.resolve(null)),
       revoke: jest.fn(() => Promise.resolve()),
@@ -31,9 +36,10 @@ describe('SessionService', () => {
     refreshRepo = {
       revoke: jest.fn(() => Promise.resolve()),
     };
+    // PrismaSessionRepository expected; tests use a lightweight fake cast to the concrete type
     svc = new SessionService(
-      repo as ISessionRepository,
-      refreshRepo as IRefreshTokenRepository,
+      repo as unknown as PrismaSessionRepository,
+      refreshRepo as unknown as PrismaRefreshTokenRepository,
     );
   });
 
@@ -95,3 +101,7 @@ describe('SessionService', () => {
     expect(spy).toHaveBeenCalledWith('s1', 'u1');
   });
 });
+
+
+
+

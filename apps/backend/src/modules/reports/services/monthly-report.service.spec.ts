@@ -1,6 +1,6 @@
 import { MonthlyReportService } from './monthly-report.service';
 import type { PrismaService } from '../../../database/prisma.service';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../generated/prisma/client';
 
 const makePrismaMock = (opts?: {
   inc?: number;
@@ -9,7 +9,7 @@ const makePrismaMock = (opts?: {
   expenseGroups?: Prisma.TransactionGroupByOutputType[];
   incomeGroups?: Prisma.TransactionGroupByOutputType[];
   categories?: Array<{ id: string; name: string }>;
-}): Partial<PrismaService> => {
+}): PrismaService => {
   const {
     inc = 12000000,
     exp = 8700000,
@@ -40,6 +40,11 @@ const makePrismaMock = (opts?: {
         Promise.resolve(categories),
       ) as unknown as PrismaService['category']['findMany'],
     } as unknown as PrismaService['category'],
+    account: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ currency: 'IDR', is_default: true }]),
+      ) as unknown as PrismaService['account']['findMany'],
+    } as unknown as PrismaService['account'],
   };
 
   // chain second groupBy for income groups if needed by tests
@@ -47,7 +52,7 @@ const makePrismaMock = (opts?: {
     .mockImplementationOnce(() => Promise.resolve(expenseGroups))
     .mockImplementationOnce(() => Promise.resolve(incomeGroups));
 
-  return mock;
+  return mock as unknown as PrismaService;
 };
 
 describe('MonthlyReportService', () => {
@@ -82,14 +87,14 @@ describe('MonthlyReportService', () => {
       incomeGroups,
       categories: cats,
     });
-    const svc = new MonthlyReportService(prisma as unknown as PrismaService);
+    const svc = new MonthlyReportService(prisma);
     const res = await svc.getMonthlyReport('user-1', 8, 2026);
 
     expect(res.month).toBe(8);
     expect(res.year).toBe(2026);
-    expect(res.summary.income).toBe(12000000);
-    expect(res.summary.expense).toBe(8700000);
-    expect(res.summary.netCashFlow).toBe(3300000);
+    expect(res.summary.income).toBe('12000000');
+    expect(res.summary.expense).toBe('8700000');
+    expect(res.summary.netCashFlow).toBe('3300000');
     expect(res.summary.transactions).toBe(148);
     expect(res.topExpenseCategories.length).toBeGreaterThan(0);
     expect(res.topIncomeCategories.length).toBeGreaterThan(0);
@@ -105,11 +110,11 @@ describe('MonthlyReportService', () => {
       incomeGroups: [],
       categories: [],
     });
-    const svc = new MonthlyReportService(prisma as unknown as PrismaService);
+    const svc = new MonthlyReportService(prisma);
     const res = await svc.getMonthlyReport('user-1', 2, 2025);
-    expect(res.summary.income).toBe(0);
-    expect(res.summary.expense).toBe(0);
-    expect(res.summary.netCashFlow).toBe(0);
+    expect(res.summary.income).toBe('0');
+    expect(res.summary.expense).toBe('0');
+    expect(res.summary.netCashFlow).toBe('0');
     expect(res.summary.transactions).toBe(0);
     expect(res.topExpenseCategories).toEqual([]);
     expect(res.topIncomeCategories).toEqual([]);
@@ -117,7 +122,7 @@ describe('MonthlyReportService', () => {
 
   it('rejects invalid month', async () => {
     const prisma = makePrismaMock();
-    const svc = new MonthlyReportService(prisma as unknown as PrismaService);
+    const svc = new MonthlyReportService(prisma);
     await expect(svc.getMonthlyReport('user-1', 13, 2026)).rejects.toThrow();
     await expect(svc.getMonthlyReport('user-1', 0, 2026)).rejects.toThrow();
     await expect(svc.getMonthlyReport('user-1', 5, 10000)).rejects.toThrow();
@@ -125,12 +130,30 @@ describe('MonthlyReportService', () => {
 
   it('handles multiple categories sorting and limiting to top 5', async () => {
     const expenseGroups = [
-      { category_id: 'c1', _sum: { amount_cents: 900 } },
-      { category_id: 'c2', _sum: { amount_cents: 800 } },
-      { category_id: 'c3', _sum: { amount_cents: 700 } },
-      { category_id: 'c4', _sum: { amount_cents: 600 } },
-      { category_id: 'c5', _sum: { amount_cents: 500 } },
-      { category_id: 'c6', _sum: { amount_cents: 400 } },
+      {
+        category_id: 'c1',
+        _sum: { amount_cents: 900 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
+      {
+        category_id: 'c2',
+        _sum: { amount_cents: 800 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
+      {
+        category_id: 'c3',
+        _sum: { amount_cents: 700 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
+      {
+        category_id: 'c4',
+        _sum: { amount_cents: 600 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
+      {
+        category_id: 'c5',
+        _sum: { amount_cents: 500 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
+      {
+        category_id: 'c6',
+        _sum: { amount_cents: 400 },
+      } as unknown as Prisma.TransactionGroupByOutputType,
     ];
     const cats = expenseGroups.map((g: unknown, i: number) => ({
       id: (g as Prisma.TransactionGroupByOutputType).category_id,
@@ -144,11 +167,11 @@ describe('MonthlyReportService', () => {
       incomeGroups: [],
       categories: cats,
     });
-    const svc = new MonthlyReportService(prisma as unknown as PrismaService);
+    const svc = new MonthlyReportService(prisma);
     const res = await svc.getMonthlyReport('user-1', 7, 2026);
     expect(res.topExpenseCategories.length).toBeLessThanOrEqual(5);
-    expect(res.topExpenseCategories[0].total).toBeGreaterThanOrEqual(
-      res.topExpenseCategories[1].total,
+    expect(BigInt(res.topExpenseCategories[0].total)).toBeGreaterThanOrEqual(
+      BigInt(res.topExpenseCategories[1].total),
     );
   });
 });

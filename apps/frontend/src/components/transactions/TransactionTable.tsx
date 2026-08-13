@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
 import { TransactionCard, TransactionRowActions } from "@/components/transactions/TransactionCard";
 import { TransactionStatusBadge } from "@/components/transactions/TransactionStatusBadge";
 import { CardSkeleton } from "@/components/states/CardSkeleton";
@@ -17,11 +17,60 @@ import {
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
+import type { TransactionListParams } from "@/services/transaction.service";
 import type { TransactionItem } from "@/types/dashboard";
+
+export type TransactionSortKey = NonNullable<TransactionListParams["sortBy"]>;
+
+interface SortButtonProps {
+  column: TransactionSortKey;
+  sortBy?: TransactionSortKey;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: TransactionSortKey) => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+function SortButton({
+  column,
+  sortBy,
+  sortOrder,
+  onSortChange,
+  className,
+  children,
+}: SortButtonProps) {
+  const active = sortBy === column;
+  return (
+    <button
+      type="button"
+      onClick={() => onSortChange?.(column)}
+      className={cn(
+        "inline-flex items-center gap-1 hover:text-foreground",
+        active && "text-foreground",
+        sortBy === undefined && "hover:text-muted-foreground",
+        className
+      )}
+    >
+      {children}
+      {active ? (
+        sortOrder === "asc" ? (
+          <ArrowUp className="size-3" />
+        ) : (
+          <ArrowDown className="size-3" />
+        )
+      ) : (
+        <ArrowUpDown className="size-3 opacity-50" />
+      )}
+    </button>
+  );
+}
 
 interface TransactionTableProps {
   transactions: TransactionItem[];
   loading?: boolean;
+  sortBy?: TransactionSortKey;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: TransactionSortKey) => void;
   onView: (transaction: TransactionItem) => void;
   onEdit: (transaction: TransactionItem) => void;
   onDuplicate: (transaction: TransactionItem) => void;
@@ -31,6 +80,9 @@ interface TransactionTableProps {
 export function TransactionTable({
   transactions,
   loading = false,
+  sortBy,
+  sortOrder,
+  onSortChange,
   onView,
   onEdit,
   onDuplicate,
@@ -56,14 +108,33 @@ export function TransactionTable({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>{uiText.table.date}</TableHead>
+                <TableHead>
+                  <SortButton
+                    column="date"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSortChange={onSortChange}
+                  >
+                    {uiText.table.date}
+                  </SortButton>
+                </TableHead>
                 <TableHead>{uiText.table.category}</TableHead>
                 <TableHead className="hidden xl:table-cell">
                   {uiText.table.description}
                 </TableHead>
                 <TableHead className="hidden lg:table-cell">{uiText.table.account}</TableHead>
                 <TableHead>{uiText.table.type}</TableHead>
-                <TableHead className="text-right">{uiText.table.amount}</TableHead>
+                <TableHead className="text-right">
+                  <SortButton
+                    column="amount"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSortChange={onSortChange}
+                    className="justify-end"
+                  >
+                    {uiText.table.amount}
+                  </SortButton>
+                </TableHead>
                 <TableHead>{uiText.table.status}</TableHead>
                 <TableHead className="text-right">{uiText.common.actionLabel}</TableHead>
               </TableRow>

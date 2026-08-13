@@ -5,6 +5,7 @@ import type { DatabaseConfig } from './database.config';
 import type { JwtConfig } from './jwt.config';
 import type { RedisConfig } from './redis.config';
 import type { SecurityConfig } from './security.config';
+import type { AuthConfig } from './auth.config';
 import type { SwaggerConfig } from './swagger.config';
 
 export interface AppConfig {
@@ -26,6 +27,7 @@ export interface Configuration {
   cors: CorsConfig;
   swagger: SwaggerConfig;
   security: SecurityConfig;
+  auth: AuthConfig;
 }
 
 export const appConfig = registerAs<AppConfig>('app', () => ({

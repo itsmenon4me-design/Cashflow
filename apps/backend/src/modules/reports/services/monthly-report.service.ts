@@ -1,7 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '@prisma/client';
-import type { Category } from '@prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
+import type { Category } from '../../../generated/prisma/client';
+import { toMinorUnitsExact } from '../../../common/types/money';
 
 interface CategoryGroup {
   category_id?: string | null;
@@ -11,16 +12,17 @@ interface CategoryGroup {
 export interface CategoryTotal {
   categoryId: string;
   name: string | null;
-  total: number;
+  /** Exact minor units as a string (BigInt-safe at the API boundary). */
+  total: string;
 }
 
 export interface MonthlyReportResult {
   month: number;
   year: number;
   summary: {
-    income: number;
-    expense: number;
-    netCashFlow: number;
+    income: string;
+    expense: string;
+    netCashFlow: string;
     transactions: number;
   };
   topExpenseCategories: CategoryTotal[];
@@ -31,15 +33,15 @@ export interface MonthlyReportResult {
 export class MonthlyReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private normalizeToNumber(v: unknown): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'bigint') return Number(v);
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isNaN(n) ? 0 : n;
-    }
-    if (typeof v === 'number') return v;
-    return 0;
+  // Resolve primary account currency so income/expense/net aggregates never
+  // mix different currencies (Phase C multi-currency rule).
+  private async resolveTargetCurrency(userId: string): Promise<string> {
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
   private validateMonthYear(month: number, year: number) {
@@ -49,23 +51,56 @@ export class MonthlyReportService {
       throw new BadRequestException('Invalid year');
   }
 
+  private validateRange(range?: { start?: Date; end?: Date }): {
+    start: Date;
+    end: Date;
+  } {
+    if (!range?.start || !range?.end)
+      throw new BadRequestException(
+        'Date range requires both startDate and endDate',
+      );
+    if (isNaN(range.start.getTime()) || isNaN(range.end.getTime()))
+      throw new BadRequestException('Invalid date range');
+    if (range.start.getTime() > range.end.getTime())
+      throw new BadRequestException('startDate must be before endDate');
+    return { start: range.start, end: range.end };
+  }
+
   async getMonthlyReport(
     userId: string,
-    month: number,
-    year: number,
+    month?: number | string,
+    year?: number | string,
+    range?: { start?: Date; end?: Date },
   ): Promise<MonthlyReportResult> {
-    this.validateMonthYear(month, year);
+    let start: Date;
+    let end: Date;
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    // Parse month/year from string if needed
+    const monthNum = month !== undefined ? Number(month) : undefined;
+    const yearNum = year !== undefined ? Number(year) : undefined;
 
-    // aggregates income and expense
+    if (range && range.start && range.end) {
+      const resolved = this.validateRange(range);
+      start = resolved.start;
+      end = resolved.end;
+    } else {
+      if (monthNum === undefined || yearNum === undefined)
+        throw new BadRequestException('Month and year are required');
+      this.validateMonthYear(monthNum, yearNum);
+      start = new Date(yearNum, monthNum - 1, 1);
+      end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+    }
+
+    const targetCurrency = await this.resolveTargetCurrency(userId);
+
+    // aggregates income and expense (single currency only)
     const [incAgg, expAgg, txCount] = await Promise.all([
       this.prisma.transaction.aggregate({
         where: {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.INCOME,
+          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -75,6 +110,7 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
+          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -88,8 +124,9 @@ export class MonthlyReportService {
       }),
     ]);
 
-    const income = this.normalizeToNumber(incAgg._sum?.amount_cents ?? 0);
-    const expense = this.normalizeToNumber(expAgg._sum?.amount_cents ?? 0);
+    const income = toMinorUnitsExact(incAgg._sum?.amount_cents);
+    const expense = toMinorUnitsExact(expAgg._sum?.amount_cents);
+    const netCashFlow = income - expense;
 
     // top categories using groupBy
     const groupResults = await Promise.all([
@@ -99,6 +136,7 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
+          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -111,6 +149,7 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.INCOME,
+          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -151,9 +190,12 @@ export class MonthlyReportService {
         .map((g) => ({
           categoryId: g.category_id as string,
           name: categoriesById[g.category_id as string] ?? null,
-          total: this.normalizeToNumber(g._sum?.amount_cents ?? 0),
+          total: toMinorUnitsExact(g._sum?.amount_cents).toString(),
         }))
-        .sort((a, b) => b.total - a.total)
+        .sort((a, b) => {
+          const diff = BigInt(b.total) - BigInt(a.total);
+          return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+        })
         .slice(0, 5);
     };
 
@@ -161,12 +203,12 @@ export class MonthlyReportService {
     const topIncomeCategories = toCategoryTotals(incomeGroups ?? []);
 
     return {
-      month,
-      year,
+      month: start.getMonth() + 1,
+      year: start.getFullYear(),
       summary: {
-        income,
-        expense,
-        netCashFlow: income - expense,
+        income: income.toString(),
+        expense: expense.toString(),
+        netCashFlow: netCashFlow.toString(),
         transactions: txCount ?? 0,
       },
       topExpenseCategories,

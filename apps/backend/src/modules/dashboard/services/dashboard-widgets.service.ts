@@ -13,16 +13,16 @@ import {
   CashflowTrendService,
   TrendResult,
 } from '../../reports/services/cashflow-trend.service';
+import { DashboardSummaryResponseDto } from '../dto/dashboard-summary-response.dto';
 import {
   BudgetAnalyticsService,
   BudgetAnalysisResult,
 } from '../../reports/services/budget-analytics.service';
-import { DashboardSummaryResponseDto } from '../dto/dashboard-summary-response.dto';
 
 type CategoryWidgetItem = {
   categoryId: string;
   categoryName: string;
-  totalAmount: number;
+  totalAmount: string;
   percentage: number;
   transactionCount: number;
 };

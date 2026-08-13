@@ -247,6 +247,36 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Atomic increment with optional TTL set on first creation.
+   * Returns the new numeric value, or null if Redis is unavailable or error occurs.
+   */
+  async incr(key: string, ttlSeconds?: number): Promise<number | null> {
+    const c = this.ensureClient();
+    if (!c) return null;
+    try {
+      const newVal = await c.incr(key);
+      // If this is the first increment, ensure the TTL is set so the counter expires
+      if (ttlSeconds && newVal === 1) {
+        try {
+          await c.expire(key, ttlSeconds);
+        } catch (err) {
+          // best-effort
+          this.logger.warn(
+            `Redis EXPIRE failed while setting ttl for key=${key}: ` +
+              this.formatError(err),
+          );
+        }
+      }
+      return typeof newVal === 'number' ? newVal : parseInt(String(newVal), 10);
+    } catch (err) {
+      this.logger.warn(
+        `Redis INCR failed for key=${key}: ` + this.formatError(err),
+      );
+      return null;
+    }
+  }
+
   async del(key: string): Promise<number> {
     const c = this.ensureClient();
     if (!c) return 0;

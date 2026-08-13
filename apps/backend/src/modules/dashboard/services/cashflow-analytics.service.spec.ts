@@ -7,24 +7,31 @@ const makePrismaMock = (
   incPrev = 800,
   expPrev = 300,
 ): Partial<PrismaService> => {
+  const aggregate = jest
+    .fn()
+    // order of calls: current INCOME, current EXPENSE, prev INCOME, prev EXPENSE
+    .mockImplementationOnce(() =>
+      Promise.resolve({ _sum: { amount_cents: incCurrent } }),
+    )
+    .mockImplementationOnce(() =>
+      Promise.resolve({ _sum: { amount_cents: expCurrent } }),
+    )
+    .mockImplementationOnce(() =>
+      Promise.resolve({ _sum: { amount_cents: incPrev } }),
+    )
+    .mockImplementationOnce(() =>
+      Promise.resolve({ _sum: { amount_cents: expPrev } }),
+    );
+
   return {
     transaction: {
-      aggregate: jest
-        .fn()
-        // order of calls: current INCOME, current EXPENSE, prev INCOME, prev EXPENSE
-        .mockImplementationOnce(() =>
-          Promise.resolve({ _sum: { amount_cents: incCurrent } }),
-        )
-        .mockImplementationOnce(() =>
-          Promise.resolve({ _sum: { amount_cents: expCurrent } }),
-        )
-        .mockImplementationOnce(() =>
-          Promise.resolve({ _sum: { amount_cents: incPrev } }),
-        )
-        .mockImplementationOnce(() =>
-          Promise.resolve({ _sum: { amount_cents: expPrev } }),
-        ),
-    },
+      aggregate,
+    } as unknown as PrismaService['transaction'],
+    account: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ currency: 'IDR', is_default: true }]),
+      ) as unknown as PrismaService['account']['findMany'],
+    } as unknown as PrismaService['account'],
   };
 };
 
@@ -35,10 +42,11 @@ describe('CashflowAnalyticsService', () => {
       prisma as unknown as PrismaService,
     );
     const res = await svc.getAnalytics('user-1');
-    expect(res.income).toBe(12500000);
-    expect(res.expense).toBe(8300000);
-    expect(res.netCashFlow).toBe(4200000);
-    // percentage comparisons (rounded to 2 decimals)
+
+    expect(res.income).toBe('12500000');
+    expect(res.expense).toBe('8300000');
+    expect(res.netCashFlow).toBe('4200000');
+
     expect(typeof res.comparison.income).toBe('number');
     expect(typeof res.comparison.expense).toBe('number');
     expect(typeof res.comparison.netCashFlow).toBe('number');
@@ -50,9 +58,10 @@ describe('CashflowAnalyticsService', () => {
       prisma as unknown as PrismaService,
     );
     const res = await svc.getAnalytics('user-1');
-    expect(res.income).toBe(0);
-    expect(res.expense).toBe(0);
-    expect(res.netCashFlow).toBe(0);
+
+    expect(res.income).toBe('0');
+    expect(res.expense).toBe('0');
+    expect(res.netCashFlow).toBe('0');
     expect(res.comparison.income).toBe(0);
     expect(res.comparison.expense).toBe(0);
     expect(res.comparison.netCashFlow).toBe(0);
@@ -65,9 +74,10 @@ describe('CashflowAnalyticsService', () => {
       prisma as unknown as PrismaService,
     );
     const res = await svc.getAnalytics('user-1');
-    expect(res.income).toBe(5000);
-    expect(res.expense).toBe(7000);
-    expect(res.netCashFlow).toBe(-2000);
+
+    expect(res.income).toBe('5000');
+    expect(res.expense).toBe('7000');
+    expect(res.netCashFlow).toBe('-2000');
     expect(res.comparison.income).toBe(0);
     expect(res.comparison.expense).toBe(0);
   });

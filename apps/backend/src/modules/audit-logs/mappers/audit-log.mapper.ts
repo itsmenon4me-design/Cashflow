@@ -7,6 +7,7 @@ export function toAuditLogResponse(e: AuditLogEntity): AuditLogResponseDto {
     user_id: e.user_id ?? null,
     action: e.action,
     module: e.module,
+    description: e.description ?? null,
     entity_type: e.entity_type ?? null,
     entity_id: e.entity_id ?? null,
     ip_address: e.ip_address ?? null,

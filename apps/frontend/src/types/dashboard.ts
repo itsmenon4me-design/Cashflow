@@ -6,8 +6,6 @@ export type TransactionStatus = "completed" | "pending" | "cancelled";
 
 export type TransactionType = "income" | "expense";
 
-export type ActivityStatus = "completed" | "pending" | "failed";
-
 export type NotificationType = "bill" | "goal" | "income";
 
 export interface DashboardKpi {
@@ -67,14 +65,7 @@ export interface TransactionItem {
   amount: number;
   type: TransactionType;
   status: TransactionStatus;
-}
-
-export interface ActivityItem {
-  id: string;
-  user: string;
-  action: string;
-  time: string;
-  status: ActivityStatus;
+  note?: string;
 }
 
 export interface MonthlyTargetItem {

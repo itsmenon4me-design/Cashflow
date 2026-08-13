@@ -5,9 +5,18 @@ import { PrismaTransactionsRepository } from './repositories/prisma-transactions
 import { PrismaModule } from '../../database/prisma.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { TransactionValidationService } from './services/validation/transaction-validation.service';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AccountsModule } from '../accounts/accounts.module';
+import { FinanceBotModule } from '../finance-bot/finance-bot.module';
 
 @Module({
-  imports: [PrismaModule, AuditLogsModule],
+  imports: [
+    PrismaModule,
+    AuditLogsModule,
+    NotificationsModule,
+    AccountsModule,
+    FinanceBotModule,
+  ],
   controllers: [TransactionsController],
   providers: [
     TransactionsService,

@@ -1,17 +1,23 @@
-import { Controller, Get, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { DashboardService } from '../services/dashboard.service';
 import { DashboardSummaryResponseDto } from '../dto/dashboard-summary-response.dto';
-import type { Request } from 'express';
-
-type RequestWithUser = Request & { user?: { id?: string } };
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @ApiTags('Dashboard')
-@Controller('api/v1/dashboard')
+@Controller('dashboard')
 export class DashboardController {
   constructor(private readonly service: DashboardService) {}
 
   @Get('summary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
   @ApiOperation({ summary: 'Get dashboard summary for authenticated user' })
   @ApiResponse({
     status: 200,
@@ -19,9 +25,8 @@ export class DashboardController {
     type: DashboardSummaryResponseDto,
   })
   async getSummary(
-    @Req() req: RequestWithUser,
+    @CurrentUser('sub') userId: string,
   ): Promise<DashboardSummaryResponseDto> {
-    const userId = req.user?.id as string;
     return this.service.getSummaryForUser(userId);
   }
 }

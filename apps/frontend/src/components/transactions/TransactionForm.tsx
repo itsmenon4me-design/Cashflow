@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Paperclip } from "lucide-react";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySuggestionPanel } from "./CategorySuggestionPanel";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { MoneyInput } from "@/components/ui/money-input";
 import { EMPTY_FORM_VALUES } from "@/features/transactions/constants";
 import { transactionFormSchema, type TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
@@ -36,8 +38,13 @@ interface TransactionFormProps {
   mode: TransactionFormMode;
   transaction: TransactionItem | null;
   categories: string[];
+  categoryTypes?: Record<string, ("INCOME" | "EXPENSE")[]>;
   accounts: string[];
-  onSubmit: (values: TransactionFormValues) => void;
+  accountCurrencyByName?: Record<string, string>;
+  initialValues?: Partial<TransactionFormValues>;
+  /** Optional controlled transaction type. When provided, the form will hide the type selector and use this value. */
+  transactionType?: TransactionType;
+  onSubmit: (values: TransactionFormValues) => void | Promise<void>;
 }
 
 function toFormValues(transaction: TransactionItem): TransactionFormValues {
@@ -48,7 +55,7 @@ function toFormValues(transaction: TransactionItem): TransactionFormValues {
     account: transaction.account,
     amount: transaction.amount,
     description: transaction.description,
-    notes: "",
+    notes: transaction.note ?? "",
   };
 }
 
@@ -65,7 +72,11 @@ export function TransactionForm({
   mode,
   transaction,
   categories,
+  categoryTypes,
   accounts,
+  accountCurrencyByName,
+  initialValues,
+  transactionType,
   onSubmit,
 }: TransactionFormProps) {
   const isView = mode === "view";
@@ -79,24 +90,65 @@ export function TransactionForm({
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
-    defaultValues: EMPTY_FORM_VALUES,
+    defaultValues: { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type },
   });
+
+  const [selectedType, setSelectedType] = useState<TransactionType>(() => transactionType ?? transaction?.type ?? "expense");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      form.reset(transaction ? toFormValues(transaction) : EMPTY_FORM_VALUES);
+      form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
     }
-  }, [open, transaction, form]);
+  }, [open, transaction, form, initialValues, transactionType]);
+
+  // keep form type in sync with controlled transactionType prop when provided
+  useEffect(() => {
+    if (transactionType) {
+      form.setValue('type', transactionType);
+      setSelectedType(transactionType);
+    }
+  }, [transactionType, form]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSubmitError(null);
+    }
+    onOpenChange(nextOpen);
+  };
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const watchedDescription = form.watch('description');
+   
+  const watchedAmount = form.watch('amount');
+  const watchedAccount = form.watch('account');
+  const amountCurrency = accountCurrencyByName?.[watchedAccount] ?? "IDR";
+
+  const visibleCategories = useMemo(() => {
+    if (!categoryTypes) {
+      return categories;
+    }
+    const target = selectedType === "income" ? "INCOME" : "EXPENSE";
+    return categories.filter((name) => {
+      const types = categoryTypes[name];
+      return types === undefined ? true : types.includes(target);
+    });
+  }, [categories, categoryTypes, selectedType]);
 
   const { errors } = form.formState;
 
-  const handleSubmit = (values: TransactionFormValues) => {
-    onSubmit(values);
-    onOpenChange(false);
+  const handleSubmit = async (values: TransactionFormValues) => {
+    setSubmitError(null);
+    try {
+      await onSubmit(values);
+      onOpenChange(false);
+    } catch {
+      setSubmitError(uiText.transactions.saveFailed);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <DialogTitle className="pr-8">{title}</DialogTitle>
@@ -124,32 +176,38 @@ export function TransactionForm({
                 <FormError message={errors.date?.message} />
               </div>
 
-              <div className="space-y-2">
-                <Label>{uiText.transactions.fieldType}</Label>
-                <Controller
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => field.onChange(value as TransactionType)}
-                      disabled={isView}
-                    >
-                      <SelectTrigger
-                        className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                        aria-label={uiText.transactions.fieldType}
+              {/* Type selector: hide when transactionType is controlled by parent page */}
+              {typeof transactionType === 'undefined' && (
+                <div className="space-y-2">
+                  <Label>{uiText.transactions.fieldType}</Label>
+                  <Controller
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => {
+                          field.onChange(value as TransactionType);
+                          setSelectedType(value as TransactionType);
+                        }}
+                        disabled={isView}
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
-                        <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FormError message={errors.type?.message} />
-              </div>
+                        <SelectTrigger
+                          className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
+                          aria-label={uiText.transactions.fieldType}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
+                          <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FormError message={errors.type?.message} />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>{uiText.transactions.fieldCategory}</Label>
@@ -170,7 +228,7 @@ export function TransactionForm({
                         <SelectValue placeholder={uiText.transactions.fieldCategory} />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {visibleCategories.map((category) => (
                           <SelectItem key={category} value={category}>
                             {category}
                           </SelectItem>
@@ -180,6 +238,16 @@ export function TransactionForm({
                   )}
                 />
                 <FormError message={errors.category?.message} />
+              </div>
+
+              <div className="sm:col-span-2">
+                <CategorySuggestionPanel
+                  transactionType={selectedType === 'income' ? 'INCOME' : 'EXPENSE'}
+                  description={watchedDescription}
+                  amount={watchedAmount}
+                  categories={visibleCategories}
+                  onAccept={(categoryName) => form.setValue('category', categoryName)}
+                />
               </div>
 
               <div className="space-y-2">
@@ -215,15 +283,20 @@ export function TransactionForm({
 
               <div className="space-y-2">
                 <Label htmlFor="transaction-amount">{uiText.transactions.fieldAmount}</Label>
-                <Input
-                  id="transaction-amount"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  className="h-11 sm:h-9"
-                  disabled={isView}
-                  aria-invalid={!!errors.amount}
-                  {...form.register("amount", { valueAsNumber: true })}
+                <Controller
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="transaction-amount"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      currency={amountCurrency}
+                      disabled={isView}
+                      className="h-11 sm:h-9"
+                      aria-invalid={!!errors.amount}
+                    />
+                  )}
                 />
                 <FormError message={errors.amount?.message} />
               </div>
@@ -264,6 +337,11 @@ export function TransactionForm({
           </div>
 
           <DialogFooter className="shrink-0 gap-2 border-t bg-card px-6 py-4">
+            {submitError && (
+              <p className="w-full text-sm text-red-500" role="alert">
+                {submitError}
+              </p>
+            )}
             {isView ? (
               <Button
                 type="button"

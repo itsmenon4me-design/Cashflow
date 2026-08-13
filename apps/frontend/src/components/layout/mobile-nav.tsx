@@ -12,16 +12,19 @@ interface MobileNavItem {
   href: string;
 }
 
-const mobileItems: MobileNavItem[] = [
-  { label: uiText.navigation.dashboard, icon: Home, href: "/" },
-  { label: uiText.navigation.transactions, icon: ReceiptText, href: "/transactions" },
-  { label: uiText.navigation.reports, icon: BarChart3, href: "/reports" },
-  { label: uiText.navigation.notifications, icon: Bell, href: "/notifications" },
-  { label: uiText.navigation.profile, icon: UserRound, href: "/profile" },
-];
+function getMobileItems(): MobileNavItem[] {
+  return [
+    { label: uiText.navigation.dashboard, icon: Home, href: "/" },
+    { label: uiText.navigation.transactions, icon: ReceiptText, href: "/transactions" },
+    { label: uiText.navigation.reports, icon: BarChart3, href: "/reports" },
+    { label: uiText.navigation.notifications, icon: Bell, href: "/notifications" },
+    { label: uiText.navigation.profile, icon: UserRound, href: "/profile" },
+  ];
+}
 
 export function MobileNav() {
   const pathname = usePathname();
+  const mobileItems = getMobileItems();
 
   return (
     <nav

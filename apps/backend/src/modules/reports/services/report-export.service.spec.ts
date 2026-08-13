@@ -15,9 +15,9 @@ const makeMocks = (): {
           month: 8,
           year: 2026,
           summary: {
-            income: 100,
-            expense: 50,
-            netCashFlow: 50,
+            income: '100',
+            expense: '50',
+            netCashFlow: '50',
             transactions: 3,
           },
         }),
@@ -27,12 +27,12 @@ const makeMocks = (): {
       getBreakdown: jest.fn(() =>
         Promise.resolve({
           type: 'expense',
-          total: 150,
+          total: '150',
           categories: [
             {
               categoryId: 'c1',
               categoryName: 'Food',
-              totalAmount: 100,
+              totalAmount: '100',
               percentage: 66.67,
               transactionCount: 4,
             },
@@ -45,7 +45,12 @@ const makeMocks = (): {
         Promise.resolve({
           type: 'monthly',
           data: [
-            { period: '2026-07', income: 200, expense: 100, netCashFlow: 100 },
+            {
+              period: '2026-07',
+              income: '200',
+              expense: '100',
+              netCashFlow: '100',
+            },
           ],
         }),
       ),
@@ -71,9 +76,9 @@ describe('ReportExportService', () => {
     expect(res.filename).toContain('monthly-report-2026-08');
     expect(res.contentType).toContain('application/json');
     const obj = JSON.parse(String(res.content)) as unknown as {
-      summary: { income: number };
+      summary: { income: string };
     };
-    expect(obj.summary.income).toBe(100);
+    expect(obj.summary.income).toBe('100');
   });
 
   it('exports category breakdown as CSV with headers', async () => {
@@ -125,7 +130,7 @@ describe('ReportExportService', () => {
   it('handles empty dataset (category CSV has only headers)', async () => {
     const mocks = makeMocks();
     mocks.categorySvc.getBreakdown = jest.fn(() =>
-      Promise.resolve({ type: 'expense', total: 0, categories: [] }),
+      Promise.resolve({ type: 'expense', total: '0', categories: [] }),
     );
     const svc = new ReportExportService(
       mocks.monthlySvc,

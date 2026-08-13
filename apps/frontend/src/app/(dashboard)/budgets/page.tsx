@@ -1,6 +1,5 @@
-﻿import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+﻿import { BudgetsPage } from "@/features/budgets/budgets-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.budgets} />;
+  return <BudgetsPage />;
 }

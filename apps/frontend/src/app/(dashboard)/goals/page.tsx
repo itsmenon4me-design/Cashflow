@@ -1,6 +1,5 @@
-﻿import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+﻿import { SavingGoalsPage } from "@/features/saving-goals/saving-goals-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.goals} />;
+  return <SavingGoalsPage />;
 }

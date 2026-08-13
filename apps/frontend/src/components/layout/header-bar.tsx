@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
-  CirclePlus,
   LogOut,
   Menu,
   Moon,
@@ -29,12 +29,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { notifications } from "@/lib/mock-data";
 import { uiText } from "@/locales";
+import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { useThemeStore } from "@/stores/theme.store";
+import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
+import { QuickAddTransaction } from "@/components/transactions/quick-add-transaction";
+import { formatRelativeTime } from "@/features/notifications/relative-time";
+import {
+  getFinanceBotPriorityLabel,
+  getFinanceBotPriorityVariant,
+  getFinanceBotRuleLabel,
+  getFinanceBotRuleRoute,
+  isFinanceBotNotification,
+} from "@/features/notifications/notification-config";
 
 function getInitials(name: string): string {
   return name
@@ -47,21 +57,45 @@ function getInitials(name: string): string {
 
 export function HeaderBar() {
   const { mode, toggleMode } = useThemeStore();
-  const { unreadCount } = useNotificationStore();
+  const { unreadCount, recent, initialized, fetch, markAllRead } = useNotificationStore();
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
+  const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const safeUser = mounted ? user : undefined;
+  const safeMode = mounted ? mode : "dark";
 
-  const today = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date());
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (!initialized) {
+      void fetch();
+    }
+  }, [initialized, fetch]);
+
+  const handleLogout = () => {
+    void authService.logout().catch(() => undefined);
+    logout();
+    router.replace("/login");
+  };
+
+  const today = mounted
+    ? new Intl.DateTimeFormat("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date())
+    : "";
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 items-center gap-3 overflow-x-auto px-4 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Button
           variant="ghost"
           className="size-11 shrink-0 rounded-xl md:hidden"
@@ -87,7 +121,7 @@ export function HeaderBar() {
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Button
             variant="ghost"
             className="size-11 rounded-xl md:hidden"
@@ -102,6 +136,9 @@ export function HeaderBar() {
             <CalendarDays className="size-4 text-primary" />
             <span>{today}</span>
           </div>
+
+          <SyncStatusIndicator showLabel={false} className="sm:hidden" />
+          <SyncStatusIndicator className="hidden sm:inline-flex" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -121,12 +158,66 @@ export function HeaderBar() {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>{uiText.navigation.notifications}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {notifications.map((item) => (
-                <DropdownMenuItem key={item.id} className="flex-col items-start gap-0.5 py-2">
-                  <span className="text-sm font-medium">{item.title}</span>
-                  <span className="text-xs text-muted-foreground">{item.time}</span>
+              {recent.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  {uiText.notificationsPage.empty}
+                </p>
+              ) : (
+                recent.map((item) => {
+                  const isFinanceBot = isFinanceBotNotification(item);
+                  const ruleLabel = isFinanceBot ? getFinanceBotRuleLabel(item) : undefined;
+                  const priorityLabel = isFinanceBot ? getFinanceBotPriorityLabel(item) : undefined;
+                  const priorityVariant = isFinanceBot ? getFinanceBotPriorityVariant(item) : "secondary";
+                  const ruleRoute = getFinanceBotRuleRoute(item);
+                  return (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className="flex-col items-start gap-0.5 py-2"
+                      onSelect={() => router.push(ruleRoute ?? "/notifications")}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        {!item.isRead && (
+                          <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                        )}
+                        <span className="truncate">{item.title}</span>
+                        {!item.isRead && (
+                          <span className="sr-only">{uiText.notificationsPage.unread}</span>
+                        )}
+                      </span>
+                      {(isFinanceBot || priorityLabel) && (
+                        <span className="mt-1 flex flex-wrap items-center gap-1">
+                          {isFinanceBot && (
+                            <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+                              {uiText.financeBot.title}
+                            </Badge>
+                          )}
+                          {ruleLabel && (
+                            <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
+                              {ruleLabel}
+                            </Badge>
+                          )}
+                          {priorityLabel && (
+                            <Badge variant={priorityVariant} className="shrink-0 px-1.5 py-0 text-[10px]">
+                              {priorityLabel}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelativeTime(item.createdAt)}
+                      </span>
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+              {unreadCount > 0 && (
+                <DropdownMenuItem
+                  className="justify-center text-primary"
+                  onSelect={() => void markAllRead()}
+                >
+                  {uiText.notificationsPage.markAllRead}
                 </DropdownMenuItem>
-              ))}
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/notifications" className="justify-center text-primary">
@@ -140,15 +231,13 @@ export function HeaderBar() {
             variant="ghost"
             className="size-11 rounded-xl md:size-9"
             onClick={toggleMode}
-            aria-label={uiText.common.toggleThemeAriaLabel}
+            aria-label={safeMode === "dark" ? uiText.common.themeToLight : uiText.common.themeToDark}
+            title={safeMode === "dark" ? uiText.common.themeToLight : uiText.common.themeToDark}
           >
-            {mode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
+            {safeMode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          <Button className="hidden rounded-xl lg:inline-flex" onClick={() => undefined}>
-            <CirclePlus />
-            <span>{uiText.common.quickAdd}</span>
-          </Button>
+          <QuickAddTransaction />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -160,19 +249,19 @@ export function HeaderBar() {
               >
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
-                    {getInitials(user?.name ?? "U")}
+                    {getInitials(safeUser?.name ?? "U")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden text-left md:block">
-                  <p className="text-sm font-medium leading-tight text-foreground">{user?.name}</p>
-                  <p className="text-xs leading-tight text-muted-foreground">{user?.email}</p>
+                  <p className="text-sm font-medium leading-tight text-foreground">{safeUser?.name}</p>
+                  <p className="text-xs leading-tight text-muted-foreground">{safeUser?.email}</p>
                 </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
-                <p className="font-medium">{user?.name}</p>
-                <p className="text-xs font-normal text-muted-foreground">{user?.email}</p>
+                <p className="font-medium">{safeUser?.name}</p>
+                <p className="text-xs font-normal text-muted-foreground">{safeUser?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -188,7 +277,7 @@ export function HeaderBar() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">
+              <DropdownMenuItem variant="destructive" onClick={handleLogout}>
                 <LogOut />
                 {uiText.navigation.logout}
               </DropdownMenuItem>

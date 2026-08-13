@@ -8,11 +8,14 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+import { AppError } from '../errors/app-error';
+
 interface ErrorResponseBody {
   success: false;
   message: string;
   errorCode?: string;
   errors?: Array<{ field?: string; message: string }>;
+  details?: unknown;
   timestamp: string;
   path: string;
   requestId?: string;
@@ -33,6 +36,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let errorCode: string | undefined = undefined;
     let errors: Array<{ field?: string; message: string }> | undefined =
       undefined;
+    let details: unknown = undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -74,12 +78,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
           errorCode = body['errorCode'];
         }
       }
+    } else if (exception instanceof AppError) {
+      statusCode = exception.statusCode;
+      message = exception.message;
+      errorCode = exception.errorCode;
+      details = exception.details;
     } else if (exception instanceof Error) {
       this.logger.error(
         `Unhandled exception on ${request.method} ${request.url}`,
         exception.stack,
       );
-      message = exception.message || message;
+      const isProduction = process.env.NODE_ENV === 'production';
+      message = isProduction ? 'Internal Server Error' : exception.message;
     } else {
       this.logger.error(
         `Unhandled non-error exception on ${request.method} ${request.url}: ${String(exception)}`,
@@ -91,6 +101,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       errorCode,
       errors,
+      details,
       timestamp: new Date().toISOString(),
       path: request.url,
       requestId: request.correlationId,

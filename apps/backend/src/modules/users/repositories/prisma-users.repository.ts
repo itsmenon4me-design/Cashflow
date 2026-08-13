@@ -6,7 +6,7 @@ import type {
   User as PrismaUser,
   Role as PrismaRole,
   Prisma,
-} from '@prisma/client';
+} from '../../../generated/prisma/client';
 import type { UserStatus } from '../entities/user.entity';
 
 type UserWithRole = PrismaUser & {

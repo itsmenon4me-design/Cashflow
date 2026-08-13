@@ -8,6 +8,7 @@ export interface AuditLogRecordInput {
   userId?: string | null;
   action: string;
   module: string;
+  description?: string | null;
   entityType?: string | null;
   entityId?: string | null;
   ipAddress?: string | null;
@@ -23,6 +24,7 @@ export interface AuditLogCreateInput {
   user_id?: string | null;
   action: string;
   module: string;
+  description?: string | null;
   entity_type?: string | null;
   entity_id?: string | null;
   ip_address?: string | null;

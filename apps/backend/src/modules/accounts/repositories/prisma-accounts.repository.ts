@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { IAccountsRepository } from './accounts.repository.interface';
 import { AccountEntity } from '../entities/account.entity';
-import type { Account } from '@prisma/client';
+import type { Account } from '../../../generated/prisma/client';
 
 type AccountRec = Account;
 

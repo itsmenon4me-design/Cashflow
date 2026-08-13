@@ -1,5 +1,11 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { MonthlyReportService } from '../services/monthly-report.service';
 import { CategoryBreakdownService } from '../services/category-breakdown.service';
 import { CashflowTrendService } from '../services/cashflow-trend.service';
@@ -11,12 +17,36 @@ import { CategoryBreakdownResponseDto } from '../dto/category-breakdown-response
 import { CashflowTrendResponseDto } from '../dto/trend-response.dto';
 import { BudgetAnalysisResponseDto } from '../dto/budget-analysis-response.dto';
 import { FinancialInsightsResponseDto } from '../dto/financial-insights-response.dto';
-import type { Request } from 'express';
+import { MonthlyReportQueryDto } from '../dto/monthly-report-query.dto';
+import { CategoryBreakdownQueryDto } from '../dto/category-breakdown-query.dto';
+import { TrendQueryDto } from '../dto/trend-query.dto';
+import { BudgetQueryDto } from '../dto/budget-query.dto';
+import { ExportQueryDto } from '../dto/export-query.dto';
+import { FinancialInsightsQueryDto } from '../dto/financial-insights-query.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
-type RequestWithUser = Request & { user?: { id?: string } };
+interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+function buildRange(
+  startDate?: string,
+  endDate?: string,
+): DateRange | undefined {
+  if (!startDate && !endDate) return undefined;
+  const start = new Date(startDate as string);
+  const endDateRaw = endDate ? new Date(endDate) : new Date(start);
+  const end = new Date(endDateRaw.getTime());
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
 
 @ApiTags('Reports')
 @Controller('reports')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('jwt')
 export class ReportsController {
   constructor(
     private readonly monthly: MonthlyReportService,
@@ -30,20 +60,26 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Get monthly financial report for authenticated user',
   })
-  @ApiQuery({ name: 'month', required: true, type: Number })
-  @ApiQuery({ name: 'year', required: true, type: Number })
+  @ApiQuery({ name: 'month', required: false, type: Number })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Monthly report',
     type: MonthlyReportResponseDto,
   })
   async getMonthly(
-    @Req() req: RequestWithUser,
-    @Query()
-    query: import('../dto/monthly-report-query.dto').MonthlyReportQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: MonthlyReportQueryDto,
   ) {
-    const userId = req.user?.id as string;
-    return this.monthly.getMonthlyReport(userId, query.month, query.year);
+    const range = buildRange(query.startDate, query.endDate);
+    return this.monthly.getMonthlyReport(
+      userId,
+      query.month,
+      query.year,
+      range,
+    );
   }
 
   @Get('category-breakdown')
@@ -51,24 +87,26 @@ export class ReportsController {
     summary: 'Get category breakdown by type (income|expense) for a month',
   })
   @ApiQuery({ name: 'type', required: true, type: String })
-  @ApiQuery({ name: 'month', required: true, type: Number })
-  @ApiQuery({ name: 'year', required: true, type: Number })
+  @ApiQuery({ name: 'month', required: false, type: Number })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Category breakdown',
     type: CategoryBreakdownResponseDto,
   })
   async getCategoryBreakdown(
-    @Req() req: RequestWithUser,
-    @Query()
-    query: import('../dto/category-breakdown-query.dto').CategoryBreakdownQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: CategoryBreakdownQueryDto,
   ) {
-    const userId = req.user?.id as string;
+    const range = buildRange(query.startDate, query.endDate);
     return this.categoryBreakdown.getBreakdown(
       userId,
       query.type,
       query.month,
       query.year,
+      range,
     );
   }
 
@@ -85,10 +123,9 @@ export class ReportsController {
     type: CashflowTrendResponseDto,
   })
   async getCashflowTrend(
-    @Req() req: RequestWithUser,
-    @Query() query: import('../dto/trend-query.dto').TrendQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: TrendQueryDto,
   ) {
-    const userId = req.user?.id as string;
     const start = new Date(query.startDate);
     const end = new Date(query.endDate);
     return this.cashflowTrend.getTrend(userId, query.type, start, end);
@@ -104,10 +141,9 @@ export class ReportsController {
     type: BudgetAnalysisResponseDto,
   })
   async getBudgetAnalysis(
-    @Req() req: RequestWithUser,
-    @Query() query: import('../dto/budget-query.dto').BudgetQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: BudgetQueryDto,
   ) {
-    const userId = req.user?.id as string;
     return this.budgetAnalytics.analyzeMonth(userId, query.month, query.year);
   }
 
@@ -122,10 +158,9 @@ export class ReportsController {
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
   async exportReport(
-    @Req() req: RequestWithUser,
-    @Query() query: import('../dto/export-query.dto').ExportQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: ExportQueryDto,
   ) {
-    const userId = req.user?.id as string;
     const month = query.month;
     const year = query.year;
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
@@ -159,11 +194,9 @@ export class ReportsController {
     type: FinancialInsightsResponseDto,
   })
   async getFinancialInsights(
-    @Req() req: RequestWithUser,
-    @Query()
-    query: import('../dto/financial-insights-query.dto').FinancialInsightsQueryDto,
+    @CurrentUser('sub') userId: string,
+    @Query() query: FinancialInsightsQueryDto,
   ) {
-    const userId = req.user?.id as string;
     return this.insights.getInsights(userId, query.month, query.year);
   }
 }

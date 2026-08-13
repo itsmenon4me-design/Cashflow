@@ -1,6 +1,5 @@
-import { PagePlaceholder } from "@/components/common/page-placeholder";
-import { uiText } from "@/locales";
+import { NotificationsPage } from "@/features/notifications/notifications-page";
 
 export default function Page() {
-  return <PagePlaceholder title={uiText.navigation.notifications} />;
+  return <NotificationsPage />;
 }

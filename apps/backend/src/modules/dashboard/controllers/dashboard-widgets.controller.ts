@@ -1,9 +1,14 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { DashboardWidgetsService } from '../services/dashboard-widgets.service';
-import type { Request } from 'express';
-
-type RequestWithUser = Request & { user?: { id?: string } };
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
@@ -11,16 +16,17 @@ export class DashboardWidgetsController {
   constructor(private readonly svc: DashboardWidgetsService) {}
 
   @Get('widgets')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
   @ApiOperation({ summary: 'Get combined dashboard widgets' })
   @ApiQuery({ name: 'month', required: false, type: Number })
   @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Dashboard widgets' })
   async getWidgets(
-    @Req() req: RequestWithUser,
+    @CurrentUser('sub') userId: string,
     @Query('month') monthStr?: string,
     @Query('year') yearStr?: string,
   ) {
-    const userId = req.user?.id as string;
     const month = monthStr ? Number(monthStr) : undefined;
     const year = yearStr ? Number(yearStr) : undefined;
     return this.svc.getWidgets(userId, month, year);

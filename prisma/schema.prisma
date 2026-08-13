@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../apps/backend/node_modules/.prisma/client"
+  output   = "../apps/backend/src/generated/prisma"
 }
 
 datasource db {
@@ -50,6 +50,7 @@ sessions        Session[]
 accounts        Account[]
 categories      Category[]
 transactions    Transaction[]
+bills           Bill[]
 audit_logs      AuditLog[]
 
 @@map("users")
@@ -182,6 +183,7 @@ model Account {
   user User @relation(fields: [user_id], references: [id])
 
   transactions Transaction[]
+  bills Bill[]
 
   @@index([user_id])
   @@unique([user_id, name])
@@ -208,10 +210,62 @@ model Category {
   children Category[] @relation("CategoryToParent")
 
   transactions Transaction[]
+  bills Bill[]
 
   @@index([user_id])
   @@unique([user_id, name, type])
   @@map("categories")
+}
+
+// Bill model
+enum BillRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model Bill {
+  id                   String          @id @default(uuid()) @db.Uuid
+  user_id              String          @db.Uuid
+  payee                String
+  amount_cents         BigInt          @db.BigInt
+  currency             String          @default("IDR")
+  account_id           String?         @db.Uuid
+  category_id          String?         @db.Uuid
+  due_date             DateTime
+  due_date_timezone    String?
+  is_paid              Boolean         @default(false)
+  paid_at              DateTime?       @db.Timestamptz
+  transaction_id       String?         @db.Uuid
+  status               String          @default("OPEN")
+  recurrence_type      BillRecurrence  @default(NONE)
+  recurrence_interval  Int?
+  recurrence_ends_at   DateTime?
+  series_id            String?         @db.Uuid
+  is_template          Boolean         @default(false)
+  reminder_enabled     Boolean         @default(false)
+  reminder_days_before Int?
+  reminder_time        String?
+  reminder_config      Json?
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
+  deleted_at           DateTime?       @db.Timestamptz
+
+  user     User      @relation(fields: [user_id], references: [id])
+  account  Account?  @relation(fields: [account_id], references: [id])
+  category Category? @relation(fields: [category_id], references: [id])
+
+  @@index([user_id])
+  @@index([user_id, due_date])
+  @@index([user_id, is_paid])
+  @@index([series_id])
+  @@index([category_id])
+  @@index([account_id])
+  @@unique([transaction_id])
+  @@unique([series_id, due_date])
+  @@map("Bill")
 }
 
 // Transaction model

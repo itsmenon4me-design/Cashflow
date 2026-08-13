@@ -4,6 +4,7 @@ import { PrismaAuditLogRepository } from './repositories/prisma-audit-log.reposi
 import { AuditLogService } from './services/audit-log.service';
 import { AuditLogsService } from './services/audit-logs.service';
 import { AuditLogsController } from './controllers/audit-logs.controller';
+import { AdminAuditRateLimitGuard } from './guards/admin-audit-rate-limit.guard';
 import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
 /**
@@ -21,6 +22,7 @@ import { AuditInterceptor } from '../../common/audit/audit.interceptor';
     AuditLogService,
     AuditLogsService,
     AuditInterceptor,
+    AdminAuditRateLimitGuard,
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,

@@ -1,17 +1,26 @@
 ﻿import { apiClient } from "@/lib/axios";
-import type { AuthPayload, ForgotPasswordPayload, AuthSession } from "@/types/auth";
+import type { LoginResponse } from "@/types/backend";
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
 
 export const authService = {
-  login: async (payload: AuthPayload): Promise<AuthSession> => {
-    return apiClient.post<AuthSession>("/auth/login", payload);
-  },
-  register: async (payload: AuthPayload): Promise<AuthSession> => {
-    return apiClient.post<AuthSession>("/auth/register", payload);
-  },
-  forgotPassword: async (payload: ForgotPasswordPayload): Promise<{ message: string }> => {
-    return apiClient.post<{ message: string }>("/auth/forgot-password", payload);
-  },
-  refreshToken: async (refreshToken: string): Promise<AuthSession> => {
-    return apiClient.post<AuthSession>("/auth/refresh-token", { refreshToken });
-  },
+  login: (payload: LoginPayload): Promise<LoginResponse> =>
+    apiClient.post<LoginResponse>("/auth/login", payload),
+
+  logout: (): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>("/auth/logout"),
+
+  // TODO: waiting backend endpoint — there is no /auth/register route in the backend yet.
+  register: async (): Promise<LoginResponse> => ({
+    success: false,
+    message: "Pendaftaran belum tersedia. Tunggu endpoint /auth/register di backend.",
+  }),
+
+  forgotPassword: (email: string): Promise<{ success: boolean; message?: string }> =>
+    apiClient
+      .post<{ success: boolean; message?: string }>("/auth/email/forgot-password", { email })
+      .catch(() => ({ success: false, message: "Gagal mengirim email reset. Coba lagi." })),
 };

@@ -1,13 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { Prisma, TransactionType } from '@prisma/client';
+import { Prisma, TransactionType } from '../../../generated/prisma/client';
+import { toMinorUnitsExact } from '../../../common/types/money';
 
 export interface BudgetCategoryItem {
   categoryId: string;
   categoryName: string | null;
-  budgetAmount: number;
-  spentAmount: number;
-  remainingAmount: number;
+  /** Exact minor units as strings (BigInt-safe at the API boundary). */
+  budgetAmount: string;
+  spentAmount: string;
+  remainingAmount: string;
   percentageUsed: number;
   status: string;
 }
@@ -16,9 +18,9 @@ export interface BudgetAnalysisResult {
   month: number;
   year: number;
   overall: {
-    budget: number;
-    spent: number;
-    remaining: number;
+    budget: string;
+    spent: string;
+    remaining: string;
     percentageUsed: number;
   };
   categories: BudgetCategoryItem[];
@@ -37,17 +39,6 @@ interface CategoryRow {
 @Injectable()
 export class BudgetAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
-
-  private normalizeToNumber(v: unknown): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'bigint') return Number(v);
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isNaN(n) ? 0 : n;
-    }
-    if (typeof v === 'number') return v;
-    return 0;
-  }
 
   private validateMonthYear(month: number, year: number) {
     if (!Number.isInteger(month) || month < 1 || month > 12) {
@@ -90,13 +81,23 @@ export class BudgetAnalyticsService {
     month: number,
     year: number,
   ): Promise<BudgetAnalysisResult> {
-    this.validateMonthYear(month, year);
+    const m = Number(month);
+    const y = Number(year);
+    this.validateMonthYear(m, y);
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0, 23, 59, 59, 999);
 
     // budgets
-    const budgets = await this.fetchBudgets(userId, month, year);
+    const budgets = await this.fetchBudgets(userId, m, y);
+
+    // Resolve primary account currency to prevent cross-currency summation
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    const targetCurrency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     // transactions
     const groups = await this.prisma.transaction
@@ -106,6 +107,9 @@ export class BudgetAnalyticsService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
+          account: { currency: targetCurrency },
+          // exclude transfer transactions
+          transfer_group_id: null,
           transaction_date: {
             gte: start,
             lte: end,
@@ -120,10 +124,10 @@ export class BudgetAnalyticsService {
       })
       .catch(() => []);
 
-    const spentByCategory: Record<string, number> = {};
+    const spentByCategory: Record<string, bigint> = {};
 
     for (const g of groups as Prisma.TransactionGroupByOutputType[]) {
-      spentByCategory[g.category_id] = this.normalizeToNumber(
+      spentByCategory[g.category_id] = toMinorUnitsExact(
         g._sum?.amount_cents ?? 0,
       );
     }
@@ -149,23 +153,25 @@ export class BudgetAnalyticsService {
     }
 
     const items: BudgetCategoryItem[] = budgets.map((b) => {
-      const budgetAmount = this.normalizeToNumber(b.budget_amount_cents ?? 0);
+      const budgetAmount = toMinorUnitsExact(b.budget_amount_cents ?? 0);
 
-      const spentAmount = spentByCategory[b.category_id] ?? 0;
+      const spentAmount = spentByCategory[b.category_id] ?? 0n;
 
-      const remainingAmount = Math.max(0, budgetAmount - spentAmount);
+      const remainingAmount = budgetAmount > spentAmount ? budgetAmount - spentAmount : 0n;
 
       const percentageUsed =
-        budgetAmount === 0
+        budgetAmount === 0n
           ? 0
-          : Number(((spentAmount / budgetAmount) * 100).toFixed(2));
+          : Number(
+              ((Number(spentAmount) / Number(budgetAmount)) * 100).toFixed(2),
+            );
 
       return {
         categoryId: b.category_id,
         categoryName: categoriesById[b.category_id] ?? null,
-        budgetAmount,
-        spentAmount,
-        remainingAmount,
+        budgetAmount: budgetAmount.toString(),
+        spentAmount: spentAmount.toString(),
+        remainingAmount: remainingAmount.toString(),
         percentageUsed,
         status: this.determineStatus(percentageUsed),
       };
@@ -173,24 +179,35 @@ export class BudgetAnalyticsService {
 
     items.sort((a, b) => b.percentageUsed - a.percentageUsed);
 
-    const overallBudget = items.reduce((s, i) => s + i.budgetAmount, 0);
+    const overallBudget = items.reduce(
+      (s, i) => s + BigInt(i.budgetAmount),
+      0n,
+    );
 
-    const overallSpent = items.reduce((s, i) => s + i.spentAmount, 0);
+    const overallSpent = items.reduce(
+      (s, i) => s + BigInt(i.spentAmount),
+      0n,
+    );
 
-    const overallRemaining = Math.max(0, overallBudget - overallSpent);
+    const overallRemaining =
+      overallBudget > overallSpent
+        ? overallBudget - overallSpent
+        : 0n;
 
     const overallPercentage =
-      overallBudget === 0
+      overallBudget === 0n
         ? 0
-        : Number(((overallSpent / overallBudget) * 100).toFixed(2));
+        : Number(
+            ((Number(overallSpent) / Number(overallBudget)) * 100).toFixed(2),
+          );
 
     return {
-      month,
-      year,
+      month: m,
+      year: y,
       overall: {
-        budget: overallBudget,
-        spent: overallSpent,
-        remaining: overallRemaining,
+        budget: overallBudget.toString(),
+        spent: overallSpent.toString(),
+        remaining: overallRemaining.toString(),
         percentageUsed: overallPercentage,
       },
       categories: items,

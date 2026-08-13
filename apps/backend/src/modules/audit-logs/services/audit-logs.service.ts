@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { IAuditLogRepository } from '../repositories/audit-log.repository.interface';
+import { PrismaAuditLogRepository } from '../repositories/prisma-audit-log.repository';
 import { AuditLogEntity } from '../entities/audit-log.entity';
 import type {
   AuditLogFilter,
@@ -13,7 +13,7 @@ import { ErrorCode } from '../../../common/errors/error-codes';
  */
 @Injectable()
 export class AuditLogsService {
-  constructor(private readonly repo: IAuditLogRepository) {}
+  constructor(private readonly repo: PrismaAuditLogRepository) {}
 
   async findById(id: string): Promise<AuditLogEntity> {
     const entry = await this.repo.findById(id);
@@ -32,5 +32,25 @@ export class AuditLogsService {
       this.repo.count(filter),
     ]);
     return { items, total };
+  }
+
+  async findOwnByUser(
+    userId: string,
+    filter: Omit<AuditLogFilter, 'userId'>,
+    pagination: AuditLogPagination,
+  ): Promise<{ items: AuditLogEntity[]; total: number }> {
+    const [items, total] = await Promise.all([
+      this.repo.findByUser(userId, filter, pagination),
+      this.repo.countByUser(userId, filter),
+    ]);
+    return { items, total };
+  }
+
+  async findOwnById(userId: string, id: string): Promise<AuditLogEntity> {
+    const entry = await this.repo.findByIdOwned(id, userId);
+    if (!entry) {
+      throw ErrorService.create(ErrorCode.NOT_FOUND, 'Audit log not found');
+    }
+    return entry;
   }
 }

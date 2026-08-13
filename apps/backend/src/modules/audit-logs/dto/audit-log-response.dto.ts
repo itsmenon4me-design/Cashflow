@@ -16,6 +16,9 @@ export class AuditLogResponseDto {
   @ApiProperty({ example: 'auth' })
   module!: string;
 
+  @ApiPropertyOptional({ example: 'User logged in', nullable: true })
+  description?: string | null;
+
   @ApiPropertyOptional({ example: 'User', nullable: true })
   entity_type?: string | null;
 

@@ -70,19 +70,33 @@ export class AccountsService {
       await this.repo.unsetDefaultForUser(userId);
     }
 
-    const created = await this.repo.create(acc);
+    try {
+      const created = await this.repo.create(acc);
 
-    // Audit log
-    void this.audit.record({
-      userId,
-      action: AuditAction.ACCOUNT_CREATED,
-      module: AuditModule.ACCOUNT,
-      entityType: 'Account',
-      entityId: created.id,
-    });
+      // Audit log
+      void this.audit.record({
+        userId,
+        action: AuditAction.ACCOUNT_CREATED,
+        module: AuditModule.ACCOUNT,
+        entityType: 'Account',
+        entityId: created.id,
+      });
 
-    this.logger.log(`Account Created user=${userId} account=${created.id}`);
-    return created;
+      this.logger.log(`Account Created user=${userId} account=${created.id}`);
+      return created;
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code?: unknown }).code)
+          : undefined;
+      if (code === 'P2002') {
+        throw ErrorService.create(
+          ErrorCode.CONFLICT,
+          'Account name already exists',
+        );
+      }
+      throw ErrorService.create(ErrorCode.INTERNAL);
+    }
   }
 
   async getById(userId: string, id: string): Promise<AccountEntity> {
@@ -144,18 +158,32 @@ export class AccountsService {
           : BigInt(incoming.current_balance_cents);
     }
 
-    const updated = await this.repo.update(id, data);
+    try {
+      const updated = await this.repo.update(id, data);
 
-    void this.audit.record({
-      userId,
-      action: AuditAction.ACCOUNT_UPDATED,
-      module: AuditModule.ACCOUNT,
-      entityType: 'Account',
-      entityId: updated.id,
-    });
+      void this.audit.record({
+        userId,
+        action: AuditAction.ACCOUNT_UPDATED,
+        module: AuditModule.ACCOUNT,
+        entityType: 'Account',
+        entityId: updated.id,
+      });
 
-    this.logger.log(`Account Updated user=${userId} account=${updated.id}`);
-    return updated;
+      this.logger.log(`Account Updated user=${userId} account=${updated.id}`);
+      return updated;
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code?: unknown }).code)
+          : undefined;
+      if (code === 'P2002') {
+        throw ErrorService.create(
+          ErrorCode.CONFLICT,
+          'Account name already exists',
+        );
+      }
+      throw ErrorService.create(ErrorCode.INTERNAL);
+    }
   }
 
   async softDelete(userId: string, id: string): Promise<void> {

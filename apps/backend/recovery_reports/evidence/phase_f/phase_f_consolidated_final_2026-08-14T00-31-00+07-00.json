@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-08-14T00:31:00+07:00",
+  "commit": "946eaff",
+  "f2": "PASS",
+  "f3": "PASS",
+  "phase_f_overall": "PARTIAL",
+  "evidence": {
+    "income_headed": "apps/backend/recovery_reports/evidence/phase_f/f2_income_e2e_2026-08-13T15-07-29-703Z.json",
+    "income_offline": "apps/backend/recovery_reports/evidence/phase_f/f2_income_offline_e2e_2026-08-13T17-25-44-581Z.json",
+    "expense_headed": "apps/backend/recovery_reports/evidence/phase_f/f3_expense_e2e_2026-08-13T15-41-40-583Z.json",
+    "expense_offline": "apps/backend/recovery_reports/evidence/phase_f/f3_expense_offline_e2e_2026-08-13T17-25-56-395Z.json"
+  },
+  "notes": "No production mutation. Historical recovery and global blockers preserved."
+}

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../../../generated/prisma/client';
+import { toMinorUnitsExact } from '../../../common/types/money';
 
 export interface AnalyticsResult {
-  income: number;
-  expense: number;
-  netCashFlow: number;
+  /** Exact minor units as strings (BigInt-safe at the API boundary). */
+  income: string;
+  expense: string;
+  netCashFlow: string;
   comparison: {
     income: number;
     expense: number;
@@ -17,20 +19,15 @@ export interface AnalyticsResult {
 export class CashflowAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private normalizeToNumber(v: any): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'bigint') return Number(v);
-    if (typeof v === 'string') {
-      const n = Number(v);
-      return Number.isNaN(n) ? 0 : n;
-    }
-    if (typeof v === 'number') return v;
-    return 0;
-  }
-
-  private percentChange(current: number, previous: number): number {
-    if (previous === 0) return 0; // Prevent division by zero
-    return Number(((current - previous) / Math.abs(previous)) * 100);
+  // Resolve primary account currency so income/expense aggregates never mix
+  // different currencies (Phase C multi-currency rule).
+  private async resolveTargetCurrency(userId: string): Promise<string> {
+    const accounts = await this.prisma.account.findMany({
+      where: { user_id: userId, deleted_at: null },
+      select: { currency: true, is_default: true },
+    });
+    const defaultAcc = accounts.find((a) => a.is_default);
+    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
   /**
@@ -69,7 +66,9 @@ export class CashflowAnalyticsService {
     const prevEnd = new Date(rangeStart.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - lenMs + 1);
 
-    // helper to aggregate
+    const targetCurrency = await this.resolveTargetCurrency(userId);
+
+    // helper to aggregate (single currency only)
     const aggFor = async (start: Date, end: Date) => {
       const [incAgg, expAgg] = await Promise.all([
         this.prisma.transaction.aggregate({
@@ -77,6 +76,7 @@ export class CashflowAnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
@@ -86,13 +86,14 @@ export class CashflowAnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
         }),
       ]);
-      const inc = this.normalizeToNumber(incAgg._sum?.amount_cents ?? 0);
-      const exp = this.normalizeToNumber(expAgg._sum?.amount_cents ?? 0);
+      const inc = toMinorUnitsExact(incAgg._sum?.amount_cents);
+      const exp = toMinorUnitsExact(expAgg._sum?.amount_cents);
       return { inc, exp };
     };
 
@@ -103,18 +104,19 @@ export class CashflowAnalyticsService {
     const expense = current.exp;
     const net = income - expense;
 
-    const compIncome = this.percentChange(income, previous.inc);
-    const compExpense = this.percentChange(expense, previous.exp);
-    const compNet = this.percentChange(net, previous.inc - previous.exp);
+    const compIncome = previous.inc === 0n ? 0 : Number(((income - previous.inc) * 100n / previous.inc).toString());
+    const compExpense = previous.exp === 0n ? 0 : Number(((expense - previous.exp) * 100n / previous.exp).toString());
+    const prevNet = previous.inc - previous.exp;
+    const compNet = prevNet === 0n ? 0 : Number(((net - prevNet) * 100n / prevNet).toString());
 
     return {
-      income,
-      expense,
-      netCashFlow: net,
+      income: income.toString(),
+      expense: expense.toString(),
+      netCashFlow: net.toString(),
       comparison: {
-        income: Number(compIncome.toFixed(2)),
-        expense: Number(compExpense.toFixed(2)),
-        netCashFlow: Number(compNet.toFixed(2)),
+        income: compIncome,
+        expense: compExpense,
+        netCashFlow: compNet,
       },
     };
   }

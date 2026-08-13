@@ -7,7 +7,10 @@ import type {
   AuditLogFilter,
   AuditLogPagination,
 } from '../interfaces/audit-log.interface';
-import type { AuditLog as PrismaAuditLog, Prisma } from '@prisma/client';
+import type {
+  AuditLog as PrismaAuditLog,
+  Prisma,
+} from '../../../generated/prisma/client';
 
 @Injectable()
 export class PrismaAuditLogRepository implements IAuditLogRepository {
@@ -19,6 +22,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     e.user_id = rec.user_id;
     e.action = rec.action;
     e.module = rec.module;
+    e.description = rec.description;
     e.entity_type = rec.entity_type;
     e.entity_id = rec.entity_id;
     e.ip_address = rec.ip_address;
@@ -51,6 +55,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
         user_id: data.user_id,
         action: data.action,
         module: data.module,
+        description: data.description ?? null,
         entity_type: data.entity_type,
         entity_id: data.entity_id,
         ip_address: data.ip_address,
@@ -87,5 +92,45 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     return this.prisma.auditLog.count({
       where: this.buildWhere(filter),
     });
+  }
+
+  async findByUser(
+    userId: string,
+    filter: Omit<AuditLogFilter, 'userId'>,
+    pagination: AuditLogPagination,
+  ): Promise<AuditLogEntity[]> {
+    const where: Prisma.AuditLogWhereInput = {
+      ...this.buildWhere(filter),
+      user_id: userId,
+    };
+    const recs = await this.prisma.auditLog.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      skip: (pagination.page - 1) * pagination.limit,
+      take: pagination.limit,
+    });
+    return recs.map((r) => this.map(r));
+  }
+
+  async countByUser(
+    userId: string,
+    filter: Omit<AuditLogFilter, 'userId'>,
+  ): Promise<number> {
+    return this.prisma.auditLog.count({
+      where: {
+        ...this.buildWhere(filter),
+        user_id: userId,
+      },
+    });
+  }
+
+  async findByIdOwned(
+    id: string,
+    userId: string,
+  ): Promise<AuditLogEntity | null> {
+    const rec = await this.prisma.auditLog.findFirst({
+      where: { id, user_id: userId },
+    });
+    return rec ? this.map(rec) : null;
   }
 }

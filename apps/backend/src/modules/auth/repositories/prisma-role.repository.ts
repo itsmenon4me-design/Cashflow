@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { RoleEntity } from '../entities/role.entity';
-import type { Role as PrismaRole } from '@prisma/client';
+import type { Role as PrismaRole } from '../../../generated/prisma/client';
 
 @Injectable()
 export class PrismaRoleRepository {

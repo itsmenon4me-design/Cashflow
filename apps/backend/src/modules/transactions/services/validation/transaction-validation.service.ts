@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../database/prisma.service';
 import { ErrorService } from '../../../../common/errors/error.service';
 import { ErrorCode } from '../../../../common/errors/error-codes';
 import { TransactionEntity } from '../../entities/transaction.entity';
+import { normalizeAmountCents } from '../../utils/amount.utils';
 
 @Injectable()
 export class TransactionValidationService {
@@ -93,17 +94,16 @@ export class TransactionValidationService {
       );
     }
 
-    // Amount
-    if (
-      tx.amount_cents === undefined ||
-      tx.amount_cents === null ||
-      tx.amount_cents <= BigInt(0)
-    ) {
+    const amountValue = normalizeAmountCents(tx.amount_cents, 'amount_cents');
+
+    if (amountValue <= 0n) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
-        'Amount must be greater than zero',
+        'Amount must be a positive integer cent value',
       );
     }
+
+    tx.amount_cents = amountValue;
 
     // Transaction type
     if (tx.transaction_type && tx.transaction_type !== cat.type) {

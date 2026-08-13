@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { IAuditLogRepository } from '../repositories/audit-log.repository.interface';
+import { PrismaAuditLogRepository } from '../repositories/prisma-audit-log.repository';
 import type {
   AuditLogRecordInput,
   AuditLogCreateInput,
@@ -20,7 +20,7 @@ import { AUDIT_SENSITIVE_KEYS } from '../constants/audit.constants';
 export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
 
-  constructor(private readonly repo: IAuditLogRepository) {}
+  constructor(private readonly repo: PrismaAuditLogRepository) {}
 
   /**
    * Records an audit entry. Never throws - failures are logged as warnings.
@@ -31,6 +31,7 @@ export class AuditLogService {
         user_id: input.userId ?? null,
         action: input.action,
         module: input.module,
+        description: input.description ?? null,
         entity_type: input.entityType ?? null,
         entity_id: input.entityId ?? null,
         ip_address: input.ipAddress ?? null,

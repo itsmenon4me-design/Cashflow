@@ -1,6 +1,6 @@
 import { CategoryBreakdownService } from './category-breakdown.service';
 import type { PrismaService } from '../../../database/prisma.service';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../generated/prisma/client';
 
 const makePrismaMock = (
   groups: Prisma.TransactionGroupByOutputType[] = [],
@@ -21,6 +21,11 @@ const makePrismaMock = (
         Promise.resolve(cats),
       ) as unknown as PrismaService['category']['findMany'],
     } as unknown as PrismaService['category'],
+    account: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ currency: 'IDR', is_default: true }]),
+      ) as unknown as PrismaService['account']['findMany'],
+    } as unknown as PrismaService['account'],
   };
   return mock;
 };
@@ -49,7 +54,7 @@ describe('CategoryBreakdownService', () => {
     );
     const res = await svc.getBreakdown('user-1', 'expense', 8, 2026);
     expect(res.type).toBe('expense');
-    expect(res.total).toBe(1000);
+    expect(res.total).toBe('1000');
     expect(res.categories.length).toBe(2);
     expect(res.categories[0].categoryName).toBe('Food');
     expect(
@@ -71,7 +76,7 @@ describe('CategoryBreakdownService', () => {
       prisma as unknown as PrismaService,
     );
     const res = await svc.getBreakdown('user-1', 'income', 7, 2026);
-    expect(res.total).toBe(1000);
+    expect(res.total).toBe('1000');
     expect(res.categories.length).toBe(1);
     expect(res.categories[0].percentage).toBe(100);
     expect(res.categories[0].transactionCount).toBe(10);
@@ -83,7 +88,7 @@ describe('CategoryBreakdownService', () => {
       prisma as unknown as PrismaService,
     );
     const res = await svc.getBreakdown('user-1', 'expense', 2, 2025);
-    expect(res.total).toBe(0);
+    expect(res.total).toBe('0');
     expect(res.categories).toEqual([]);
   });
 

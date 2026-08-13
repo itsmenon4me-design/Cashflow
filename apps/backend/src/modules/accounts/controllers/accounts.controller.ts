@@ -6,9 +6,9 @@ import {
   Param,
   Patch,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AccountsService } from '../services/accounts.service';
 import { CreateAccountDto } from '../dto/create-account.dto';
@@ -20,9 +20,6 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { BalanceService } from '../services/balance.service';
 import { Request } from 'express';
 
-interface RequestWithUser extends Request {
-  user?: { sub?: string };
-}
 
 @ApiTags('Accounts')
 @Controller('accounts')
@@ -36,8 +33,7 @@ export class AccountsController {
   @ApiOperation({ summary: 'List accounts for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async list(@Req() req: Request & { user?: { sub?: string } }) {
-    const userId = req.user?.sub as string;
+  async list(@CurrentUser('sub') userId: string) {
     const items = await this.accounts.listAll(userId);
     return { success: true, data: items.map((i) => toAccountResponse(i)) };
   }
@@ -47,10 +43,9 @@ export class AccountsController {
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
   async get(
-    @Req() req: Request & { user?: { sub?: string } },
+    @CurrentUser('sub') userId: string,
     @Param('id') id: string,
   ) {
-    const userId = req.user?.sub as string;
     const acc = await this.accounts.getById(userId, id);
     return { success: true, data: toAccountResponse(acc) };
   }
@@ -59,8 +54,7 @@ export class AccountsController {
   @ApiOperation({ summary: 'Create new account' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async create(@Req() req: RequestWithUser, @Body() body: CreateAccountDto) {
-    const userId = req.user?.sub as string;
+  async create(@CurrentUser('sub') userId: string, @Body() body: CreateAccountDto) {
     const created = await this.accounts.create(userId, body);
     return { success: true, data: toAccountResponse(created) };
   }
@@ -70,11 +64,10 @@ export class AccountsController {
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
   async update(
-    @Req() req: RequestWithUser,
+    @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateAccountDto,
   ) {
-    const userId = req.user?.sub as string;
     const updated = await this.accounts.update(userId, id, body);
     return { success: true, data: toAccountResponse(updated) };
   }
@@ -84,10 +77,9 @@ export class AccountsController {
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
   async delete(
-    @Req() req: Request & { user?: { sub?: string } },
+    @CurrentUser('sub') userId: string,
     @Param('id') id: string,
   ) {
-    const userId = req.user?.sub as string;
     await this.accounts.softDelete(userId, id);
     return { success: true };
   }
@@ -97,10 +89,9 @@ export class AccountsController {
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
   async setDefault(
-    @Req() req: Request & { user?: { sub?: string } },
+    @CurrentUser('sub') userId: string,
     @Param('id') id: string,
   ) {
-    const userId = req.user?.sub as string;
     await this.accounts.setDefault(userId, id);
     return { success: true };
   }

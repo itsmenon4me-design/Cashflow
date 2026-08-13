@@ -14,6 +14,7 @@ export enum AuditAction {
   USER_DELETED = 'USER_DELETED',
   ROLE_CHANGED = 'ROLE_CHANGED',
   PERMISSION_CHANGED = 'PERMISSION_CHANGED',
+  AUDIT_VIEW = 'AUDIT_VIEW',
 
   // Accounts
   ACCOUNT_CREATED = 'ACCOUNT_CREATED',
@@ -33,6 +34,21 @@ export enum AuditAction {
   // Transfers
   TRANSFER_CREATED = 'TRANSFER_CREATED',
   TRANSFER_FAILED = 'TRANSFER_FAILED',
+
+  // Budgets
+  BUDGET_CREATED = 'BUDGET_CREATED',
+  BUDGET_UPDATED = 'BUDGET_UPDATED',
+  BUDGET_DELETED = 'BUDGET_DELETED',
+
+  // Saving Goals
+  SAVING_GOAL_CREATED = 'SAVING_GOAL_CREATED',
+  SAVING_GOAL_UPDATED = 'SAVING_GOAL_UPDATED',
+  SAVING_GOAL_DELETED = 'SAVING_GOAL_DELETED',
+
+  // Investments
+  INVESTMENT_CREATED = 'INVESTMENT_CREATED',
+  INVESTMENT_UPDATED = 'INVESTMENT_UPDATED',
+  INVESTMENT_DELETED = 'INVESTMENT_DELETED',
 }
 
 /**
@@ -46,6 +62,10 @@ export enum AuditModule {
   ACCOUNT = 'account',
   CATEGORY = 'category',
   TRANSACTION = 'transaction',
+  BUDGET = 'budget',
+  SAVING_GOAL = 'saving_goal',
+  INVESTMENT = 'investment',
+  AUDIT = 'audit',
 }
 
 /**
@@ -56,6 +76,7 @@ export enum AuditEntityType {
   ROLE = 'Role',
   PERMISSION = 'Permission',
   SESSION = 'Session',
+  AUDIT_LOG = 'AuditLog',
 }
 
 /**

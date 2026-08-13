@@ -6,7 +6,7 @@ class CategoryItemDto {
   @ApiProperty()
   categoryName: string | null;
   @ApiProperty()
-  totalAmount: number;
+  totalAmount: string;
   @ApiProperty()
   percentage: number;
   @ApiProperty()
@@ -17,7 +17,7 @@ export class CategoryBreakdownResponseDto {
   @ApiProperty()
   type: string;
   @ApiProperty()
-  total: number;
+  total: string;
   @ApiProperty({ type: [CategoryItemDto] })
   categories: CategoryItemDto[];
 }
