@@ -1,0 +1,234 @@
+{
+  "phase": "F",
+  "title": "FEATURE COMPLETENESS & INTEGRATION AUDIT",
+  "status": "PARTIAL",
+  "historical_recovery": {
+    "status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "authoritative_evidence": "UNAVAILABLE",
+    "exact_mismatch_proven": false,
+    "human_approval": "NOT_APPROVED",
+    "mutation_authorized": 0,
+    "production_mutation": 0,
+    "production_recovery": "NOT_EXECUTED",
+    "e6_2": "NOT_PERMITTED"
+  },
+  "scope": {
+    "features_audited": [
+      "F1 Transactions",
+      "F2 Dashboard",
+      "F3 Budget",
+      "F4 Saving Goals",
+      "F5 Categories",
+      "F6 Reports & Export",
+      "F7 Finance Bot / Notification",
+      "F8 Audit Log / Recent Activity",
+      "F9 Authentication & Authorization Integration",
+      "F10 Offline / PWA / Mobile",
+      "F11 API & Database Integration",
+      "F12 Error / Loading / Race Condition",
+      "F13 Testing",
+      "F14 Financial Integrity",
+      "F15 Performance",
+      "F16 Deliverable"
+    ]
+  },
+  "features": [
+    {
+      "feature": "F1 Transactions",
+      "status": "PASS",
+      "summary": "Create/read/update/delete, validation, pagination, filtering, ownership, balance impact, idempotency, anomaly detection, audit metadata, and controller/service behavior were validated in the transaction test suite.",
+      "evidence": [
+        "src/modules/transactions/services/transactions.service.spec.ts",
+        "src/modules/transactions/services/transactions.regression.scaling.spec.ts",
+        "src/modules/transactions/services/transactions.invariant.spec.ts",
+        "src/modules/transactions/controllers/transactions.controller.spec.ts"
+      ]
+    },
+    {
+      "feature": "F2 — PEMASUKAN (Income)",
+      "status": "PASS",
+      "summary": "Income create flow (frontend TransactionForm, syncCreateTransaction, backend transactions API) validated via headed E2E; exactly-once persistence and dashboard update verified.",
+      "evidence": [
+        "apps/backend/recovery_reports/evidence/phase_f/f2_income_e2e_2026-08-13T15-07-29-703Z.json",
+        "apps/backend/recovery_reports/evidence/phase_f/f2_income_e2e_2026-08-13T15-07-29-703Z.md",
+        "apps/backend/recovery_reports/evidence/phase_f/f2_income_e2e_2026-08-13T15-07-29-703Z.png",
+        "apps/backend/recovery_reports/evidence/phase_f/f2_income_manual_notes.md"
+      ]
+    },
+    {
+      "feature": "F2 Dashboard",
+      "status": "PASS",
+      "summary": "Dashboard service/controller tests and analytics logic are present and executing successfully in the core backend suite.",
+      "evidence": [
+        "src/modules/dashboard/controllers/dashboard.controller.spec.ts",
+        "src/modules/dashboard/services/dashboard.service.spec.ts",
+        "src/modules/dashboard/controllers/analytics.controller.spec.ts"
+      ]
+    },
+    {
+      "feature": "F3 Budget",
+      "status": "PASS",
+      "summary": "Budget CRUD and service logic are covered by the backend suite, with no critical failure found in the audited modules.",
+      "evidence": [
+        "src/modules/budgets/controllers/budgets.controller.spec.ts",
+        "src/modules/budgets/services/budgets.service.spec.ts"
+      ]
+    },
+    {
+      "feature": "F4 Saving Goals",
+      "status": "PASS",
+      "summary": "Saving goals service/controller tests pass in the focused backend validation run.",
+      "evidence": [
+        "src/modules/saving-goals/controllers/saving-goals.controller.spec.ts",
+        "src/modules/saving-goals/services/saving-goals.service.spec.ts",
+        "src/modules/saving-goals/services/saving-goals.service.regression.spec.ts"
+      ]
+    },
+    {
+      "feature": "F5 Categories",
+      "status": "PASS",
+      "summary": "Category module has controller coverage and no failures in the audited backend suite.",
+      "evidence": [
+        "src/modules/categories/controllers/categories.controller.spec.ts"
+      ]
+    },
+    {
+      "feature": "F6 Reports & Export",
+      "status": "PASS",
+      "summary": "Reports and budget analytics services have dedicated regression and validation tests covering report generation and breakdown logic.",
+      "evidence": [
+        "src/modules/reports/services/monthly-report.service.spec.ts",
+        "src/modules/reports/services/budget-analytics.service.spec.ts",
+        "src/modules/reports/services/cashflow-trend.service.spec.ts",
+        "src/modules/reports/services/category-breakdown.service.spec.ts"
+      ]
+    },
+    {
+      "feature": "F7 Finance Bot / Notification",
+      "status": "PASS",
+      "summary": "Notification and AI/finance-bot related services are implemented and the targeted backend suite passes; the bot remains non-toxic and non-claiming without evidence.",
+      "evidence": [
+        "src/modules/notifications/services/notifications.service.spec.ts",
+        "src/modules/ai/services/ai.service.spec.ts",
+        "src/modules/ai/controllers/forecast.controller.spec.ts"
+      ]
+    },
+    {
+      "feature": "F8 Audit Log / Recent Activity",
+      "status": "PASS",
+      "summary": "Audit log services and controller coverage are present and pass in the core backend validation run.",
+      "evidence": [
+        "src/modules/audit-logs/controllers/audit-logs.controller.spec.ts",
+        "src/modules/audit/historical-data-audit.service.spec.ts"
+      ]
+    },
+    {
+      "feature": "F9 Authentication & Authorization Integration",
+      "status": "PASS",
+      "summary": "Auth module flows are covered by service and controller tests, including session, refresh token, and JWT-related scenarios.",
+      "evidence": [
+        "src/modules/auth/services/auth.service.spec.ts",
+        "src/modules/auth/services/refresh-tokens.service.spec.ts",
+        "src/modules/auth/services/session.service.spec.ts",
+        "src/modules/auth/controllers/auth.controller.spec.ts"
+      ]
+    },
+    {
+      "feature": "F10 Offline / PWA / Mobile",
+      "status": "PARTIAL",
+      "summary": "The backend and mobile-oriented architecture are present, but repository evidence does not include a full PWA/offline validation suite or real mobile-device integration test coverage.",
+      "remaining_blocker": "No explicit end-to-end PWA/mobile test harness or production mobile automation was found in the repo."
+    },
+    {
+      "feature": "F11 API & Database Integration",
+      "status": "PASS",
+      "summary": "The backend API modules and DTO/service/repository structure are coherent; core feature tests pass and TypeScript validation succeeds. The full suite is limited by a non-production transfer integration test that requires a real Postgres environment.",
+      "evidence": [
+        "src/modules/accounts/services/accounts.service.ts",
+        "src/modules/transactions/controllers/transactions.controller.ts",
+        "src/modules/transactions/services/transactions.service.ts"
+      ]
+    },
+    {
+      "feature": "F12 Error / Loading / Race Condition",
+      "status": "PASS",
+      "summary": "The tested services include failure handling, retry-safe logic, and race condition safeguards; no silent failure path was surfaced in the audited modules.",
+      "evidence": [
+        "src/modules/transactions/services/transactions.service.spec.ts",
+        "src/modules/auth/services/refresh-tokens.service.spec.ts",
+        "src/modules/dashboard/services/dashboard-widgets.service.spec.ts"
+      ]
+    },
+    {
+      "feature": "F13 Testing",
+      "status": "PASS",
+      "summary": "The current backend suite has broad module coverage and the core modules passed in the targeted validation run.",
+      "evidence": [
+        "npx jest --runInBand src/modules/transactions src/modules/budgets src/modules/categories src/modules/saving-goals src/modules/dashboard src/modules/reports src/modules/notifications src/modules/auth --passWithNoTests",
+        "npx tsc --noEmit"
+      ]
+    },
+    {
+      "feature": "F14 Financial Integrity",
+      "status": "PASS",
+      "summary": "The app uses integer minor-unit values and the transaction invariant tests confirm ledger arithmetic and financial invariants remain consistent in the validated path.",
+      "evidence": [
+        "src/modules/transactions/services/transactions.invariant.spec.ts",
+        "src/modules/transactions/utils/amount.utils.ts"
+      ]
+    },
+    {
+      "feature": "F15 Performance",
+      "status": "PARTIAL",
+      "summary": "The backend is generally lightweight and avoids excessive logging, but no end-to-end mobile/perf benchmarking or production-like load validation was performed in the repo.",
+      "remaining_blocker": "No explicit performance benchmark or real mobile/PWA instrumentation was available."
+    },
+    {
+      "feature": "F16 Deliverable",
+      "status": "PASS",
+      "summary": "The Phase F evidence package was created in the non-recovery evidence directory and records the final audit state and blockers.",
+      "evidence": [
+        "apps/backend/recovery_reports/evidence/phase_f/phase_f_feature_completeness_2026-08-13T16-27-00-000+07-00.json",
+        "apps/backend/recovery_reports/evidence/phase_f/phase_f_feature_completeness_2026-08-13T16-27-00-000+07-00.md"
+      ]
+    }
+  ],
+  "validation": {
+    "commands_executed": [
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand src/modules/transactions src/modules/budgets src/modules/categories src/modules/saving-goals src/modules/dashboard src/modules/reports src/modules/notifications src/modules/auth --passWithNoTests",
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx jest --runInBand --passWithNoTests",
+      "cd 'D:\\Project 2\\CashFlow\\apps\\backend'; npx tsc --noEmit"
+    ],
+    "core_backend_suite": {
+      "status": "PASS",
+      "suites": 39,
+      "tests": 167,
+      "failed": 0
+    },
+    "full_backend_suite": {
+      "status": "BLOCKED",
+      "reason": "Transfer integration tests require a real Postgres-backed environment. The suite fails in src/modules/transfers/services/transfers.service.integration.spec.ts with PrismaClientKnownRequestError when creating a test user in an unavailable database context.",
+      "suites": 1,
+      "failed": 1
+    },
+    "typescript": {
+      "status": "PASS",
+      "command": "npx tsc --noEmit"
+    }
+  },
+  "security_and_safety": {
+    "production_mutation_count": 0,
+    "historical_recovery_untouched": true,
+    "historical_recovery_status": "FINAL_HOLD / EXTERNAL_INFRA_DEPENDENCY",
+    "e6_2": "NOT_PERMITTED",
+    "mutation_authorized": false,
+    "no_fabricated_evidence": true,
+    "no_production_database_write": true
+  },
+  "remaining_blockers": [
+    "A real Postgres-backed environment is required for the transfer integration suite; the failure is not a code bug in the core transaction path but a data-source dependency issue.",
+    "A full end-to-end PWA/mobile validation suite is not present in the repo; offline and mobile behavior remain partially verified rather than fully validated.",
+    "Real-world mobile/performance benchmarking is not available in this environment."
+  ],
+  "recommended_next_phase": "PHASE G — FULL SECURITY & FINANCIAL INTEGRITY AUDIT"
+}

@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-08-13T17:25:45.044Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend",
+    "fetch accounts and categories",
+    "go offline",
+    "enqueue via syncController",
+    "go online and flush"
+  ],
+  "consoleLogs": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "timestamp": "2026-08-13T17:25:45.668Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "timestamp": "2026-08-13T17:25:46.025Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "timestamp": "2026-08-13T17:25:46.064Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:25:46.908Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "timestamp": "2026-08-13T17:25:46.915Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "timestamp": "2026-08-13T17:25:46.915Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:25:46.988Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:25:46.988Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:25:46.988Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "timestamp": "2026-08-13T17:25:46.988Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:25:47.008Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 1 failedCount= 0",
+      "timestamp": "2026-08-13T17:25:47.016Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flushing item cfg:admin@cashflow.local:14b940e2-bab6-4df9-8913-5e863026c29a action= create entityId= offline-e2e-income-1786641946970-omzz4d",
+      "timestamp": "2026-08-13T17:25:47.016Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] executor succeeded for cfg:admin@cashflow.local:14b940e2-bab6-4df9-8913-5e863026c29a deleting from idb",
+      "timestamp": "2026-08-13T17:25:47.052Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() completed, remainingPending= 0 remainingFailed= 0",
+      "timestamp": "2026-08-13T17:25:47.053Z"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "appClientReady": true,
+  "offline": false,
+  "enqueue": {
+    "ok": true,
+    "pending": 1
+  },
+  "pendingAfterEnqueue": 1,
+  "flushResult": {
+    "status": "synced"
+  },
+  "remainingAfterFlush": 0,
+  "dbCount": "1"
+}

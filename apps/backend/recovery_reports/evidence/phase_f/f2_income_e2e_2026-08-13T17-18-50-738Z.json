@@ -1,0 +1,447 @@
+{
+  "timestamp": "2026-08-13T17:18:51.227Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend root",
+    "login submitted",
+    "navigate to /incomes",
+    {
+      "accountName": "tes",
+      "categoryName": "Transfer In"
+    }
+  ],
+  "consoleLogs": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:52.191Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:52.554Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:52.596Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.871Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.886Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.893Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.898Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.902Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.910Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications/unread-count",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.915Z"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "location": {
+        "url": "http://localhost:3001/api/v1/notifications?page=1&limit=5",
+        "line": 0,
+        "column": 0,
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2026-08-13T17:18:52.924Z"
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:53.289Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:53.612Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:53.623Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:54.490Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:54.500Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:54.500Z"
+    },
+    {
+      "type": "warning",
+      "text": "Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior=\"smooth\"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:54.691Z"
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:55.319Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:55.404Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:55.638Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:55.734Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() already running, skipping",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:55.742Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:56.195Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:56.195Z"
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.029Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.341Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.356Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.442Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() already running, skipping",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.452Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.889Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "location": {
+        "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+        "line": 776,
+        "column": 27,
+        "lineNumber": 776,
+        "columnNumber": 27
+      },
+      "timestamp": "2026-08-13T17:18:58.889Z"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "appClientReady": true,
+  "formPresentInitially": false,
+  "formAppeared": true,
+  "apiCreate": {
+    "success": true,
+    "data": {
+      "id": "ddd88d34-858e-4f85-aa74-89a6a506c435",
+      "account_id": "2f17f78a-27ac-47c5-94e2-fd13f289313d",
+      "category_id": "538134b6-b14c-45bd-ad4e-919dc9f88317",
+      "transaction_type": "INCOME",
+      "amount_cents": "100000",
+      "transaction_date": "2026-08-13T17:18:57.578Z",
+      "note": "Income e2e-income-1786641537578-vspior",
+      "created_at": "2026-08-13T17:18:57.594Z",
+      "updated_at": "2026-08-13T17:18:57.594Z"
+    }
+  },
+  "pageContainsRef": true,
+  "apiSearch": {
+    "success": true,
+    "data": [
+      {
+        "id": "ddd88d34-858e-4f85-aa74-89a6a506c435",
+        "account_id": "2f17f78a-27ac-47c5-94e2-fd13f289313d",
+        "category_id": "538134b6-b14c-45bd-ad4e-919dc9f88317",
+        "transaction_type": "INCOME",
+        "amount_cents": "100000",
+        "transaction_date": "2026-08-13T17:18:57.578Z",
+        "note": "Income e2e-income-1786641537578-vspior",
+        "created_at": "2026-08-13T17:18:57.594Z",
+        "updated_at": "2026-08-13T17:18:57.594Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalItems": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrevious": false
+    }
+  },
+  "uniqueRef": "e2e-income-1786641537578-vspior"
+}

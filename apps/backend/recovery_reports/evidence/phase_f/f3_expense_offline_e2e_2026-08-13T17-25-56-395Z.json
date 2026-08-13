@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-08-13T17:25:56.856Z",
+  "frontend": "http://localhost:3000",
+  "api": "http://localhost:3001/api/v1",
+  "steps": [
+    "goto frontend",
+    "fetch accounts and categories",
+    "go offline",
+    "enqueue via syncController",
+    "go online and flush"
+  ],
+  "consoleLogs": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "timestamp": "2026-08-13T17:25:57.454Z"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected",
+      "timestamp": "2026-08-13T17:25:57.819Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync-client] syncController attached to window for diagnostics",
+      "timestamp": "2026-08-13T17:25:57.865Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:25:58.789Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0",
+      "timestamp": "2026-08-13T17:25:58.798Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() nothing to do, status= synced",
+      "timestamp": "2026-08-13T17:25:58.798Z"
+    },
+    {
+      "type": "warning",
+      "text": "Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior=\"smooth\"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior",
+      "timestamp": "2026-08-13T17:25:59.083Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true",
+      "timestamp": "2026-08-13T17:25:59.810Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() scope= admin@cashflow.local pending= 1 failedCount= 0",
+      "timestamp": "2026-08-13T17:25:59.811Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flushing item cfg:admin@cashflow.local:c707ed6c-02e3-4b52-9e06-0c2bd95fd075 action= create entityId= offline-e2e-expense-1786641959785-5qr68u",
+      "timestamp": "2026-08-13T17:25:59.811Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] executor succeeded for cfg:admin@cashflow.local:c707ed6c-02e3-4b52-9e06-0c2bd95fd075 deleting from idb",
+      "timestamp": "2026-08-13T17:25:59.835Z"
+    },
+    {
+      "type": "log",
+      "text": "[sync] flush() completed, remainingPending= 0 remainingFailed= 0",
+      "timestamp": "2026-08-13T17:25:59.835Z"
+    }
+  ],
+  "tokens": {
+    "access_present": true,
+    "user_present": true
+  },
+  "appClientReady": true,
+  "offline": false,
+  "enqueue": {
+    "ok": true,
+    "pending": 1
+  },
+  "pendingAfterEnqueue": 1,
+  "flushResult": {
+    "status": "synced"
+  },
+  "remainingAfterFlush": 0,
+  "dbCount": "1"
+}
