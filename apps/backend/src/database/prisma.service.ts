@@ -19,7 +19,7 @@ export class PrismaService
       connectionString: process.env.DATABASE_URL,
     });
 
-    const adapter = new PrismaPg(pool);
+    const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 
     super({
       adapter,
