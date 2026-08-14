@@ -3,6 +3,12 @@ import {
   AuditFinding,
   ProposedRecoveryAction,
 } from './historical-data-audit.service';
+import {
+  RecoveryApplyOutcome,
+  RecoveryCandidate,
+  RecoveryRollbackOutcome,
+  RecoveryWriteGateway,
+} from './historical-recovery-writeback.contracts';
 
 export type RecoveryState =
   | 'DETECTED'
@@ -82,6 +88,7 @@ export interface RecoveryExecutionOptions {
   simulateFailure?: boolean;
   allowLegacyExecution?: boolean;
   currentValue?: string;
+  candidate?: RecoveryCandidate;
 }
 
 export interface RecoveryExecutionResult {
@@ -130,6 +137,7 @@ export class HistoricalDataRecoveryService {
 
   constructor(
     private readonly recoveryEnabled = HistoricalDataRecoveryService.DEFAULT_ENABLED,
+    private readonly gateway?: RecoveryWriteGateway,
   ) {}
 
   private normalizeBigInt(
@@ -729,6 +737,338 @@ export class HistoricalDataRecoveryService {
       auditTrail: [...plan.auditTrail],
     };
     this.recoveryLedger.set(recoveryId, result);
+    return result;
+  }
+
+  public async executeRecoveryPersistent(
+    recoveryId: string,
+    actorId: string,
+    options: RecoveryExecutionOptions = {},
+  ): Promise<RecoveryExecutionResult> {
+    const plan = this.plans.get(recoveryId);
+    if (!plan) {
+      throw new Error('Unknown recovery plan');
+    }
+
+    const existing = this.recoveryLedger.get(recoveryId);
+    if (
+      existing?.status === 'EXECUTED' ||
+      existing?.idempotencyStatus === 'ALREADY_EXECUTED'
+    ) {
+      return {
+        ...existing,
+        mutated: false,
+        idempotencyStatus: 'ALREADY_EXECUTED',
+        reason:
+          'ALREADY_EXECUTED: this recovery was already applied once and cannot be re-applied.',
+      };
+    }
+
+    if (!this.gateway) {
+      return this.buildRejectedResult(
+        plan,
+        'Persistent recovery execution requires a write gateway; no gateway is configured.',
+      );
+    }
+    if (!this.recoveryEnabled) {
+      return this.buildRejectedResult(
+        plan,
+        'Historical recovery is disabled by configuration; execution refused.',
+      );
+    }
+    if (!options.candidate) {
+      return this.buildRejectedResult(
+        plan,
+        'Persistent recovery execution requires the reviewed candidate snapshot captured at approval time.',
+      );
+    }
+    if (plan.findingType !== 'transaction') {
+      return this.buildRejectedResult(
+        plan,
+        'Persistent write-back supports transaction recoveries only; account and transfer findings require manual reconciliation.',
+      );
+    }
+    if (!plan.evidence || plan.evidence.length === 0) {
+      return this.buildRejectedResult(
+        plan,
+        'Recovery execution requires preserved evidence; the candidate finding carries none.',
+      );
+    }
+
+    const gate = this.validateExecutionGate(plan, actorId, options);
+    if (!gate.ok) {
+      const result: RecoveryExecutionResult = {
+        recoveryId,
+        status: gate.status,
+        dryRun: false,
+        mutated: false,
+        beforeValue: plan.currentValue,
+        afterValue: plan.currentValue,
+        currency: plan.currency,
+        reason: gate.reason,
+        executionIntent: 'execute',
+        auditTrail: [...plan.auditTrail],
+      };
+      plan.state =
+        gate.status === 'STALE'
+          ? 'STALE'
+          : gate.status === 'FAILED'
+            ? 'FAILED'
+            : 'REJECTED';
+      this.recoveryLedger.set(recoveryId, result);
+      return result;
+    }
+
+    const beforeValue = this.normalizeBigInt(plan.currentValue);
+    const afterValue = this.normalizeBigInt(
+      plan.approvedValue ?? plan.proposedValue ?? plan.currentValue,
+    );
+
+    const outcome = await this.gateway.applyRecovery({
+      recoveryId: plan.recoveryId,
+      findingId: plan.findingId,
+      actorId,
+      approvedBy: plan.actorId ?? actorId,
+      currency: plan.currency,
+      beforeValueCents: beforeValue,
+      afterValueCents: afterValue,
+      candidate: options.candidate,
+      evidence: plan.evidence,
+    });
+
+    return this.mapApplyOutcome(plan, actorId, outcome);
+  }
+
+  public async rollbackRecoveryPersistent(
+    recoveryId: string,
+    actorId: string,
+  ): Promise<RecoveryExecutionResult> {
+    const plan = this.plans.get(recoveryId);
+    if (!plan) {
+      throw new Error('Unknown recovery plan');
+    }
+
+    const existing = this.recoveryLedger.get(recoveryId);
+    if (existing?.status === 'ROLLED_BACK') {
+      throw new Error(
+        'Recovery has already been rolled back and cannot be rolled back again',
+      );
+    }
+
+    if (plan.actorId !== actorId) {
+      throw new Error('Unauthorized: actor cannot roll back this recovery');
+    }
+
+    if (!this.gateway) {
+      return this.buildRejectedResult(
+        plan,
+        'Persistent rollback requires a write gateway; no gateway is configured.',
+      );
+    }
+    if (!this.recoveryEnabled) {
+      return this.buildRejectedResult(
+        plan,
+        'Historical recovery is disabled by configuration; rollback refused.',
+      );
+    }
+
+    const outcome = await this.gateway.rollbackRecovery({
+      recoveryId,
+      actorId,
+    });
+    return this.mapRollbackOutcome(plan, actorId, outcome);
+  }
+
+  private buildRejectedResult(
+    plan: HistoricalRecoveryPlan,
+    reason: string,
+  ): RecoveryExecutionResult {
+    const result: RecoveryExecutionResult = {
+      recoveryId: plan.recoveryId,
+      status: 'REJECTED',
+      dryRun: false,
+      mutated: false,
+      beforeValue: plan.currentValue,
+      afterValue: plan.currentValue,
+      currency: plan.currency,
+      reason,
+      executionIntent: 'execute',
+      auditTrail: [...plan.auditTrail],
+    };
+    plan.state = 'REJECTED';
+    this.recoveryLedger.set(plan.recoveryId, result);
+    return result;
+  }
+
+  private mapApplyOutcome(
+    plan: HistoricalRecoveryPlan,
+    actorId: string,
+    outcome: RecoveryApplyOutcome,
+  ): RecoveryExecutionResult {
+    const previousValue = plan.currentValue;
+    const afterValue = outcome.afterValueCents.toString();
+    const audit = this.createAuditTrail(
+      plan.recoveryId,
+      plan.findingId,
+      actorId,
+      'execute',
+      'EXECUTED',
+      false,
+      previousValue,
+      afterValue,
+      plan.currency,
+      outcome.reason,
+      [
+        `persisted-ledger-status=${outcome.ledgerStatus ?? 'UNKNOWN'}`,
+        `source-fingerprint=${outcome.sourceFingerprint}`,
+        'durable-ledger-entry-committed',
+      ],
+    );
+    plan.auditTrail.push(audit);
+
+    if (outcome.status === 'APPLIED') {
+      plan.state = 'EXECUTED';
+      plan.executedAt = new Date().toISOString();
+      plan.currentValue = afterValue;
+      const result: RecoveryExecutionResult = {
+        recoveryId: plan.recoveryId,
+        status: 'EXECUTED',
+        dryRun: false,
+        mutated: true,
+        beforeValue: previousValue,
+        afterValue,
+        currency: plan.currency,
+        reason: outcome.reason,
+        executionIntent: 'execute',
+        idempotencyStatus: 'FIRST_EXECUTION',
+        auditTrail: [...plan.auditTrail],
+      };
+      this.recoveryLedger.set(plan.recoveryId, result);
+      return result;
+    }
+
+    if (outcome.status === 'ALREADY_EXECUTED') {
+      const result: RecoveryExecutionResult = {
+        recoveryId: plan.recoveryId,
+        status: 'EXECUTED',
+        dryRun: false,
+        mutated: false,
+        beforeValue: previousValue,
+        afterValue: outcome.afterValueCents.toString(),
+        currency: plan.currency,
+        reason: outcome.reason,
+        executionIntent: 'execute',
+        idempotencyStatus: 'ALREADY_EXECUTED',
+        auditTrail: [...plan.auditTrail],
+      };
+      this.recoveryLedger.set(plan.recoveryId, result);
+      return result;
+    }
+
+    plan.state =
+      outcome.status === 'STALE'
+        ? 'STALE'
+        : outcome.status === 'FAILED'
+          ? 'FAILED'
+          : 'REJECTED';
+    const result: RecoveryExecutionResult = {
+      recoveryId: plan.recoveryId,
+      status: plan.state,
+      dryRun: false,
+      mutated: false,
+      beforeValue: previousValue,
+      afterValue: previousValue,
+      currency: plan.currency,
+      reason: outcome.reason,
+      executionIntent: 'execute',
+      auditTrail: [...plan.auditTrail],
+    };
+    this.recoveryLedger.set(plan.recoveryId, result);
+    return result;
+  }
+
+  private mapRollbackOutcome(
+    plan: HistoricalRecoveryPlan,
+    actorId: string,
+    outcome: RecoveryRollbackOutcome,
+  ): RecoveryExecutionResult {
+    const executedValue =
+      plan.approvedValue ?? plan.proposedValue ?? plan.currentValue;
+    const rollbackValue = outcome.afterValueCents.toString();
+
+    if (outcome.status === 'ROLLED_BACK') {
+      const audit = this.createAuditTrail(
+        plan.recoveryId,
+        plan.findingId,
+        actorId,
+        'rollback',
+        'ROLLED_BACK',
+        false,
+        executedValue,
+        rollbackValue,
+        plan.currency,
+        outcome.reason,
+        [
+          `persisted-ledger-status=${outcome.ledgerStatus ?? 'UNKNOWN'}`,
+          `source-fingerprint=${outcome.sourceFingerprint}`,
+          'durable-ledger-entry-updated',
+        ],
+      );
+      plan.auditTrail.push(audit);
+      plan.state = 'ROLLED_BACK';
+      plan.currentValue = rollbackValue;
+      const result: RecoveryExecutionResult = {
+        recoveryId: plan.recoveryId,
+        status: 'ROLLED_BACK',
+        dryRun: false,
+        mutated: true,
+        beforeValue: executedValue,
+        afterValue: rollbackValue,
+        currency: plan.currency,
+        reason: outcome.reason,
+        executionIntent: 'execute',
+        auditTrail: [...plan.auditTrail],
+      };
+      this.recoveryLedger.set(plan.recoveryId, result);
+      return result;
+    }
+
+    if (outcome.status === 'ALREADY_ROLLED_BACK') {
+      const result: RecoveryExecutionResult = {
+        recoveryId: plan.recoveryId,
+        status: 'ROLLED_BACK',
+        dryRun: false,
+        mutated: false,
+        beforeValue: executedValue,
+        afterValue: rollbackValue,
+        currency: plan.currency,
+        reason: outcome.reason,
+        executionIntent: 'execute',
+        auditTrail: [...plan.auditTrail],
+      };
+      this.recoveryLedger.set(plan.recoveryId, result);
+      return result;
+    }
+
+    plan.state =
+      outcome.status === 'STALE'
+        ? 'STALE'
+        : outcome.status === 'FAILED'
+          ? 'FAILED'
+          : 'REJECTED';
+    const result: RecoveryExecutionResult = {
+      recoveryId: plan.recoveryId,
+      status: plan.state,
+      dryRun: false,
+      mutated: false,
+      beforeValue: executedValue,
+      afterValue: executedValue,
+      currency: plan.currency,
+      reason: outcome.reason,
+      executionIntent: 'execute',
+      auditTrail: [...plan.auditTrail],
+    };
+    this.recoveryLedger.set(plan.recoveryId, result);
     return result;
   }
 

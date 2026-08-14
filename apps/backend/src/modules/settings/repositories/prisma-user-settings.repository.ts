@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import type { UserSettingsModel } from '../../../generated/prisma/models/UserSettings';
+import type { UserSettings as UserSettingsModel } from '../../../generated/prisma/client';
 import { UserSettingsEntity } from '../entities/user-settings.entity';
 import {
   UserSettingsCreateData,

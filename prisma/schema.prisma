@@ -52,6 +52,11 @@ categories      Category[]
 transactions    Transaction[]
 bills           Bill[]
 audit_logs      AuditLog[]
+budgets         Budget[]
+savingGoals     SavingGoal[]
+investments     Investment[]
+notifications   Notification[]
+userSettings    UserSettings?
 
 @@map("users")
 }
@@ -145,6 +150,7 @@ model AuditLog {
   user User? @relation(fields: [user_id], references: [id])
   action          String
   module          String
+  description     String?
   entity_type     String?
   entity_id       String?   @db.Uuid
   ip_address      String?
@@ -160,6 +166,34 @@ model AuditLog {
   @@index([module])
   @@index([created_at])
   @@map("audit_logs")
+}
+
+model HistoricalRecoveryLedger {
+  id                 String    @id @default(uuid()) @db.Uuid
+  recovery_id        String    @unique
+  finding_id         String
+  entity_type        String
+  entity_id          String
+  user_id            String
+  currency           String
+  status             String
+  before_value_cents BigInt    @db.BigInt
+  after_value_cents  BigInt    @db.BigInt
+  approved_by        String?
+  executed_by        String?
+  rolled_back_by     String?
+  rollback_status    String?
+  source_fingerprint String
+  evidence           Json?
+  error_reason       String?
+  approved_at        DateTime? @db.Timestamptz
+  executed_at        DateTime? @db.Timestamptz
+  rolled_back_at     DateTime? @db.Timestamptz
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  @@index([entity_type, entity_id])
+  @@map("historical_recovery_ledger")
 }
 
 // Account model
@@ -184,6 +218,8 @@ model Account {
 
   transactions Transaction[]
   bills Bill[]
+  savingGoals SavingGoal[]
+  investments Investment[]
 
   @@index([user_id])
   @@unique([user_id, name])
@@ -211,6 +247,8 @@ model Category {
 
   transactions Transaction[]
   bills Bill[]
+  budgets Budget[]
+  savingGoals SavingGoal[]
 
   @@index([user_id])
   @@unique([user_id, name, type])
@@ -256,6 +294,9 @@ model Bill {
   user     User      @relation(fields: [user_id], references: [id])
   account  Account?  @relation(fields: [account_id], references: [id])
   category Category? @relation(fields: [category_id], references: [id])
+  transaction Transaction? @relation(fields: [transaction_id], references: [id])
+  series Bill? @relation("BillSeries", fields: [series_id], references: [id])
+  seriesMembers Bill[] @relation("BillSeries")
 
   @@index([user_id])
   @@index([user_id, due_date])
@@ -266,6 +307,121 @@ model Bill {
   @@unique([transaction_id])
   @@unique([series_id, due_date])
   @@map("Bill")
+}
+
+model Budget {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.Uuid
+  category_id        String   @db.Uuid
+  budget_amount_cents BigInt  @db.BigInt
+  month              Int
+  year               Int
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  deleted_at         DateTime? @db.Timestamptz
+
+  user     User     @relation(fields: [user_id], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+
+  @@index([user_id])
+  @@index([category_id])
+  @@map("budgets")
+}
+
+model SavingGoal {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.Uuid
+  account_id         String?  @db.Uuid
+  category_id        String?  @db.Uuid
+  name               String
+  description        String?
+  target_amount_cents BigInt  @db.BigInt
+  current_amount_cents BigInt @default(0) @db.BigInt
+  start_date         DateTime
+  target_date        DateTime
+  status             String   @default("ACTIVE")
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  deleted_at         DateTime? @db.Timestamptz
+
+  user     User      @relation(fields: [user_id], references: [id])
+  account  Account?  @relation(fields: [account_id], references: [id])
+  category Category? @relation(fields: [category_id], references: [id])
+
+  @@index([user_id])
+  @@index([account_id])
+  @@index([category_id])
+  @@map("saving_goals")
+}
+
+model Investment {
+  id                    String   @id @default(uuid()) @db.Uuid
+  user_id               String   @db.Uuid
+  account_id            String?  @db.Uuid
+  investment_type       String
+  platform              String
+  name                  String
+  symbol                String?
+  quantity              Decimal  @db.Decimal(20, 8)
+  average_buy_price     Decimal  @db.Decimal(20, 6)
+  current_price         Decimal  @db.Decimal(20, 6)
+  invested_amount_cents BigInt   @db.BigInt
+  current_value_cents   BigInt   @db.BigInt
+  profit_loss_cents     BigInt   @db.BigInt
+  profit_loss_percentage Decimal @db.Decimal(10, 2)
+  purchase_date         DateTime
+  notes                 String?
+  status                String   @default("ACTIVE")
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  deleted_at            DateTime? @db.Timestamptz
+
+  user    User     @relation(fields: [user_id], references: [id])
+  account Account? @relation(fields: [account_id], references: [id])
+
+  @@index([user_id])
+  @@index([account_id])
+  @@map("investments")
+}
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  type       String
+  title      String
+  message    String
+  is_read    Boolean  @default(false)
+  read_at    DateTime? @db.Timestamptz
+  dedupe_key String?
+  metadata   Json?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([user_id, is_read])
+  @@index([created_at])
+  @@unique([user_id, dedupe_key])
+  @@map("notifications")
+}
+
+model UserSettings {
+  id                     String   @id @default(uuid()) @db.Uuid
+  user_id                String   @db.Uuid
+  theme                  String   @default("system")
+  language               String   @default("id")
+  currency               String   @default("IDR")
+  timezone               String?
+  notification_preferences Json?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id])
+  @@index([user_id])
+  @@map("user_settings")
 }
 
 // Transaction model
@@ -297,6 +453,8 @@ model Transaction {
   user     User     @relation(fields: [user_id], references: [id])
   account  Account  @relation(fields: [account_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
+
+  bills Bill[]
 
   @@index([user_id])
   @@index([account_id])
