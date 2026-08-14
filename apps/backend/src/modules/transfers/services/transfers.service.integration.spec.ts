@@ -236,7 +236,7 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
     });
 
     // 10 concurrent transfers of 100k
-    const promises = [] as Promise<any>[];
+    const promises: ReturnType<typeof svc.create>[] = [];
     for (let i = 0; i < 10; i++) {
       promises.push(
         svc.create(userId, {
@@ -265,7 +265,7 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
       data: { current_balance_cents: BigInt(0) },
     });
 
-    const promises2 = [] as Promise<any>[];
+    const promises2: ReturnType<typeof svc.create>[] = [];
     for (let i = 0; i < 20; i++) {
       promises2.push(
         svc.create(userId, {

@@ -23,6 +23,7 @@
 
 import { TransactionsService } from './transactions.service';
 import { BalanceService } from '../../accounts/services/balance.service';
+import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { TransactionValidationService } from './validation/transaction-validation.service';
@@ -215,8 +216,7 @@ describe('TransactionsService Financial Integration (Comprehensive)', () => {
     repoMock = createMockRepo();
 
     // Create BalanceService
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    balanceSvc = new BalanceService(prismaMock as unknown as any);
+    balanceSvc = new BalanceService(prismaMock as unknown as PrismaService);
 
     // Create TransactionsService with mocked dependencies
     const auditMock = {
