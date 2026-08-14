@@ -151,6 +151,10 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
       return;
     }
     await prisma.account.update({
+      where: { id: srcAccountId },
+      data: { current_balance_cents: BigInt(100000) },
+    });
+    await prisma.account.update({
       where: { id: dstAccountId },
       data: { current_balance_cents: BigInt(0) },
     });
