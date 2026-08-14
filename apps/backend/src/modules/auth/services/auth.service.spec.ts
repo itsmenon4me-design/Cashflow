@@ -1,19 +1,37 @@
 import { AuthService } from './auth.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
+import { UsersService } from '../../users/services/users.service';
+import { PasswordService } from '../../../common/security/password/password.service';
+import { JwtService } from '@nestjs/jwt';
+import { JwtConfigService } from '../../../config/jwt-config.service';
+import { RefreshTokensService } from './refresh-tokens.service';
+import { SessionService } from './session.service';
+import { AuditLogService } from '../../audit-logs/services/audit-log.service';
+import { AuthConfigService } from '../../../config/auth-config.service';
+import { LoggerService } from '../../../common/logger/logger.service';
+import { RedisService } from '../../../redis/redis.service';
 
 // Minimal mocks for dependent services
 const makeMocks = () => {
-  const users = { findByEmail: jest.fn() } as any;
-  const passwordService = { verifyPassword: jest.fn() } as any;
-  const jwtService = { sign: jest.fn(() => 'token') } as any;
-  const jwtConfig = { config: { accessExpiresIn: '15m' } } as any;
+  const users = {
+    findByEmail: jest.fn(),
+  } as unknown as jest.Mocked<UsersService>;
+  const passwordService = {
+    verifyPassword: jest.fn(),
+  } as unknown as jest.Mocked<PasswordService>;
+  const jwtService = {
+    sign: jest.fn(() => 'token'),
+  } as unknown as jest.Mocked<JwtService>;
+  const jwtConfig = {
+    config: { accessExpiresIn: '15m' },
+  } as unknown as jest.Mocked<JwtConfigService>;
   const refreshService = {
     createForUser: jest.fn(() => ({
       id: 'r1',
       token: 'rt',
       expires_at: new Date(Date.now() + 1000),
     })),
-  } as any;
+  } as unknown as jest.Mocked<RefreshTokensService>;
   const authConfig = {
     config: {
       failLimit: 10,
@@ -25,16 +43,23 @@ const makeMocks = () => {
       refreshLimit: 30,
       refreshWindowSeconds: 60,
     },
-  } as any;
+  } as unknown as jest.Mocked<AuthConfigService>;
   const appLogger = {
     securityLog: jest.fn(),
     log: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  } as any;
-  const sessionService = { create: jest.fn() } as any;
-  const auditLogService = { record: jest.fn() } as any;
-  const redis = { incr: jest.fn(), del: jest.fn() } as any;
+  } as unknown as jest.Mocked<LoggerService>;
+  const sessionService = {
+    create: jest.fn(),
+  } as unknown as jest.Mocked<SessionService>;
+  const auditLogService = {
+    record: jest.fn(),
+  } as unknown as jest.Mocked<AuditLogService>;
+  const redis = {
+    incr: jest.fn(),
+    del: jest.fn(),
+  } as unknown as jest.Mocked<RedisService>;
 
   return {
     users,
@@ -71,6 +96,9 @@ describe('AuthService (rate-limit failures)', () => {
       email: 'a@b.com',
       password_hash: 'h',
       role_code: 'USER',
+      username: 'user1',
+      full_name: 'User One',
+      status: 'ACTIVE',
       created_at: new Date(),
       updated_at: new Date(),
       last_login_at: null,
@@ -93,7 +121,7 @@ describe('AuthService (rate-limit failures)', () => {
 
     const res = await svc.login({ email: 'a@b.com', password: 'x' });
     expect(res.success).toBe(true);
-    expect(redis.del).toHaveBeenCalled();
+    expect((redis as unknown as { del: jest.Mock }).del).toHaveBeenCalled();
   });
 
   test('non-existing user increments failure and may hit rate limit', async () => {

@@ -12,14 +12,24 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('AnalyticsController (security)', () => {
   let app: INestApplication;
-  let analyticsServiceMock: any;
+  let analyticsServiceMock: {
+    overview: jest.Mock;
+    income: jest.Mock;
+    expenses: jest.Mock;
+    cashflow: jest.Mock;
+    spending: jest.Mock;
+    financialHealth: jest.Mock;
+    insights: jest.Mock;
+  };
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user?: { sub: string; role: string; email: string } }>();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -34,6 +44,9 @@ describe('AnalyticsController (security)', () => {
   };
 
   const ATTACKER_QUERY = { userId: 'user-attacker', user_id: 'user-attacker' };
+
+  const firstArgOf = (mock: jest.Mock): string =>
+    (mock.mock.calls[0] as unknown[])[0] as string;
 
   beforeEach(async () => {
     analyticsServiceMock = {
@@ -70,74 +83,72 @@ describe('AnalyticsController (security)', () => {
   const range = 'startDate=2026-01-01&endDate=2026-01-31';
 
   it('overview: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/overview?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.overview).toHaveBeenCalled();
-    expect(analyticsServiceMock.overview.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.overview)).toBe('user-auth');
   });
 
   it('income: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/income?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.income).toHaveBeenCalled();
-    expect(analyticsServiceMock.income.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.income)).toBe('user-auth');
   });
 
   it('expenses: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/expenses?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.expenses).toHaveBeenCalled();
-    expect(analyticsServiceMock.expenses.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.expenses)).toBe('user-auth');
   });
 
   it('cashflow: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/cashflow?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.cashflow).toHaveBeenCalled();
-    expect(analyticsServiceMock.cashflow.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.cashflow)).toBe('user-auth');
   });
 
   it('spending: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/spending?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.spending).toHaveBeenCalled();
-    expect(analyticsServiceMock.spending.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.spending)).toBe('user-auth');
   });
 
   it('financial-health: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/financial-health?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.financialHealth).toHaveBeenCalled();
-    expect(analyticsServiceMock.financialHealth.mock.calls[0][0]).toBe(
-      'user-auth',
-    );
+    expect(firstArgOf(analyticsServiceMock.financialHealth)).toBe('user-auth');
   });
 
   it('insights: passes authenticated userId, ignores attacker userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/analytics/insights?${range}`)
       .query(ATTACKER_QUERY)
       .expect(200);
 
     expect(analyticsServiceMock.insights).toHaveBeenCalled();
-    expect(analyticsServiceMock.insights.mock.calls[0][0]).toBe('user-auth');
+    expect(firstArgOf(analyticsServiceMock.insights)).toBe('user-auth');
   });
 });

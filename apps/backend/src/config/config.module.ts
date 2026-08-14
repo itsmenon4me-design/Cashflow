@@ -17,6 +17,8 @@ import { swaggerConfig } from './swagger.config';
 import { validate } from './env.validation';
 import { mailConfig } from './mail.config';
 import { MailConfigService } from './mail-config.service';
+import { authConfig } from './auth.config';
+import { AuthConfigService } from './auth-config.service';
 
 @Global()
 @Module({
@@ -32,8 +34,7 @@ import { MailConfigService } from './mail-config.service';
         corsConfig,
         swaggerConfig,
         securityConfig,
-        // Auth config
-        require('./auth.config').authConfig,
+        authConfig,
         mailConfig,
       ],
       validate,
@@ -48,8 +49,7 @@ import { MailConfigService } from './mail-config.service';
     CorsConfigService,
     SwaggerConfigService,
     SecurityConfigService,
-    // Auth config service
-    require('./auth-config.service').AuthConfigService,
+    AuthConfigService,
     MailConfigService,
   ],
   exports: [
@@ -60,7 +60,7 @@ import { MailConfigService } from './mail-config.service';
     CorsConfigService,
     SwaggerConfigService,
     SecurityConfigService,
-    require('./auth-config.service').AuthConfigService,
+    AuthConfigService,
     MailConfigService,
   ],
 })

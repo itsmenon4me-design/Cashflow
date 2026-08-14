@@ -6,11 +6,11 @@ describe('JwtStrategy.validate', () => {
   const strat = new JwtStrategy(mockCfg);
 
   it('throws on missing sub', () => {
-    expect(() => strat.validate({} as any)).toThrow();
+    expect(() => strat.validate({})).toThrow();
   });
 
   it('returns sanitized AuthUser and excludes unexpected claims', () => {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       sub: 'u1',
       jti: 'j1',
       sessionId: 's1',
@@ -26,7 +26,9 @@ describe('JwtStrategy.validate', () => {
       role: 'USER',
       email: 'user@example.com',
     });
-    expect((out as any).unexpected).toBeUndefined();
+    expect(
+      (out as unknown as { unexpected?: unknown }).unexpected,
+    ).toBeUndefined();
   });
 
   it('allows optional claims to be undefined', () => {

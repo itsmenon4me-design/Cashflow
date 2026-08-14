@@ -45,7 +45,7 @@ export class AdminAuditRateLimitGuard implements CanActivate {
         key,
         this.securityConfig.config.adminAuditRateLimit.ttlSeconds,
       );
-    } catch (err) {
+    } catch {
       this.logger.warn(
         'Redis INCR failed in audit rate limiter; allowing request (fail-open)',
       );

@@ -1,10 +1,26 @@
 import { BillsService } from './bills.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
+import { PrismaBillsRepository } from '../repositories/prisma-bills.repository';
+import type { PrismaService } from '../../../database/prisma.service';
+
+interface BillsRepoMocks {
+  findAllByUser: jest.Mock<Promise<unknown>, [string]>;
+  findUpcomingByUser: jest.Mock<Promise<unknown>, [string, Date, Date]>;
+  findByIdOwned: jest.Mock<Promise<unknown>, [string, string]>;
+  updateOwned: jest.Mock<Promise<unknown>, [string, string, unknown]>;
+  softDeleteOwned: jest.Mock<Promise<boolean>, [string, string]>;
+  create: jest.Mock<Promise<unknown>, [unknown]>;
+}
+
+interface BillsPrismaMocks {
+  account: { findUnique: jest.Mock<Promise<unknown>, [unknown]> };
+  category: { findUnique: jest.Mock<Promise<unknown>, [unknown]> };
+}
 
 describe('BillsService (ownership)', () => {
   let service: BillsService;
-  let repoMock: any;
-  let prismaMock: any;
+  let repoMock: BillsRepoMocks;
+  let prismaMock: BillsPrismaMocks;
 
   const bill = {
     id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
@@ -32,7 +48,7 @@ describe('BillsService (ownership)', () => {
     created_at: new Date('2026-08-01T00:00:00Z'),
     updated_at: new Date('2026-08-01T00:00:00Z'),
     deleted_at: null,
-  } as any;
+  };
 
   const validCreate = {
     payee: 'Internet',
@@ -42,7 +58,7 @@ describe('BillsService (ownership)', () => {
     category_id: '66666666-7777-4888-8999-aaaaaaaaaaaa',
     due_date: '2026-09-01T00:00:00.000Z',
     due_date_timezone: 'Asia/Jakarta',
-  } as any;
+  };
 
   const ownAccount = {
     id: validCreate.account_id,
@@ -59,18 +75,39 @@ describe('BillsService (ownership)', () => {
 
   beforeEach(() => {
     repoMock = {
-      findAllByUser: jest.fn().mockResolvedValue([bill]),
-      findUpcomingByUser: jest.fn().mockResolvedValue([bill]),
-      findByIdOwned: jest.fn().mockResolvedValue(bill),
-      updateOwned: jest.fn().mockResolvedValue(bill),
-      softDeleteOwned: jest.fn().mockResolvedValue(true),
-      create: jest.fn().mockResolvedValue(bill),
+      findAllByUser: jest
+        .fn<Promise<unknown>, [string]>()
+        .mockResolvedValue([bill]),
+      findUpcomingByUser: jest
+        .fn<Promise<unknown>, [string, Date, Date]>()
+        .mockResolvedValue([bill]),
+      findByIdOwned: jest
+        .fn<Promise<unknown>, [string, string]>()
+        .mockResolvedValue(bill),
+      updateOwned: jest
+        .fn<Promise<unknown>, [string, string, unknown]>()
+        .mockResolvedValue(bill),
+      softDeleteOwned: jest
+        .fn<Promise<boolean>, [string, string]>()
+        .mockResolvedValue(true),
+      create: jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue(bill),
     };
     prismaMock = {
-      account: { findUnique: jest.fn().mockResolvedValue(ownAccount) },
-      category: { findUnique: jest.fn().mockResolvedValue(ownCategory) },
+      account: {
+        findUnique: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(ownAccount),
+      },
+      category: {
+        findUnique: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(ownCategory),
+      },
     };
-    service = new BillsService(repoMock, prismaMock);
+    service = new BillsService(
+      repoMock as unknown as PrismaBillsRepository,
+      prismaMock as unknown as PrismaService,
+    );
   });
 
   const rejectsWith = async (promise: Promise<unknown>, code: ErrorCode) => {
@@ -143,7 +180,11 @@ describe('BillsService (ownership)', () => {
   it('create: allows own account and own category and passes user_id from auth', async () => {
     await service.create('user-auth', validCreate);
     expect(repoMock.create).toHaveBeenCalled();
-    const input = repoMock.create.mock.calls[0][0];
+    const input = repoMock.create.mock.calls[0][0] as {
+      user_id?: string;
+      amount_cents?: bigint;
+      due_date?: Date;
+    };
     expect(input.user_id).toBe('user-auth');
     expect(input.amount_cents).toBe(BigInt(120000));
     expect(input.due_date).toBeInstanceOf(Date);

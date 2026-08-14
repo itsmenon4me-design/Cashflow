@@ -41,7 +41,15 @@ describe('AuthController', () => {
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context.switchToHttp().getRequest<{
+        user?: {
+          sub: string;
+          role: string;
+          email: string;
+          sessionId: string;
+          jti: string;
+        };
+      }>();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -70,7 +78,7 @@ describe('AuthController', () => {
     created_at: new Date(),
     updated_at: new Date(),
     password_hash: 'hidden',
-  } as any;
+  };
 
   beforeEach(async () => {
     mockSessionService.logoutCurrent.mockClear();
@@ -119,7 +127,7 @@ describe('AuthController', () => {
       created_at: new Date(),
       updated_at: new Date(),
       status: 'PENDING_VERIFICATION',
-    } as any;
+    };
 
     mockUsersService.create.mockResolvedValue(created);
 
@@ -127,7 +135,9 @@ describe('AuthController', () => {
 
     expect(mockUsersService.create).toHaveBeenCalledWith(dto);
     expect(res.success).toBe(true);
-    expect((res as any).data.password_hash).toBeUndefined();
+    expect(
+      (res.data as unknown as { password_hash?: unknown }).password_hash,
+    ).toBeUndefined();
     expect(res.data.email).toBe(dto.email);
   });
 
@@ -138,7 +148,9 @@ describe('AuthController', () => {
 
     expect(mockUsersService.findById).toHaveBeenCalledWith('user-auth');
     expect(res.success).toBe(true);
-    expect((res as any).data.password_hash).toBeUndefined();
+    expect(
+      (res.data as unknown as { password_hash?: unknown }).password_hash,
+    ).toBeUndefined();
     expect(res.data.email).toBe(userEntity.email);
   });
 
@@ -149,46 +161,64 @@ describe('AuthController', () => {
 
   it('me: passes authenticated userId from JWT', async () => {
     mockUsersService.findById.mockResolvedValue(userEntity);
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/auth/me')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
     expect(mockUsersService.findById).toHaveBeenCalled();
-    expect(mockUsersService.findById.mock.calls[0][0]).toBe('user-auth');
+    const findUserId = (
+      mockUsersService.findById.mock.calls[0] as unknown[]
+    )[0] as string;
+    expect(findUserId).toBe('user-auth');
   });
 
   it('me: attacker query userId cannot override authenticated identity', async () => {
     mockUsersService.findById.mockResolvedValue(userEntity);
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/auth/me')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
-    expect(mockUsersService.findById.mock.calls[0][0]).toBe('user-auth');
+    const findUserId = (
+      mockUsersService.findById.mock.calls[0] as unknown[]
+    )[0] as string;
+    expect(findUserId).toBe('user-auth');
   });
 
   it('me: preserves response shape', async () => {
     mockUsersService.findById.mockResolvedValue(userEntity);
-    const res = await request(app.getHttpServer()).get('/auth/me').expect(200);
+    const res = await request(
+      app.getHttpServer() as Parameters<typeof request>[0],
+    )
+      .get('/auth/me')
+      .expect(200);
 
-    expect(res.body.success).toBe(true);
-    expect(res.body.message).toBe('User profile retrieved successfully');
-    expect(res.body.data.id).toBe('user-auth');
-    expect(res.body.data).not.toHaveProperty('password_hash');
+    const body = res.body as {
+      success: boolean;
+      message: string;
+      data: { id: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.message).toBe('User profile retrieved successfully');
+    expect(body.data.id).toBe('user-auth');
+    expect(body.data).not.toHaveProperty('password_hash');
   });
 
   it('logout: passes authenticated userId and sessionId to service', async () => {
-    await request(app.getHttpServer()).delete('/auth/logout').expect(200);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .delete('/auth/logout')
+      .expect(200);
 
     expect(mockSessionService.logoutCurrent).toHaveBeenCalled();
-    const [sessionId, userId] = mockSessionService.logoutCurrent.mock.calls[0];
+    const [sessionId, userId] = mockSessionService.logoutCurrent.mock
+      .calls[0] as [string, string];
     expect(sessionId).toBe('session-auth');
     expect(userId).toBe('user-auth');
   });
 
   it('logout: attacker body cannot override authenticated identity', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .delete('/auth/logout')
       .send({
         userId: 'user-attacker',
@@ -199,7 +229,8 @@ describe('AuthController', () => {
       .expect(200);
 
     expect(mockSessionService.logoutCurrent).toHaveBeenCalled();
-    const [sessionId, userId] = mockSessionService.logoutCurrent.mock.calls[0];
+    const [sessionId, userId] = mockSessionService.logoutCurrent.mock
+      .calls[0] as [string, string];
     expect(sessionId).toBe('session-auth');
     expect(userId).toBe('user-auth');
   });

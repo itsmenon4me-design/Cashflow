@@ -28,7 +28,7 @@ export class CreateTransactionDto {
   transaction_type!: 'INCOME' | 'EXPENSE';
 
   @ApiProperty({ description: 'Amount in cents' })
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (typeof value === 'string') {
       const trimmed = value.trim();
       if (!/^[-+]?\d+$/.test(trimmed)) {

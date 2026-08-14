@@ -1,5 +1,7 @@
 import { PrismaService } from '../../../database/prisma.service';
 import { TransfersService } from './transfers.service';
+import { AuditLogService } from '../../audit-logs/services/audit-log.service';
+import { TransactionValidationService } from '../../transactions/services/validation/transaction-validation.service';
 
 jest.setTimeout(120000);
 
@@ -70,8 +72,10 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
 
     svc = new TransfersService(
       prisma,
-      { record: async () => {} } as any,
-      { validateForCreate: async () => {} } as any,
+      { record: async () => {} } as unknown as AuditLogService,
+      {
+        validateForCreate: async () => {},
+      } as unknown as TransactionValidationService,
     );
   });
 
@@ -87,7 +91,7 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
       await prisma.account.deleteMany({ where: { user_id: userId } });
       await prisma.category.deleteMany({ where: { user_id: userId } });
       await prisma.user.delete({ where: { id: userId } });
-    } catch (err) {
+    } catch {
       // ignore cleanup errors
     }
     await prisma.$disconnect();
@@ -180,8 +184,8 @@ describe('TransfersService integration concurrency (requires real Postgres)', ()
     // 70000 transfer wins => 30000 remaining
     // 50000 transfer wins => 50000 remaining
     expect([BigInt(30000), BigInt(50000)]).toContain(
-  src?.current_balance_cents,
-  );
+      src?.current_balance_cents,
+    );
 
     // destination should have received either 70000 or 50000 depending on which won
     expect(

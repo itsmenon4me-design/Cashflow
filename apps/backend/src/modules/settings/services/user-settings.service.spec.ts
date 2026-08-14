@@ -1,4 +1,5 @@
 import { UserSettingsService } from './user-settings.service';
+import type { PrismaUserSettingsRepository } from '../repositories/prisma-user-settings.repository';
 
 describe('UserSettingsService', () => {
   let service: UserSettingsService;
@@ -15,7 +16,9 @@ describe('UserSettingsService', () => {
       create: jest.fn(),
     };
 
-    service = new UserSettingsService(repositoryMock as any);
+    service = new UserSettingsService(
+      repositoryMock as unknown as PrismaUserSettingsRepository,
+    );
   });
 
   it('preserves nested financeBot settings when loading existing preferences', async () => {

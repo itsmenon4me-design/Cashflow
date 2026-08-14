@@ -1,8 +1,18 @@
 import { PrismaBillsRepository } from './prisma-bills.repository';
+import type { PrismaService } from '../../../database/prisma.service';
+
+interface PrismaBillDelegateMocks {
+  bill: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+}
 
 describe('PrismaBillsRepository (IDOR scoping)', () => {
   let repo: PrismaBillsRepository;
-  let prismaMock: any;
+  let prismaMock: PrismaBillDelegateMocks;
 
   const billId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
   const record = {
@@ -36,13 +46,13 @@ describe('PrismaBillsRepository (IDOR scoping)', () => {
   beforeEach(() => {
     prismaMock = {
       bill: {
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
+        findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+        findMany: jest.fn<Promise<unknown>, [unknown]>(),
+        create: jest.fn<Promise<unknown>, [unknown]>(),
+        update: jest.fn<Promise<unknown>, [unknown]>(),
       },
     };
-    repo = new PrismaBillsRepository(prismaMock);
+    repo = new PrismaBillsRepository(prismaMock as unknown as PrismaService);
   });
 
   it('findByIdOwned scopes the WHERE by id AND user_id', async () => {
@@ -56,7 +66,9 @@ describe('PrismaBillsRepository (IDOR scoping)', () => {
   it('findAllByUser scopes by user_id', async () => {
     prismaMock.bill.findMany.mockResolvedValue([record]);
     await repo.findAllByUser('user-auth');
-    const arg = prismaMock.bill.findMany.mock.calls[0][0];
+    const arg = prismaMock.bill.findMany.mock.calls[0][0] as {
+      where: { user_id?: string; deleted_at?: Date | null };
+    };
     expect(arg.where.user_id).toBe('user-auth');
     expect(arg.where.deleted_at).toBeNull();
   });
@@ -66,7 +78,9 @@ describe('PrismaBillsRepository (IDOR scoping)', () => {
     const from = new Date('2026-09-01T00:00:00Z');
     const to = new Date('2026-12-01T00:00:00Z');
     await repo.findUpcomingByUser('user-auth', from, to);
-    const arg = prismaMock.bill.findMany.mock.calls[0][0];
+    const arg = prismaMock.bill.findMany.mock.calls[0][0] as {
+      where: { user_id?: string; due_date?: { gte: Date; lte: Date } };
+    };
     expect(arg.where.user_id).toBe('user-auth');
     expect(arg.where.due_date).toEqual({ gte: from, lte: to });
   });
@@ -115,7 +129,7 @@ describe('PrismaBillsRepository (IDOR scoping)', () => {
     });
     expect(prismaMock.bill.update).toHaveBeenCalledWith({
       where: { id: billId },
-      data: { deleted_at: expect.any(Date) },
+      data: { deleted_at: expect.any(Date) as Date },
     });
   });
 
@@ -133,7 +147,11 @@ describe('PrismaBillsRepository (IDOR scoping)', () => {
       status: 'OPEN',
     });
     expect(prismaMock.bill.create).toHaveBeenCalled();
-    const data = prismaMock.bill.create.mock.calls[0][0].data;
-    expect(data.user_id).toBe('user-auth');
+    const data = (
+      prismaMock.bill.create.mock.calls[0][0] as {
+        data?: { user_id?: string };
+      }
+    ).data;
+    expect(data?.user_id).toBe('user-auth');
   });
 });

@@ -157,7 +157,7 @@ describe('TransfersService currency handling', () => {
     txMock.account.update.mockResolvedValue({});
 
     // perform transfer of 200000 (IDR)
-    const res = await service.create('u1', {
+    await service.create('u1', {
       source_account_id: 'src',
       destination_account_id: 'dst',
       amount_cents: 200000n,
@@ -166,10 +166,18 @@ describe('TransfersService currency handling', () => {
     // Source update should use updateMany (conditional decrement) and destination should use update (increment)
     expect(txMock.account.updateMany).toHaveBeenCalledTimes(1);
     expect(txMock.account.update).toHaveBeenCalledTimes(1);
-    const srcCall = txMock.account.updateMany.mock.calls[0][0];
+    const srcCall = (
+      txMock.account.updateMany.mock.calls[0] as unknown[]
+    )[0] as {
+      where: { id: string };
+      data: { current_balance_cents: unknown };
+    };
     expect(srcCall.where.id).toBe('src');
     expect(srcCall.data.current_balance_cents).toBeDefined();
-    const dstCall = txMock.account.update.mock.calls[0][0];
+    const dstCall = (txMock.account.update.mock.calls[0] as unknown[])[0] as {
+      where: { id: string };
+      data: { current_balance_cents: unknown };
+    };
     expect(dstCall.where.id).toBe('dst');
     expect(dstCall.data.current_balance_cents).toBeDefined();
   });

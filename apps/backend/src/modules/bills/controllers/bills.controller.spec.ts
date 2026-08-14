@@ -12,11 +12,20 @@ import { AppValidationPipe } from '../../../common/pipes/validation.pipe';
 
 describe('BillsController (security)', () => {
   let app: INestApplication;
-  let billsServiceMock: any;
+  let billsServiceMock: {
+    list: jest.Mock;
+    upcoming: jest.Mock;
+    getById: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    softDelete: jest.Mock;
+  };
 
   const authGuard: CanActivate & { isAuthenticated: boolean } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user: { sub: string; role: string; email: string } }>();
       req.user = { sub: 'user-auth', role: 'USER', email: 'auth@example.com' };
       return authGuard.isAuthenticated;
     }),
@@ -50,7 +59,7 @@ describe('BillsController (security)', () => {
     created_at: new Date('2026-08-01T00:00:00Z'),
     updated_at: new Date('2026-08-01T00:00:00Z'),
     deleted_at: null,
-  } as any;
+  };
 
   beforeEach(async () => {
     billsServiceMock = {
@@ -99,7 +108,7 @@ describe('BillsController (security)', () => {
     ['DELETE', `/bills/${billId}`, undefined],
   ])('%s %s rejects unauthenticated requests', async (method, url, body) => {
     authGuard.isAuthenticated = false;
-    const base = request(app.getHttpServer());
+    const base = request(app.getHttpServer() as Parameters<typeof request>[0]);
     const pending =
       method === 'GET'
         ? base.get(url)
@@ -113,18 +122,26 @@ describe('BillsController (security)', () => {
 
   it('all unauthenticated bill requests leave the service untouched', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer()).get('/bills').expect(403);
-    await request(app.getHttpServer()).get('/bills/upcoming').expect(403);
-    await request(app.getHttpServer()).get(`/bills/${billId}`).expect(403);
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/bills')
+      .expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/bills/upcoming')
+      .expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get(`/bills/${billId}`)
+      .expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post('/bills')
       .send(validCreateBody)
       .expect(403);
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .patch(`/bills/${billId}`)
       .send({ payee: 'X' })
       .expect(403);
-    await request(app.getHttpServer()).delete(`/bills/${billId}`).expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .delete(`/bills/${billId}`)
+      .expect(403);
     for (const fn of [
       'list',
       'upcoming',
@@ -132,13 +149,13 @@ describe('BillsController (security)', () => {
       'create',
       'update',
       'softDelete',
-    ]) {
+    ] as const) {
       expect(billsServiceMock[fn]).not.toHaveBeenCalled();
     }
   });
 
   it('GET /bills: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/bills')
       .query({
         userId: 'user-attacker',
@@ -150,7 +167,7 @@ describe('BillsController (security)', () => {
   });
 
   it('GET /bills/:id: passes authenticated userId and ignores attacker query', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get(`/bills/${billId}`)
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
@@ -164,7 +181,7 @@ describe('BillsController (security)', () => {
       user_id: 'user-attacker',
       sub: 'user-attacker',
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post('/bills')
       .send(attackerBody)
       .expect(400);
@@ -172,12 +189,15 @@ describe('BillsController (security)', () => {
   });
 
   it('POST /bills: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post('/bills')
       .send(validCreateBody)
       .expect(201);
     expect(billsServiceMock.create).toHaveBeenCalled();
-    expect(billsServiceMock.create.mock.calls[0][0]).toBe('user-auth');
+    const createUserId = (
+      billsServiceMock.create.mock.calls[0] as unknown[]
+    )[0] as string;
+    expect(createUserId).toBe('user-auth');
   });
 
   it('PATCH /bills/:id: attacker body userId is rejected by validation', async () => {
@@ -186,7 +206,7 @@ describe('BillsController (security)', () => {
       userId: 'user-attacker',
       user_id: 'user-attacker',
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .patch(`/bills/${billId}`)
       .send(attackerBody)
       .expect(400);
@@ -194,18 +214,23 @@ describe('BillsController (security)', () => {
   });
 
   it('PATCH /bills/:id: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .patch(`/bills/${billId}`)
       .send({ payee: 'X' })
       .expect(200);
     expect(billsServiceMock.update).toHaveBeenCalled();
-    const [userId, id] = billsServiceMock.update.mock.calls[0];
+    const [userId, id] = billsServiceMock.update.mock.calls[0] as [
+      string,
+      string,
+    ];
     expect(userId).toBe('user-auth');
     expect(id).toBe(billId);
   });
 
   it('DELETE /bills/:id: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).delete(`/bills/${billId}`).expect(200);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .delete(`/bills/${billId}`)
+      .expect(200);
     expect(billsServiceMock.softDelete).toHaveBeenCalledWith(
       'user-auth',
       billId,
@@ -213,7 +238,7 @@ describe('BillsController (security)', () => {
   });
 
   it('GET /bills/upcoming: passes authenticated userId and forwards date window', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/bills/upcoming')
       .query({ from: '2026-09-01', to: '2026-12-01' })
       .expect(200);

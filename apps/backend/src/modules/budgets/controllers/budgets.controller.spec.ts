@@ -5,6 +5,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { Server } from 'net';
 import request from 'supertest';
 import { BudgetsController } from './budgets.controller';
 import { BudgetsService } from '../services/budgets.service';
@@ -12,14 +14,18 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('BudgetsController (security)', () => {
   let app: INestApplication;
-  let budgetsServiceMock: any;
+  let budgetsServiceMock: jest.Mocked<BudgetsService>;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<
+          Request & { user?: { sub: string; role: string; email: string } }
+        >();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -43,7 +49,7 @@ describe('BudgetsController (security)', () => {
       year: 2026,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as any;
+    };
 
     budgetsServiceMock = {
       listAll: jest.fn().mockResolvedValue([budgetEntity]),
@@ -51,7 +57,7 @@ describe('BudgetsController (security)', () => {
       create: jest.fn().mockResolvedValue(budgetEntity),
       update: jest.fn().mockResolvedValue(budgetEntity),
       softDelete: jest.fn().mockResolvedValue(undefined),
-    };
+    } as unknown as jest.Mocked<BudgetsService>;
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BudgetsController],
@@ -80,43 +86,62 @@ describe('BudgetsController (security)', () => {
       year: 2026,
       userId: 'user-attacker',
       user_id: 'user-attacker',
-    } as any;
-    await request(app.getHttpServer()).post('/budgets').send(body).expect(201);
+    };
+    await request(app.getHttpServer() as Server)
+      .post('/budgets')
+      .send(body)
+      .expect(201);
 
-    expect(budgetsServiceMock.create).toHaveBeenCalled();
+    expect(
+      (budgetsServiceMock as unknown as { create: jest.Mock }).create,
+    ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.create.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('update: passes authenticated userId and ignores client-supplied userId', async () => {
-    const body = { budget_amount_cents: 60000, userId: 'user-attacker' } as any;
-    await request(app.getHttpServer())
+    const body = { budget_amount_cents: 60000, userId: 'user-attacker' };
+    await request(app.getHttpServer() as Server)
       .patch('/budgets/b1')
       .send(body)
       .expect(200);
 
-    expect(budgetsServiceMock.update).toHaveBeenCalled();
+    expect(
+      (budgetsServiceMock as unknown as { update: jest.Mock }).update,
+    ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.update.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('getById: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/budgets/b1').expect(200);
-    expect(budgetsServiceMock.getById).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .get('/budgets/b1')
+      .expect(200);
+    expect(
+      (budgetsServiceMock as unknown as { getById: jest.Mock }).getById,
+    ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('delete: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).delete('/budgets/b1').expect(200);
-    expect(budgetsServiceMock.softDelete).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .delete('/budgets/b1')
+      .expect(200);
+    expect(
+      (budgetsServiceMock as unknown as { softDelete: jest.Mock }).softDelete,
+    ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.softDelete.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('list: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/budgets').expect(200);
-    expect(budgetsServiceMock.listAll).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .get('/budgets')
+      .expect(200);
+    expect(
+      (budgetsServiceMock as unknown as { listAll: jest.Mock }).listAll,
+    ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.listAll.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });

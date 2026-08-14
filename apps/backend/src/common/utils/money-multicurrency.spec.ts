@@ -1,5 +1,5 @@
 import { Money } from '../types/money';
-import { parseMoneyInput, formatMoneyFromMinorUnits } from './money.utils';
+import { formatMoneyFromMinorUnits } from './money.utils';
 
 describe('Phase C — Money & Multi-Currency Mathematics Test Suite', () => {
   describe('Minor Unit Precision Test Matrix', () => {

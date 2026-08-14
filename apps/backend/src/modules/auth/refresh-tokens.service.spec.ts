@@ -1,35 +1,49 @@
 import { RefreshTokensService } from './services/refresh-tokens.service';
+import { JwtService } from '@nestjs/jwt';
+import { JwtConfigService } from '../../config/jwt-config.service';
+import { PasswordService } from '../../common/security/password/password.service';
+import { PrismaRefreshTokenRepository } from './repositories/prisma-refresh-token.repository';
+import { UsersService } from '../users/services/users.service';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { SessionService } from './services/session.service';
+import { AuditLogService } from '../audit-logs/services/audit-log.service';
 
 describe('RefreshTokensService (unit)', () => {
   const now = Date.now();
-  const mockJwtService: any = {
-    sign: jest.fn().mockReturnValue('newAccess'),
+  const mockJwtService = {
+    sign: jest.fn(() => 'newAccess'),
     verify: jest.fn(),
-  };
-  const mockJwtConfig: any = {
+  } as unknown as jest.Mocked<JwtService>;
+  const mockJwtConfig = {
     config: {
       refreshSecret: 'rsecret',
       refreshExpiresIn: '7d',
       accessExpiresIn: '15m',
       accessSecret: 'asecret',
     },
-  };
-  const mockPasswordService: any = {
-    hashPassword: jest.fn().mockResolvedValue('hashed'),
+  } as unknown as jest.Mocked<JwtConfigService>;
+  const mockPasswordService = {
+    hashPassword: jest.fn(() => Promise.resolve('hashed')),
     verifyPassword: jest.fn(),
-  };
-  const mockRepo: any = {
+  } as unknown as jest.Mocked<PasswordService>;
+  const mockRepo = {
     findById: jest.fn(),
-    revoke: jest.fn().mockResolvedValue(true),
-    create: jest.fn().mockResolvedValue(true),
-    revokeAllForUser: jest.fn().mockResolvedValue(true),
-  };
-  const mockUsersService: any = { findById: jest.fn() };
-  const mockSessionService: any = {
-    updateLastActivity: jest.fn().mockResolvedValue(true),
-    updateRefreshToken: jest.fn().mockResolvedValue(true),
-  };
-  const mockAudit: any = { record: jest.fn().mockResolvedValue(true) };
+    revoke: jest.fn(() => Promise.resolve()),
+    create: jest.fn(() =>
+      Promise.resolve(undefined as unknown as RefreshTokenEntity),
+    ),
+    revokeAllForUser: jest.fn(() => Promise.resolve()),
+  } as unknown as jest.Mocked<PrismaRefreshTokenRepository>;
+  const mockUsersService = {
+    findById: jest.fn(),
+  } as unknown as jest.Mocked<UsersService>;
+  const mockSessionService = {
+    updateLastActivity: jest.fn(() => Promise.resolve()),
+    updateRefreshToken: jest.fn(() => Promise.resolve()),
+  } as unknown as jest.Mocked<SessionService>;
+  const mockAudit = {
+    record: jest.fn(() => Promise.resolve()),
+  } as unknown as jest.Mocked<AuditLogService>;
 
   let svc: RefreshTokensService;
 
@@ -57,7 +71,9 @@ describe('RefreshTokensService (unit)', () => {
       token_hash: 'hash',
       expires_at: new Date(now + 10000),
       revoked_at: null,
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     mockRepo.findById.mockResolvedValue(stored);
     mockPasswordService.verifyPassword.mockResolvedValue(true);
     mockPasswordService.hashPassword.mockResolvedValue('newhash');
@@ -65,6 +81,12 @@ describe('RefreshTokensService (unit)', () => {
       id: 'u1',
       email: 'u1@example.com',
       role_code: 'USER',
+      created_at: new Date(),
+      updated_at: new Date(),
+      username: 'user1',
+      full_name: 'User One',
+      password_hash: 'x',
+      status: 'ACTIVE',
     });
     mockJwtService.sign
       .mockReturnValueOnce('newAccessToken')
@@ -74,10 +96,18 @@ describe('RefreshTokensService (unit)', () => {
     const res = await svc.rotate('someRawRefreshToken');
 
     // Assert
-    expect(mockRepo.findById).toHaveBeenCalledWith('oldjti');
-    expect(mockRepo.revoke).toHaveBeenCalledWith('oldjti');
-    expect(mockRepo.create).toHaveBeenCalled();
-    expect(mockUsersService.findById).toHaveBeenCalledWith('u1');
+    expect(
+      (mockRepo as unknown as { findById: jest.Mock }).findById,
+    ).toHaveBeenCalledWith('oldjti');
+    expect(
+      (mockRepo as unknown as { revoke: jest.Mock }).revoke,
+    ).toHaveBeenCalledWith('oldjti');
+    expect(
+      (mockRepo as unknown as { create: jest.Mock }).create,
+    ).toHaveBeenCalled();
+    expect(
+      (mockUsersService as unknown as { findById: jest.Mock }).findById,
+    ).toHaveBeenCalledWith('u1');
     expect(res).toBeDefined();
     expect(res.success).toBe(true);
     expect(res.data.accessToken).toBeDefined();
@@ -90,13 +120,18 @@ describe('RefreshTokensService (unit)', () => {
     const stored = {
       id: 'oldjti',
       user_id: 'u2',
+      token_hash: 'hash',
       revoked_at: new Date(),
       expires_at: new Date(now + 10000),
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     mockRepo.findById.mockResolvedValue(stored);
 
     await expect(svc.rotate('token')).rejects.toBeDefined();
-    expect(mockRepo.revokeAllForUser).toHaveBeenCalledWith('u2');
+    expect(
+      (mockRepo as unknown as { revokeAllForUser: jest.Mock }).revokeAllForUser,
+    ).toHaveBeenCalledWith('u2');
   });
 
   it('rejects expired refresh token', async () => {
@@ -105,9 +140,12 @@ describe('RefreshTokensService (unit)', () => {
     const stored = {
       id: 'jtiexp',
       user_id: 'u3',
+      token_hash: 'hash',
       revoked_at: null,
       expires_at: new Date(now - 10000),
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     mockRepo.findById.mockResolvedValue(stored);
 
     await expect(svc.rotate('token')).rejects.toBeDefined();
@@ -129,7 +167,9 @@ describe('RefreshTokensService (unit)', () => {
       token_hash: 'h',
       expires_at: new Date(now + 10000),
       revoked_at: null,
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     mockRepo.findById.mockResolvedValue(stored);
     mockPasswordService.verifyPassword.mockResolvedValue(false);
 

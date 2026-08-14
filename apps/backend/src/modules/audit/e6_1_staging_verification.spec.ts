@@ -1,6 +1,7 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { HistoricalDataRecoveryService } from './historical-data-recovery.service';
-import { HistoricalDataAuditService } from './historical-data-audit.service';
 
 /**
  * STAGING-only verification test for Phase E.6.1
@@ -70,7 +71,7 @@ describe('E.6.1 STAGING recovery safety verification (staging only)', () => {
   } as const;
 
   // Helper: deterministic snapshot hash
-  function snapshotHash(obj: any): string {
+  function snapshotHash(obj: Record<string, unknown>): string {
     const normalized = JSON.stringify(obj, Object.keys(obj).sort());
     return crypto.createHash('sha256').update(normalized).digest('hex');
   }
@@ -91,13 +92,11 @@ describe('E.6.1 STAGING recovery safety verification (staging only)', () => {
     // Based on repository config files (prisma/.env and docker/.env.docker), the local repo uses localhost/docker compose defaults.
     // This test asserts that environment files indicate non-production defaults.
     // Load prisma/.env programmatically
-    const fs = require('fs');
-    const path = require('path');
     const envPath = path.resolve(__dirname, '../../../../prisma/.env');
     let dbUrl = '';
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
-      const m = content.match(/DATABASE_URL\s*=\s*\"?(.*?)\"?$/m);
+      const m = content.match(/DATABASE_URL\s*=\s*"?(.*?)"?$/m);
       dbUrl = m ? m[1] : '';
     }
     expect(dbUrl).toBeDefined();
@@ -118,7 +117,27 @@ describe('E.6.1 STAGING recovery safety verification (staging only)', () => {
     const hash = snapshotHash(snapshot);
 
     // persist to an in-memory store (simulated); verify immutability by comparing a shallow copy
-    const persisted = JSON.parse(JSON.stringify(snapshot));
+    const persisted = JSON.parse(JSON.stringify(snapshot)) as unknown as {
+      snapshot_ts: string;
+      account: {
+        id: string;
+        user_id: string;
+        currency: string;
+        opening_balance_cents: string;
+      };
+      transactions: Array<{
+        id: string;
+        user_id: string;
+        account_id: string;
+        currency: string;
+        transaction_type: string;
+        amount_cents: string;
+        note: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+      notes: string[];
+    };
     const persistedHash = snapshotHash(persisted);
 
     expect(hash).toEqual(persistedHash);

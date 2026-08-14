@@ -117,9 +117,11 @@ describe('TransactionsService (filter & pagination & search)', () => {
     };
     const notificationsMock = { create: jest.fn() };
     const balanceMock = { recalculateAccount: jest.fn() };
-    const financeBotMock = {
+    const financeBotMock: {
+      evaluateOnTransaction: jest.Mock;
+    } = {
       evaluateOnTransaction: jest.fn().mockResolvedValue(undefined),
-    } as unknown as FinanceBotService;
+    };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -196,7 +198,7 @@ describe('TransactionsService (filter & pagination & search)', () => {
       items: [{ ...dummyTx('t-prev'), amount_cents: BigInt(100000000) }],
       total: 1,
     });
-    const auditMock = { record: jest.fn() };
+    const auditMock: { record: jest.Mock } = { record: jest.fn() };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -243,7 +245,7 @@ describe('TransactionsService (filter & pagination & search)', () => {
           requestId: 'req-456',
           amountCents: '1000000',
           anomalyCode: 'AMOUNT_SCALE_ANOMALY',
-        }),
+        }) as Record<string, unknown>,
       }),
     );
   });

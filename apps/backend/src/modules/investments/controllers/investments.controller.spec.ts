@@ -5,6 +5,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { Server } from 'net';
 import request from 'supertest';
 import { InvestmentsController } from './investments.controller';
 import { InvestmentsService } from '../services/investments.service';
@@ -12,14 +14,18 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('InvestmentsController (security)', () => {
   let app: INestApplication;
-  let investmentsServiceMock: any;
+  let investmentsServiceMock: jest.Mocked<InvestmentsService>;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<
+          Request & { user?: { sub: string; role: string; email: string } }
+        >();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -55,7 +61,7 @@ describe('InvestmentsController (security)', () => {
       created_at: new Date(),
       updated_at: new Date(),
       deleted_at: null,
-    } as any;
+    };
 
     const overviewResult = {
       total: 1,
@@ -66,7 +72,7 @@ describe('InvestmentsController (security)', () => {
       totalLoss: '0',
       roi: 19.6,
       allocation: [{ type: 'Stock', total: '180000' }],
-    } as any;
+    };
 
     investmentsServiceMock = {
       listAll: jest.fn().mockResolvedValue([investmentEntity]),
@@ -75,7 +81,7 @@ describe('InvestmentsController (security)', () => {
       create: jest.fn().mockResolvedValue(investmentEntity),
       update: jest.fn().mockResolvedValue(investmentEntity),
       softDelete: jest.fn().mockResolvedValue(undefined),
-    };
+    } as unknown as jest.Mocked<InvestmentsService>;
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InvestmentsController],
@@ -109,13 +115,15 @@ describe('InvestmentsController (security)', () => {
       purchase_date: '2026-01-01',
       userId: 'attacker',
       user_id: 'attacker',
-    } as any;
-    await request(app.getHttpServer())
+    };
+    await request(app.getHttpServer() as Server)
       .post('/investments')
       .send(body)
       .expect(201);
 
-    expect(investmentsServiceMock.create).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { create: jest.Mock }).create,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.create.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
@@ -125,45 +133,64 @@ describe('InvestmentsController (security)', () => {
       name: 'MSFT',
       userId: 'attacker',
       user_id: 'attacker',
-    } as any;
-    await request(app.getHttpServer())
+    };
+    await request(app.getHttpServer() as Server)
       .patch('/investments/inv1')
       .send(body)
       .expect(200);
 
-    expect(investmentsServiceMock.update).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { update: jest.Mock }).update,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.update.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('getById: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/investments/inv1').expect(200);
+    await request(app.getHttpServer() as Server)
+      .get('/investments/inv1')
+      .expect(200);
 
-    expect(investmentsServiceMock.getById).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { getById: jest.Mock }).getById,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('delete: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).delete('/investments/inv1').expect(200);
+    await request(app.getHttpServer() as Server)
+      .delete('/investments/inv1')
+      .expect(200);
 
-    expect(investmentsServiceMock.softDelete).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { softDelete: jest.Mock })
+        .softDelete,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.softDelete.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('list: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/investments').expect(200);
+    await request(app.getHttpServer() as Server)
+      .get('/investments')
+      .expect(200);
 
-    expect(investmentsServiceMock.listAll).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { listAll: jest.Mock }).listAll,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.listAll.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('overview: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/investments/overview').expect(200);
+    await request(app.getHttpServer() as Server)
+      .get('/investments/overview')
+      .expect(200);
 
-    expect(investmentsServiceMock.overview).toHaveBeenCalled();
+    expect(
+      (investmentsServiceMock as unknown as { overview: jest.Mock }).overview,
+    ).toHaveBeenCalled();
     const calledWithUserId = investmentsServiceMock.overview.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });

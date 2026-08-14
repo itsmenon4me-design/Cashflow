@@ -236,23 +236,30 @@ describe('E.6.1C durable staging artifact verification (staging-only)', () => {
       phase: 'E.6.1C',
     });
 
-    const reRead = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const reRead = JSON.parse(fs.readFileSync(snapshotPath, 'utf8')) as {
+      metadata: { mutable_copy_allowed: boolean };
+    };
     const reHash = sha256(JSON.stringify(canonicalize(reRead)));
     expect(reHash).toBe(hash);
 
-    const mutatedCopy = JSON.parse(JSON.stringify(reRead));
+    const mutatedCopy = JSON.parse(JSON.stringify(reRead)) as {
+      metadata: { mutable_copy_allowed: boolean };
+    };
     mutatedCopy.metadata.mutable_copy_allowed = true;
     expect(JSON.stringify(mutatedCopy)).not.toBe(
       fs.readFileSync(snapshotPath, 'utf8'),
     );
 
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+      sha256: string;
+      immutable: boolean;
+    };
     expect(manifest.sha256).toBe(hash);
     expect(manifest.immutable).toBe(true);
 
     const executionState = JSON.parse(
       fs.readFileSync(executionStatePath, 'utf8'),
-    );
+    ) as { status: string };
     expect(executionState.status).toBe('PENDING');
   });
 
@@ -462,7 +469,13 @@ describe('E.6.1C durable staging artifact verification (staging-only)', () => {
     );
     writeJson(finalReportPath, report);
     writeJson(jsonSummaryPath, report);
-    const finalReport = JSON.parse(fs.readFileSync(finalReportPath, 'utf8'));
+    const finalReport = JSON.parse(
+      fs.readFileSync(finalReportPath, 'utf8'),
+    ) as {
+      final_gate: string;
+      production_mutation_count: number;
+      e6_2_permitted: boolean;
+    };
     expect(finalReport.final_gate).toBe('STAGING_VERIFIED');
     expect(finalReport.production_mutation_count).toBe(0);
     expect(finalReport.e6_2_permitted).toBe(false);

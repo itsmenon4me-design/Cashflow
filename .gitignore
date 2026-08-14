@@ -43,3 +43,6 @@ prisma/.env
 
 # Generated Prisma client (do not commit generated client; prefer regenerating locally)
 apps/backend/src/generated/
+# Generated recovery evidence
+apps/backend/recovery_reports/evidence/recovery/staging/
+apps/recovery_reports/evidence/recovery/staging/

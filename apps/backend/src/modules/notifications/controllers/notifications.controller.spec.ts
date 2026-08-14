@@ -5,6 +5,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { Server } from 'net';
 import request from 'supertest';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from '../services/notifications.service';
@@ -12,14 +14,18 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('NotificationsController (security)', () => {
   let app: INestApplication;
-  let notificationsServiceMock: any;
+  let notificationsServiceMock: jest.Mocked<NotificationsService>;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<
+          Request & { user?: { sub: string; role: string; email: string } }
+        >();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -45,7 +51,7 @@ describe('NotificationsController (security)', () => {
       metadata: null,
       created_at: new Date(),
       updated_at: new Date(),
-    } as any;
+    };
 
     const listResult = {
       data: [notificationEntity],
@@ -57,7 +63,7 @@ describe('NotificationsController (security)', () => {
         hasNext: false,
         hasPrevious: false,
       },
-    } as any;
+    };
 
     notificationsServiceMock = {
       list: jest.fn().mockResolvedValue(listResult),
@@ -65,7 +71,7 @@ describe('NotificationsController (security)', () => {
       markRead: jest.fn().mockResolvedValue(notificationEntity),
       markAllRead: jest.fn().mockResolvedValue(1),
       remove: jest.fn().mockResolvedValue(undefined),
-    };
+    } as unknown as jest.Mocked<NotificationsService>;
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificationsController],
@@ -89,47 +95,57 @@ describe('NotificationsController (security)', () => {
   });
 
   it('list: passes authenticated userId and ignores client-supplied userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/notifications')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
-    expect(notificationsServiceMock.list).toHaveBeenCalled();
+    expect(
+      (notificationsServiceMock as unknown as { list: jest.Mock }).list,
+    ).toHaveBeenCalled();
     const calledWithUserId = notificationsServiceMock.list.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('unread-count: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/notifications/unread-count')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
-    expect(notificationsServiceMock.unreadCount).toHaveBeenCalled();
+    expect(
+      (notificationsServiceMock as unknown as { unreadCount: jest.Mock })
+        .unreadCount,
+    ).toHaveBeenCalled();
     const calledWithUserId =
       notificationsServiceMock.unreadCount.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('read-all: passes authenticated userId and ignores client-supplied userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .patch('/notifications/read-all')
       .send({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
-    expect(notificationsServiceMock.markAllRead).toHaveBeenCalled();
+    expect(
+      (notificationsServiceMock as unknown as { markAllRead: jest.Mock })
+        .markAllRead,
+    ).toHaveBeenCalled();
     const calledWithUserId =
       notificationsServiceMock.markAllRead.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('mark-read: passes authenticated userId and route id', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .patch('/notifications/11111111-1111-4111-8111-111111111111/read')
       .send({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
-    expect(notificationsServiceMock.markRead).toHaveBeenCalled();
+    expect(
+      (notificationsServiceMock as unknown as { markRead: jest.Mock }).markRead,
+    ).toHaveBeenCalled();
     const [calledWithUserId, id] =
       notificationsServiceMock.markRead.mock.calls[0];
     expect(calledWithUserId).toBe('user-auth');
@@ -137,11 +153,13 @@ describe('NotificationsController (security)', () => {
   });
 
   it('delete: passes authenticated userId and route id', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .delete('/notifications/11111111-1111-4111-8111-111111111111')
       .expect(200);
 
-    expect(notificationsServiceMock.remove).toHaveBeenCalled();
+    expect(
+      (notificationsServiceMock as unknown as { remove: jest.Mock }).remove,
+    ).toHaveBeenCalled();
     const [calledWithUserId, id] =
       notificationsServiceMock.remove.mock.calls[0];
     expect(calledWithUserId).toBe('user-auth');

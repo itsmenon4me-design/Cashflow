@@ -115,12 +115,17 @@ describe('SavingGoalsService - regression money invariants', () => {
     expect(['IDR', 'USD']).toContain(overview.currency);
 
     // by_currency should contain both IDR and USD entries
-    const found = (overview.by_currency as any[]).reduce(
-      (acc: Record<string, any>, cur) => {
+    interface CurrencyOverviewRow {
+      currency: string;
+      targetAmount: string;
+      currentAmount: string;
+    }
+    const found = (overview.by_currency as CurrencyOverviewRow[]).reduce(
+      (acc: Record<string, CurrencyOverviewRow>, cur) => {
         acc[cur.currency] = cur;
         return acc;
       },
-      {} as Record<string, any>,
+      {} as Record<string, CurrencyOverviewRow>,
     );
 
     expect(found['IDR']).toBeDefined();

@@ -135,7 +135,7 @@ describe('BudgetsService', () => {
         budget_amount_cents: 1000,
         month: 8,
         year: 2026,
-      } as any),
+      }),
     ).rejects.toBeDefined();
   });
 
@@ -166,7 +166,7 @@ describe('BudgetsService', () => {
         budget_amount_cents: 1000,
         month: 8,
         year: 2026,
-      } as any),
+      }),
     ).rejects.toBeDefined();
   });
 
@@ -199,7 +199,7 @@ describe('BudgetsService', () => {
         budget_amount_cents: 1000,
         month: 8,
         year: 2026,
-      } as any),
+      }),
     ).rejects.toBeDefined();
   });
 

@@ -60,7 +60,10 @@ export class UsersService {
     } catch (err) {
       // Map Prisma unique constraint error to a friendly conflict error
       // Prisma error code for unique constraint is P2002
-      const code = err?.code;
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code: string }).code)
+          : undefined;
       if (code === 'P2002') {
         throw ErrorService.create(
           ErrorCode.CONFLICT,

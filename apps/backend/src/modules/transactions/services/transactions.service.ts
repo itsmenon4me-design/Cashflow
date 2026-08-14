@@ -229,7 +229,7 @@ export class TransactionsService {
       created,
     );
     if (
-      evaluation &&
+      evaluation !== undefined &&
       typeof (evaluation as Promise<unknown>).catch === 'function'
     ) {
       (evaluation as Promise<unknown>).catch((err) => {

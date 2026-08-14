@@ -8,12 +8,14 @@ function sha256(content: string) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-function canonicalize(obj: any): any {
+function canonicalize(obj: unknown): unknown {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(canonicalize);
   const keys = Object.keys(obj).sort();
-  const out: any = {};
-  for (const k of keys) out[k] = canonicalize(obj[k]);
+  const out: Record<string, unknown> = {};
+  for (const k of keys) {
+    out[k] = canonicalize((obj as Record<string, unknown>)[k]);
+  }
   return out;
 }
 
@@ -21,6 +23,32 @@ function writeJsonAtomic(filePath: string, data: any) {
   const tmp = `${filePath}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
   fs.renameSync(tmp, filePath);
+}
+
+interface StagedSnapshot {
+  snapshot_version: string;
+  snapshot_ts: string;
+  recovery_operation_id: string;
+  record_id: string;
+  account_id: string;
+  original_amount_cents: string;
+  proposed_amount_cents: string;
+  transaction: {
+    id: string;
+    account_id: string;
+    transaction_type: string;
+    amount_cents: string;
+    currency: string;
+    created_at: string;
+  };
+  account: {
+    id: string;
+    user_id: string;
+    currency: string;
+    opening_balance_cents: string;
+    created_at: string;
+  };
+  metadata: Record<string, unknown>;
 }
 
 describe('E.6.1B Persisted staging artifact store verification (staging-only)', () => {
@@ -115,7 +143,9 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
     });
 
     // re-read and verify
-    const read = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const read = JSON.parse(
+      fs.readFileSync(snapshotPath, 'utf8'),
+    ) as unknown as StagedSnapshot;
     const reCanonical = canonicalize(read);
     const reHash = sha256(JSON.stringify(reCanonical));
     expect(reHash).toBe(hash);
@@ -129,7 +159,9 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
 
   it('builds recovery plan from persisted snapshot and enforces ×100 prohibition', () => {
     const snapshotPath = path.join(runDir, 'snapshot.json');
-    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const snapshot = JSON.parse(
+      fs.readFileSync(snapshotPath, 'utf8'),
+    ) as unknown as StagedSnapshot;
     const recoveryService = new HistoricalDataRecoveryService(true);
 
     const finding = {
@@ -174,15 +206,27 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
 
   it('enforces approval gate and mutation_authorized flag in persisted store', () => {
     const snapshotPath = path.join(runDir, 'snapshot.json');
-    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
-    const approval = {
+    const snapshot = JSON.parse(
+      fs.readFileSync(snapshotPath, 'utf8'),
+    ) as unknown as StagedSnapshot;
+    const approval: {
+      reviewer_id: string;
+      reviewer: string;
+      review_timestamp: string;
+      decision: string;
+      rationale: string;
+      mutation_authorized: boolean;
+      approver_id?: string;
+      approver?: string;
+      approved_at?: string;
+    } = {
       reviewer_id: 'rev-1',
       reviewer: 'staging-reviewer',
       review_timestamp: new Date().toISOString(),
       decision: 'APPROVED',
       rationale: 'Staging synthetic approval',
       mutation_authorized: false,
-    } as any;
+    };
 
     const approvalPath = path.join(runDir, 'approval.json');
     writeJsonAtomic(approvalPath, approval);
@@ -259,8 +303,10 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
       result: exec.status,
       timestamp: new Date().toISOString(),
       record_id: snapshot.record_id,
-      snapshot_hash: JSON.parse(
-        fs.readFileSync(path.join(runDir, 'snapshot.manifest.json'), 'utf8'),
+      snapshot_hash: (
+        JSON.parse(
+          fs.readFileSync(path.join(runDir, 'snapshot.manifest.json'), 'utf8'),
+        ) as unknown as { sha256: string }
       ).sha256,
     });
 
@@ -295,15 +341,19 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
       result: second.status,
       timestamp: new Date().toISOString(),
       record_id: snapshot.record_id,
-      snapshot_hash: JSON.parse(
-        fs.readFileSync(path.join(runDir, 'snapshot.manifest.json'), 'utf8'),
+      snapshot_hash: (
+        JSON.parse(
+          fs.readFileSync(path.join(runDir, 'snapshot.manifest.json'), 'utf8'),
+        ) as unknown as { sha256: string }
       ).sha256,
     });
   });
 
   it('simulates concurrency using file-locking and verifies single execution', async () => {
     const snapshotPath = path.join(runDir, 'snapshot.json');
-    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const snapshot = JSON.parse(
+      fs.readFileSync(snapshotPath, 'utf8'),
+    ) as unknown as StagedSnapshot;
     const operationId = snapshot.recovery_operation_id;
     const lockPath = path.join(runDir, `${operationId}.lock`);
     const execStatePath = path.join(runDir, `${operationId}.exec.json`);
@@ -311,16 +361,20 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
     // cleanup if exists
     try {
       fs.unlinkSync(lockPath);
-    } catch (e) {}
+    } catch {
+      /* ignore: cleanup */
+    }
     try {
       fs.unlinkSync(execStatePath);
-    } catch (e) {}
+    } catch {
+      /* ignore: cleanup */
+    }
 
-    async function attemptExecute(name: string) {
+    function attemptExecute(name: string) {
       // try atomic lock using wx
       try {
         fs.writeFileSync(lockPath, name, { flag: 'wx' });
-      } catch (err) {
+      } catch {
         // lock exists => treat as already executed/in-progress
         return { name, status: 'LOCKED' };
       }
@@ -336,11 +390,16 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
       // release lock by removing file (keep execState)
       try {
         fs.unlinkSync(lockPath);
-      } catch (e) {}
+      } catch {
+        /* ignore: cleanup */
+      }
       return { name, status: 'EXECUTED' };
     }
 
-    const promises = [attemptExecute('runner-A'), attemptExecute('runner-B')];
+    const promises = [
+      Promise.resolve(attemptExecute('runner-A')),
+      Promise.resolve(attemptExecute('runner-B')),
+    ];
     const results = await Promise.all(promises);
 
     // At least one executed
@@ -351,13 +410,14 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
 
   it('performs rollback by restoring snapshot and verifies equality', () => {
     const snapshotPath = path.join(runDir, 'snapshot.json');
-    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
     const stateFiles = fs
       .readdirSync(runDir)
       .filter((f) => f.startsWith('state_') && f.endsWith('.json'));
     expect(stateFiles.length).toBeGreaterThan(0);
     const statePath = path.join(runDir, stateFiles[0]);
-    const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as unknown as {
+      recoveryId: string;
+    };
 
     // simulate rollback by writing a rollback artifact and restoring snapshot (no DB changes)
     const rollbackPath = path.join(runDir, `rollback_${state.recoveryId}.json`);
@@ -387,7 +447,9 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
 
   it('performs basic balance reconciliation checks (arithmetic only)', () => {
     const snapshotPath = path.join(runDir, 'snapshot.json');
-    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const snapshot = JSON.parse(
+      fs.readFileSync(snapshotPath, 'utf8'),
+    ) as unknown as StagedSnapshot;
     const opening = BigInt(snapshot.account.opening_balance_cents);
     const corrupted = BigInt(snapshot.original_amount_cents);
     const corrected = BigInt(snapshot.proposed_amount_cents);
@@ -437,14 +499,17 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
   it('writes final JSON and MD reports', () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(runDir, 'snapshot.manifest.json'), 'utf8'),
-    );
+    ) as unknown as Record<string, unknown>;
     const auditDir = path.join(runDir, 'audit');
-    const audits = fs.existsSync(auditDir)
-      ? fs.readdirSync(auditDir).map((f) => ({
-          file: f,
-          content: JSON.parse(fs.readFileSync(path.join(auditDir, f), 'utf8')),
-        }))
-      : [];
+    const audits: { file: string; content: Record<string, unknown> }[] = [];
+    if (fs.existsSync(auditDir)) {
+      for (const f of fs.readdirSync(auditDir)) {
+        const content = JSON.parse(
+          fs.readFileSync(path.join(auditDir, f), 'utf8'),
+        ) as unknown as Record<string, unknown>;
+        audits.push({ file: f, content });
+      }
+    }
 
     const summary = {
       phase: 'E.6.1B',
@@ -459,7 +524,7 @@ describe('E.6.1B Persisted staging artifact store verification (staging-only)', 
         snapshot_verified: true,
       },
       final_gate: 'STAGING_VERIFIED',
-    } as any;
+    };
 
     const jsonPath = path.join(
       runDir,

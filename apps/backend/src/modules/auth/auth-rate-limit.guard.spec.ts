@@ -1,10 +1,14 @@
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
+import type { ExecutionContext } from '@nestjs/common';
+import type { Request } from 'express';
 import { RedisService } from '../../redis/redis.service';
 import { AuthConfigService } from '../../config/auth-config.service';
 import { LoggerService } from '../../common/logger/logger.service';
 
 const makeMocks = () => {
-  const redis = { incr: jest.fn() } as any;
+  const redis = {
+    incr: jest.fn(),
+  } as unknown as jest.Mocked<RedisService>;
   const authConfig = {
     config: {
       loginLimit: 2,
@@ -14,13 +18,13 @@ const makeMocks = () => {
       refreshLimit: 4,
       refreshWindowSeconds: 60,
     },
-  } as any;
+  } as unknown as jest.Mocked<AuthConfigService>;
   const logger = {
     securityLog: jest.fn(),
     log: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  } as any;
+  } as unknown as jest.Mocked<LoggerService>;
   return { redis, authConfig, logger };
 };
 
@@ -28,17 +32,19 @@ const makeReq = (
   path: string,
   headers: Record<string, string> = {},
   ip?: string,
-) => {
+): Request => {
   return {
     path,
     headers,
     ip,
     socket: { remoteAddress: ip },
-  } as any;
+  } as unknown as Request;
 };
 
-const makeCtx = (req: any) =>
-  ({ switchToHttp: () => ({ getRequest: () => req }) }) as any;
+const makeCtx = (req: Request): ExecutionContext =>
+  ({
+    switchToHttp: () => ({ getRequest: () => req }),
+  }) as unknown as ExecutionContext;
 
 describe('AuthRateLimitGuard', () => {
   beforeEach(() => jest.resetAllMocks());
@@ -46,18 +52,14 @@ describe('AuthRateLimitGuard', () => {
   test('allows requests below limit (login)', async () => {
     const { redis, authConfig, logger } = makeMocks();
     redis.incr.mockResolvedValue(1);
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     const ok = await g.canActivate(
       makeCtx(
         makeReq('/auth/login', { 'x-forwarded-for': '1.2.3.4' }, '1.2.3.4'),
       ),
     );
     expect(ok).toBe(true);
-    expect(redis.incr).toHaveBeenCalledWith(
+    expect((redis as unknown as { incr: jest.Mock }).incr).toHaveBeenCalledWith(
       expect.stringContaining('/auth/login'),
       authConfig.config.loginWindowSeconds,
     );
@@ -66,11 +68,7 @@ describe('AuthRateLimitGuard', () => {
   test('rejects when at/above limit (login)', async () => {
     const { redis, authConfig, logger } = makeMocks();
     redis.incr.mockResolvedValue(3);
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     const ok = await g.canActivate(
       makeCtx(
         makeReq('/auth/login', { 'x-forwarded-for': '1.2.3.4' }, '1.2.3.4'),
@@ -81,11 +79,7 @@ describe('AuthRateLimitGuard', () => {
 
   test('register below and above limit', async () => {
     const { redis, authConfig, logger } = makeMocks();
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     redis.incr.mockResolvedValue(1);
     expect(
       await g.canActivate(makeCtx(makeReq('/auth/register', {}, '5.6.7.8'))),
@@ -98,11 +92,7 @@ describe('AuthRateLimitGuard', () => {
 
   test('refresh below and above limit', async () => {
     const { redis, authConfig, logger } = makeMocks();
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     redis.incr.mockResolvedValue(1);
     expect(
       await g.canActivate(makeCtx(makeReq('/auth/refresh', {}, '9.9.9.9'))),
@@ -116,11 +106,7 @@ describe('AuthRateLimitGuard', () => {
   test('fails open if redis returns null', async () => {
     const { redis, authConfig, logger } = makeMocks();
     redis.incr.mockResolvedValue(null);
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     expect(
       await g.canActivate(makeCtx(makeReq('/auth/login', {}, '1.1.1.1'))),
     ).toBe(true);
@@ -129,11 +115,7 @@ describe('AuthRateLimitGuard', () => {
   test('ip extraction prefers x-forwarded-for, then req.ip, then socket.remoteAddress', async () => {
     const { redis, authConfig, logger } = makeMocks();
     redis.incr.mockResolvedValue(1);
-    const g = new AuthRateLimitGuard(
-      redis as RedisService,
-      authConfig as AuthConfigService,
-      logger as LoggerService,
-    );
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
     // X-Forwarded-For present
     const req1 = makeReq(
       '/auth/login',
@@ -146,7 +128,10 @@ describe('AuthRateLimitGuard', () => {
     req2.headers = {};
     expect(await g.canActivate(makeCtx(req2))).toBe(true);
     // no ip fields -> fallback
-    const req3 = { path: '/auth/login', headers: {} } as any;
+    const req3 = {
+      path: '/auth/login',
+      headers: {},
+    } as unknown as Request;
     expect(await g.canActivate(makeCtx(req3))).toBe(true);
   });
 });

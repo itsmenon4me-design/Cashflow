@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
-import { toMinorUnitsExact } from '../../../common/types/money';
 import { MonthlyReportService } from '../../reports/services/monthly-report.service';
 import { CategoryBreakdownService } from '../../reports/services/category-breakdown.service';
 import {

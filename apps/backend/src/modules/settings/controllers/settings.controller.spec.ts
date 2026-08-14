@@ -12,14 +12,19 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('SettingsController (security)', () => {
   let app: INestApplication;
-  let settingsServiceMock: any;
+  let settingsServiceMock: {
+    getSettings: jest.Mock;
+    updateSettings: jest.Mock;
+  };
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user?: { sub: string; role: string; email: string } }>();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -84,13 +89,15 @@ describe('SettingsController (security)', () => {
       user_id: 'user-attacker',
       sub: 'user-attacker',
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/settings')
       .query(query)
       .expect(200);
 
     expect(settingsServiceMock.getSettings).toHaveBeenCalled();
-    const calledWithUserId = settingsServiceMock.getSettings.mock.calls[0][0];
+    const calledWithUserId = (
+      settingsServiceMock.getSettings.mock.calls[0] as unknown[]
+    )[0] as string;
     expect(calledWithUserId).toBe('user-auth');
   });
 
@@ -100,28 +107,31 @@ describe('SettingsController (security)', () => {
       userId: 'user-attacker',
       user_id: 'user-attacker',
       sub: 'user-attacker',
-    } as any;
-    await request(app.getHttpServer())
+    };
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .patch('/settings')
       .send(body)
       .expect(200);
 
     expect(settingsServiceMock.updateSettings).toHaveBeenCalled();
-    const calledWithUserId =
-      settingsServiceMock.updateSettings.mock.calls[0][0];
+    const calledWithUserId = (
+      settingsServiceMock.updateSettings.mock.calls[0] as unknown[]
+    )[0] as string;
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('get: identity comes from JWT/AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer()).get('/settings').expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/settings')
+      .expect(403);
     expect(settingsServiceMock.getSettings).not.toHaveBeenCalled();
     authGuard.isAuthenticated = true;
   });
 
   it('update: identity comes from JWT/AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .patch('/settings')
       .send({ theme: 'light' })
       .expect(403);

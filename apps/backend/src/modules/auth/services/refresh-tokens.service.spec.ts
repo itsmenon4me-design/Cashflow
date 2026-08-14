@@ -1,32 +1,55 @@
 import { RefreshTokensService } from './refresh-tokens.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
+import { JwtService } from '@nestjs/jwt';
+import { JwtConfigService } from '../../../config/jwt-config.service';
+import { PasswordService } from '../../../common/security/password/password.service';
+import { PrismaRefreshTokenRepository } from '../repositories/prisma-refresh-token.repository';
+import { UsersService } from '../../users/services/users.service';
+import { RefreshTokenEntity } from '../entities/refresh-token.entity';
+import { SessionService } from './session.service';
+import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 
 const makeMocks = () => {
-  const jwtService = { verify: jest.fn(), sign: jest.fn(() => 'newRT') } as any;
+  const jwtService = {
+    verify: jest.fn(),
+    sign: jest.fn(() => 'newRT'),
+  } as unknown as jest.Mocked<JwtService>;
   const jwtConfig = {
     config: {
       refreshSecret: 's',
       refreshExpiresIn: '7d',
       accessExpiresIn: '15m',
     },
-  } as any;
+  } as unknown as jest.Mocked<JwtConfigService>;
   const passwordService = {
     verifyPassword: jest.fn(),
-    hashPassword: jest.fn(async (t: string) => 'hashed-' + t),
-  } as any;
+    hashPassword: jest.fn((t: string) => Promise.resolve('hashed-' + t)),
+  } as unknown as jest.Mocked<PasswordService>;
   const repo = {
     findById: jest.fn(),
     revokeAllForUser: jest.fn(),
     revoke: jest.fn(),
     create: jest.fn(),
-  } as any;
-  const usersService = { findById: jest.fn() } as any;
+  } as unknown as jest.Mocked<PrismaRefreshTokenRepository>;
+  const usersService = {
+    findById: jest.fn(),
+  } as unknown as jest.Mocked<UsersService>;
   const sessionService = {
     updateLastActivity: jest.fn(),
     updateRefreshToken: jest.fn(),
-  } as any;
-  const auditLogService = { record: jest.fn() } as any;
-  const logger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() } as any;
+  } as unknown as jest.Mocked<SessionService>;
+  const auditLogService = {
+    record: jest.fn(),
+  } as unknown as jest.Mocked<AuditLogService>;
+  const logger = {
+    warn: jest.fn(),
+    log: jest.fn(),
+    error: jest.fn(),
+  } as unknown as jest.Mocked<{
+    warn: jest.Mock;
+    log: jest.Mock;
+    error: jest.Mock;
+  }>;
 
   return {
     jwtService,
@@ -52,7 +75,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,
@@ -74,21 +96,40 @@ describe('RefreshTokensService.rotate', () => {
       token_hash: 'oldhash',
       revoked_at: null,
       expires_at: new Date(Date.now() + 10000),
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     repo.findById.mockResolvedValue(stored);
     passwordService.verifyPassword.mockResolvedValue(true);
-    repo.revoke.mockResolvedValue(true);
-    repo.create.mockResolvedValue(true);
+    repo.revoke.mockResolvedValue(undefined);
+    repo.create.mockResolvedValue({
+      id: 'newjti',
+      user_id: 'u1',
+      token_hash: 'newhash',
+      expires_at: new Date(Date.now() + 10000),
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
     usersService.findById.mockResolvedValue({
       id: 'u1',
       email: 'a@b.com',
       role_code: 'USER',
+      created_at: new Date(),
+      updated_at: new Date(),
+      username: 'user1',
+      full_name: 'User One',
+      password_hash: 'x',
+      status: 'ACTIVE',
     });
 
     const res = await svc.rotate('someToken');
     expect(res.success).toBe(true);
-    expect(repo.revoke).toHaveBeenCalledWith('oldjti');
-    expect(repo.create).toHaveBeenCalled();
+    expect(
+      (repo as unknown as { revoke: jest.Mock }).revoke,
+    ).toHaveBeenCalledWith('oldjti');
+    expect(
+      (repo as unknown as { create: jest.Mock }).create,
+    ).toHaveBeenCalled();
   });
 
   test('revoked token triggers revokeAllForUser and unauthorized', async () => {
@@ -100,7 +141,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,
@@ -115,14 +155,19 @@ describe('RefreshTokensService.rotate', () => {
     repo.findById.mockResolvedValue({
       id: 'x',
       user_id: 'u1',
+      token_hash: 'revokedhash',
       revoked_at: new Date(),
       expires_at: new Date(Date.now() + 10000),
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
     await expect(svc.rotate('t')).rejects.toMatchObject({
       errorCode: ErrorCode.UNAUTHORIZED,
     });
-    expect(repo.revokeAllForUser).toHaveBeenCalledWith('u1');
+    expect(
+      (repo as unknown as { revokeAllForUser: jest.Mock }).revokeAllForUser,
+    ).toHaveBeenCalledWith('u1');
   });
 
   test('expired token returns TOKEN_EXPIRED', async () => {
@@ -134,7 +179,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,
@@ -149,8 +193,11 @@ describe('RefreshTokensService.rotate', () => {
     repo.findById.mockResolvedValue({
       id: 'x',
       user_id: 'u1',
+      token_hash: 'h',
       revoked_at: null,
       expires_at: new Date(Date.now() - 1000),
+      created_at: new Date(Date.now() - 2000),
+      updated_at: new Date(Date.now() - 1500),
     });
 
     await expect(svc.rotate('t')).rejects.toMatchObject({
@@ -167,7 +214,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,
@@ -185,6 +231,8 @@ describe('RefreshTokensService.rotate', () => {
       token_hash: 'h',
       revoked_at: null,
       expires_at: new Date(Date.now() + 10000),
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     passwordService.verifyPassword.mockResolvedValue(false);
 
@@ -202,7 +250,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,
@@ -224,14 +271,22 @@ describe('RefreshTokensService.rotate', () => {
       token_hash: 'oldhash',
       revoked_at: null,
       expires_at: new Date(Date.now() + 10000),
-    };
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as RefreshTokenEntity;
     repo.findById.mockResolvedValue(stored);
     passwordService.verifyPassword.mockResolvedValue(true);
-    repo.revoke.mockResolvedValue(true);
+    repo.revoke.mockResolvedValue(undefined);
     usersService.findById.mockResolvedValue({
       id: 'u1',
       email: 'a@b.com',
       role_code: 'USER',
+      created_at: new Date(),
+      updated_at: new Date(),
+      username: 'user1',
+      full_name: 'User One',
+      password_hash: 'x',
+      status: 'ACTIVE',
     });
     // Make updateLastActivity throw
     sessionService.updateLastActivity.mockImplementation(() => {
@@ -241,7 +296,10 @@ describe('RefreshTokensService.rotate', () => {
     const res = await svc.rotate('t');
     expect(res.success).toBe(true);
     // session update attempted
-    expect(sessionService.updateLastActivity).toHaveBeenCalledWith('sess');
+    expect(
+      (sessionService as unknown as { updateLastActivity: jest.Mock })
+        .updateLastActivity,
+    ).toHaveBeenCalledWith('sess');
   });
 
   test('invalid signature returns UNAUTHORIZED', async () => {
@@ -253,7 +311,6 @@ describe('RefreshTokensService.rotate', () => {
       usersService,
       sessionService,
       auditLogService,
-      logger,
     } = makeMocks();
     const svc = new RefreshTokensService(
       jwtService,

@@ -42,7 +42,7 @@ export class AuthRateLimitGuard implements CanActivate {
   private async incrIp(key: string, ttl: number): Promise<number | null> {
     try {
       return await this.redis.incr(key, ttl);
-    } catch (e) {
+    } catch {
       this.logger.warn(
         'Redis INCR failed in rate limiter; allowing request (fail-open)',
       );

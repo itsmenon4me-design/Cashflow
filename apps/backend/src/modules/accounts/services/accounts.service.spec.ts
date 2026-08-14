@@ -82,8 +82,8 @@ describe('AccountsService (create)', () => {
     repo.findByUserAndName.mockResolvedValue(null);
     // capture the create argument to assert BigInt conversion and parity
     // Return a minimal AccountEntity; we will inspect the call arguments instead of the return value.
-    repo.create.mockImplementation(async () => {
-      return {
+    repo.create.mockImplementation(() =>
+      Promise.resolve({
         id: 'acc-2',
         user_id: 'user-1',
         name: 'Cash Test 2',
@@ -99,8 +99,8 @@ describe('AccountsService (create)', () => {
         created_at: new Date(),
         updated_at: new Date(),
         deleted_at: null,
-      };
-    });
+      }),
+    );
 
     await service.create('user-1', {
       name: 'Cash Test 2',

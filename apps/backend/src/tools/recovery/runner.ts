@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { classifyTransactions, Candidate } from './classifier';
+import { serializeBigInt } from './serializer';
 import fs from 'fs';
 import path from 'path';
 
@@ -38,7 +39,6 @@ async function main() {
   const report = { summary, candidates };
 
   // Serialize BigInt values to JSON-safe strings before writing report
-  const { serializeBigInt } = require('./serializer');
   const safeReport = serializeBigInt(report);
 
   fs.writeFileSync(outFile, JSON.stringify(safeReport, null, 2), 'utf-8');

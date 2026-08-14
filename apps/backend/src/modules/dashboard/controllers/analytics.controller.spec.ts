@@ -12,11 +12,13 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('AnalyticsController (security)', () => {
   let app: INestApplication;
-  let analyticsServiceMock: any;
+  let analyticsServiceMock: { getAnalytics: jest.Mock };
 
   const authGuard: CanActivate & { isAuthenticated: boolean } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user: { sub: string; role: string; email: string } }>();
       req.user = { sub: 'user-auth', role: 'USER', email: 'auth@example.com' };
       return authGuard.isAuthenticated;
     }),
@@ -64,14 +66,14 @@ describe('AnalyticsController (security)', () => {
       user_id: 'user-attacker',
       sub: 'user-attacker',
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/dashboard/analytics')
       .query(query)
       .expect(200);
 
     expect(analyticsServiceMock.getAnalytics).toHaveBeenCalled();
-    const [userId, start, end] =
-      analyticsServiceMock.getAnalytics.mock.calls[0];
+    const [userId, start, end] = analyticsServiceMock.getAnalytics.mock
+      .calls[0] as [string, Date, Date];
     expect(userId).toBe('user-auth');
     expect(start).toBeInstanceOf(Date);
     expect(end).toBeInstanceOf(Date);
@@ -79,7 +81,9 @@ describe('AnalyticsController (security)', () => {
 
   it('getAnalytics: identity comes from AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer()).get('/dashboard/analytics').expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/dashboard/analytics')
+      .expect(403);
     expect(analyticsServiceMock.getAnalytics).not.toHaveBeenCalled();
   });
 });

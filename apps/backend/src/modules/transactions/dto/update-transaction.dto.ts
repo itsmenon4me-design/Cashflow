@@ -28,7 +28,7 @@ export class UpdateTransactionDto {
 
   @ApiPropertyOptional({ description: 'Amount in cents' })
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') return value;
     if (typeof value === 'string') {
       const trimmed = value.trim();

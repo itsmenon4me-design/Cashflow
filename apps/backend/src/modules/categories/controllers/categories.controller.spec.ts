@@ -5,6 +5,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { Server } from 'net';
 import request from 'supertest';
 import { CategoriesController } from './categories.controller';
 import { CategoriesService } from '../services/categories.service';
@@ -12,14 +14,18 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('CategoriesController (security)', () => {
   let app: INestApplication;
-  let categoriesServiceMock: any;
+  let categoriesServiceMock: jest.Mocked<CategoriesService>;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<
+          Request & { user?: { sub: string; role: string; email: string } }
+        >();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -45,7 +51,7 @@ describe('CategoriesController (security)', () => {
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as any;
+    };
 
     categoriesServiceMock = {
       listAll: jest.fn().mockResolvedValue([categoryEntity]),
@@ -54,7 +60,7 @@ describe('CategoriesController (security)', () => {
       create: jest.fn().mockResolvedValue(categoryEntity),
       update: jest.fn().mockResolvedValue(categoryEntity),
       softDelete: jest.fn().mockResolvedValue(undefined),
-    };
+    } as unknown as jest.Mocked<CategoriesService>;
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CategoriesController],
@@ -83,55 +89,75 @@ describe('CategoriesController (security)', () => {
       type: 'EXPENSE',
       userId: 'user-attacker',
       user_id: 'user-attacker',
-    } as any;
-    await request(app.getHttpServer())
+    };
+    await request(app.getHttpServer() as Server)
       .post('/categories')
       .send(body)
       .expect(201);
 
-    expect(categoriesServiceMock.create).toHaveBeenCalled();
+    expect(
+      (categoriesServiceMock as unknown as { create: jest.Mock }).create,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.create.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('update: passes authenticated userId and ignores client-supplied userId', async () => {
-    const body = { name: 'Updated', userId: 'user-attacker' } as any;
-    await request(app.getHttpServer())
+    const body = { name: 'Updated', userId: 'user-attacker' };
+    await request(app.getHttpServer() as Server)
       .patch('/categories/cat1')
       .send(body)
       .expect(200);
 
-    expect(categoriesServiceMock.update).toHaveBeenCalled();
+    expect(
+      (categoriesServiceMock as unknown as { update: jest.Mock }).update,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.update.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('getById: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/categories/cat1').expect(200);
-    expect(categoriesServiceMock.getById).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .get('/categories/cat1')
+      .expect(200);
+    expect(
+      (categoriesServiceMock as unknown as { getById: jest.Mock }).getById,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('delete: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).delete('/categories/cat1').expect(200);
-    expect(categoriesServiceMock.softDelete).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .delete('/categories/cat1')
+      .expect(200);
+    expect(
+      (categoriesServiceMock as unknown as { softDelete: jest.Mock })
+        .softDelete,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.softDelete.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('list: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer()).get('/categories').expect(200);
-    expect(categoriesServiceMock.listAll).toHaveBeenCalled();
+    await request(app.getHttpServer() as Server)
+      .get('/categories')
+      .expect(200);
+    expect(
+      (categoriesServiceMock as unknown as { listAll: jest.Mock }).listAll,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.listAll.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('listByType: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/categories/type/EXPENSE')
       .expect(200);
-    expect(categoriesServiceMock.listByType).toHaveBeenCalled();
+    expect(
+      (categoriesServiceMock as unknown as { listByType: jest.Mock })
+        .listByType,
+    ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.listByType.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
   });

@@ -12,14 +12,26 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('TransfersController (security)', () => {
   let app: INestApplication;
-  let transfersServiceMock: any;
+  let transfersServiceMock: {
+    create: jest.Mock;
+    list: jest.Mock;
+    findById: jest.Mock;
+  };
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context.switchToHttp().getRequest<{
+        user?: {
+          sub: string;
+          role: string;
+          email: string;
+          sessionId: string;
+          jti: string;
+        };
+      }>();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -43,7 +55,7 @@ describe('TransfersController (security)', () => {
       amount_cents: '50000',
       reference: null,
       created_at: new Date(),
-    } as any;
+    };
 
     transfersServiceMock = {
       create: jest.fn().mockResolvedValue(transferResult),
@@ -80,19 +92,21 @@ describe('TransfersController (security)', () => {
       transaction_date: '2026-01-01',
       userId: 'user-attacker',
       user_id: 'user-attacker',
-    } as any;
-    await request(app.getHttpServer())
+    };
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post('/transfers')
       .send(body)
       .expect(201);
 
     expect(transfersServiceMock.create).toHaveBeenCalled();
-    const calledWithUserId = transfersServiceMock.create.mock.calls[0][0];
+    const calledWithUserId = (
+      transfersServiceMock.create.mock.calls[0] as unknown[]
+    )[0] as string;
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('create: never uses req.user.id (non-whitelisted claim)', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post('/transfers')
       .send({
         source_account_id: 'src1',
@@ -102,29 +116,34 @@ describe('TransfersController (security)', () => {
       .expect(201);
 
     expect(transfersServiceMock.create).toHaveBeenCalled();
-    const calledWithUserId = transfersServiceMock.create.mock.calls[0][0];
+    const calledWithUserId = (
+      transfersServiceMock.create.mock.calls[0] as unknown[]
+    )[0] as string;
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('list: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/transfers')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
     expect(transfersServiceMock.list).toHaveBeenCalled();
-    const calledWithUserId = transfersServiceMock.list.mock.calls[0][0];
+    const calledWithUserId = (
+      transfersServiceMock.list.mock.calls[0] as unknown[]
+    )[0] as string;
     expect(calledWithUserId).toBe('user-auth');
   });
 
   it('findById: passes authenticated userId and route id', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/transfers/t1')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
     expect(transfersServiceMock.findById).toHaveBeenCalled();
-    const [calledWithUserId, id] = transfersServiceMock.findById.mock.calls[0];
+    const [calledWithUserId, id] = transfersServiceMock.findById.mock
+      .calls[0] as [string, string];
     expect(calledWithUserId).toBe('user-auth');
     expect(id).toBe('t1');
   });

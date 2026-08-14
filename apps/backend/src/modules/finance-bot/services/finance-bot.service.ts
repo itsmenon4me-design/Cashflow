@@ -4,7 +4,6 @@ import { NotificationsService } from '../../notifications/services/notifications
 import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { BudgetAnalyticsService } from '../../reports/services/budget-analytics.service';
 import { PrismaService } from '../../../database/prisma.service';
-import { Prisma } from '../../../generated/prisma/client';
 
 @Injectable()
 export class FinanceBotService {

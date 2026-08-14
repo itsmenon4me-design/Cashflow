@@ -68,7 +68,7 @@ describe('AdminAuditRateLimitGuard', () => {
     await guard.canActivate(
       ctx({ path: '/audit-logs', query: { userId: 'victim-user' } }),
     );
-    const key = redisMock.incr.mock.calls[0][0] as string;
+    const key = (redisMock.incr.mock.calls[0] as unknown[])[0] as string;
     expect(key).toContain('admin-1');
     expect(key).toContain('/audit-logs');
     expect(key).not.toContain('victim-user');
@@ -78,11 +78,11 @@ describe('AdminAuditRateLimitGuard', () => {
     redisMock.incr.mockResolvedValue(1);
     await guard.canActivate(ctx());
     await guard.canActivate(ctx({ user: { sub: 'admin-2' } }));
-    expect(redisMock.incr.mock.calls[0][0]).toContain('admin-1');
-    expect(redisMock.incr.mock.calls[1][0]).toContain('admin-2');
-    expect(redisMock.incr.mock.calls[0][0]).not.toBe(
-      redisMock.incr.mock.calls[1][0],
-    );
+    const keyA = (redisMock.incr.mock.calls[0] as unknown[])[0] as string;
+    const keyB = (redisMock.incr.mock.calls[1] as unknown[])[0] as string;
+    expect(keyA).toContain('admin-1');
+    expect(keyB).toContain('admin-2');
+    expect(keyA).not.toBe(keyB);
   });
 
   it('passes the configured TTL to Redis', async () => {

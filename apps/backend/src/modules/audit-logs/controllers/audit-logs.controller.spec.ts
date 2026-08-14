@@ -24,12 +24,19 @@ import {
 
 describe('AuditLogsController (security)', () => {
   let app: INestApplication;
-  let auditLogsServiceMock: any;
+  let auditLogsServiceMock: {
+    findOwnByUser: jest.Mock;
+    findOwnById: jest.Mock;
+    findMany: jest.Mock;
+    findById: jest.Mock;
+  };
   let moduleRef: TestingModule;
 
   const authGuard: CanActivate & { isAuthenticated: boolean; role: string } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user: { sub: string; role: string; email: string } }>();
       req.user = {
         sub: 'user-auth',
         role: authGuard.role,
@@ -56,7 +63,7 @@ describe('AuditLogsController (security)', () => {
     response_status: 201,
     metadata: null,
     created_at: new Date('2026-08-01T00:00:00Z'),
-  } as any;
+  };
 
   beforeEach(async () => {
     auditLogsServiceMock = {
@@ -101,14 +108,18 @@ describe('AuditLogsController (security)', () => {
       user_id: attackerId,
       sub: attackerId,
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs/me')
       .query(query)
       .expect(200);
 
     expect(auditLogsServiceMock.findOwnByUser).toHaveBeenCalled();
-    const [userId, filter, pagination] =
-      auditLogsServiceMock.findOwnByUser.mock.calls[0];
+    const [userId, filter, pagination] = auditLogsServiceMock.findOwnByUser.mock
+      .calls[0] as [
+      string,
+      { userId?: string },
+      { page: number; limit: number },
+    ];
     expect(userId).toBe('user-auth');
     expect(filter.userId).toBeUndefined();
     expect(pagination).toEqual({ page: 1, limit: 10 });
@@ -116,52 +127,61 @@ describe('AuditLogsController (security)', () => {
 
   it('myList: identity comes from AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer()).get('/audit-logs/me').expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/audit-logs/me')
+      .expect(403);
     expect(auditLogsServiceMock.findOwnByUser).not.toHaveBeenCalled();
   });
 
   it('myFindOne: passes authenticated userId and ignores attacker-supplied userId', async () => {
     const query = { userId: 'user-attacker', user_id: 'user-attacker' };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs/me/550e8400-e29b-41d4-a716-446655440000')
       .query(query)
       .expect(200);
 
     expect(auditLogsServiceMock.findOwnById).toHaveBeenCalled();
-    const [userId, id] = auditLogsServiceMock.findOwnById.mock.calls[0];
+    const [userId, id] = auditLogsServiceMock.findOwnById.mock.calls[0] as [
+      string,
+      string,
+    ];
     expect(userId).toBe('user-auth');
     expect(id).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
 
   it('myFindOne: identity comes from AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs/me/550e8400-e29b-41d4-a716-446655440000')
       .expect(403);
     expect(auditLogsServiceMock.findOwnById).not.toHaveBeenCalled();
   });
 
   it('list: blocks non-SUPER_ADMIN roles', async () => {
-    await request(app.getHttpServer()).get('/audit-logs').expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/audit-logs')
+      .expect(403);
     expect(auditLogsServiceMock.findMany).not.toHaveBeenCalled();
   });
 
   it('list: allows SUPER_ADMIN and forwards filter including userId', async () => {
     authGuard.role = 'SUPER_ADMIN';
     const targetId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs')
       .query({ userId: targetId, action: 'AUTH_LOGIN' })
       .expect(200);
 
     expect(auditLogsServiceMock.findMany).toHaveBeenCalled();
-    const [filter] = auditLogsServiceMock.findMany.mock.calls[0];
+    const [filter] = auditLogsServiceMock.findMany.mock.calls[0] as [
+      { userId?: string; action?: string },
+    ];
     expect(filter.userId).toBe(targetId);
     expect(filter.action).toBe('AUTH_LOGIN');
   });
 
   it('findOne: blocks non-SUPER_ADMIN roles', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs/550e8400-e29b-41d4-a716-446655440000')
       .expect(403);
     expect(auditLogsServiceMock.findById).not.toHaveBeenCalled();
@@ -169,7 +189,7 @@ describe('AuditLogsController (security)', () => {
 
   it('findOne: allows SUPER_ADMIN to read any audit log by id', async () => {
     authGuard.role = 'SUPER_ADMIN';
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs/550e8400-e29b-41d4-a716-446655440000')
       .expect(200);
     expect(auditLogsServiceMock.findById).toHaveBeenCalledWith(
@@ -179,7 +199,7 @@ describe('AuditLogsController (security)', () => {
 
   it('list: rejects a malformed (non-UUID) userId with 400, no service call', async () => {
     authGuard.role = 'SUPER_ADMIN';
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/audit-logs')
       .query({ userId: 'not-a-uuid' })
       .expect(400);
@@ -193,16 +213,21 @@ describe('AuditLogsController (security)', () => {
       total: 0,
     });
     const ghostId = '99999999-8888-4777-8666-555555555555';
-    const response = await request(app.getHttpServer())
+    const response = await request(
+      app.getHttpServer() as Parameters<typeof request>[0],
+    )
       .get('/audit-logs')
       .query({ userId: ghostId })
       .expect(200);
 
     expect(auditLogsServiceMock.findMany).toHaveBeenCalled();
-    const [filter] = auditLogsServiceMock.findMany.mock.calls[0];
+    const [filter] = auditLogsServiceMock.findMany.mock.calls[0] as [
+      { userId?: string },
+    ];
     expect(filter.userId).toBe(ghostId);
-    expect(response.body.data).toEqual([]);
-    expect(response.body.meta.total).toBe(0);
+    const body = response.body as { data: unknown[]; meta: { total: number } };
+    expect(body.data).toEqual([]);
+    expect(body.meta.total).toBe(0);
   });
 
   const auditMetaOf = (handler: unknown): AuditMetadata | undefined =>
@@ -213,8 +238,15 @@ describe('AuditLogsController (security)', () => {
         AuditLogsController,
       ]);
 
+  const prototypeMethods = AuditLogsController.prototype as unknown as {
+    list: () => unknown;
+    findOne: () => unknown;
+    myList: () => unknown;
+    myFindOne: () => unknown;
+  };
+
   it('admin list is marked @Audit AUDIT_VIEW and never targets the admin own sub', () => {
-    const meta = auditMetaOf(AuditLogsController.prototype.list);
+    const meta = auditMetaOf(prototypeMethods.list);
     expect(meta?.action).toBe(AuditAction.AUDIT_VIEW);
     expect(meta?.module).toBe(AuditModule.AUDIT);
     expect(meta?.entityType).toBe(AuditEntityType.AUDIT_LOG);
@@ -224,28 +256,26 @@ describe('AuditLogsController (security)', () => {
   });
 
   it('admin findOne is marked @Audit AUDIT_VIEW', () => {
-    const meta = auditMetaOf(AuditLogsController.prototype.findOne);
+    const meta = auditMetaOf(prototypeMethods.findOne);
     expect(meta?.action).toBe(AuditAction.AUDIT_VIEW);
     expect(meta?.module).toBe(AuditModule.AUDIT);
     expect(meta?.entityType).toBe(AuditEntityType.AUDIT_LOG);
   });
 
   it('/me endpoints are NOT marked @Audit AUDIT_VIEW', () => {
-    expect(auditMetaOf(AuditLogsController.prototype.myList)).toBeUndefined();
-    expect(
-      auditMetaOf(AuditLogsController.prototype.myFindOne),
-    ).toBeUndefined();
+    expect(auditMetaOf(prototypeMethods.myList)).toBeUndefined();
+    expect(auditMetaOf(prototypeMethods.myFindOne)).toBeUndefined();
   });
 
   it('admin routes are guarded by AdminAuditRateLimitGuard alongside auth guards', () => {
     const listGuards = Reflect.getMetadata(
       '__guards__',
-      AuditLogsController.prototype.list,
-    );
+      prototypeMethods.list,
+    ) as unknown[] | undefined;
     const findOneGuards = Reflect.getMetadata(
       '__guards__',
-      AuditLogsController.prototype.findOne,
-    );
+      prototypeMethods.findOne,
+    ) as unknown[] | undefined;
     for (const guards of [listGuards, findOneGuards]) {
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
@@ -256,12 +286,12 @@ describe('AuditLogsController (security)', () => {
   it('/me route guards remain JwtAuthGuard only', () => {
     const myListGuards = Reflect.getMetadata(
       '__guards__',
-      AuditLogsController.prototype.myList,
-    );
+      prototypeMethods.myList,
+    ) as unknown[] | undefined;
     const myFindOneGuards = Reflect.getMetadata(
       '__guards__',
-      AuditLogsController.prototype.myFindOne,
-    );
+      prototypeMethods.myFindOne,
+    ) as unknown[] | undefined;
     expect(myListGuards).toEqual([JwtAuthGuard]);
     expect(myFindOneGuards).toEqual([JwtAuthGuard]);
   });

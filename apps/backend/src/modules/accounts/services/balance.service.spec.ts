@@ -1,13 +1,30 @@
 import { BalanceService } from './balance.service';
+import type { PrismaService } from '../../../database/prisma.service';
+
+interface MockedAccountRecord {
+  id: string;
+  opening_balance_cents: bigint | number;
+  current_balance_cents?: bigint | number;
+}
+
+interface BalancePrismaMocks {
+  account: {
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+  transaction: {
+    aggregate: jest.Mock;
+  };
+}
 
 describe('BalanceService.recalculateAccount', () => {
   it('recalculates balance with bigint aggregates', async () => {
-    const accountRecord = {
+    const accountRecord: MockedAccountRecord = {
       id: 'acc-1',
       opening_balance_cents: 100000n,
-    } as any;
+    };
 
-    const prismaMock: any = {
+    const prismaMock: BalancePrismaMocks = {
       account: {
         findUnique: jest.fn().mockResolvedValue(accountRecord),
         update: jest.fn().mockResolvedValue({}),
@@ -22,7 +39,7 @@ describe('BalanceService.recalculateAccount', () => {
       },
     };
 
-    const svc = new BalanceService(prismaMock);
+    const svc = new BalanceService(prismaMock as unknown as PrismaService);
 
     const result = await svc.recalculateAccount('acc-1');
 
@@ -34,12 +51,12 @@ describe('BalanceService.recalculateAccount', () => {
   });
 
   it('handles null aggregate sums and numeric sums (non-bigint)', async () => {
-    const accountRecord = {
+    const accountRecord: MockedAccountRecord = {
       id: 'acc-2',
       opening_balance_cents: 100000, // number, not bigint
-    } as any;
+    };
 
-    const prismaMock: any = {
+    const prismaMock: BalancePrismaMocks = {
       account: {
         findUnique: jest.fn().mockResolvedValue(accountRecord),
         update: jest.fn().mockResolvedValue({}),
@@ -54,7 +71,7 @@ describe('BalanceService.recalculateAccount', () => {
       },
     };
 
-    const svc = new BalanceService(prismaMock);
+    const svc = new BalanceService(prismaMock as unknown as PrismaService);
 
     const result = await svc.recalculateAccount('acc-2');
 

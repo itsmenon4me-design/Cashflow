@@ -38,7 +38,11 @@ describe('recovery classifier - pure classifyRecord', () => {
   test('IDR divisible by 100 with account opening equal candidate -> LIKELY_CORRUPTED', () => {
     const stored = 5000000n; // buggy scaled value
     const candidate = stored / 100n; // 50000n
-    const peers: Array<any> = [];
+    const peers: Array<{
+      id: string;
+      amount: bigint;
+      created_at: Date | null;
+    }> = [];
     const res = classifyRecord(
       stored,
       'IDR',

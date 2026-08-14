@@ -1,10 +1,10 @@
 import { PrismaDashboardRepository } from './prisma-dashboard.repository';
 import { DashboardSummaryResponseDto } from '../dto/dashboard-summary-response.dto';
-import { TransactionType } from '../../../generated/prisma/client';
+import type { PrismaService } from '../../../database/prisma.service';
 
 describe('PrismaDashboardRepository.getSummary', () => {
   it('aggregates IDR accounts correctly', async () => {
-    const prismaMock: any = {
+    const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -30,7 +30,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res: DashboardSummaryResponseDto = await repo.getSummary(
       'u1',
       new Date('2026-08-01'),
@@ -43,7 +45,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
   });
 
   it('aggregates per-currency separately and does not mix USD and IDR', async () => {
-    const prismaMock: any = {
+    const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -69,7 +71,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u1',
       new Date('2026-08-01'),
@@ -96,15 +100,16 @@ describe('PrismaDashboardRepository.getSummary', () => {
       // a deleted account SHOULD NOT be returned by the prisma query; if it were, the repository logic would include it — but we assert the query was made with deleted_at: null
     ]);
     const txFind = jest.fn().mockResolvedValue([]);
-    const accountCount = jest.fn();
 
-    const prismaMock: any = {
+    const prismaMock = {
       account: { findMany: accountFind },
       transaction: { findMany: txFind, count: jest.fn().mockResolvedValue(0) },
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u2',
       new Date('2026-08-01'),
@@ -113,9 +118,11 @@ describe('PrismaDashboardRepository.getSummary', () => {
 
     expect(accountFind).toHaveBeenCalledTimes(1);
     // Verify repository asked prisma to exclude deleted accounts
-    const callArgs = accountFind.mock.calls[0][0];
-    expect(callArgs.where).toBeDefined();
-    expect(callArgs.where.deleted_at).toBeNull();
+    const callArgs = (
+      accountFind.mock.calls[0] as unknown[] | undefined
+    )?.[0] as { where?: { deleted_at?: unknown } } | undefined;
+    expect(callArgs?.where).toBeDefined();
+    expect(callArgs?.where?.deleted_at).toBeNull();
 
     // Validate result still contains only active account totals
     const idrEntry = res.by_currency!.find((b) => b.currency === 'IDR');
@@ -131,13 +138,15 @@ describe('PrismaDashboardRepository.getSummary', () => {
       },
     ]);
     const accFind = jest.fn().mockResolvedValue([]);
-    const prismaMock: any = {
+    const prismaMock = {
       account: { findMany: accFind },
       transaction: { findMany: txFind, count: jest.fn().mockResolvedValue(1) },
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u3',
       new Date('2026-08-01'),
@@ -145,8 +154,10 @@ describe('PrismaDashboardRepository.getSummary', () => {
     );
 
     expect(txFind).toHaveBeenCalledTimes(2); // income and expense queries
-    const incomeCallArgs = txFind.mock.calls[0][0];
-    expect(incomeCallArgs.where.deleted_at).toBeNull();
+    const incomeCallArgs = (
+      txFind.mock.calls[0] as unknown[] | undefined
+    )?.[0] as { where?: { deleted_at?: unknown } } | undefined;
+    expect(incomeCallArgs?.where?.deleted_at).toBeNull();
 
     // Confirm income aggregated properly
     const idrEntry = res.by_currency!.find((b) => b.currency === 'IDR');
@@ -154,7 +165,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
   });
 
   it('returns IDR zeroed when no accounts exist (empty dataset)', async () => {
-    const prismaMock: any = {
+    const prismaMock = {
       account: { findMany: jest.fn().mockResolvedValue([]) },
       transaction: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -163,7 +174,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u4',
       new Date('2026-08-01'),
@@ -179,7 +192,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
 
   it('preserves BigInt precision and returns stringified totals', async () => {
     const big = BigInt('9007199254740993');
-    const prismaMock: any = {
+    const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -198,7 +211,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u5',
       new Date('2026-08-01'),
@@ -213,7 +228,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
 
   it('selects primary currency deterministically (default account preference then insertion order)', async () => {
     // Case 1: default account exists
-    const prismaMockDefault: any = {
+    const prismaMockDefault = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -238,7 +253,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       },
       category: { count: jest.fn().mockResolvedValue(0) },
     };
-    const repoDefault = new PrismaDashboardRepository(prismaMockDefault);
+    const repoDefault = new PrismaDashboardRepository(
+      prismaMockDefault as unknown as PrismaService,
+    );
     const resDefault = await repoDefault.getSummary(
       'u6',
       new Date('2026-08-01'),
@@ -247,7 +264,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
     expect(resDefault.currency).toBe('USD');
 
     // Case 2: no default, insertion order determines primary
-    const prismaMockOrder: any = {
+    const prismaMockOrder = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -272,7 +289,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       },
       category: { count: jest.fn().mockResolvedValue(0) },
     };
-    const repoOrder = new PrismaDashboardRepository(prismaMockOrder);
+    const repoOrder = new PrismaDashboardRepository(
+      prismaMockOrder as unknown as PrismaService,
+    );
     const resOrder = await repoOrder.getSummary(
       'u7',
       new Date('2026-08-01'),
@@ -282,7 +301,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
   });
 
   it('ensures IDR and USD values are not double-scaled during aggregation', async () => {
-    const prismaMock: any = {
+    const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -308,7 +327,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       category: { count: jest.fn().mockResolvedValue(0) },
     };
 
-    const repo = new PrismaDashboardRepository(prismaMock);
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
     const res = await repo.getSummary(
       'u8',
       new Date('2026-08-01'),

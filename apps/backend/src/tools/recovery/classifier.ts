@@ -1,7 +1,6 @@
-import path from 'path';
-const { PrismaClient } = require(
-  path.join(__dirname, '..', '..', 'generated', 'prisma', 'client'),
-);
+import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 export type Classification =
   | 'SAFE'
@@ -26,8 +25,6 @@ export interface Candidate {
 }
 
 // Create PrismaClient with PrismaPg adapter using pg Pool for direct DB connection
-const { PrismaPg } = require('@prisma/adapter-pg');
-const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });

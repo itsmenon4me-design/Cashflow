@@ -55,7 +55,7 @@ describe('BudgetAnalyticsService - regression money invariants', () => {
     const budgets: any[] = [];
 
     const transaction = {
-      groupBy: jest.fn().mockImplementation((args: any) => Promise.resolve([])),
+      groupBy: jest.fn(() => Promise.resolve([])),
     };
 
     const category = { findMany: jest.fn().mockResolvedValue([]) };
@@ -79,11 +79,11 @@ describe('BudgetAnalyticsService - regression money invariants', () => {
 
     // verify groupBy was called and where.account.currency equals 'USD'
     expect(transaction.groupBy).toHaveBeenCalled();
-    const callArg = transaction.groupBy.mock.calls[0][0];
-    const where = callArg?.where as Record<string, unknown> | undefined;
-    expect(where).toBeDefined();
+    const callArg = (transaction.groupBy.mock.calls as unknown[][])[0]?.[0] as
+      { where?: { account?: unknown } } | undefined;
+    expect(callArg?.where).toBeDefined();
     // account filter should be present
-    expect(where!['account']).toBeDefined();
-    expect(where!['account']).toEqual({ currency: 'USD' });
+    expect(callArg?.where?.['account']).toBeDefined();
+    expect(callArg?.where?.['account']).toEqual({ currency: 'USD' });
   });
 });

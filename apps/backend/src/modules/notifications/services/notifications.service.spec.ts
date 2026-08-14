@@ -3,6 +3,7 @@ import type {
   NotificationCreateData,
   NotificationsRepository,
 } from '../repositories/notifications.repository.interface';
+import { PrismaNotificationsRepository } from '../repositories/prisma-notifications.repository';
 import { NotificationEntity } from '../entities/notification.entity';
 import { NotificationsService } from './notifications.service';
 
@@ -46,13 +47,17 @@ describe('NotificationsService.createIfNotExists', () => {
 
     repository.create
       .mockResolvedValueOnce(existingNotification)
-      .mockImplementationOnce(async () => {
-        const error: any = new Error('Unique constraint failed');
+      .mockImplementationOnce(() => {
+        const error = new Error('Unique constraint failed') as Error & {
+          code: string;
+        };
         error.code = 'P2002';
         throw error;
       });
 
-    const service = new NotificationsService(repository as any);
+    const service = new NotificationsService(
+      repository as unknown as PrismaNotificationsRepository,
+    );
 
     const results = await Promise.all([
       service.createIfNotExists(

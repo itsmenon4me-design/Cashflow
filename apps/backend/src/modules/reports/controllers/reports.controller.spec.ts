@@ -5,6 +5,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { Server } from 'net';
 import request from 'supertest';
 import { ReportsController } from './reports.controller';
 import { MonthlyReportService } from '../services/monthly-report.service';
@@ -15,16 +17,31 @@ import { ReportExportService } from '../services/report-export.service';
 import { FinancialInsightsService } from '../services/financial-insights.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
+type ReportsServiceMocks = {
+  getMonthlyReport: jest.MockedFunction<
+    MonthlyReportService['getMonthlyReport']
+  >;
+  getBreakdown: jest.MockedFunction<CategoryBreakdownService['getBreakdown']>;
+  getTrend: jest.MockedFunction<CashflowTrendService['getTrend']>;
+  analyzeMonth: jest.MockedFunction<BudgetAnalyticsService['analyzeMonth']>;
+  export: jest.MockedFunction<ReportExportService['export']>;
+  getInsights: jest.MockedFunction<FinancialInsightsService['getInsights']>;
+};
+
 describe('ReportsController (security)', () => {
   let app: INestApplication;
-  let mocks: any;
+  let mocks: ReportsServiceMocks;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
     shouldAttachUser: boolean;
   } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<
+          Request & { user?: { sub: string; role: string; email: string } }
+        >();
       if (authGuard.shouldAttachUser) {
         req.user = {
           sub: 'user-auth',
@@ -94,7 +111,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('monthly: passes authenticated userId and ignores client-supplied userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/reports/monthly?month=6&year=2026')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
@@ -105,7 +122,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('category-breakdown: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/reports/category-breakdown?type=expense&month=6&year=2026')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
@@ -116,7 +133,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('cashflow-trend: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get(
         '/reports/cashflow-trend?type=monthly&startDate=2026-01-01&endDate=2026-01-31',
       )
@@ -129,7 +146,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('budget-analysis: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/reports/budget-analysis?month=6&year=2026')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
@@ -140,7 +157,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('export: passes authenticated userId in export options', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/reports/export?type=monthly&format=json')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
@@ -151,7 +168,7 @@ describe('ReportsController (security)', () => {
   });
 
   it('financial-insights: passes authenticated userId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get('/reports/financial-insights')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);

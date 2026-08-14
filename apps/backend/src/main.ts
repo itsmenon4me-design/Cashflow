@@ -4,6 +4,7 @@ import { setupSwagger } from './common/swagger/swagger.setup';
 import { NestFactory } from '@nestjs/core';
 import compression from 'compression';
 import helmet from 'helmet';
+import type { Express } from 'express';
 import { AppModule } from './app.module';
 import { APP_NAME } from './common/constants/app.constants';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -38,8 +39,8 @@ async function bootstrap(): Promise<void> {
   // Trust proxy configuration: respect SECURITY.trustProxy to avoid blind trust of X-Forwarded-* headers
   // When true, app will trust upstream (e.g., Nginx) and use forwarded IPs; keep false for local development
   // `app` is an INestApplication whose underlying platform exposes Express APIs when using the default adapter.
-  // Cast to any for the Express-specific `set` API used here to avoid TS errors in environments with other adapters.
-  (app as any).set('trust proxy', config.security.trustProxy);
+  const expressAdapter = app.getHttpAdapter().getInstance() as Express;
+  expressAdapter.set('trust proxy', config.security.trustProxy);
 
   // Global validation pipe configured for the application
   // Use the centralized AppValidationPipe to ensure consistent error format and transformations

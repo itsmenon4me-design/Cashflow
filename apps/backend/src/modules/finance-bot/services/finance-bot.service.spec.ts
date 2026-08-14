@@ -5,16 +5,6 @@ import type { UserSettingsService } from '../../settings/services/user-settings.
 import type { BudgetAnalyticsService } from '../../reports/services/budget-analytics.service';
 import type { PrismaService } from '../../../database/prisma.service';
 
-type TransactionCountArgs = {
-  where: {
-    user_id?: string;
-    transaction_date?: {
-      gte: Date;
-      lt?: Date;
-    };
-  };
-};
-
 // A permissive/optional version used by mocks: Prisma count args are optional in many calls.
 type MaybeTransactionCountArgs = {
   where?: {
@@ -26,16 +16,26 @@ type MaybeTransactionCountArgs = {
   };
 };
 
+// Loosely typed prisma delegate mock: tests reassign jest.fn() implementations.
+interface PrismaDelegateMocks {
+  userSettings: {
+    findMany: jest.Mock;
+  };
+  transaction: {
+    count: jest.Mock;
+    findFirst: jest.Mock;
+  };
+}
+
 const makeMocks = () => {
   const notifications = {
     createIfNotExists: jest.fn(async () =>
       Promise.resolve({ id: 'notification-1' }),
     ),
-    findByDedupeKey: jest.fn(async () => null),
+    findByDedupeKey: jest.fn(() => Promise.resolve(null)),
   } as unknown as NotificationsService;
 
-  // Keep the mock object loosely typed locally so we can assign jest.fn() in tests
-  const prisma = {
+  const prisma: PrismaDelegateMocks = {
     userSettings: {
       findMany: jest.fn(),
     },
@@ -43,7 +43,7 @@ const makeMocks = () => {
       count: jest.fn(),
       findFirst: jest.fn(),
     },
-  } as unknown as any; // narrow cast avoided here; cast to PrismaService occurs when creating the service
+  };
 
   const userSettings = {
     getSettings: jest.fn(),
@@ -61,7 +61,7 @@ const makeService = (mocks: ReturnType<typeof makeMocks>) =>
     mocks.notifications,
     mocks.userSettings,
     mocks.budgetAnalytics,
-    mocks.prisma,
+    mocks.prisma as unknown as PrismaService,
   );
 
 describe('FinanceBotService.runDailyRecordingReminders', () => {

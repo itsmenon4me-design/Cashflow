@@ -9,7 +9,7 @@ import { ErrorCode } from '../../common/errors/error-codes';
 
 describe('UsersService (create)', () => {
   let service: UsersService;
-  const mockRepo: any = {
+  const mockRepo: { count: jest.Mock; create: jest.Mock } = {
     count: jest.fn(),
     create: jest.fn(),
   };

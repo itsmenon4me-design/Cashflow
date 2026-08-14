@@ -11,11 +11,13 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 describe('DashboardController (security)', () => {
   let app: INestApplication;
-  let dashboardServiceMock: any;
+  let dashboardServiceMock: { getSummaryForUser: jest.Mock };
 
   const authGuard: CanActivate & { isAuthenticated: boolean } = {
     canActivate: jest.fn((context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
+      const req = context
+        .switchToHttp()
+        .getRequest<{ user: { sub: string; role: string; email: string } }>();
       req.user = { sub: 'user-auth', role: 'USER', email: 'auth@example.com' };
       return authGuard.isAuthenticated;
     }),
@@ -63,7 +65,7 @@ describe('DashboardController (security)', () => {
       user_id: 'user-attacker',
       sub: 'user-attacker',
     };
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
       .get('/dashboard/summary')
       .query(query)
       .expect(200);
@@ -75,7 +77,9 @@ describe('DashboardController (security)', () => {
 
   it('getSummary: identity comes from AuthUser context, not arbitrary request data', async () => {
     authGuard.isAuthenticated = false;
-    await request(app.getHttpServer()).get('/dashboard/summary').expect(403);
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get('/dashboard/summary')
+      .expect(403);
     expect(dashboardServiceMock.getSummaryForUser).not.toHaveBeenCalled();
   });
 });

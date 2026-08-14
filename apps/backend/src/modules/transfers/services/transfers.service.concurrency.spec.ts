@@ -1,6 +1,31 @@
 import { TransfersService } from './transfers.service';
 import type { PrismaService } from '../../../database/prisma.service';
-import { TransactionType } from '../../../generated/prisma/client';
+import type { AuditLogService } from '../../audit-logs/services/audit-log.service';
+import type { TransactionValidationService } from '../../transactions/services/validation/transaction-validation.service';
+
+interface ConcurrencyAccountState {
+  id: string;
+  user_id: string;
+  current_balance_cents: bigint;
+  deleted_at: null | Date;
+  is_active: boolean;
+  currency: string;
+}
+
+type AccountStateMap = Record<string, ConcurrencyAccountState>;
+
+interface ConcurrencyTx {
+  transaction: { create: jest.Mock };
+  category: { findFirst: jest.Mock };
+  account: { updateMany: jest.Mock; update: jest.Mock };
+  _rollback: () => void;
+}
+
+interface ConcurrencyPrismaMocks {
+  account: { findUnique: jest.Mock };
+  $transaction: jest.Mock;
+  transaction: { create: jest.Mock; findMany: jest.Mock };
+}
 
 // Concurrency unit test: simulate two concurrent transfers from same source account
 // and assert final balance equals initial - sum(amounts). This is a test-first check
@@ -14,17 +39,7 @@ describe('TransfersService - concurrency (mocked) race detection', () => {
     const initialDstBal = BigInt(50000);
 
     // Shared in-memory account state to simulate DB-side atomic conditional updates
-    const accountsState: Record<
-      string,
-      {
-        id: string;
-        user_id: string;
-        current_balance_cents: bigint;
-        deleted_at: null | Date;
-        is_active: boolean;
-        currency: string;
-      }
-    > = {
+    const accountsState: AccountStateMap = {
       src: {
         id: 'src',
         user_id: 'u1',
@@ -44,136 +59,140 @@ describe('TransfersService - concurrency (mocked) race detection', () => {
     };
 
     // Mock prisma to operate on the shared accountsState inside each transactional callback
-    const prismaMock: Partial<PrismaService> = {
+    const prismaMock: ConcurrencyPrismaMocks = {
       account: {
         // findUnique called before $transaction in TransfersService; return a snapshot of the account
-        findUnique: jest.fn().mockImplementation(({ where }: any) => {
-          const a = accountsState[where.id];
+        findUnique: jest.fn((args: { where: { id: string } }) => {
+          const a = accountsState[args.where.id];
           return Promise.resolve(a ? { ...a } : null);
         }),
-      } as any,
+      },
       // $transaction executes callback with a tx that manipulates the shared accountsState atomically
-      $transaction: jest.fn().mockImplementation(async (cb: any) => {
-        // Snapshot accountsState to allow rollback in case of thrown error
-        const snapshot: Record<string, bigint> = {};
-        for (const k of Object.keys(accountsState)) {
-          snapshot[k] = accountsState[k].current_balance_cents;
-        }
+      $transaction: jest.fn((cb: (tx: ConcurrencyTx) => Promise<unknown>) => {
+        // per-transaction change log to support rollback without undoing other committed txs
+        const changes: { id: string; before: bigint; after: bigint }[] = [];
+        const recordChange = (id: string, before: bigint, after: bigint) => {
+          changes.push({ id, before, after });
+        };
 
-        const tx = (() => {
-          // per-transaction change log to support rollback without undoing other committed txs
-          const changes: { id: string; before: bigint; after: bigint }[] = [];
-          const recordChange = (id: string, before: bigint, after: bigint) => {
-            changes.push({ id, before, after });
-          };
-
-          return {
-            transaction: {
-              create: jest.fn().mockImplementation((args: any) => {
-                return Promise.resolve({
-                  id: cryptoId(),
-                  ...args.data,
-                  created_at: new Date(),
-                });
-              }),
-            },
-            category: { findFirst: jest.fn().mockResolvedValue(null) },
-            account: {
-              // updateMany simulates conditional atomic decrement: if balance >= amount then decrement and return count:1
-              updateMany: jest
-                .fn()
-                .mockImplementation(async ({ where, data }: any) => {
-                  const id = where.id;
-                  const gte = where.current_balance_cents?.gte as
-                    bigint | undefined;
-                  const dec = data.current_balance_cents?.decrement as
-                    bigint | undefined;
-                  // ensure account exists
-                  const acc = accountsState[id];
-                  if (!acc) return { count: 0 };
-                  // check condition
-                  if (gte !== undefined) {
-                    if (acc.current_balance_cents >= gte) {
-                      if (dec !== undefined) {
-                        const before = acc.current_balance_cents;
-                        const after = before - dec;
-                        acc.current_balance_cents = after;
-                        recordChange(id, before, after);
-                      }
-                      return { count: 1 };
-                    }
-                    return { count: 0 };
-                  }
-                  // fallback: no condition, apply decrement if present
-                  if (dec !== undefined) {
-                    const before = acc.current_balance_cents;
-                    const after = before - dec;
-                    acc.current_balance_cents = after;
-                    recordChange(id, before, after);
-                    return { count: 1 };
-                  }
-                  return { count: 0 };
-                }),
-              // update handles increment/decrement or absolute set
-              update: jest
-                .fn()
-                .mockImplementation(async ({ where, data }: any) => {
-                  const id = where.id;
-                  const acc = accountsState[id];
-                  if (!acc) return null;
-                  const v = data.current_balance_cents;
-                  if (v && typeof v === 'object') {
-                    if ('increment' in v) {
+        const tx: ConcurrencyTx = {
+          transaction: {
+            create: jest.fn((args: { data: Record<string, unknown> }) => {
+              return Promise.resolve({
+                id: cryptoId(),
+                ...args.data,
+                created_at: new Date(),
+              });
+            }),
+          },
+          category: { findFirst: jest.fn(() => Promise.resolve(null)) },
+          account: {
+            // updateMany simulates conditional atomic decrement: if balance >= amount then decrement and return count:1
+            updateMany: jest.fn(
+              (args: {
+                where: {
+                  id: string;
+                  current_balance_cents?: { gte?: bigint };
+                };
+                data: { current_balance_cents?: { decrement?: bigint } };
+              }) => {
+                const id = args.where.id;
+                const gte = args.where.current_balance_cents?.gte;
+                const dec = args.data.current_balance_cents?.decrement;
+                // ensure account exists
+                const acc = accountsState[id];
+                if (!acc) return Promise.resolve({ count: 0 });
+                // check condition
+                if (gte !== undefined) {
+                  if (acc.current_balance_cents >= gte) {
+                    if (dec !== undefined) {
                       const before = acc.current_balance_cents;
-                      const after = before + (v.increment as bigint);
-                      acc.current_balance_cents = after;
-                      recordChange(id, before, after);
-                    } else if ('decrement' in v) {
-                      const before = acc.current_balance_cents;
-                      const after = before - (v.decrement as bigint);
+                      const after = before - dec;
                       acc.current_balance_cents = after;
                       recordChange(id, before, after);
                     }
-                  } else if (typeof v === 'bigint') {
-                    const before = acc.current_balance_cents;
-                    const after = v;
-                    acc.current_balance_cents = after;
-                    recordChange(id, before, after);
+                    return Promise.resolve({ count: 1 });
                   }
-                  return {
-                    id: acc.id,
-                    current_balance_cents: acc.current_balance_cents,
-                  };
-                }),
-            },
-            _rollback: () => {
-              // revert only those changes that still match the 'after' value to avoid undoing other commits
-              for (let i = changes.length - 1; i >= 0; i--) {
-                const c = changes[i];
-                if (accountsState[c.id].current_balance_cents === c.after) {
-                  accountsState[c.id].current_balance_cents = c.before;
+                  return Promise.resolve({ count: 0 });
                 }
+                // fallback: no condition, apply decrement if present
+                if (dec !== undefined) {
+                  const before = acc.current_balance_cents;
+                  const after = before - dec;
+                  acc.current_balance_cents = after;
+                  recordChange(id, before, after);
+                  return Promise.resolve({ count: 1 });
+                }
+                return Promise.resolve({ count: 0 });
+              },
+            ),
+            // update handles increment/decrement or absolute set
+            update: jest.fn(
+              (args: {
+                where: { id: string };
+                data: {
+                  current_balance_cents?:
+                    { increment?: bigint; decrement?: bigint } | bigint;
+                };
+              }) => {
+                const id = args.where.id;
+                const acc = accountsState[id];
+                if (!acc) return Promise.resolve(null);
+                const v = args.data.current_balance_cents;
+                if (v && typeof v === 'object') {
+                  if (v.increment !== undefined) {
+                    const before = acc.current_balance_cents;
+                    const after = before + v.increment;
+                    acc.current_balance_cents = after;
+                    recordChange(id, before, after);
+                  } else if (v.decrement !== undefined) {
+                    const before = acc.current_balance_cents;
+                    const after = before - v.decrement;
+                    acc.current_balance_cents = after;
+                    recordChange(id, before, after);
+                  }
+                } else if (typeof v === 'bigint') {
+                  const before = acc.current_balance_cents;
+                  const after = v;
+                  acc.current_balance_cents = after;
+                  recordChange(id, before, after);
+                }
+                return Promise.resolve({
+                  id: acc.id,
+                  current_balance_cents: acc.current_balance_cents,
+                });
+              },
+            ),
+          },
+          _rollback: () => {
+            // revert only those changes that still match the 'after' value to avoid undoing other commits
+            for (let i = changes.length - 1; i >= 0; i--) {
+              const c = changes[i];
+              if (accountsState[c.id].current_balance_cents === c.after) {
+                accountsState[c.id].current_balance_cents = c.before;
               }
-            },
-          } as any;
-        })();
+            }
+          },
+        };
         try {
-          return await cb(tx);
+          return cb(tx);
         } catch (err) {
           // rollback only this tx's changes
           tx._rollback();
           throw err;
         }
       }),
-      transaction: { create: jest.fn(), findMany: jest.fn() } as any,
+      transaction: { create: jest.fn(), findMany: jest.fn() },
     };
 
     // For crypto.randomUUID used inside service, stub a simple function
     const makeTransfersService = () =>
       new TransfersService(
-        prismaMock as PrismaService,
-        { record: jest.fn() } as any,
-        { validateForCreate: jest.fn() } as any,
+        prismaMock as unknown as PrismaService,
+        { record: jest.fn() } as unknown as AuditLogService,
+        {
+          validateForCreate: jest.fn(),
+        } as unknown as TransactionValidationService,
       );
 
     const svc = makeTransfersService();
@@ -201,17 +220,7 @@ describe('TransfersService - concurrency (mocked) race detection', () => {
     const initialSrcBal = BigInt(100000);
     const initialDstBal = BigInt(50000);
 
-    const accountsState: Record<
-      string,
-      {
-        id: string;
-        user_id: string;
-        current_balance_cents: bigint;
-        deleted_at: null | Date;
-        is_active: boolean;
-        currency: string;
-      }
-    > = {
+    const accountsState: AccountStateMap = {
       src: {
         id: 'src',
         user_id: 'u1',
@@ -230,122 +239,127 @@ describe('TransfersService - concurrency (mocked) race detection', () => {
       },
     };
 
-    const prismaMock: Partial<PrismaService> = {
+    const prismaMock: ConcurrencyPrismaMocks = {
       account: {
-        findUnique: jest.fn().mockImplementation(({ where }: any) => {
-          const a = accountsState[where.id];
+        findUnique: jest.fn((args: { where: { id: string } }) => {
+          const a = accountsState[args.where.id];
           return Promise.resolve(a ? { ...a } : null);
         }),
-      } as any,
-      $transaction: jest.fn().mockImplementation(async (cb: any) => {
-        const snapshot: Record<string, bigint> = {};
-        for (const k of Object.keys(accountsState)) {
-          snapshot[k] = accountsState[k].current_balance_cents;
-        }
-
-        const tx = (() => {
-          const changes: { id: string; before: bigint; after: bigint }[] = [];
-          const recordChange = (id: string, before: bigint, after: bigint) => {
-            changes.push({ id, before, after });
-          };
-          return {
-            transaction: {
-              create: jest.fn().mockImplementation((args: any) =>
-                Promise.resolve({
-                  id: cryptoId(),
-                  ...args.data,
-                  created_at: new Date(),
-                }),
-              ),
-            },
-            category: { findFirst: jest.fn().mockResolvedValue(null) },
-            account: {
-              updateMany: jest
-                .fn()
-                .mockImplementation(async ({ where, data }: any) => {
-                  const id = where.id;
-                  const gte = where.current_balance_cents?.gte as
-                    bigint | undefined;
-                  const dec = data.current_balance_cents?.decrement as
-                    bigint | undefined;
-                  const acc = accountsState[id];
-                  if (!acc) return { count: 0 };
-                  if (gte !== undefined) {
-                    if (acc.current_balance_cents >= gte) {
-                      if (dec !== undefined) {
-                        const before = acc.current_balance_cents;
-                        const after = before - dec;
-                        acc.current_balance_cents = after;
-                        recordChange(id, before, after);
-                      }
-                      return { count: 1 };
-                    }
-                    return { count: 0 };
-                  }
-                  if (dec !== undefined) {
-                    const before = acc.current_balance_cents;
-                    const after = before - dec;
-                    acc.current_balance_cents = after;
-                    recordChange(id, before, after);
-                    return { count: 1 };
-                  }
-                  return { count: 0 };
-                }),
-              update: jest
-                .fn()
-                .mockImplementation(async ({ where, data }: any) => {
-                  const id = where.id;
-                  const acc = accountsState[id];
-                  if (!acc) return null;
-                  const v = data.current_balance_cents;
-                  if (v && typeof v === 'object') {
-                    if ('increment' in v) {
+      },
+      $transaction: jest.fn((cb: (tx: ConcurrencyTx) => Promise<unknown>) => {
+        const changes: { id: string; before: bigint; after: bigint }[] = [];
+        const recordChange = (id: string, before: bigint, after: bigint) => {
+          changes.push({ id, before, after });
+        };
+        const tx: ConcurrencyTx = {
+          transaction: {
+            create: jest.fn((args: { data: Record<string, unknown> }) =>
+              Promise.resolve({
+                id: cryptoId(),
+                ...args.data,
+                created_at: new Date(),
+              }),
+            ),
+          },
+          category: { findFirst: jest.fn(() => Promise.resolve(null)) },
+          account: {
+            updateMany: jest.fn(
+              (args: {
+                where: {
+                  id: string;
+                  current_balance_cents?: { gte?: bigint };
+                };
+                data: { current_balance_cents?: { decrement?: bigint } };
+              }) => {
+                const id = args.where.id;
+                const gte = args.where.current_balance_cents?.gte;
+                const dec = args.data.current_balance_cents?.decrement;
+                const acc = accountsState[id];
+                if (!acc) return Promise.resolve({ count: 0 });
+                if (gte !== undefined) {
+                  if (acc.current_balance_cents >= gte) {
+                    if (dec !== undefined) {
                       const before = acc.current_balance_cents;
-                      const after = before + (v.increment as bigint);
-                      acc.current_balance_cents = after;
-                      recordChange(id, before, after);
-                    } else if ('decrement' in v) {
-                      const before = acc.current_balance_cents;
-                      const after = before - (v.decrement as bigint);
+                      const after = before - dec;
                       acc.current_balance_cents = after;
                       recordChange(id, before, after);
                     }
-                  } else if (typeof v === 'bigint') {
-                    const before = acc.current_balance_cents;
-                    const after = v;
-                    acc.current_balance_cents = after;
-                    recordChange(id, before, after);
+                    return Promise.resolve({ count: 1 });
                   }
-                  return {
-                    id: acc.id,
-                    current_balance_cents: acc.current_balance_cents,
-                  };
-                }),
-            },
-            _rollback: () => {
-              for (let i = changes.length - 1; i >= 0; i--) {
-                const c = changes[i];
-                if (accountsState[c.id].current_balance_cents === c.after) {
-                  accountsState[c.id].current_balance_cents = c.before;
+                  return Promise.resolve({ count: 0 });
                 }
+                if (dec !== undefined) {
+                  const before = acc.current_balance_cents;
+                  const after = before - dec;
+                  acc.current_balance_cents = after;
+                  recordChange(id, before, after);
+                  return Promise.resolve({ count: 1 });
+                }
+                return Promise.resolve({ count: 0 });
+              },
+            ),
+            update: jest.fn(
+              (args: {
+                where: { id: string };
+                data: {
+                  current_balance_cents?:
+                    { increment?: bigint; decrement?: bigint } | bigint;
+                };
+              }) => {
+                const id = args.where.id;
+                const acc = accountsState[id];
+                if (!acc) return Promise.resolve(null);
+                const v = args.data.current_balance_cents;
+                if (v && typeof v === 'object') {
+                  if (v.increment !== undefined) {
+                    const before = acc.current_balance_cents;
+                    const after = before + v.increment;
+                    acc.current_balance_cents = after;
+                    recordChange(id, before, after);
+                  } else if (v.decrement !== undefined) {
+                    const before = acc.current_balance_cents;
+                    const after = before - v.decrement;
+                    acc.current_balance_cents = after;
+                    recordChange(id, before, after);
+                  }
+                } else if (typeof v === 'bigint') {
+                  const before = acc.current_balance_cents;
+                  const after = v;
+                  acc.current_balance_cents = after;
+                  recordChange(id, before, after);
+                }
+                return Promise.resolve({
+                  id: acc.id,
+                  current_balance_cents: acc.current_balance_cents,
+                });
+              },
+            ),
+          },
+          _rollback: () => {
+            for (let i = changes.length - 1; i >= 0; i--) {
+              const c = changes[i];
+              if (accountsState[c.id].current_balance_cents === c.after) {
+                accountsState[c.id].current_balance_cents = c.before;
               }
-            },
-          } as any;
-        })();
+            }
+          },
+        };
         try {
-          return await cb(tx);
+          return cb(tx);
         } catch (err) {
           tx._rollback();
           throw err;
         }
       }),
-      transaction: { create: jest.fn(), findMany: jest.fn() } as any,
+      transaction: { create: jest.fn(), findMany: jest.fn() },
     };
 
     const svc = new TransfersService(
-      prismaMock as PrismaService,
-      { record: jest.fn() } as any,
-      { validateForCreate: jest.fn() } as any,
+      prismaMock as unknown as PrismaService,
+      { record: jest.fn() } as unknown as AuditLogService,
+      {
+        validateForCreate: jest.fn(),
+      } as unknown as TransactionValidationService,
     );
 
     // Two concurrent transfers: 70000 and 50000
