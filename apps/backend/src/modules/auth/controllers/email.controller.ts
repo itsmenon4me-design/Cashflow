@@ -1,21 +1,37 @@
-import { Body, Controller, Get, Post, Query, Logger } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Logger,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty } from 'class-validator';
 import { EmailVerificationService } from '../services/email-verification.service';
 import { UsersService } from '../../users/services/users.service';
 import { MailService } from '../../../common/mail/mail.service';
 import { MailConfigService } from '../../../config/mail-config.service';
 import * as crypto from 'crypto';
 import { PrismaUsersRepository } from '../../users/repositories/prisma-users.repository';
+import { AuthRateLimitGuard } from '../auth-rate-limit.guard';
 
 class SendVerificationDto {
+  @IsNotEmpty({ message: 'email must not be empty' })
+  @IsEmail({}, { message: 'email must be a valid email address' })
   email!: string;
 }
 
 class ResendVerificationDto {
+  @IsNotEmpty({ message: 'email must not be empty' })
+  @IsEmail({}, { message: 'email must be a valid email address' })
   email!: string;
 }
 
 class ForgotPasswordDto {
+  @IsNotEmpty({ message: 'email must not be empty' })
+  @IsEmail({}, { message: 'email must be a valid email address' })
   email!: string;
 }
 
@@ -33,6 +49,7 @@ export class EmailController {
   ) {}
 
   @Post('send-verification')
+  @UseGuards(AuthRateLimitGuard)
   @ApiOperation({ summary: 'Send email verification link' })
   @ApiResponse({ status: 200 })
   async send(@Body() body: SendVerificationDto) {
@@ -56,6 +73,7 @@ export class EmailController {
   }
 
   @Post('resend')
+  @UseGuards(AuthRateLimitGuard)
   @ApiOperation({ summary: 'Resend verification email' })
   @ApiResponse({ status: 200 })
   async resend(@Body() body: ResendVerificationDto) {

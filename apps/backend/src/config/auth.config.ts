@@ -7,6 +7,8 @@ export interface AuthConfig {
   registerWindowSeconds: number;
   refreshLimit: number;
   refreshWindowSeconds: number;
+  emailVerificationLimit: number;
+  emailVerificationWindowSeconds: number;
   failLimit: number;
   failWindowSeconds: number;
 }
@@ -25,6 +27,14 @@ export const authConfig = registerAs<AuthConfig>('auth', () => ({
   refreshLimit: Number.parseInt(process.env.AUTH_REFRESH_LIMIT ?? '30', 10),
   refreshWindowSeconds: Number.parseInt(
     process.env.AUTH_REFRESH_WINDOW_SECONDS ?? '60',
+    10,
+  ),
+  emailVerificationLimit: Number.parseInt(
+    process.env.AUTH_EMAIL_VERIFICATION_LIMIT ?? '10',
+    10,
+  ),
+  emailVerificationWindowSeconds: Number.parseInt(
+    process.env.AUTH_EMAIL_VERIFICATION_WINDOW_SECONDS ?? '60',
     10,
   ),
   failLimit: Number.parseInt(process.env.AUTH_FAIL_LIMIT ?? '10', 10),

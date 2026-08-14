@@ -11,7 +11,7 @@ import { LoggerService } from '../../common/logger/logger.service';
 
 /**
  * Simple endpoint-level rate limiter for authentication endpoints.
- * - Enforces per-IP limits for login/register/refresh.
+ * - Enforces per-IP limits for login/register/refresh and email verification send/resend.
  * - Uses Redis if available; if Redis is unavailable, the guard fails-open (allows requests) to avoid taking auth offline.
  */
 
@@ -72,6 +72,12 @@ export class AuthRateLimitGuard implements CanActivate {
     } else if (path.endsWith('/refresh')) {
       limit = cfg.refreshLimit;
       windowSec = cfg.refreshWindowSeconds;
+    } else if (
+      path.endsWith('/send-verification') ||
+      path.endsWith('/resend')
+    ) {
+      limit = cfg.emailVerificationLimit;
+      windowSec = cfg.emailVerificationWindowSeconds;
     } else {
       return true;
     }

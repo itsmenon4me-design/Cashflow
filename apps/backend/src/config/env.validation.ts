@@ -3,10 +3,13 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -15,6 +18,8 @@ export enum Environment {
   Production = 'production',
   Test = 'test',
 }
+
+export const JWT_SECRET_MIN_LENGTH = 32;
 
 class EnvironmentVariables {
   @IsEnum(Environment)
@@ -58,8 +63,9 @@ class EnvironmentVariables {
   @IsOptional()
   APP_LOCALE: string = 'id-ID';
 
-  @IsString()
-  @IsOptional()
+  @IsString({ message: 'DATABASE_URL must be a string' })
+  @IsNotEmpty({ message: 'DATABASE_URL must not be empty' })
+  @Matches(/\S/, { message: 'DATABASE_URL must not be whitespace only' })
   DATABASE_URL: string = '';
 
   @IsString()
@@ -78,12 +84,20 @@ class EnvironmentVariables {
   @IsOptional()
   REDIS_TTL_SECONDS: number = 60;
 
-  @IsString()
-  @IsOptional()
+  @IsString({ message: 'JWT_SECRET must be a string' })
+  @IsNotEmpty({ message: 'JWT_SECRET must not be empty' })
+  @Matches(/\S/, { message: 'JWT_SECRET must not be whitespace only' })
+  @MinLength(JWT_SECRET_MIN_LENGTH, {
+    message: `JWT_SECRET must be at least ${JWT_SECRET_MIN_LENGTH} characters`,
+  })
   JWT_SECRET: string = '';
 
-  @IsString()
-  @IsOptional()
+  @IsString({ message: 'JWT_REFRESH_SECRET must be a string' })
+  @IsNotEmpty({ message: 'JWT_REFRESH_SECRET must not be empty' })
+  @Matches(/\S/, { message: 'JWT_REFRESH_SECRET must not be whitespace only' })
+  @MinLength(JWT_SECRET_MIN_LENGTH, {
+    message: `JWT_REFRESH_SECRET must be at least ${JWT_SECRET_MIN_LENGTH} characters`,
+  })
   JWT_REFRESH_SECRET: string = '';
 
   @IsString()

@@ -7,6 +7,7 @@ import { BudgetsModule } from '../budgets/budgets.module';
 import { ReportsModule } from '../reports/reports.module';
 import { FinanceBotController } from './controllers/finance-bot.controller';
 import { FinanceBotScheduler } from './services/finance-bot.scheduler';
+import { InternalApiKeyGuard } from './guards/internal-api-key.guard';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { FinanceBotScheduler } from './services/finance-bot.scheduler';
     BudgetsModule,
     ReportsModule,
   ],
-  providers: [FinanceBotService, FinanceBotScheduler],
+  providers: [FinanceBotService, FinanceBotScheduler, InternalApiKeyGuard],
   controllers: [FinanceBotController],
   exports: [FinanceBotService],
 })

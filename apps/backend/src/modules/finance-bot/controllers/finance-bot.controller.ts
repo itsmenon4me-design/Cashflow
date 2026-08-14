@@ -1,5 +1,12 @@
-import { Controller, Post, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Query,
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
 import { FinanceBotService } from '../services/finance-bot.service';
+import { InternalApiKeyGuard } from '../guards/internal-api-key.guard';
 
 @Controller('internal/finance-bot')
 export class FinanceBotController {
@@ -7,6 +14,7 @@ export class FinanceBotController {
 
   // Development-only hook to run the daily reminders pass at an arbitrary reference time
   @Post('run-daily')
+  @UseGuards(InternalApiKeyGuard)
   async runDaily(@Query('time') time?: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new BadRequestException('Not allowed in production');

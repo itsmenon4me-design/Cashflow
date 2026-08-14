@@ -17,6 +17,8 @@ const makeMocks = () => {
       registerWindowSeconds: 60,
       refreshLimit: 4,
       refreshWindowSeconds: 60,
+      emailVerificationLimit: 2,
+      emailVerificationWindowSeconds: 60,
     },
   } as unknown as jest.Mocked<AuthConfigService>;
   const logger = {
@@ -100,6 +102,41 @@ describe('AuthRateLimitGuard', () => {
     redis.incr.mockResolvedValue(99);
     expect(
       await g.canActivate(makeCtx(makeReq('/auth/refresh', {}, '9.9.9.9'))),
+    ).toBe(false);
+  });
+
+  test('email verification endpoints below and above limit', async () => {
+    const { redis, authConfig, logger } = makeMocks();
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
+    redis.incr.mockResolvedValue(1);
+    expect(
+      await g.canActivate(
+        makeCtx(makeReq('/auth/email/send-verification', {}, '1.1.1.1')),
+      ),
+    ).toBe(true);
+    expect(
+      await g.canActivate(
+        makeCtx(makeReq('/auth/email/resend', {}, '1.1.1.1')),
+      ),
+    ).toBe(true);
+    expect((redis as unknown as { incr: jest.Mock }).incr).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/email/send-verification'),
+      authConfig.config.emailVerificationWindowSeconds,
+    );
+    expect((redis as unknown as { incr: jest.Mock }).incr).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/email/resend'),
+      authConfig.config.emailVerificationWindowSeconds,
+    );
+    redis.incr.mockResolvedValue(3);
+    expect(
+      await g.canActivate(
+        makeCtx(makeReq('/auth/email/send-verification', {}, '1.1.1.1')),
+      ),
+    ).toBe(false);
+    expect(
+      await g.canActivate(
+        makeCtx(makeReq('/auth/email/resend', {}, '1.1.1.1')),
+      ),
     ).toBe(false);
   });
 
