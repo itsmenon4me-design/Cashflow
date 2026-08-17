@@ -21,6 +21,7 @@ import {
 import type { TransactionFiltersState } from "@/features/transactions/types";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import {
   syncCreateTransaction,
@@ -70,8 +71,23 @@ export function TransactionsPage() {
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const dataVersion = useDataRefreshStore((state) => state.version);
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
 
-  const [filters, setFilters] = useState<TransactionFiltersState>(EMPTY_FILTERS);
+  const defaultFilters = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const toInput = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { ...EMPTY_FILTERS, startDate: toInput(start), endDate: toInput(end) } as TransactionFiltersState;
+  })();
+
+  const [filters, setFilters] = useState<TransactionFiltersState>(defaultFilters);
+
+  // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues
+  useEffect(() => {
+    setFilters(defaultFilters);
+    setPage(1);
+  }, []);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -97,11 +113,14 @@ export function TransactionsPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // Mark lookups as not ready while reloading for the new currency
+    setLookupsReady(false);
+
     void (async () => {
       const [accounts, categories] = await Promise.all([
-        accountService.list().catch(() => [] as AccountResponse[]),
-        categoryService.list().catch(() => [] as CategoryResponse[]),
-      ]);
+          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+          categoryService.list().catch(() => [] as CategoryResponse[]),
+        ]);
 
       if (cancelled) {
         return;
@@ -119,7 +138,13 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeCurrency]);
+
+  // Reset pagination and trigger a refresh when dashboard currency changes to avoid stale/cross-currency data
+  useEffect(() => {
+    setPage(1);
+    setRefreshKey((k) => k + 1);
+  }, [activeCurrency]);
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
@@ -159,6 +184,7 @@ export function TransactionsPage() {
       limit: pageSize,
       sortBy: sort.key,
       sortOrder: sort.order,
+      currency: activeCurrency,
     };
     if (search) params.q = search;
     if (queryConfig.type) params.type = queryConfig.type;
@@ -217,6 +243,7 @@ export function TransactionsPage() {
     queryConfig,
     accountNames,
     categoryNames,
+    activeCurrency,
   ]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
@@ -244,7 +271,8 @@ export function TransactionsPage() {
   };
 
   const handleResetFilters = () => {
-    setFilters(EMPTY_FILTERS);
+    // Reset to the default initial period (current month) rather than clearing date filters.
+    setFilters(defaultFilters);
     setPage(1);
   };
 
@@ -370,9 +398,7 @@ export function TransactionsPage() {
       <TransactionToolbar
         count={totalItems}
         loading={loading}
-        onAdd={() => openForm("create", null)}
-        onExport={() => undefined}
-        onImport={() => undefined}
+        showAdd={false}
       />
 
       <TransactionFilters
@@ -390,17 +416,11 @@ export function TransactionsPage() {
           onRetry={refresh}
         />
       ) : isEmpty ? (
-        <EmptyState
-          title={uiText.transactions.emptyTitle}
-          description={uiText.transactions.emptySubtitle}
-          icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />}
-          actionButton={
-            <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
-              <Plus />
-              {uiText.transactions.add}
-            </Button>
-          }
-        />
+      <EmptyState
+        title={uiText.transactions.emptyTitle}
+        description={uiText.transactions.emptySubtitle}
+        icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />}
+      />
       ) : (
         <>
           <TransactionTable
