@@ -61,7 +61,13 @@ export function NotificationsPage() {
           setPage(result.pagination.totalPages);
         }
       } catch {
-        if (!cancelled) setError(true);
+        if (!cancelled) {
+          // On error, ensure UI does not remain in a stale loading state and
+          // that the item list is cleared to avoid displaying outdated data.
+          setItems([]);
+          setTotalItems(0);
+          setError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
