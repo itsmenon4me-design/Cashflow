@@ -274,18 +274,16 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <div>
+        <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Pemasukan</h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <TransactionToolbar
-            loading={loading}
-            onAdd={() => openForm("create", null)}
-          />
-        </div>
-      </div>
+      <TransactionToolbar
+        count={totalItems}
+        loading={loading}
+        onAdd={() => openForm("create", null)}
+        showAdd={true}
+      />
 
       <TransactionFilters
         filters={filters}

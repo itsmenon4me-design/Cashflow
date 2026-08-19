@@ -268,25 +268,32 @@ export function DashboardPage() {
   const firstName = user?.name?.split(" ")[0] ?? (uiText.common.quickAdd === "Quick Add" ? "User" : "Pengguna");
   const aiInsights = buildAiInsightsForCurrency(activeCurrency);
 
-  // Time-aware localized greeting. This runs on the client (component is a "use client" component)
-  // so it's safe to use local time without causing SSR hydration mismatch.
-  const getTimeBasedGreeting = (name: string) => {
-    const hour = new Date().getHours();
-    let key = "greetingMorning";
-    if (hour >= 4 && hour < 11) key = "greetingMorning";
-    else if (hour >= 11 && hour < 15) key = "greetingAfternoon";
-    else if (hour >= 15 && hour < 18) key = "greetingEvening";
-    else key = "greetingNight";
+  // Time-aware localized greeting. Compute on mount to remain hydration-safe
+  const [greeting, setGreeting] = useState<string>(uiText.dashboard.welcomeBack.replace("{name}", firstName));
 
-    // Use localized template if available; fall back to welcomeBack template.
-    const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
-    return template.replace("{name}", name);
-  };
+  useEffect(() => {
+    const compute = () => {
+      const hour = new Date().getHours();
+      let key = "greetingMorning";
+      if (hour >= 4 && hour < 11) key = "greetingMorning";
+      else if (hour >= 11 && hour < 15) key = "greetingAfternoon";
+      else if (hour >= 15 && hour < 18) key = "greetingEvening";
+      else key = "greetingNight";
+      const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
+      setGreeting(template.replace("{name}", firstName));
+    };
+
+    // Compute immediately on mount
+    compute();
+    // Optionally update periodically if the user keeps the app open across hour boundaries
+    const timer = setInterval(compute, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [firstName]);
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{getTimeBasedGreeting(firstName)}</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{uiText.dashboard.summarySubtitle}</p>
       </div>
 

@@ -68,6 +68,59 @@ const ACTION_OPTIONS = [
   "INVESTMENT_DELETED",
 ];
 
+function formatActionLabel(action: string) {
+  // Map backend audit action constants to localized, human-friendly strings (uiText.activity)
+  const map: Record<string, string> = {
+    AUTH_LOGIN: uiText.activity.login,
+    AUTH_LOGOUT: uiText.activity.logout,
+    AUTH_REFRESH_TOKEN: uiText.activity.refreshToken,
+    AUTH_PASSWORD_CHANGED: uiText.activity.passwordChanged,
+    USER_CREATED: uiText.activity.userCreated,
+    USER_UPDATED: uiText.activity.userUpdated,
+    USER_DELETED: uiText.activity.userDeleted,
+    ROLE_CHANGED: uiText.activity.roleChanged,
+    PERMISSION_CHANGED: uiText.activity.permissionChanged,
+    ACCOUNT_CREATED: uiText.activity.accountCreated,
+    ACCOUNT_UPDATED: uiText.activity.accountUpdated,
+    ACCOUNT_DELETED: uiText.activity.accountDeleted,
+    DEFAULT_ACCOUNT_CHANGED: uiText.activity.defaultAccountChanged,
+    CATEGORY_CREATED: uiText.activity.categoryCreated,
+    CATEGORY_UPDATED: uiText.activity.categoryUpdated,
+    CATEGORY_DELETED: uiText.activity.categoryDeleted,
+    TRANSACTION_CREATED: uiText.activity.transactionCreated,
+    TRANSACTION_UPDATED: uiText.activity.transactionUpdated,
+    TRANSACTION_DELETED: uiText.activity.transactionDeleted,
+    TRANSFER_CREATED: uiText.activity.transferCreated,
+    TRANSFER_FAILED: uiText.activity.transferFailed,
+    BUDGET_CREATED: uiText.activity.budgetCreated,
+    BUDGET_UPDATED: uiText.activity.budgetUpdated,
+    BUDGET_DELETED: uiText.activity.budgetDeleted,
+    SAVING_GOAL_CREATED: uiText.activity.savingGoalCreated,
+    SAVING_GOAL_UPDATED: uiText.activity.savingGoalUpdated,
+    SAVING_GOAL_DELETED: uiText.activity.savingGoalDeleted,
+    INVESTMENT_CREATED: uiText.activity.investmentCreated,
+    INVESTMENT_UPDATED: uiText.activity.investmentUpdated,
+    INVESTMENT_DELETED: uiText.activity.investmentDeleted,
+  };
+  return map[action] ?? prettify(action);
+}
+
+function prettify(key: string) {
+  // Replace underscores and camel/pascal cases into readable labels
+  return key
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (t) => t.toUpperCase());
+}
+
+function formatModuleLabel(module: string) {
+  // Use uiText.navigation when possible
+  const nav = (uiText.navigation as any) || {};
+  if (nav[module]) return nav[module];
+  // Convert snake-case modules like saving_goal -> Saving Goal
+  return prettify(module);
+}
+
 const DEFAULT_PAGE_SIZE = 10;
 
 export function AuditLogPage() {
@@ -168,7 +221,7 @@ export function AuditLogPage() {
             </SelectItem>
             {MODULE_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {formatModuleLabel(option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -193,7 +246,7 @@ export function AuditLogPage() {
             </SelectItem>
             {ACTION_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {formatActionLabel(option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -301,10 +354,10 @@ function AuditLogRow({ item }: { item: AuditLogItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="shrink-0">
-              {item.module}
+              {formatModuleLabel(item.module)}
             </Badge>
             <Badge variant="secondary" className="shrink-0">
-              {item.action}
+              {formatActionLabel(item.action)}
             </Badge>
             <span
               className={cn(

@@ -163,6 +163,8 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       const or: Prisma.TransactionWhereInput[] = [
         { note: { contains: query, mode: 'insensitive' } },
         { reference_number: { contains: query, mode: 'insensitive' } },
+        { account: { name: { contains: query, mode: 'insensitive' } } },
+        { category: { name: { contains: query, mode: 'insensitive' } } },
       ];
       if (/^[0-9a-fA-F-]{8,}$/.test(query)) {
         or.push({ id: query });
@@ -241,6 +243,9 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     or.push({
       reference_number: { contains: query, mode: 'insensitive' },
     });
+    // account.name, category.name
+    or.push({ account: { name: { contains: query, mode: 'insensitive' } } });
+    or.push({ category: { name: { contains: query, mode: 'insensitive' } } });
 
     // transaction id exact match
     if (/^[0-9a-fA-F-]{8,}$/.test(query)) {

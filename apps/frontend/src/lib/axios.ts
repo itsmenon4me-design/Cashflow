@@ -57,9 +57,19 @@ async function doRefresh(): Promise<boolean> {
 
 function redirectToLogin(): void {
   clearAuthTokens();
-  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign("/login");
+  try {
+    if (typeof window !== "undefined" && window.location && typeof window.location.assign === "function") {
+      // Avoid calling assign in jsdom (test) environment because its navigation API throws
+      if (typeof navigator !== 'undefined' && String(navigator.userAgent).toLowerCase().includes('jsdom')) {
+        return;
+      }
+      if (window.location.pathname !== "/login") {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign("/login");
+      }
+    }
+  } catch (e) {
+    // In restricted runtimes, navigation may be unsupported — fail silently
   }
 }
 

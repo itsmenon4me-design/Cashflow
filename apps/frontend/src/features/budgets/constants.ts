@@ -32,13 +32,15 @@ export const MONTH_OPTIONS = [
   { value: 12, label: "Des" },
 ] as const;
 
-// Year window current-1 .. current+10 (12 options); wider than the previous current+5 cap,
-// still bounded for a usable dropdown. Backend allows 1970-3000.
-export const YEAR_OPTIONS_RANGE = 12;
+// Year window configurable: default current-2 .. current+10 (13 options).
+// This keeps the dropdown dynamic and future-proof while staying reasonably bounded.
+const YEAR_START_OFFSET = -2; // start from current year - 2
+const YEAR_END_OFFSET = 10; // end at current year + 10
 
 export function getYearOptions(): number[] {
   const current = new Date().getFullYear();
-  return Array.from({ length: YEAR_OPTIONS_RANGE }, (_, index) => current - 1 + index);
+  const length = YEAR_END_OFFSET - YEAR_START_OFFSET + 1;
+  return Array.from({ length }, (_, index) => current + YEAR_START_OFFSET + index);
 }
 
 export const BUDGET_SORT_OPTIONS: { value: BudgetSortKey; label: string }[] = [

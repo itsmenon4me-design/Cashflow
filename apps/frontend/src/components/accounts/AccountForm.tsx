@@ -204,9 +204,10 @@ export function AccountForm({
                   id="account-currency"
                   className="h-11 uppercase sm:h-9"
                   maxLength={3}
-                  disabled={isView || mode === 'create'}
                   aria-invalid={!!errors.currency}
-                  {...form.register("currency")}
+                  {...(mode === 'create'
+                    ? { value: activeCurrency, readOnly: true }
+                    : form.register("currency"))}
                 />
                 <FormError message={errors.currency?.message} />
               </div>
