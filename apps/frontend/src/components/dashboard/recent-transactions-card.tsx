@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
+import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionItem, TransactionStatus, TransactionType } from "@/types/dashboard";
@@ -87,7 +88,7 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
             <div className="relative hidden sm:block">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="w-56 rounded-xl bg-card pl-9"
+                className="w-56 max-w-full rounded-xl bg-card pl-9"
                 placeholder={uiText.common.searchTransactionsPlaceholder}
                 aria-label={uiText.common.searchAriaLabel}
                 value={query}
@@ -168,14 +169,14 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                 return (
                   <TableRow key={txn.id}>
                     <TableCell className="text-muted-foreground">
-                      {formatTransactionDate(txn.date)}
+                      {formatTransactionDate(txn.dateTime ?? txn.date)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-lg bg-muted">
                         {txn.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{txn.description}</TableCell>
+                    <TableCell title={txn.description} className="font-medium min-w-0 truncate">{txn.description}</TableCell>
                     <TableCell
                       className={cn(
                         "text-right font-semibold",
@@ -216,11 +217,10 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
               })}
               {visibleRows.length === 0 && (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    {uiText.common.noDataAvailable}
+                  <TableCell colSpan={6} className="p-0">
+                    <div className="h-32 w-full">
+                      <CenteredEmptyState title={(uiText as any)?.dashboard?.emptyRecentTransactions ?? uiText.common.noDataAvailable} description={(uiText as any)?.common?.addTransactionsPrompt ?? uiText.common.addTransaction} />
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

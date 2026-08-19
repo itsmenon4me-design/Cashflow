@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrencyCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
+import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 import type { InvestmentOverview } from "@/services/investment.service";
 
 interface InvestmentsSummaryCardProps {
@@ -19,28 +20,20 @@ export function InvestmentsSummaryCard({ data, loading = false }: InvestmentsSum
 
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="size-4 text-muted-foreground" />
-          {uiText.investments.dashboardTitle}
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">{uiText.investments.dashboardSubtitle}</p>
+      <CardHeader className="px-4 py-3">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">{uiText.investments.dashboardTitle}</CardTitle>
+        <p className="text-sm text-muted-foreground">{uiText.investments.dashboardSubtitle}</p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-4 pt-0 space-y-3">
         {loading || !data ? (
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-28" />
-            <div className="grid grid-cols-3 gap-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
+          <div className="h-32 w-full">
+            <CenteredEmptyState title={uiText.investments.emptyTitle || uiText.common.noDataAvailable} description={uiText.investments.emptySubtitle} />
           </div>
         ) : (
           <>
             <div>
               <p className="text-sm text-muted-foreground">{uiText.investments.currentValue}</p>
-              <p className="text-2xl font-semibold tracking-tight">
+              <p className="text-xl font-semibold tracking-tight">
                 {formatCurrencyCents(data.totalValue)}
               </p>
             </div>

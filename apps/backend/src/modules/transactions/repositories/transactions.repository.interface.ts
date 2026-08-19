@@ -2,7 +2,9 @@ import { TransactionEntity } from '../entities/transaction.entity';
 
 export interface ITransactionsRepository {
   create(input: Partial<TransactionEntity>): Promise<TransactionEntity>;
-  findById(id: string): Promise<TransactionEntity | null>;
+  // When currency is provided, the repository must apply a DB-level relation
+  // filter so the returned transaction belongs to an account with that currency.
+  findById(id: string, currency?: string): Promise<TransactionEntity | null>;
   findByReferenceNumber(
     userId: string,
     referenceNumber: string,

@@ -100,6 +100,13 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     return result.count > 0;
   }
 
+  async removeAll(userId: string): Promise<number> {
+    const result = await this.prisma.notification.deleteMany({
+      where: { user_id: userId },
+    });
+    return result.count;
+  }
+
   create(data: NotificationCreateData): Promise<NotificationEntity> {
     // Extract dedupeKey from metadata if present
     const meta = data.metadata as Record<string, unknown> | undefined;

@@ -11,6 +11,7 @@ import {
 } from '../../audit-logs/constants/audit.constants';
 import { CreateBudgetDto } from '../dto/create-budget.dto';
 import { UpdateBudgetDto } from '../dto/update-budget.dto';
+import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 interface CategoryRecord {
   id: string;
@@ -62,12 +63,16 @@ export class BudgetsService {
 
   async create(userId: string, input: CreateBudgetDto): Promise<BudgetEntity> {
     await this.findValidCategory(userId, input.category_id);
+    const currency = input.currency
+      ? normalizeDashboardCurrency(input.currency)
+      : undefined;
 
     const existing = await this.repo.findByUserAndCategoryAndPeriod(
       userId,
       input.category_id,
       input.month,
       input.year,
+      currency,
     );
     if (existing) {
       throw ErrorService.create(
@@ -79,10 +84,11 @@ export class BudgetsService {
     const created = await this.repo.create({
       user_id: userId,
       category_id: input.category_id,
+      currency,
       budget_amount_cents: BigInt(input.budget_amount_cents),
       month: input.month,
       year: input.year,
-    });
+    } as any);
 
     void this.audit.record({
       userId,
@@ -95,8 +101,12 @@ export class BudgetsService {
     return created;
   }
 
-  async getById(userId: string, id: string): Promise<BudgetEntity> {
-    const b = await this.repo.findById(id);
+  async getById(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<BudgetEntity> {
+    const b = await this.repo.findById(id, currency);
     if (!b) {
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Budget not found');
     }
@@ -106,16 +116,20 @@ export class BudgetsService {
     return b;
   }
 
-  async listAll(userId: string): Promise<BudgetEntity[]> {
-    return this.repo.findAllByUser(userId);
+  async listAll(
+    userId: string,
+    currency?: string,
+  ): Promise<BudgetEntity[]> {
+    return this.repo.findAllByUser(userId, currency);
   }
 
   async update(
     userId: string,
     id: string,
     updates: UpdateBudgetDto,
+    currency?: string,
   ): Promise<BudgetEntity> {
-    const current = await this.getById(userId, id);
+    const current = await this.getById(userId, id, currency);
 
     if (updates.category_id !== undefined) {
       await this.findValidCategory(userId, updates.category_id);
@@ -138,6 +152,11 @@ export class BudgetsService {
         nextCategoryId,
         nextMonth,
         nextYear,
+        updates.currency
+          ? normalizeDashboardCurrency(updates.currency)
+          : currency
+            ? normalizeDashboardCurrency(currency)
+            : undefined,
       );
       if (other && other.id !== id) {
         throw ErrorService.create(
@@ -152,11 +171,14 @@ export class BudgetsService {
       const value = (updates as unknown as Record<string, unknown>)[key];
       if (value !== undefined) data[key] = value;
     }
+    if (updates.currency !== undefined) {
+      data.currency = normalizeDashboardCurrency(updates.currency);
+    }
     if (updates.budget_amount_cents !== undefined) {
       data.budget_amount_cents = BigInt(updates.budget_amount_cents);
     }
 
-    const updated = await this.repo.update(id, data);
+    const updated = await this.repo.update(id, data as any);
 
     void this.audit.record({
       userId,
@@ -169,8 +191,12 @@ export class BudgetsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string): Promise<void> {
-    await this.getById(userId, id);
+  async softDelete(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<void> {
+    await this.getById(userId, id, currency);
     await this.repo.softDelete(id);
     void this.audit.record({
       userId,

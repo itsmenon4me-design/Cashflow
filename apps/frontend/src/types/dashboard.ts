@@ -28,6 +28,8 @@ export interface FlowPoint {
 export interface DistributionPoint {
   name: string;
   value: number;
+  /** total amount in minor units (cents) when available */
+  amount?: number;
 }
 
 export type AnalyticsRangeKey = "7D" | "30D" | "3M" | "6M" | "1Y" | "ALL";
@@ -59,6 +61,8 @@ export interface AnalyticsDataset {
 export interface TransactionItem {
   id: string;
   date: string;
+  /** Full ISO timestamp for timezone-aware display (date stays YYYY-MM-DD for forms). */
+  dateTime?: string;
   category: string;
   description: string;
   account: string;

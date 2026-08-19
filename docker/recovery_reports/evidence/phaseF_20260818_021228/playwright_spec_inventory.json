@@ -1,0 +1,46 @@
+﻿[
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\expense-e2e.spec.ts",
+        "Name":  "expense-e2e.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\income-e2e.spec.ts",
+        "Name":  "income-e2e.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.debug.spec.ts",
+        "Name":  "multi-currency-acceptance.debug.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.final.spec.ts",
+        "Name":  "multi-currency-acceptance.final.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.fixed.spec.ts",
+        "Name":  "multi-currency-acceptance.fixed.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.reports-analytics.spec.ts",
+        "Name":  "multi-currency-acceptance.reports-analytics.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.spec.ts",
+        "Name":  "multi-currency-acceptance.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\phase9.spec.ts",
+        "Name":  "phase9.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-currency-e2e.spec.ts",
+        "Name":  "transactions-currency-e2e.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-currency-e2e2.spec.ts",
+        "Name":  "transactions-currency-e2e2.spec.ts"
+    },
+    {
+        "FullName":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-e2e.spec.ts",
+        "Name":  "transactions-e2e.spec.ts"
+    }
+]

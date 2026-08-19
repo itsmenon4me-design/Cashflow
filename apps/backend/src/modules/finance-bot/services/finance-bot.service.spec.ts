@@ -65,6 +65,42 @@ const makeService = (mocks: ReturnType<typeof makeMocks>) =>
   );
 
 describe('FinanceBotService.runDailyRecordingReminders', () => {
+  it('uses English copy when the user settings language is English', async () => {
+    const mocks = makeMocks();
+    mocks.prisma.userSettings.findMany = jest.fn().mockResolvedValue([
+      {
+        user_id: 'user-en',
+        language: 'en',
+        notification_preferences: {
+          financeBot: {
+            enabled: true,
+            dailyReminderEnabled: true,
+            reminderTime1: '20:00',
+            reminderTime2: '22:00',
+          },
+        },
+        timezone: 'Asia/Tokyo',
+      },
+    ]);
+    mocks.prisma.transaction.count = jest.fn().mockResolvedValue(0);
+
+    const service = makeService(mocks);
+    await service.runDailyRecordingReminders(new Date('2026-08-09T11:00:00Z'));
+
+    expect(mocks.notifications.createIfNotExists).toHaveBeenCalledWith(
+      'user-en',
+      'DAILY_RECORDING_REMINDER',
+      'Remember to log today\'s spending',
+      'Don\'t forget to log today\'s transactions!',
+      {
+        ruleType: 'DAILY_RECORDING_REMINDER',
+        referenceDate: '2026-08-09',
+        priority: 'LOW',
+      },
+      'user-en|DAILY_RECORDING_REMINDER|2026-08-09',
+    );
+  });
+
   it('creates a daily reminder when the user has not recorded today', async () => {
     const mocks = makeMocks();
     mocks.prisma.userSettings.findMany = jest.fn().mockResolvedValue([

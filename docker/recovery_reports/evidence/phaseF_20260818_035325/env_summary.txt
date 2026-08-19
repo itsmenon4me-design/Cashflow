@@ -1,0 +1,1 @@
+﻿verify stack: cashflowverify. Remediation approved x3: (1) API login auth fixture, (2) user field extraction body.user, (3) new URL base origin fix (location.href -> base) lines 167/168. No tokens/secrets stored. Fixture: user ACTIVE + 16 seeded tx (IDR=4 USD=4 SGD=3 EUR=5).

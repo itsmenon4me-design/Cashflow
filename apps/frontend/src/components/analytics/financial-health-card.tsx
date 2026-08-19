@@ -6,6 +6,7 @@ import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AnalyticsHealth } from "@/services/analytics.service";
 import { cn } from "@/lib/utils";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface FinancialHealthCardProps {
   health: AnalyticsHealth | null;
@@ -36,6 +37,7 @@ function MetricRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export function FinancialHealthCard({ health, loading = false }: FinancialHealthCardProps) {
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
   const badgeClass =
     health?.label === "healthy"
       ? "bg-success/10 text-success"
@@ -45,33 +47,39 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
 
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle>{uiText.analytics.healthTitle}</CardTitle>
-        <p className="mt-1 text-xs text-muted-foreground">{uiText.analytics.healthSubtitle}</p>
+      <CardHeader className="px-5">
+        <CardTitle className="text-base font-semibold">{uiText.analytics.healthTitle}</CardTitle>
+        <p className="mt-1 text-sm text-muted-foreground">{uiText.analytics.healthSubtitle}</p>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
         ) : health ? (
           <>
-            <div className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
+            <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
               <div>
                 <p className="text-xs text-muted-foreground">{uiText.analytics.score}</p>
-                <p className="text-2xl font-semibold text-foreground">{health.score}</p>
+                <p className="text-xl font-semibold text-foreground">{health.score}</p>
               </div>
               <span className={cn("rounded-full px-3 py-1 text-sm font-medium", badgeClass)}>
                 {getLabelText()[health.label]}
               </span>
             </div>
 
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.max(2, Math.min(100, health.score))}%`,
-                  backgroundColor: BAR_COLOR[health.label],
-                }}
-              />
+            <div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.max(2, Math.min(100, health.score))}%`,
+                    backgroundColor: BAR_COLOR[health.label],
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                <span>{(uiText as any)?.analytics?.riskScaleLabel ?? "Risk"}</span>
+                <span className="font-medium text-foreground">{health.score}/100</span>
+              </div>
             </div>
 
             <dl className="space-y-2 text-sm">
@@ -99,7 +107,7 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
                   <span
                     className={cn(health.cashFlowPositive ? "text-emerald-500" : "text-red-500")}
                   >
-                    {formatCurrencyCents(health.netCashFlow)}
+                    {formatCurrencyCents(health.netCashFlow, activeCurrency)}
                   </span>
                 }
               />

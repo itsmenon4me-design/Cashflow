@@ -18,4 +18,12 @@ export class AnalyticsQueryDto {
   @IsOptional()
   @IsIn(['daily', 'weekly', 'monthly'])
   granularity?: TrendType;
+
+  @ApiPropertyOptional({
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    description: 'Currency code to scope analytics',
+  })
+  @IsOptional()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

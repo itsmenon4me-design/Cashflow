@@ -8,6 +8,7 @@ export interface MailConfig {
   from: string;
   emailVerificationEnabled: boolean;
   passwordResetEnabled: boolean;
+  smtpConfigured: boolean;
 }
 
 export const mailConfig = registerAs('mail', (): MailConfig => ({
@@ -20,4 +21,5 @@ export const mailConfig = registerAs('mail', (): MailConfig => ({
     (process.env.EMAIL_VERIFICATION_ENABLED ?? 'false') === 'true',
   passwordResetEnabled:
     (process.env.PASSWORD_RESET_ENABLED ?? 'true') === 'true',
+  smtpConfigured: Boolean(process.env.SMTP_HOST),
 }));

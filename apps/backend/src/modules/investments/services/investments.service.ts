@@ -12,6 +12,7 @@ import {
 import { CreateInvestmentDto } from '../dto/create-investment.dto';
 import { UpdateInvestmentDto } from '../dto/update-investment.dto';
 import { getCurrencySpec } from '../../../common/types/money';
+import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 interface PriceInput {
   quantity: number;
@@ -86,16 +87,20 @@ export class InvestmentsService {
   async create(
     userId: string,
     input: CreateInvestmentDto,
+    currency?: string,
   ): Promise<InvestmentEntity> {
-    const currency = await this.resolveAccountCurrency(
-      userId,
-      input.account_id,
-    );
+    const normalizedCurrency = currency ?? input.currency ?? undefined;
+    const resolvedCurrency = normalizedCurrency
+      ? normalizeDashboardCurrency(normalizedCurrency) ?? 'IDR'
+      : await this.resolveAccountCurrency(userId, input.account_id);
 
-    const values = computeValues(input, minorUnitMultiplier(currency));
+    const currencyToUse = resolvedCurrency;
+
+    const values = computeValues(input, minorUnitMultiplier(currencyToUse));
     const created = await this.repo.create({
       user_id: userId,
       account_id: input.account_id ?? null,
+      currency: currencyToUse,
       investment_type: input.investment_type,
       platform: input.platform,
       name: input.name,
@@ -110,7 +115,7 @@ export class InvestmentsService {
       purchase_date: new Date(input.purchase_date),
       notes: input.notes ?? null,
       status: input.status ?? 'ACTIVE',
-    });
+    } as any);
 
     void this.audit.record({
       userId,
@@ -123,8 +128,12 @@ export class InvestmentsService {
     return created;
   }
 
-  async getById(userId: string, id: string): Promise<InvestmentEntity> {
-    const item = await this.repo.findById(id);
+  async getById(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<InvestmentEntity> {
+    const item = await this.repo.findById(id, currency);
     if (!item) {
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Investment not found');
     }
@@ -134,22 +143,26 @@ export class InvestmentsService {
     return item;
   }
 
-  async listAll(userId: string): Promise<InvestmentEntity[]> {
-    return this.repo.findAllByUser(userId);
+  async listAll(userId: string, currency?: string): Promise<InvestmentEntity[]> {
+    return this.repo.findAllByUser(userId, currency);
   }
+
 
   async update(
     userId: string,
     id: string,
     updates: UpdateInvestmentDto,
+    currency?: string,
   ): Promise<InvestmentEntity> {
-    const current = await this.getById(userId, id);
+    const current = await this.getById(userId, id, currency);
 
     const nextAccountId =
       updates.account_id !== undefined
         ? updates.account_id
         : current.account_id;
-    const currency = await this.resolveAccountCurrency(userId, nextAccountId);
+    const resolvedCurrency = updates.currency
+      ? normalizeDashboardCurrency(updates.currency) ?? 'IDR'
+      : await this.resolveAccountCurrency(userId, nextAccountId);
 
     const quantity =
       updates.quantity !== undefined
@@ -175,13 +188,16 @@ export class InvestmentsService {
         current_price: currentPrice,
         invested_amount_cents: investedInput,
       },
-      minorUnitMultiplier(currency),
+      minorUnitMultiplier(resolvedCurrency),
     );
 
     const data: Record<string, unknown> = {};
     for (const key of Object.keys(updates)) {
       const value = (updates as unknown as Record<string, unknown>)[key];
       if (value !== undefined) data[key] = value;
+    }
+    if (updates.currency !== undefined) {
+      data.currency = normalizeDashboardCurrency(updates.currency);
     }
     data.quantity = String(quantity);
     data.average_buy_price = String(averageBuyPrice);
@@ -194,7 +210,7 @@ export class InvestmentsService {
       data.purchase_date = new Date(updates.purchase_date);
     }
 
-    const updated = await this.repo.update(id, data);
+    const updated = await this.repo.update(id, data as any);
 
     void this.audit.record({
       userId,
@@ -207,8 +223,12 @@ export class InvestmentsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string): Promise<void> {
-    await this.getById(userId, id);
+  async softDelete(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<void> {
+    await this.getById(userId, id, currency);
     await this.repo.softDelete(id);
     void this.audit.record({
       userId,
@@ -220,8 +240,8 @@ export class InvestmentsService {
     this.logger.log(`Investment Deleted user=${userId} id=${id}`);
   }
 
-  async overview(userId: string) {
-    const items = await this.repo.findAllByUser(userId);
+  async overview(userId: string, currency?: string) {
+    const items = await this.repo.findAllByUser(userId, currency);
     const active = items.filter((i) => i.status === 'ACTIVE');
 
     // Group active investments by currency (via linked account or fallback IDR)
@@ -237,10 +257,9 @@ export class InvestmentsService {
     >();
 
     for (const item of active) {
-      const currency = await this.resolveAccountCurrency(
-        userId,
-        item.account_id,
-      );
+      const currency =
+        item.currency ??
+        (await this.resolveAccountCurrency(userId, item.account_id));
       const entry = currencyMap.get(currency) ?? {
         invested: 0n,
         value: 0n,
@@ -263,7 +282,10 @@ export class InvestmentsService {
     }
 
     if (currencyMap.size === 0) {
-      currencyMap.set('IDR', {
+      // Zeroed bucket in the requested scope currency (fallback IDR preserves
+      // legacy shape) so the response currency matches the dashboard scope.
+      const fallbackCurrency = normalizeDashboardCurrency(currency) ?? 'IDR';
+      currencyMap.set(fallbackCurrency, {
         invested: 0n,
         value: 0n,
         profit: 0n,

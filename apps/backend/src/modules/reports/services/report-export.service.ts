@@ -4,7 +4,7 @@ import { CategoryBreakdownService } from './category-breakdown.service';
 import { CashflowTrendService } from './cashflow-trend.service';
 
 type ExportType = 'monthly' | 'category' | 'trend';
-type ExportFormat = 'json' | 'csv';
+type ExportFormat = 'csv';
 
 export interface ExportResult {
   filename: string;
@@ -52,25 +52,25 @@ export class ReportExportService {
     startDate?: Date;
     endDate?: Date;
     userId: string;
+    currency?: string;
   }): Promise<ExportResult> {
-    const { type, format, month, year, startDate, endDate, userId } = params;
+    const { type, format, month, year, startDate, endDate, userId, currency } =
+      params;
     if (!['monthly', 'category', 'trend'].includes(type))
       throw new BadRequestException('Invalid type');
-    if (!['json', 'csv'].includes(format))
+    if (format !== 'csv')
       throw new BadRequestException('Invalid format');
 
     if (type === 'monthly') {
       const m = month ?? new Date().getMonth() + 1;
       const y = year ?? new Date().getFullYear();
-      const report = await this.monthlySvc.getMonthlyReport(userId, m, y);
-      if (format === 'json') {
-        const filename = `monthly-report-${y}-${this.padMonth(m)}.json`;
-        return {
-          filename,
-          contentType: 'application/json; charset=utf-8',
-          content: JSON.stringify(report),
-        };
-      }
+      const report = await this.monthlySvc.getMonthlyReport(
+        userId,
+        m,
+        y,
+        undefined,
+        currency,
+      );
       // CSV: single-row summary
       const filename = `monthly-report-${y}-${this.padMonth(m)}.csv`;
       const headers = [
@@ -101,15 +101,9 @@ export class ReportExportService {
         'expense',
         m,
         y,
+        undefined,
+        currency,
       );
-      if (format === 'json') {
-        const filename = `category-breakdown-${y}-${this.padMonth(m)}.json`;
-        return {
-          filename,
-          contentType: 'application/json; charset=utf-8',
-          content: JSON.stringify(breakdown),
-        };
-      }
       const filename = `category-breakdown-${y}-${this.padMonth(m)}.csv`;
       const headers = [
         'categoryId',
@@ -136,15 +130,13 @@ export class ReportExportService {
     if (type === 'trend') {
       const sd = startDate ?? new Date(new Date().getFullYear(), 0, 1);
       const ed = endDate ?? new Date();
-      const trend = await this.trendSvc.getTrend(userId, 'monthly', sd, ed);
-      if (format === 'json') {
-        const filename = `cashflow-trend.json`;
-        return {
-          filename,
-          contentType: 'application/json; charset=utf-8',
-          content: JSON.stringify(trend),
-        };
-      }
+      const trend = await this.trendSvc.getTrend(
+        userId,
+        'monthly',
+        sd,
+        ed,
+        currency,
+      );
       const filename = `cashflow-trend.csv`;
       const headers = ['period', 'income', 'expense', 'netCashFlow'];
       const rows = [headers];

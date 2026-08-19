@@ -17,6 +17,7 @@ export function ExpenseCard({ kpi, loading = false }: ExpenseCardProps) {
       icon={ArrowUpFromLine}
       trend={kpi.trend}
       loading={loading}
+      emphasis
     />
   );
 }

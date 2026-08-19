@@ -8,6 +8,7 @@ type InvRec = {
   id: string;
   user_id: string;
   account_id: string | null;
+  currency: string | null;
   investment_type: string;
   platform: string;
   name: string;
@@ -36,6 +37,7 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     i.id = rec.id;
     i.user_id = rec.user_id;
     i.account_id = rec.account_id ?? null;
+    i.currency = rec.currency ?? null;
     i.investment_type =
       rec.investment_type as InvestmentEntity['investment_type'];
     i.platform = rec.platform;
@@ -62,6 +64,7 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
       data: {
         user_id: input.user_id!,
         account_id: input.account_id ?? null,
+        currency: input.currency ?? null,
         investment_type: input.investment_type!,
         platform: input.platform!,
         name: input.name!,
@@ -81,15 +84,23 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string): Promise<InvestmentEntity | null> {
-    const rec = await this.prisma.investment.findUnique({ where: { id } });
+  async findById(id: string, currency?: string): Promise<InvestmentEntity | null> {
+    const where: Prisma.InvestmentWhereInput = { id };
+    if (currency) {
+      where.OR = [{ currency }, { account: { currency } }];
+    }
+    const rec = await this.prisma.investment.findFirst({ where });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string): Promise<InvestmentEntity[]> {
+  async findAllByUser(userId: string, currency?: string): Promise<InvestmentEntity[]> {
+    const where: any = { user_id: userId, deleted_at: null };
+    if (currency) {
+      where.OR = [{ currency }, { account: { currency } }];
+    }
     const recs = await this.prisma.investment.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where,
       orderBy: { purchase_date: 'desc' },
     });
     return (recs as unknown as InvRec[]).map((rec) => this.map(rec));
@@ -101,6 +112,7 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
   ): Promise<InvestmentEntity> {
     const data: Prisma.InvestmentUncheckedUpdateInput = {};
     if (updates.account_id !== undefined) data.account_id = updates.account_id;
+    if (updates.currency !== undefined) data.currency = updates.currency;
     if (updates.investment_type !== undefined)
       data.investment_type = updates.investment_type;
     if (updates.platform !== undefined) data.platform = updates.platform;

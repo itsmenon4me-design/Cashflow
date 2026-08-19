@@ -3,6 +3,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { IDashboardRepository } from '../interfaces/dashboard.repository.interface';
 import { DashboardSummaryResponseDto } from '../dto/dashboard-summary-response.dto';
 import { TransactionType } from '../../../generated/prisma/client';
+import { normalizeDashboardCurrency } from '../dashboard-currency';
 
 @Injectable()
 export class PrismaDashboardRepository implements IDashboardRepository {
@@ -12,10 +13,17 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     userId: string,
     monthStart: Date,
     monthEnd: Date,
+    currency?: string,
   ): Promise<DashboardSummaryResponseDto> {
+    const targetCurrency = normalizeDashboardCurrency(currency);
+
     // 1. Fetch user accounts grouped by currency
     const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        ...(targetCurrency ? { currency: targetCurrency } : {}),
+      },
       select: {
         id: true,
         currency: true,
@@ -32,6 +40,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         deleted_at: null,
         transaction_type: TransactionType.INCOME,
         transaction_date: { gte: monthStart, lte: monthEnd },
+        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
       },
       select: {
         amount_cents: true,
@@ -47,6 +56,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         deleted_at: null,
         transaction_type: TransactionType.EXPENSE,
         transaction_date: { gte: monthStart, lte: monthEnd },
+        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
       },
       select: {
         amount_cents: true,
@@ -60,7 +70,11 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       where: { user_id: userId, deleted_at: null },
     });
     const txTotalCount = await this.prisma.transaction.count({
-      where: { user_id: userId, deleted_at: null },
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
+      },
     });
 
     // 5. Aggregate per currency
@@ -119,13 +133,13 @@ export class PrismaDashboardRepository implements IDashboardRepository {
 
     // Default to IDR if no accounts exist
     if (currencyMap.size === 0) {
-      currencyMap.set('IDR', { assets: 0n, income: 0n, expense: 0n });
+      currencyMap.set(targetCurrency ?? 'IDR', { assets: 0n, income: 0n, expense: 0n });
     }
 
     // Determine primary currency (default account currency, or first currency in map)
     const defaultAcc = accounts.find((a) => a.is_default);
     const primaryCurrency =
-      defaultAcc?.currency ?? Array.from(currencyMap.keys())[0] ?? 'IDR';
+      targetCurrency ?? defaultAcc?.currency ?? Array.from(currencyMap.keys())[0] ?? 'IDR';
 
     // Build per-currency list
     const byCurrency = Array.from(currencyMap.entries()).map(
@@ -167,7 +181,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       total_categories: catsCount,
       total_transactions: txTotalCount,
       last_updated_at: lastUpdatedAt,
-      by_currency: byCurrency,
+      by_currency: targetCurrency ? byCurrency.filter((item) => item.currency === targetCurrency) : byCurrency,
     });
   }
 }

@@ -100,6 +100,23 @@ export class UsersService {
     return updated;
   }
 
+  async applyPasswordReset(
+    id: string,
+    hashedPassword: string,
+  ): Promise<UserEntity> {
+    // Set the new password hash and clear the reset token state (single-use).
+    const updated = await this.repo.update(id, {
+      password_hash: hashedPassword,
+      password_reset_token_hash: null,
+      password_reset_expires_at: null,
+      password_reset_requested_at: null,
+    });
+    this.loggerService.log('Password Reset Applied', 'UsersService', {
+      userId: id,
+    });
+    return updated;
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.repo.softDelete(id);
     this.loggerService.log('User Deleted', 'UsersService', { userId: id });

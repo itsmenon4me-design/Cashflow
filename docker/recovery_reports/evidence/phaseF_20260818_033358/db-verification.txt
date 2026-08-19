@@ -1,0 +1,8 @@
+﻿ currency | tx_count 
+----------+----------
+ EUR      |        5
+ IDR      |        4
+ SGD      |        3
+ USD      |        4
+(4 rows)
+

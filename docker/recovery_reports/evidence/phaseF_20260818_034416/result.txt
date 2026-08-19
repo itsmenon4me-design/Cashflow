@@ -1,0 +1,3 @@
+﻿FAILED 1 failed (2.0m) - phase9.spec.ts STEP 12G-1, timeout at waitForSelector('header') (line 106).
+Log: 'PHASE9 login response missing tokens/user; running unauthenticated' -> e2eAuth=null -> dashboard redirect to /login -> header never settles.
+Diagnosis (verified via API): login response shape = { success, message, data: { accessToken, refreshToken, tokenType, expiresIn }, user: {...} } - user is TOP-LEVEL sibling of data, NOT under data. Patch checked data.user -> undefined -> auth not injected. Product/auth behavior correct; defect is in the remediation patch itself (field extraction).

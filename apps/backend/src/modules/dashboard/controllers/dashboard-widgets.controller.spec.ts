@@ -29,7 +29,7 @@ describe('DashboardWidgetsController (security)', () => {
     cashFlow: {},
     monthlyReport: {},
     categoryBreakdown: [],
-    trend: [],
+    trend: null,
     budget: {},
   };
 

@@ -1,0 +1,14 @@
+Transactions CRUD = PASS
+
+Spec: apps/frontend/playwright/transactions-e2e.spec.ts
+Test: Transactions page month-scoped filtering (E2E) > initial render applies
+      current-month fromDate/toDate and backend returns only current-month transactions
+
+Run: 2026-08-18 03:16 (UTC+7) on cashflowverify stack
+Command: npx playwright test apps/frontend/playwright/transactions-e2e.spec.ts
+         --workers=1 --trace=retain-on-failure --timeout=180000 --reporter=list
+Result: 1 passed (6.7s)
+.last-run.json: { "status": "passed", "failedTests": [] }
+
+No trace.zip produced (retain-on-failure only).
+Full output (incl. in-browser fetch/XHR + CDP instrumentation): playwright-transactions.log

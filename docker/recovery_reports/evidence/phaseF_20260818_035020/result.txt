@@ -1,0 +1,2 @@
+﻿FAILED 1 failed (9.4s) - phase9.spec.ts STEP 12G-1. Auth fixture fix VERIFIED WORKING: test passed login + header wait, progressed deep into test.
+New failure: ReferenceError: location is not defined at phase9.spec.ts:167 - 'new URL(summaryEntry.url, location.href)' runs in Node context (not page.evaluate); Node has no global 'location'. PRE-EXISTING spec defect, unrelated to auth patch (test previously never reached this line - always died at waitForSelector on /login). Not a product defect.

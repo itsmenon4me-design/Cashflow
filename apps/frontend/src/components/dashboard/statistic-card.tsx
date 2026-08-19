@@ -13,6 +13,8 @@ interface StatisticCardProps {
   trend: number[];
   comparison?: string;
   loading?: boolean;
+  /** If true, render as a primary/high-emphasis KPI */
+  emphasis?: boolean;
 }
 
 export function StatisticCard({
@@ -23,20 +25,32 @@ export function StatisticCard({
   trend,
   comparison = uiText.common.vsLastMonth,
   loading = false,
+  emphasis = false,
 }: StatisticCardProps) {
   const isPositive = change.startsWith("+");
 
+  // Adaptive typography for KPI value based on formatted value length
+  function getKpiValueClass(val: string) {
+    const len = (val ?? "").trim().length;
+    if (len <= 8) return "text-3xl font-bold"; // ~30px
+    if (len <= 12) return "text-2xl font-bold"; // ~24-28px
+    if (len <= 16) return "text-xl font-bold"; // ~20-24px
+    return "text-lg font-bold"; // ~18px
+  }
+
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+    <Card className="shadow-sm min-h-[170px]">
+      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2 px-5">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {label}
-          </p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground leading-snug">{label}</p>
           {loading ? (
-            <Skeleton className="mt-2 h-8 w-32" />
+            <Skeleton className="mt-2 h-5 w-24" />
           ) : (
-            <p className="mt-2 text-xl font-semibold tracking-tight text-foreground">{value}</p>
+            <div className="min-w-0 overflow-hidden">
+              <p className={cn("mt-2 tracking-tight text-foreground leading-tight", getKpiValueClass(value))}>
+                {value}
+              </p>
+            </div>
           )}
         </div>
         {loading ? (
@@ -47,7 +61,7 @@ export function StatisticCard({
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-3 pt-0">
+      <CardContent className="p-5 pt-0">
         {loading ? (
           <>
             <Skeleton className="h-4 w-28" />
@@ -67,7 +81,9 @@ export function StatisticCard({
               </span>
               <span className="text-muted-foreground">{comparison}</span>
             </div>
-            <Sparkline data={trend} />
+            <div className="mt-3">
+              <Sparkline data={trend} />
+            </div>
           </>
         )}
       </CardContent>

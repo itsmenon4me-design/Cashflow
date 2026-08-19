@@ -78,6 +78,9 @@ export class AuthRateLimitGuard implements CanActivate {
     ) {
       limit = cfg.emailVerificationLimit;
       windowSec = cfg.emailVerificationWindowSeconds;
+    } else if (path.endsWith('/reset-password')) {
+      limit = cfg.resetPasswordLimit;
+      windowSec = cfg.resetPasswordWindowSeconds;
     } else {
       return true;
     }

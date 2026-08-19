@@ -79,6 +79,7 @@ export class ReportsController {
       query.month,
       query.year,
       range,
+      query.currency,
     );
   }
 
@@ -107,6 +108,7 @@ export class ReportsController {
       query.month,
       query.year,
       range,
+      query.currency,
     );
   }
 
@@ -128,7 +130,7 @@ export class ReportsController {
   ) {
     const start = new Date(query.startDate);
     const end = new Date(query.endDate);
-    return this.cashflowTrend.getTrend(userId, query.type, start, end);
+    return this.cashflowTrend.getTrend(userId, query.type, start, end, query.currency);
   }
 
   @Get('budget-analysis')
@@ -144,7 +146,12 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: BudgetQueryDto,
   ) {
-    return this.budgetAnalytics.analyzeMonth(userId, query.month, query.year);
+    return this.budgetAnalytics.analyzeMonth(
+      userId,
+      query.month,
+      query.year,
+      query.currency,
+    );
   }
 
   @Get('export')
@@ -174,6 +181,7 @@ export class ReportsController {
       startDate,
       endDate,
       userId,
+      currency: query.currency,
     });
 
     // For simplicity, return an object with filename and content; controllers elsewhere stream files differently.
@@ -197,6 +205,11 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: FinancialInsightsQueryDto,
   ) {
-    return this.insights.getInsights(userId, query.month, query.year);
+    return this.insights.getInsights(
+      userId,
+      query.month,
+      query.year,
+      query.currency,
+    );
   }
 }

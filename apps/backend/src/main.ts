@@ -28,8 +28,31 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
 
+  const allowedOrigins =
+    config.corsOrigins.length > 0
+      ? config.corsOrigins
+      : process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test'
+        ? []
+        : [
+            'http://localhost:3000',
+            'http://localhost:3002',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:3002',
+          ];
+
   app.enableCors({
-    origin: config.corsOrigins,
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean | string) => void,
+    ) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const isAllowed = allowedOrigins.includes(origin);
+      callback(null, isAllowed ? origin : false);
+    },
     methods: config.cors.methods,
     credentials: config.cors.credentials,
   });

@@ -19,6 +19,7 @@ import { computeRange, pickTrendType, previousRange, type PeriodKey, type Report
 import { formatMoney } from "@/lib/format";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ExportFormat, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
@@ -47,6 +48,7 @@ function pctChange(
 
 export function ReportsPage() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [range, setRange] = useState<ReportRange>(() => computeRange("thisMonth"));
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -63,6 +65,8 @@ export function ReportsPage() {
   const [expenseBreakdown, setExpenseBreakdown] = useState<CategoryBreakdownResult | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  // Non-hook access to current display currency for formatting (matches analytics pattern)
+  const displayCurrency = useDashboardCurrencyStore.getState().currency;
 
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
@@ -97,26 +101,28 @@ export function ReportsPage() {
         const trendType = pickTrendType(range);
         const prev = previousRange(range);
 
+        const activeCurrency = useDashboardCurrencyStore.getState().currency;
         const [summaryRes, incomeRes, expenseRes, trendRes, txRes, accounts, categories] =
           await Promise.all([
-            reportService.getSummary(range),
-            reportService.getCategoryBreakdown("income", range),
-            reportService.getCategoryBreakdown("expense", range),
-            reportService.getCashflowTrend(trendType, range),
+            reportService.getSummary(range, activeCurrency),
+            reportService.getCategoryBreakdown("income", range, activeCurrency),
+            reportService.getCategoryBreakdown("expense", range, activeCurrency),
+            reportService.getCashflowTrend(trendType, range, activeCurrency),
             transactionService.list({
               fromDate: range.startDate,
               toDate: range.endDate,
               limit: 8,
               sortBy: "date",
               sortOrder: "desc",
+              currency: activeCurrency,
             }),
-            accountService.list().catch(() => [] as AccountResponse[]),
+            accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
             categoryService.list().catch(() => [] as CategoryResponse[]),
           ]);
 
         let prevSummaryRes: ReportSummary | null = null;
         try {
-          prevSummaryRes = await reportService.getSummary(prev);
+          prevSummaryRes = await reportService.getSummary(prev, activeCurrency);
         } catch {
           prevSummaryRes = null;
         }
@@ -124,6 +130,7 @@ export function ReportsPage() {
         if (cancelled) return;
 
         const accNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
+        const accCurrencies = Object.fromEntries(accounts.map((a) => [a.id, a.currency]));
         const catNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
 
         setSummary(summaryRes);
@@ -131,7 +138,7 @@ export function ReportsPage() {
         setIncomeBreakdown(incomeRes);
         setExpenseBreakdown(expenseRes);
         setTrend(trendRes.data ? trendRes.data : []);
-        setTransactions(txRes.data.map((dto) => toTransactionItem(dto, accNames, catNames)));
+        setTransactions(txRes.data.map((dto) => toTransactionItem(dto, accNames, catNames, accCurrencies)));
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -143,27 +150,27 @@ export function ReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range]);
+  }, [refreshKey, range, activeCurrency]);
 
   const hasAnyData = (summary?.summary.transactions ?? 0) > 0 || trend.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;
 
-  const income = summary ? fromCents(summary.summary.income) : 0;
-  const expense = summary ? fromCents(summary.summary.expense) : 0;
-  const net = summary ? fromCents(summary.summary.netCashFlow) : 0;
+  const income = summary ? fromCents(summary.summary.income, displayCurrency) : 0;
+  const expense = summary ? fromCents(summary.summary.expense, displayCurrency) : 0;
+  const net = summary ? fromCents(summary.summary.netCashFlow, displayCurrency) : 0;
   const txCount = summary ? summary.summary.transactions : 0;
 
-  const incomeChange = pctChange(income, prevSummary ? fromCents(prevSummary.summary.income) : null);
-  const expenseChange = pctChange(expense, prevSummary ? fromCents(prevSummary.summary.expense) : null);
-  const netChange = pctChange(net, prevSummary ? fromCents(prevSummary.summary.netCashFlow) : null);
+  const incomeChange = pctChange(income, prevSummary ? fromCents(prevSummary.summary.income, displayCurrency) : null);
+  const expenseChange = pctChange(expense, prevSummary ? fromCents(prevSummary.summary.expense, displayCurrency) : null);
+  const netChange = pctChange(net, prevSummary ? fromCents(prevSummary.summary.netCashFlow, displayCurrency) : null);
   const txChange = pctChange(txCount, prevSummary ? prevSummary.summary.transactions : null);
 
   const cashFlow = useMemo<FlowPoint[]>(
     () =>
       trend.map((t) => ({
         month: t.period,
-        income: fromCents(t.income),
-        expense: fromCents(t.expense),
+        income: fromCents(t.income, displayCurrency),
+        expense: fromCents(t.expense, displayCurrency),
       })),
     [trend]
   );
@@ -173,7 +180,7 @@ export function ReportsPage() {
       (incomeBreakdown?.categories ?? []).map((c) => ({
         name: c.categoryName ?? "-",
         value: c.percentage,
-        amount: fromCents(c.totalAmount),
+        amount: fromCents(c.totalAmount, displayCurrency),
       })),
     [incomeBreakdown]
   );
@@ -183,7 +190,7 @@ export function ReportsPage() {
       (expenseBreakdown?.categories ?? []).map((c) => ({
         name: c.categoryName ?? "-",
         value: c.percentage,
-        amount: fromCents(c.totalAmount),
+        amount: fromCents(c.totalAmount, displayCurrency),
       })),
     [expenseBreakdown]
   );
@@ -196,7 +203,7 @@ export function ReportsPage() {
       const categoryTotal = BigInt(c.total);
       return {
         name: c.name ?? "-",
-        amount: fromCents(categoryTotal),
+        amount: fromCents(categoryTotal, displayCurrency),
         percentage: expenseTotal > zero ? (Number(categoryTotal) / Number(expenseTotal)) * 100 : 0,
         transactionCount: 0,
       };
@@ -215,6 +222,7 @@ export function ReportsPage() {
         format,
         month: start.getMonth() + 1,
         year: start.getFullYear(),
+        currency: activeCurrency,
       });
       downloadExport(res);
     } catch {
@@ -264,21 +272,6 @@ export function ReportsPage() {
               <Download className="size-4" aria-hidden="true" />
             )}
             {exporting === "csv" ? uiText.reports.downloading : uiText.reports.downloadCsv}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl"
-            onClick={() => void handleExport("json")}
-            disabled={exportBusy}
-            aria-label={uiText.reports.downloadJson}
-          >
-            {exporting === "json" ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Download className="size-4" aria-hidden="true" />
-            )}
-            {exporting === "json" ? uiText.reports.downloading : uiText.reports.downloadJson}
           </Button>
         </div>
         {exportError && (

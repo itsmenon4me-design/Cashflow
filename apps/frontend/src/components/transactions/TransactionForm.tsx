@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CategorySuggestionPanel } from "./CategorySuggestionPanel";
 import {
   Select,
   SelectContent,
@@ -99,6 +98,22 @@ export function TransactionForm({
   useEffect(() => {
     if (open) {
       form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
+      try {
+        // expose the intended create type for sync layer to read (helps quick-add/header variants)
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('cashflow.pendingCreateType', (transactionType ?? form.getValues('type') ?? '').toString());
+        }
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('cashflow.pendingCreateType');
+        }
+      } catch (e) {
+        // ignore
+      }
     }
   }, [open, transaction, form, initialValues, transactionType]);
 
@@ -140,7 +155,14 @@ export function TransactionForm({
   const handleSubmit = async (values: TransactionFormValues) => {
     setSubmitError(null);
     try {
-      await onSubmit(values);
+      // If parent did not control transactionType, infer from current route to prevent quick-add/default-type regressions
+      const finalValues = { ...values } as TransactionFormValues;
+      if (typeof transactionType === 'undefined' && typeof window !== 'undefined') {
+        const p = window.location.pathname || '';
+        if (p.startsWith('/incomes')) finalValues.type = 'income';
+        else if (p.startsWith('/expenses')) finalValues.type = 'expense';
+      }
+      await onSubmit(finalValues);
       onOpenChange(false);
     } catch {
       setSubmitError(uiText.transactions.saveFailed);
@@ -240,15 +262,6 @@ export function TransactionForm({
                 <FormError message={errors.category?.message} />
               </div>
 
-              <div className="sm:col-span-2">
-                <CategorySuggestionPanel
-                  transactionType={selectedType === 'income' ? 'INCOME' : 'EXPENSE'}
-                  description={watchedDescription}
-                  amount={watchedAmount}
-                  categories={visibleCategories}
-                  onAccept={(categoryName) => form.setValue('category', categoryName)}
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label>{uiText.transactions.fieldAccount}</Label>

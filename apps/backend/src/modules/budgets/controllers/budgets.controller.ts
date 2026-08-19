@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -25,8 +26,11 @@ export class BudgetsController {
   @ApiOperation({ summary: 'List budgets for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async list(@CurrentUser('sub') userId: string) {
-    const items = await this.budgets.listAll(userId);
+  async list(
+    @CurrentUser('sub') userId: string,
+    @Query('currency') currency?: string,
+  ) {
+    const items = await this.budgets.listAll(userId, currency);
     return { success: true, data: items.map((i) => toBudgetResponse(i)) };
   }
 
@@ -34,8 +38,12 @@ export class BudgetsController {
   @ApiOperation({ summary: 'Get budget by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    const b = await this.budgets.getById(userId, id);
+  async get(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    const b = await this.budgets.getById(userId, id, currency);
     return { success: true, data: toBudgetResponse(b) };
   }
 
@@ -59,8 +67,9 @@ export class BudgetsController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateBudgetDto,
+    @Query('currency') currency?: string,
   ) {
-    const updated = await this.budgets.update(userId, id, body);
+    const updated = await this.budgets.update(userId, id, body, currency);
     return { success: true, data: toBudgetResponse(updated) };
   }
 
@@ -68,8 +77,12 @@ export class BudgetsController {
   @ApiOperation({ summary: 'Soft delete budget' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    await this.budgets.softDelete(userId, id);
+  async delete(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    await this.budgets.softDelete(userId, id, currency);
     return { success: true };
   }
 }

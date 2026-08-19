@@ -6,6 +6,7 @@ export function toBudgetResponse(b: BudgetEntity): BudgetResponseDto {
     id: b.id,
     category_id: b.category_id,
     category_name: b.category_name ?? null,
+    currency: b.currency ?? null,
     budget_amount_cents: b.budget_amount_cents.toString(),
     month: b.month,
     year: b.year,

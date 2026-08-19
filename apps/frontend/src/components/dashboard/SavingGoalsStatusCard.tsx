@@ -20,14 +20,14 @@ export function SavingGoalsStatusCard({ data, loading = false }: SavingGoalsStat
   return (
     <Link href="/goals" className="block rounded-xl" aria-label={uiText.navigation.goals}>
       <Card className="shadow-sm" interactive>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="px-4 py-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Target className="size-4 text-muted-foreground" />
             {uiText.savingGoals.dashboardTitle}
           </CardTitle>
-          <p className="text-xs text-muted-foreground">{uiText.savingGoals.dashboardSubtitle}</p>
+          <p className="text-sm text-muted-foreground">{uiText.savingGoals.dashboardSubtitle}</p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 space-y-3">
           {loading || !data ? (
             <div className="space-y-3">
               <Skeleton className="h-2 w-full" />
@@ -37,18 +37,18 @@ export function SavingGoalsStatusCard({ data, loading = false }: SavingGoalsStat
           ) : (
             <>
               <SavingGoalProgress percentage={percentage} />
-              <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{uiText.savingGoals.target}</p>
-                  <p className="font-semibold text-foreground">{formatCurrencyCents(data.targetAmount)}</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="min-w-0 truncate">
+                  <p className="text-[13px] text-muted-foreground">{uiText.savingGoals.target}</p>
+                  <p className="text-lg font-semibold text-foreground truncate">{formatCurrencyCents(data.targetAmount)}</p>
                 </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{uiText.savingGoals.collected}</p>
-                  <p className="font-semibold text-foreground">{formatCurrencyCents(data.currentAmount)}</p>
+                <div className="min-w-0 truncate">
+                  <p className="text-[13px] text-muted-foreground">{uiText.savingGoals.collected}</p>
+                  <p className="text-lg font-semibold text-foreground truncate">{formatCurrencyCents(data.currentAmount)}</p>
                 </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{uiText.savingGoals.remaining}</p>
-                  <p className="font-semibold text-foreground">
+                <div className="min-w-0 truncate">
+                  <p className="text-[13px] text-muted-foreground">{uiText.savingGoals.remaining}</p>
+                  <p className="text-lg font-semibold text-foreground truncate">
                     {formatCurrencyCents(BigInt(data.targetAmount) - BigInt(data.currentAmount))}
                   </p>
                 </div>

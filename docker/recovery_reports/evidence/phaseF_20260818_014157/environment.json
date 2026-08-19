@@ -1,0 +1,6 @@
+﻿{
+    "API_BASE":  "http://localhost:3101/api/v1",
+    "FRONTEND_BASE":  "http://localhost:8080",
+    "E2E_EMAIL":  "e2e.api.user@test.local",
+    "TIMESTAMP":  "2026-08-18T01:41:57.1521674+07:00"
+}

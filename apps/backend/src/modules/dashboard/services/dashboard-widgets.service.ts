@@ -53,7 +53,7 @@ export class DashboardWidgetsService {
     }
   };
 
-  async getWidgets(userId: string, month?: number, year?: number) {
+  async getWidgets(userId: string, month?: number, year?: number, currency?: string) {
     // Determine month/year defaults
     const now = new Date();
     const m = month ?? now.getMonth() + 1;
@@ -61,7 +61,7 @@ export class DashboardWidgetsService {
 
     // Summary
     const summary = await this.safeCall<DashboardSummaryResponseDto | null>(
-      () => this.summarySvc.getSummaryForUser(userId),
+      () => this.summarySvc.getSummaryForUser(userId, currency),
       'summary',
       null,
     );
@@ -70,14 +70,14 @@ export class DashboardWidgetsService {
     const monthStart = new Date(y, m - 1, 1);
     const monthEnd = new Date(y, m, 0, 23, 59, 59, 999);
     const cashFlow = await this.safeCall<AnalyticsResult | null>(
-      () => this.cashflowSvc.getAnalytics(userId, monthStart, monthEnd),
+      () => this.cashflowSvc.getAnalytics(userId, monthStart, monthEnd, currency),
       'cashflow',
       null,
     );
 
     // Monthly report (full summary)
     const monthlyReport = await this.safeCall<MonthlyReportResult | null>(
-      async () => this.monthlySvc.getMonthlyReport(userId, m, y),
+      async () => this.monthlySvc.getMonthlyReport(userId, m, y, undefined, currency),
       'monthlyReport',
       null,
     );
@@ -90,6 +90,8 @@ export class DashboardWidgetsService {
           'expense',
           m,
           y,
+          undefined,
+          currency,
         );
         return (res.categories?.slice(0, 5) ?? []) as CategoryWidgetItem[];
       },
@@ -101,14 +103,14 @@ export class DashboardWidgetsService {
     const end = monthEnd;
     const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
     const trend = await this.safeCall<TrendResult | null>(
-      () => this.trendSvc.getTrend(userId, 'monthly', start, end),
+      () => this.trendSvc.getTrend(userId, 'monthly', start, end, currency),
       'trend',
       null,
     );
 
     // Budget overview
     const budget = await this.safeCall<BudgetAnalysisResult | null>(
-      () => this.budgetSvc.analyzeMonth(userId, m, y),
+      () => this.budgetSvc.analyzeMonth(userId, m, y, currency),
       'budget',
       null,
     );
@@ -118,7 +120,8 @@ export class DashboardWidgetsService {
       cashFlow: cashFlow ?? {},
       monthlyReport: monthlyReport ?? {},
       categoryBreakdown: categoryBreakdown ?? [],
-      trend: trend && trend.data ? trend.data : [],
+      trend:
+        trend && trend.data ? { type: trend.type, data: trend.data } : null,
       budget: budget ?? {},
     } as const;
   }

@@ -75,6 +75,8 @@ interface TransactionTableProps {
   onEdit: (transaction: TransactionItem) => void;
   onDuplicate: (transaction: TransactionItem) => void;
   onDelete: (transaction: TransactionItem) => void;
+  // Hide the explicit Type column when the surrounding page already indicates the type (e.g., Income/Expense pages)
+  hideTypeColumn?: boolean;
 }
 
 export function TransactionTable({
@@ -87,6 +89,7 @@ export function TransactionTable({
   onEdit,
   onDuplicate,
   onDelete,
+  hideTypeColumn = false,
 }: TransactionTableProps) {
   if (loading) {
     return (
@@ -123,7 +126,7 @@ export function TransactionTable({
                   {uiText.table.description}
                 </TableHead>
                 <TableHead className="hidden lg:table-cell">{uiText.table.account}</TableHead>
-                <TableHead>{uiText.table.type}</TableHead>
+                {!hideTypeColumn && <TableHead>{uiText.table.type}</TableHead>}
                 <TableHead className="text-right">
                   <SortButton
                     column="amount"
@@ -143,9 +146,9 @@ export function TransactionTable({
               {transactions.map((txn) => {
                 const isIncome = txn.type === "income";
                 return (
-                  <TableRow key={txn.id}>
+                  <TableRow key={txn.id} data-transaction-id={txn.id}>
                     <TableCell className="text-muted-foreground">
-                      {formatTransactionDate(txn.date)}
+                      {formatTransactionDate(txn.dateTime ?? txn.date)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-lg bg-muted">
@@ -161,29 +164,31 @@ export function TransactionTable({
                         <span className="truncate">{txn.account}</span>
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "flex size-6 shrink-0 items-center justify-center rounded-lg",
-                            isIncome
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : "bg-primary/10 text-primary"
-                          )}
-                        >
-                          {isIncome ? (
-                            <ArrowDownToLine className="size-3.5" />
-                          ) : (
-                            <ArrowUpFromLine className="size-3.5" />
-                          )}
+                    {!hideTypeColumn && (
+                      <TableCell>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "flex size-6 shrink-0 items-center justify-center rounded-lg",
+                              isIncome
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : "bg-primary/10 text-primary"
+                            )}
+                          >
+                            {isIncome ? (
+                              <ArrowDownToLine className="size-3.5" />
+                            ) : (
+                              <ArrowUpFromLine className="size-3.5" />
+                            )}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {isIncome
+                              ? uiText.transactions.typeIncome
+                              : uiText.transactions.typeExpense}
+                          </span>
                         </span>
-                        <span className="text-muted-foreground">
-                          {isIncome
-                            ? uiText.transactions.typeIncome
-                            : uiText.transactions.typeExpense}
-                        </span>
-                      </span>
-                    </TableCell>
+                      </TableCell>
+                    )}
                     <TableCell
                       className={cn(
                         "text-right font-semibold",

@@ -1,0 +1,68 @@
+﻿[
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\expense-e2e.spec.ts",
+        "name":  "expense-e2e.spec.ts",
+        "usesDb":  false,
+        "notes":  ""
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\income-e2e.spec.ts",
+        "name":  "income-e2e.spec.ts",
+        "usesDb":  false,
+        "notes":  ""
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.debug.spec.ts",
+        "name":  "multi-currency-acceptance.debug.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;pool;pool;pool;pool;pool"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.final.spec.ts",
+        "name":  "multi-currency-acceptance.final.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;TEST_DATABASE_URL;pool;pool"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.fixed.spec.ts",
+        "name":  "multi-currency-acceptance.fixed.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;TEST_DATABASE_URL;pool;pool;pool;pool;pool"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.reports-analytics.spec.ts",
+        "name":  "multi-currency-acceptance.reports-analytics.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;pool;pool;pool"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\multi-currency-acceptance.spec.ts",
+        "name":  "multi-currency-acceptance.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;TEST_DATABASE_URL;pool;pool;pool;pool;pool"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\phase9.spec.ts",
+        "name":  "phase9.spec.ts",
+        "usesDb":  false,
+        "notes":  ""
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-currency-e2e.spec.ts",
+        "name":  "transactions-currency-e2e.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;TEST_DATABASE_URL;TEST_DATABASE_URL;pool;pool;DELETE FROM;DELETE FROM;DELETE FROM;DELETE FROM;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-currency-e2e2.spec.ts",
+        "name":  "transactions-currency-e2e2.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;TEST_DATABASE_URL;TEST_DATABASE_URL;pool;pool;DELETE FROM;DELETE FROM;DELETE FROM;DELETE FROM;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO;INSERT INTO"
+    },
+    {
+        "path":  "D:\\Project 2\\CashFlow\\apps\\frontend\\playwright\\transactions-e2e.spec.ts",
+        "name":  "transactions-e2e.spec.ts",
+        "usesDb":  true,
+        "notes":  "Pool;DATABASE_URL;DATABASE_URL;TEST_DATABASE_URL;DATABASE_URL;pool;pool;DELETE FROM;DELETE FROM;DELETE FROM;DELETE FROM;INSERT INTO;INSERT INTO"
+    }
+]

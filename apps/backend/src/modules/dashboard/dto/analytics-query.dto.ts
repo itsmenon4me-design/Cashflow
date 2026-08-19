@@ -1,4 +1,4 @@
-import { IsOptional, IsISO8601 } from 'class-validator';
+import { IsOptional, IsISO8601, IsIn, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AnalyticsQueryDto {
@@ -11,4 +11,13 @@ export class AnalyticsQueryDto {
   @IsOptional()
   @IsISO8601()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Financial dataset currency scope for cashflow analytics.',
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

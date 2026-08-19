@@ -14,6 +14,7 @@ export class InvestmentEntity {
   id!: string;
   user_id!: string;
   account_id?: string | null;
+  currency?: string | null;
   investment_type!: InvestmentType;
   platform!: string;
   name!: string;

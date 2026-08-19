@@ -32,6 +32,7 @@ import {
 import { formatMoney } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AccountItem } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 export type AccountFormMode = "create" | "edit" | "view";
 
@@ -70,6 +71,7 @@ export function AccountForm({
   account,
   onSubmit,
 }: AccountFormProps) {
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
   const isView = mode === "view";
 
   const title = isView
@@ -85,9 +87,14 @@ export function AccountForm({
 
   useEffect(() => {
     if (open) {
-      form.reset(account ? toFormValues(account) : EMPTY_FORM_VALUES);
+      if (account) {
+        form.reset(toFormValues(account));
+      } else {
+        // For create mode, default the currency to the active dashboard currency
+        form.reset({ ...EMPTY_FORM_VALUES, currency: activeCurrency });
+      }
     }
-  }, [open, account, form]);
+  }, [open, account, form, activeCurrency]);
 
   const { errors } = form.formState;
   const [serverError, setServerError] = useState<string | undefined>(undefined);
@@ -98,6 +105,8 @@ export function AccountForm({
     setServerError(undefined);
     setIsSubmitting(true);
     try {
+      // Ensure currency is bound to active dashboard currency (safety)
+      values.currency = activeCurrency;
       // onSubmit is expected to throw on error or return truthy on success
       const res = await onSubmit(values);
       // If caller returned falsy, treat as failure
@@ -195,7 +204,7 @@ export function AccountForm({
                   id="account-currency"
                   className="h-11 uppercase sm:h-9"
                   maxLength={3}
-                  disabled={isView}
+                  disabled={isView || mode === 'create'}
                   aria-invalid={!!errors.currency}
                   {...form.register("currency")}
                 />
@@ -206,9 +215,7 @@ export function AccountForm({
                 <div className="space-y-2">
                   <Label>{uiText.accounts.balance}</Label>
                   <p className="text-lg font-semibold tracking-tight">
-                    {account
-                      ? formatMoney(account.balance, account.currency)
-                      : formatMoney(0)}
+                    {account ? formatMoney(account.balance, activeCurrency) : formatMoney(0, activeCurrency)}
                   </p>
                 </div>
               ) : mode === "create" ? (
@@ -311,5 +318,5 @@ function formatSummary(account: AccountItem | null): string {
   }
   const typeLabel =
     ACCOUNT_TYPE_OPTIONS.find((option) => option.value === account.accountType)?.label ?? "";
-  return `${typeLabel} · ${formatMoney(account.balance, account.currency)}`;
+  return `${typeLabel} · ${formatMoney(account.balance)}`;
 }

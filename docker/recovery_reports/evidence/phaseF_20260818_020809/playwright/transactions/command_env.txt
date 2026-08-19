@@ -1,0 +1,2 @@
+﻿command: npx playwright test D:\Project 2\CashFlow\apps\frontend\playwright\transactions-currency-e2e.spec.ts --workers=1 --trace=retain-on-failure --timeout=180000 --reporter=list
+env: E2E_EMAIL=e2e.api.user@test.local, E2E_PASSWORD=***, FRONTEND_BASE=http://localhost:8080, API_BASE=http://localhost:3101/api/v1

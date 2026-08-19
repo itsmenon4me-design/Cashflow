@@ -21,6 +21,7 @@ export class MailConfigService {
       from: 'no-reply@cashflow.example.com',
       emailVerificationEnabled: false,
       passwordResetEnabled: true,
+      smtpConfigured: false,
     };
   }
 }

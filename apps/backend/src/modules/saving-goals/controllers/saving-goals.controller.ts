@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -25,8 +26,11 @@ export class SavingGoalsController {
   @ApiOperation({ summary: 'List saving goals for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async list(@CurrentUser('sub') userId: string) {
-    const items = await this.goals.listAll(userId);
+  async list(
+    @CurrentUser('sub') userId: string,
+    @Query('currency') currency?: string,
+  ) {
+    const items = await this.goals.listAll(userId, currency);
     return { success: true, data: items.map((i) => toSavingGoalResponse(i)) };
   }
 
@@ -34,16 +38,20 @@ export class SavingGoalsController {
   @ApiOperation({ summary: 'Saving goals overview for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async overview(@CurrentUser('sub') userId: string) {
-    return { success: true, data: await this.goals.overview(userId) };
+  async overview(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
+    return { success: true, data: await this.goals.overview(userId, currency) };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get saving goal by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    const goal = await this.goals.getById(userId, id);
+  async get(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    const goal = await this.goals.getById(userId, id, currency);
     return { success: true, data: toSavingGoalResponse(goal) };
   }
 
@@ -67,8 +75,9 @@ export class SavingGoalsController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateSavingGoalDto,
+    @Query('currency') currency?: string,
   ) {
-    const updated = await this.goals.update(userId, id, body);
+    const updated = await this.goals.update(userId, id, body, currency);
     return { success: true, data: toSavingGoalResponse(updated) };
   }
 
@@ -76,8 +85,12 @@ export class SavingGoalsController {
   @ApiOperation({ summary: 'Soft delete saving goal' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    await this.goals.softDelete(userId, id);
+  async delete(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    await this.goals.softDelete(userId, id, currency);
     return { success: true };
   }
 }

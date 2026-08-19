@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class BudgetResponseDto {
   @ApiProperty()
@@ -9,6 +9,9 @@ export class BudgetResponseDto {
 
   @ApiProperty({ required: false })
   category_name?: string | null;
+
+  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  currency?: string | null;
 
   @ApiProperty({ description: 'Budget limit in cents' })
   budget_amount_cents!: string;

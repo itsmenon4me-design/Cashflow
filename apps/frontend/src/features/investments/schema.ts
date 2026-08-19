@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 const requiredMessage = "Wajib diisi";
 
@@ -31,12 +33,13 @@ export type InvestmentFormValues = z.infer<typeof investmentFormSchema>;
 
 export function toCreateInvestmentPayload(
   values: InvestmentFormValues,
-  currency = 'IDR',
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
 ) {
-  // Investments can be linked to an account; the currency comes from that
-  // account when present, otherwise defaults to IDR.
   return {
     account_id: values.accountId || undefined,
+    currency,
     investment_type: values.investmentType,
     platform: values.platform.trim(),
     name: values.name.trim(),
@@ -53,7 +56,9 @@ export function toCreateInvestmentPayload(
 
 export function toUpdateInvestmentPayload(
   values: InvestmentFormValues,
-  currency = 'IDR',
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
 ) {
   return {
     ...toCreateInvestmentPayload(values, currency),

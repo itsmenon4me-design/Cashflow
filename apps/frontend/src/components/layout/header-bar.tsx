@@ -36,8 +36,14 @@ import { useNotificationStore } from "@/stores/notification.store";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { useThemeStore } from "@/stores/theme.store";
 import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
-import { QuickAddTransaction } from "@/components/transactions/quick-add-transaction";
 import { formatRelativeTime } from "@/features/notifications/relative-time";
+import { usePathname } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  hydrateDashboardCurrency,
+  useDashboardCurrencyStore,
+} from "@/stores/dashboardCurrency.store";
+import { DASHBOARD_CURRENCIES } from "@/lib/dashboard-currency";
 import {
   getFinanceBotPriorityLabel,
   getFinanceBotPriorityVariant,
@@ -63,6 +69,7 @@ export function HeaderBar() {
   const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
   const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const safeUser = mounted ? user : undefined;
   const safeMode = mounted ? mode : "dark";
@@ -70,6 +77,10 @@ export function HeaderBar() {
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    hydrateDashboardCurrency();
   }, []);
 
   useEffect(() => {
@@ -84,6 +95,15 @@ export function HeaderBar() {
     router.replace("/login");
   };
 
+  const submitHeaderSearch = () => {
+    const q = headerSearch.trim();
+    if (q) {
+      router.push(`/transactions?q=${encodeURIComponent(q)}`);
+      setHeaderSearch("");
+      setMobileSearchOpen(false);
+    }
+  };
+
   const today = mounted
     ? new Intl.DateTimeFormat("id-ID", {
         weekday: "long",
@@ -93,9 +113,15 @@ export function HeaderBar() {
       }).format(new Date())
     : "";
 
+  // Dashboard currency selector hooks (top-level hooks only)
+  const pathname = usePathname();
+  const showQuickAdd = pathname === "/" || pathname?.startsWith("/dashboard");
+  const currency = useDashboardCurrencyStore((s) => s.currency);
+  const setCurrency = useDashboardCurrencyStore((s) => s.setCurrency);
+
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 overflow-x-auto px-4 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <header className="sticky top-0 z-30 overflow-hidden border-b border-border bg-background/80 backdrop-blur-xl">
+      <div className="flex h-16 min-w-0 items-center gap-3 overflow-hidden px-4 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
           className="size-11 shrink-0 rounded-xl md:hidden"
@@ -118,6 +144,11 @@ export function HeaderBar() {
             className="rounded-xl bg-card pl-9"
             placeholder={uiText.common.searchPlaceholder}
             aria-label={uiText.common.searchAriaLabel}
+            value={headerSearch}
+            onChange={(event) => setHeaderSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") submitHeaderSearch();
+            }}
           />
         </div>
 
@@ -144,12 +175,12 @@ export function HeaderBar() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative size-11 rounded-xl md:size-9"
+                              className="relative size-11 rounded-xl md:size-9 pr-6"
                 aria-label={uiText.common.notificationsAriaLabel}
               >
                 <Bell className="size-4" />
                 {unreadCount > 0 && (
-                  <Badge className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive p-0 text-[10px] text-white">
+                                <Badge className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive p-0 text-[10px] text-white pointer-events-none z-10">
                     {unreadCount}
                   </Badge>
                 )}
@@ -237,7 +268,21 @@ export function HeaderBar() {
             {safeMode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          <QuickAddTransaction />
+          {/* Header slot: always show dashboard currency selector. Quick Add should not be in header per design. */}
+          <div className="flex items-center">
+            <Select value={currency} onValueChange={(v) => setCurrency(v)}>
+              <SelectTrigger className="h-9 w-28 rounded-xl border border-border bg-card px-3 text-sm">
+               <SelectValue placeholder={currency} />
+              </SelectTrigger>
+              <SelectContent>
+               {DASHBOARD_CURRENCIES.map((c) => (
+                 <SelectItem key={c} value={c}>
+                   {c}
+                 </SelectItem>
+               ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -295,6 +340,11 @@ export function HeaderBar() {
               className="h-12 rounded-xl bg-card pr-10 pl-9"
               placeholder={uiText.common.searchPlaceholder}
               aria-label={uiText.common.searchAriaLabel}
+              value={headerSearch}
+              onChange={(event) => setHeaderSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") submitHeaderSearch();
+              }}
             />
             <Button
               variant="ghost"

@@ -28,6 +28,7 @@ import {
 } from "@/services/account.service";
 import type { AccountFormValues } from "@/features/accounts/schema";
 import { useDataRefreshStore } from "@/stores/refresh.store";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface FormState {
   open: boolean;
@@ -37,6 +38,7 @@ interface FormState {
 
 export function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const [filters, setFilters] = useState<AccountFiltersState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -51,9 +53,9 @@ export function AccountsPage() {
   const [deleting, setDeleting] = useState<AccountItem | null>(null);
 
   const fetchAccounts = useCallback(async () => {
-    const data = await accountService.list();
+    const data = await accountService.list(activeCurrency);
     return data.map(toAccountItem);
-  }, []);
+  }, [activeCurrency]);
 
   const load = useCallback(async () => {
     try {
@@ -160,13 +162,14 @@ export function AccountsPage() {
       await accountService.update(
         formState.account.id,
         toUpdateAccountPayload(values),
+        activeCurrency,
       );
       void load();
       return true;
     }
 
     // create flow - let errors bubble to caller for UI handling
-    await accountService.create(toCreateAccountPayload(values));
+    await accountService.create(toCreateAccountPayload(values), activeCurrency);
     setPage(1);
     void load();
     return true;
@@ -191,7 +194,7 @@ export function AccountsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await accountService.remove(target.id);
+      await accountService.remove(target.id, activeCurrency);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -210,7 +213,6 @@ export function AccountsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.accounts.title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{uiText.accounts.subtitle}</p>
       </div>
 
       <AccountToolbar

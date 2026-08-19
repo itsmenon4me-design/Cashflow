@@ -1,0 +1,6 @@
+﻿PASSED 2 passed (49.5s)
+1) Transactions UI matches API and does not show foreign-currency IDs after switch
+2) Reports and Analytics UI reflect active currency and match API
+status=passed
+worker_count=1
+trace=retain-on-failure (none produced)

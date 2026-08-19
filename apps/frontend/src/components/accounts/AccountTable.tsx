@@ -16,6 +16,7 @@ import { ACCOUNT_TYPE_OPTIONS } from "@/features/accounts/constants";
 import { formatMoney } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AccountItem } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 function typeInfo(type: string) {
   return (
@@ -41,6 +42,8 @@ export function AccountTable({
   onSetDefault,
   onDelete,
 }: AccountTableProps) {
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
+
   if (loading) {
     return (
       <>
@@ -102,7 +105,7 @@ export function AccountTable({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {formatMoney(account.balance, account.currency)}
+                      {formatMoney(account.balance, activeCurrency)}
                     </TableCell>
                     <TableCell>
                       <Badge

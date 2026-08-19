@@ -1,0 +1,110 @@
+[
+  {
+    "currency": "IDR",
+    "apiResponse": null,
+    "domScore": null,
+    "consoleMsgs": [
+      {
+        "type": "log",
+        "text": "[sync-client] syncController attached to window for diagnostics"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications/unread-count' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications?page=1&limit=5' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      }
+    ]
+  },
+  {
+    "currency": "USD",
+    "apiResponse": null,
+    "domScore": null,
+    "consoleMsgs": [
+      {
+        "type": "log",
+        "text": "[sync-client] syncController attached to window for diagnostics"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications/unread-count' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications?page=1&limit=5' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      }
+    ]
+  },
+  {
+    "currency": "SGD",
+    "apiResponse": null,
+    "domScore": null,
+    "consoleMsgs": [
+      {
+        "type": "log",
+        "text": "[sync-client] syncController attached to window for diagnostics"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications/unread-count' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications?page=1&limit=5' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      }
+    ]
+  },
+  {
+    "currency": "EUR",
+    "apiResponse": null,
+    "domScore": null,
+    "consoleMsgs": [
+      {
+        "type": "log",
+        "text": "[sync-client] syncController attached to window for diagnostics"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications/unread-count' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      },
+      {
+        "type": "error",
+        "text": "Access to fetch at 'http://localhost:8080/api/v1/notifications?page=1&limit=5' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: net::ERR_FAILED"
+      }
+    ]
+  }
+]

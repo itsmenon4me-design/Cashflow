@@ -24,7 +24,7 @@ describe('budget.service', () => {
     mockedApi.get.mockResolvedValue({ data: mock });
     const res = await budgetService.list();
     expect(res).toEqual(mock);
-    expect(apiClient.get).toHaveBeenCalledWith('/budgets');
+    expect(apiClient.get).toHaveBeenCalledWith('/budgets', { params: {} });
   });
 
   it('create posts to /budgets', async () => {

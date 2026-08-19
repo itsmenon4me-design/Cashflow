@@ -1,4 +1,6 @@
-const VERSION = "cashflow-v1";
+// Bump VERSION on every deployment so activate() purges stale caches
+// and clients receive fresh shell/static assets instead of the old build.
+const VERSION = "cashflow-v2";
 const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
 

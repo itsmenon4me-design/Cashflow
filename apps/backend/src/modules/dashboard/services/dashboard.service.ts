@@ -8,6 +8,7 @@ export class DashboardService {
 
   async getSummaryForUser(
     userId: string,
+    currency?: string,
   ): Promise<DashboardSummaryResponseDto> {
     // Current month boundaries
     const now = new Date();
@@ -19,6 +20,6 @@ export class DashboardService {
     );
 
     // Delegate to repository for efficient DB aggregation
-    return this.repo.getSummary(userId, monthStart, monthEnd);
+    return this.repo.getSummary(userId, monthStart, monthEnd, currency);
   }
 }

@@ -4,6 +4,7 @@ import { ErrorService } from '../../../../common/errors/error.service';
 import { ErrorCode } from '../../../../common/errors/error-codes';
 import { TransactionEntity } from '../../entities/transaction.entity';
 import { normalizeAmountCents } from '../../utils/amount.utils';
+import { normalizeDashboardCurrency } from '../../../dashboard/dashboard-currency';
 
 @Injectable()
 export class TransactionValidationService {
@@ -11,14 +12,14 @@ export class TransactionValidationService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async findAccount(userId: string, accountId: string) {
-    const acc = await this.prisma.account.findUnique({
-      where: { id: accountId },
-    });
+  private async findAccount(userId: string, accountId: string, currency?: string) {
+    const normalized = normalizeDashboardCurrency(currency);
+    const where: any = { id: accountId, deleted_at: null, user_id: userId };
+    if (normalized) where.currency = normalized;
+
+    const acc = await this.prisma.account.findFirst({ where });
 
     if (!acc) return null;
-    if (acc.deleted_at) return null;
-    if (acc.user_id !== userId) return null;
 
     return acc;
   }
@@ -40,13 +41,14 @@ export class TransactionValidationService {
   async validateForCreate(
     userId: string,
     tx: Partial<TransactionEntity>,
+    currency?: string,
   ): Promise<boolean> {
     // Account
     if (!tx.account_id) {
       throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Account is required');
     }
 
-    const acc = await this.findAccount(userId, tx.account_id);
+    const acc = await this.findAccount(userId, tx.account_id, currency);
 
     if (!acc) {
       this.logger.warn(
@@ -148,7 +150,8 @@ export class TransactionValidationService {
   async validateForUpdate(
     userId: string,
     tx: Partial<TransactionEntity>,
+    currency?: string,
   ): Promise<boolean> {
-    return this.validateForCreate(userId, tx);
+    return this.validateForCreate(userId, tx, currency);
   }
 }

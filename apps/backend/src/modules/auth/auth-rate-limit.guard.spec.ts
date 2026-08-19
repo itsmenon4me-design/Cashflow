@@ -19,6 +19,8 @@ const makeMocks = () => {
       refreshWindowSeconds: 60,
       emailVerificationLimit: 2,
       emailVerificationWindowSeconds: 60,
+      resetPasswordLimit: 2,
+      resetPasswordWindowSeconds: 60,
     },
   } as unknown as jest.Mocked<AuthConfigService>;
   const logger = {
@@ -142,11 +144,23 @@ describe('AuthRateLimitGuard', () => {
 
   test('fails open if redis returns null', async () => {
     const { redis, authConfig, logger } = makeMocks();
+    // Simulate redis returning null (e.g., unexpected null response)
     redis.incr.mockResolvedValue(null);
     const g = new AuthRateLimitGuard(redis, authConfig, logger);
-    expect(
-      await g.canActivate(makeCtx(makeReq('/auth/login', {}, '1.1.1.1'))),
-    ).toBe(true);
+
+    const ok = await g.canActivate(
+      makeCtx(
+        makeReq('/auth/login', { 'x-forwarded-for': '1.2.3.4' }, '1.2.3.4'),
+      ),
+    );
+
+    // Guard should fail-open (allow) when redis returns null
+    expect(ok).toBe(true);
+
+    expect((redis as unknown as { incr: jest.Mock }).incr).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/login'),
+      authConfig.config.loginWindowSeconds,
+    );
   });
 
   test('ip extraction prefers x-forwarded-for, then req.ip, then socket.remoteAddress', async () => {

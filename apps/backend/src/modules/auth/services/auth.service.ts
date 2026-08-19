@@ -4,6 +4,7 @@ import { PasswordService } from '../../../common/security/password/password.serv
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { LoginDto } from '../dto/login.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { toUserResponse } from '../../users/mappers/user.mapper';
 import { JwtService } from '@nestjs/jwt';
 import { JwtConfigService } from '../../../config/jwt-config.service';
@@ -56,6 +57,63 @@ export class AuthService {
     }
   }
 
+  async issueSessionForUser(
+    user: Awaited<ReturnType<UsersService['findByEmail']>>,
+    loginMethod: 'password' | 'google' | 'apple' = 'password',
+  ) {
+    const jwtCfg = this.jwtConfig.config;
+    const jti = crypto.randomUUID();
+    const sessionId = crypto.randomUUID();
+
+    if (!user) {
+      throw ErrorService.create(ErrorCode.UNAUTHORIZED, 'Invalid user');
+    }
+
+    const created = await this.refreshService.createForUser(user.id, sessionId);
+
+    await this.sessionService.create({
+      id: sessionId,
+      user_id: user.id,
+      refresh_token_id: created.id,
+      last_activity_at: new Date(),
+      expires_at: created.expires_at,
+    });
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role_code ?? 'USER',
+      sessionId,
+      jti,
+    } as Record<string, unknown>;
+
+    const token = this.jwtService.sign(payload);
+    const expiresIn = this.parseExpiresToSeconds(
+      jwtCfg.accessExpiresIn || '15m',
+    );
+
+    void this.auditLogService.record({
+      userId: user.id,
+      action: AuditAction.LOGIN,
+      module: AuditModule.AUTHENTICATION,
+      entityType: AuditEntityType.USER,
+      entityId: user.id,
+      metadata: { loginMethod },
+    });
+
+    return {
+      success: true,
+      message: 'Login successful',
+      data: {
+        accessToken: token,
+        refreshToken: created.token,
+        tokenType: 'Bearer',
+        expiresIn,
+      },
+      user: toUserResponse(user),
+    };
+  }
+
   async login(input: LoginDto) {
     const user = await this.users.findByEmail(input.email);
 
@@ -99,23 +157,6 @@ export class AuthService {
       throw ErrorService.create(ErrorCode.INVALID_CREDENTIALS);
     }
 
-    // Generate access token and create refresh token + session
-    const jwtCfg = this.jwtConfig.config;
-    const jti = crypto.randomUUID();
-    const sessionId = crypto.randomUUID();
-
-    // Create refresh token tied to session
-    const created = await this.refreshService.createForUser(user.id, sessionId);
-
-    // Create session record
-    await this.sessionService.create({
-      id: sessionId,
-      user_id: user.id,
-      refresh_token_id: created.id,
-      last_activity_at: new Date(),
-      expires_at: created.expires_at,
-    });
-
     // Clear failure counter for this identifier on successful auth (best-effort)
     try {
       await this.redis.del(failKey);
@@ -123,43 +164,78 @@ export class AuthService {
       // ignore — do not fail login if Redis is unavailable
     }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role_code ?? 'USER',
-      sessionId,
-      jti,
-    } as Record<string, unknown>;
-
-    const token = this.jwtService.sign(payload);
-    const expiresIn = this.parseExpiresToSeconds(
-      jwtCfg.accessExpiresIn || '15m',
-    );
-
-    void this.auditLogService.record({
-      userId: user.id,
-      action: AuditAction.LOGIN,
-      module: AuditModule.AUTHENTICATION,
-      entityType: AuditEntityType.USER,
-      entityId: user.id,
-      metadata: { loginMethod: 'password' },
-    });
-
-    return {
-      success: true,
-      message: 'Login successful',
-      data: {
-        accessToken: token,
-        refreshToken: created.token,
-        tokenType: 'Bearer',
-        expiresIn,
-      },
-      user: toUserResponse(user),
-    };
+    return this.issueSessionForUser(user, 'password');
   }
 
   async refresh(refreshToken: string) {
     return this.refreshService.rotate(refreshToken);
+  }
+
+  /**
+   * Completes a password reset using a single-use token.
+   * - Raw token is never stored: it is compared against the stored SHA-256 hash.
+   * - Expired / invalid / already-used tokens are rejected with a generic error.
+   * - A non-existent user id returns the same success shape as a valid reset
+   *   (no user enumeration).
+   * - On success the password is re-hashed (Argon2id), the reset state is
+   *   cleared (single-use) and all sessions/refresh tokens are revoked.
+   */
+  async resetPassword(input: ResetPasswordDto): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const user = await this.users.findById(input.id);
+    if (!user) {
+      // Do not reveal whether a user exists.
+      return { success: true, message: 'Password has been reset successfully' };
+    }
+
+    if (!user.password_reset_token_hash || !user.password_reset_expires_at) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_TOKEN,
+        'Invalid or expired password reset token',
+      );
+    }
+    if (user.password_reset_expires_at.getTime() <= Date.now()) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_TOKEN,
+        'Invalid or expired password reset token',
+      );
+    }
+
+    const provided = Buffer.from(
+      crypto.createHash('sha256').update(input.token).digest('hex'),
+      'hex',
+    );
+    const stored = Buffer.from(user.password_reset_token_hash, 'hex');
+    if (
+      stored.length !== provided.length ||
+      !crypto.timingSafeEqual(stored, provided)
+    ) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_TOKEN,
+        'Invalid or expired password reset token',
+      );
+    }
+
+    const hashed = await this.passwordService.hashPassword(input.new_password);
+
+    // Apply new password and clear reset state (single-use) atomically.
+    await this.users.applyPasswordReset(user.id, hashed);
+
+    // Terminate all existing sessions/refresh tokens so the reset takes effect.
+    await this.sessionService.revokeAllExcept(user.id);
+
+    void this.auditLogService.record({
+      userId: user.id,
+      action: AuditAction.PASSWORD_CHANGED,
+      module: AuditModule.AUTHENTICATION,
+      entityType: AuditEntityType.USER,
+      entityId: user.id,
+      metadata: { method: 'reset-password' },
+    });
+
+    return { success: true, message: 'Password has been reset successfully' };
   }
 
   logout(): { success: true } {

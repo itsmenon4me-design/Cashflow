@@ -16,19 +16,12 @@ export function SavingGoalProgress({ percentage, className }: SavingGoalProgress
         <div
           className={cn(
             "h-full rounded-full transition-all",
-            done ? "bg-emerald-500" : "bg-primary"
+            done ? "bg-primary" : "bg-primary/70"
           )}
           style={{ width: `${width}%` }}
         />
       </div>
-      <p
-        className={cn(
-          "text-xs font-medium tabular-nums",
-          done ? "text-emerald-500" : "text-muted-foreground"
-        )}
-      >
-        {percentage.toFixed(0)}%
-      </p>
+      <p className={cn("text-xs font-medium tabular-nums text-muted-foreground")}>{percentage.toFixed(0)}%</p>
     </div>
   );
 }

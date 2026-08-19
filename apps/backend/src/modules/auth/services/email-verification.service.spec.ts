@@ -26,6 +26,7 @@ describe('EmailVerificationService', () => {
         port: 587,
         from: '',
         passwordResetEnabled: true,
+        smtpConfigured: false,
       },
     };
 

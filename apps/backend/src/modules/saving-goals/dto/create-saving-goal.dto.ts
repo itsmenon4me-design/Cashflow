@@ -28,6 +28,15 @@ export class CreateSavingGoalDto {
   @IsString()
   category_id?: string;
 
+  @ApiPropertyOptional({
+    description: 'Record currency ownership for the saving goal. Nullable until migration backfill is approved.',
+    enum: ['USD', 'IDR', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['USD', 'IDR', 'SGD', 'EUR'])
+  currency?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

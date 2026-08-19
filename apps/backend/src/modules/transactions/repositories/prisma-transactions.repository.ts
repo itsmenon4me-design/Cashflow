@@ -60,12 +60,25 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string): Promise<TransactionEntity | null> {
-    const rec = await this.prisma.transaction.findUnique({
-      where: { id },
-    });
+  async findById(id: string, currency?: string): Promise<TransactionEntity | null> {
+    // If currency is provided, use findFirst with a relation filter so the
+    // database enforces account.currency === currency. Otherwise fall back to
+    // findUnique and do the deleted_at check in-app.
+    let rec: TxRec | null = null;
+    if (currency) {
+      rec = await this.prisma.transaction.findFirst({
+        where: { id, deleted_at: null, account: { currency } },
+        include: { account: true },
+      });
+    } else {
+      rec = await this.prisma.transaction.findUnique({
+        where: { id },
+        include: { account: true },
+      });
+      if (rec && rec.deleted_at) rec = null;
+    }
+
     if (!rec) return null;
-    if (rec.deleted_at) return null;
     return this.map(rec);
   }
 
@@ -119,10 +132,12 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
         (where.transaction_date as Prisma.DateTimeFilter).gte = new Date(
           filter.fromDate,
         );
-      if (filter.toDate)
-        (where.transaction_date as Prisma.DateTimeFilter).lte = new Date(
-          filter.toDate,
-        );
+      if (filter.toDate) {
+        // Treat toDate as inclusive end-of-day for the provided date string
+        const to = new Date(filter.toDate);
+        to.setHours(23, 59, 59, 999);
+        (where.transaction_date as Prisma.DateTimeFilter).lte = to;
+      }
     }
     if (filter?.minAmount !== undefined || filter?.maxAmount !== undefined) {
       where.amount_cents = {};
@@ -189,9 +204,14 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       : where;
 
     // Build prisma query
+    // If currency provided, add relation filter to the where clause so DB filters by account.currency
+    const whereWithCurrency = filter?.currency
+      ? ({ AND: [baseWhere, { account: { currency: filter.currency } }] } as Prisma.TransactionWhereInput)
+      : baseWhere;
+
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
-        where: baseWhere,
+        where: whereWithCurrency,
         orderBy,
         skip,
         take,
@@ -199,18 +219,13 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
           account: true,
         },
       }),
-      this.prisma.transaction.count({ where: baseWhere }),
+      this.prisma.transaction.count({ where: whereWithCurrency }),
     ]);
 
-    // If currency filter present, filter items by account currency post-query (safe fallback)
-    const finalItems: TxRec[] = filter?.currency
-      ? items.filter((it) => it.account?.currency === filter.currency)
-      : items;
-
-    return { items: finalItems.map((r: TxRec) => this.map(r)), total };
+    return { items: items.map((r: TxRec) => this.map(r)), total };
   }
 
-  async searchByUser(userId: string, q: string, pagination: PaginationDto) {
+  async searchByUser(userId: string, q: string, pagination: PaginationDto, currency?: string) {
     const where: Prisma.TransactionWhereInput = {
       user_id: userId,
       deleted_at: null,
@@ -254,17 +269,18 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const baseWhere = { AND: [where, { OR: or }] } as Prisma.TransactionWhereInput;
+    const whereWithCurrency = currency ? { AND: [baseWhere, { account: { currency } }] } : baseWhere;
+
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
-        where: {
-          AND: [where, { OR: or }],
-        },
+        where: whereWithCurrency,
         include: { account: true, category: true },
         orderBy: { transaction_date: 'desc' },
         skip,
         take,
       }),
-      this.prisma.transaction.count({ where: { AND: [where, { OR: or }] } }),
+      this.prisma.transaction.count({ where: whereWithCurrency }),
     ]);
 
     return { items: (items as TxRec[]).map((r: TxRec) => this.map(r)), total };

@@ -1,5 +1,5 @@
-import { IsIn, IsISO8601 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TrendQueryDto {
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
@@ -13,4 +13,13 @@ export class TrendQueryDto {
   @ApiProperty({ description: 'End Date (ISO 8601)' })
   @IsISO8601()
   endDate: string;
+
+  @ApiPropertyOptional({
+    description: 'Financial dataset currency scope for trend aggregation.',
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

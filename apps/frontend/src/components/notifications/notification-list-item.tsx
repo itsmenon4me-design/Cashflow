@@ -58,7 +58,7 @@ export function NotificationListItem({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+          <p title={item.title} className="text-sm font-semibold text-foreground break-words">{item.title}</p>
           {isFinanceBot && (
             <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
               {uiText.financeBot.title}

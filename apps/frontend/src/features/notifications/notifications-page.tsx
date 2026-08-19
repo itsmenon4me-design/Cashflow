@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, CheckCheck } from "lucide-react";
+import { BellRing, CheckCheck, Trash2 } from "lucide-react";
 import { NotificationListItem } from "@/components/notifications/notification-list-item";
 import { NotificationListSkeleton } from "@/components/notifications/notification-list-skeleton";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -37,6 +37,7 @@ export function NotificationsPage() {
   const markReadInStore = useNotificationStore((state) => state.markRead);
   const markAllReadInStore = useNotificationStore((state) => state.markAllRead);
   const removeInStore = useNotificationStore((state) => state.remove);
+  const removeAllInStore = useNotificationStore((state) => state.removeAll);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +133,17 @@ export function NotificationsPage() {
     else refresh();
   };
 
+  const handleClearAll = async () => {
+    try {
+      await notificationService.removeAll();
+    } catch {
+      return;
+    }
+    setItems([]);
+    setTotalItems(0);
+    await removeAllInStore();
+  };
+
   const isEmpty = !loading && !error && totalItems === 0;
 
   return (
@@ -167,6 +179,16 @@ export function NotificationsPage() {
           >
             <CheckCheck />
             {uiText.notificationsPage.markAllRead}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl text-destructive hover:text-destructive"
+            onClick={() => void handleClearAll()}
+            disabled={loading || totalItems === 0}
+          >
+            <Trash2 />
+            {uiText.notificationsPage.clearAll}
           </Button>
         </div>
       </div>

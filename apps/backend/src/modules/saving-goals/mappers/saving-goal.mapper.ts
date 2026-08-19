@@ -9,6 +9,7 @@ export function toSavingGoalResponse(
     user_id: g.user_id,
     account_id: g.account_id ?? null,
     category_id: g.category_id ?? null,
+    currency: g.currency ?? null,
     name: g.name,
     description: g.description ?? null,
     target_amount_cents: g.target_amount_cents.toString(),

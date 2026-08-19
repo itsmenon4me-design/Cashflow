@@ -6,6 +6,7 @@ import { LoginDto } from '../dto/login.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { RefreshRequestDto } from '../dto/refresh-request.dto';
 import { RefreshResponseDto } from '../dto/refresh-response.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { SessionService } from '../services/session.service';
 import { Audit } from '../../../common/audit/audit.decorator';
@@ -93,5 +94,13 @@ export class AuthController {
   @UseGuards(AuthRateLimitGuard)
   async refresh(@Body() body: RefreshRequestDto): Promise<RefreshResponseDto> {
     return this.auth.refresh(body.refreshToken);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password using a one-time reset token' })
+  @ApiResponse({ status: 200 })
+  @UseGuards(AuthRateLimitGuard)
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.auth.resetPassword(body);
   }
 }

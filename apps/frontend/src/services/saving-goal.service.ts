@@ -4,10 +4,13 @@ import { toMajorUnits } from "@/lib/money";
 
 export type SavingGoalStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
 
+export type SupportedEntityCurrency = "USD" | "IDR" | "SGD" | "EUR";
+
 export interface CreateSavingGoalPayload {
   name: string;
   account_id?: string;
   category_id?: string;
+  currency?: SupportedEntityCurrency;
   description?: string;
   target_amount_cents: number;
   current_amount_cents?: number;
@@ -20,6 +23,7 @@ export type UpdateSavingGoalPayload = {
   name?: string;
   account_id?: string | null;
   category_id?: string | null;
+  currency?: SupportedEntityCurrency;
   description?: string;
   target_amount_cents?: number;
   current_amount_cents?: number;
@@ -33,6 +37,7 @@ export interface SavingGoalResponse {
   user_id: string;
   account_id: string | null;
   category_id: string | null;
+  currency?: SupportedEntityCurrency;
   name: string;
   description: string | null;
   target_amount_cents: string;
@@ -76,7 +81,9 @@ export function toSavingGoalItem(
   categoryNames: Record<string, string>,
   accountCurrencies: Record<string, string> = {},
 ): SavingGoalItem {
-  const currency = goal.account_id ? (accountCurrencies[goal.account_id] ?? "IDR") : "IDR";
+  const currency =
+    goal.currency ??
+    (goal.account_id ? accountCurrencies[goal.account_id] ?? "USD" : "USD");
   const target = toMajorUnits(BigInt(goal.target_amount_cents), currency);
   const current = toMajorUnits(BigInt(goal.current_amount_cents), currency);
   const percentage =
@@ -100,18 +107,25 @@ export function toSavingGoalItem(
 }
 
 export const savingGoalService = {
-  list: async (): Promise<SavingGoalResponse[]> => {
-    const res = await withOfflineCache("saving-goals", "list", () =>
-      apiClient.get<{ success: boolean; data: SavingGoalResponse[] }>(
-        "/saving-goals",
-      ),
+  list: async (currency?: string): Promise<SavingGoalResponse[]> => {
+    const res = await withOfflineCache(
+      "saving-goals",
+      `list:${currency ?? "all"}`,
+      () =>
+        apiClient.get<{ success: boolean; data: SavingGoalResponse[] }>(
+          "/saving-goals",
+          { params: currency ? { currency } : {} },
+        ),
     );
     return res.data ?? [];
   },
 
-  get: (id: string): Promise<SavingGoalResponse> =>
+  get: (id: string, currency?: string): Promise<SavingGoalResponse> =>
     apiClient
-      .get<{ success: boolean; data: SavingGoalResponse }>(`/saving-goals/${id}`)
+      .get<{ success: boolean; data: SavingGoalResponse }>(
+        `/saving-goals/${id}`,
+        { params: currency ? { currency } : {} },
+      )
       .then((res) => res.data),
 
   create: (payload: CreateSavingGoalPayload): Promise<SavingGoalResponse> =>
@@ -119,21 +133,30 @@ export const savingGoalService = {
       .post<{ success: boolean; data: SavingGoalResponse }>("/saving-goals", payload)
       .then((res) => res.data),
 
-  update: (id: string, payload: UpdateSavingGoalPayload): Promise<SavingGoalResponse> =>
+  update: (
+    id: string,
+    payload: UpdateSavingGoalPayload,
+    currency?: string,
+  ): Promise<SavingGoalResponse> =>
     apiClient
       .patch<{ success: boolean; data: SavingGoalResponse }>(
         `/saving-goals/${id}`,
         payload,
+        { params: currency ? { currency } : {} },
       )
       .then((res) => res.data),
 
-  remove: (id: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/saving-goals/${id}`),
+  remove: (id: string, currency?: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/saving-goals/${id}`, {
+      params: currency ? { currency } : {},
+    }),
 
-  overview: async (): Promise<SavingGoalOverview | null> => {
+  overview: async (currency?: string): Promise<SavingGoalOverview | null> => {
     const res = await apiClient.get<{ success: boolean; data: SavingGoalOverview }>(
       "/saving-goals/overview",
+      { params: currency ? { currency } : {} },
     );
     return res.data ?? null;
   },
+
 };

@@ -40,7 +40,7 @@ export class CreateAccountDto {
 
   @ApiProperty({ description: 'Currency (ISO code)', default: 'IDR' })
   @IsOptional()
-  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
   currency?: string = 'IDR';
 
   @ApiProperty({

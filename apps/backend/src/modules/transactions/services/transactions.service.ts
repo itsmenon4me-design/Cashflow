@@ -104,6 +104,7 @@ export class TransactionsService {
     userId: string,
     input: Partial<TransactionEntity>,
     trace?: TransactionTraceContext,
+    currency?: string,
   ): Promise<TransactionEntity> {
     if (!input.account_id)
       throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Account is required');
@@ -141,8 +142,8 @@ export class TransactionsService {
       }
     }
 
-    // Run business validation
-    await this.validator.validateForCreate(userId, normalizedInput);
+    // Run business validation (enforce dashboard currency scope when provided)
+    await this.validator.validateForCreate(userId, normalizedInput, currency);
 
     const amountAnomaly = await this.detectAmountScaleAnomaly(
       userId,
@@ -240,8 +241,8 @@ export class TransactionsService {
     }
   }
 
-  async getById(userId: string, id: string): Promise<TransactionEntity> {
-    const t = await this.repo.findById(id);
+  async getById(userId: string, id: string, currency?: string): Promise<TransactionEntity> {
+    const t = await this.repo.findById(id, currency);
     if (!t)
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Transaction not found');
     if (t.user_id !== userId)
@@ -294,8 +295,9 @@ export class TransactionsService {
     id: string,
     updates: Partial<TransactionEntity>,
     trace?: TransactionTraceContext,
+    currency?: string,
   ): Promise<TransactionEntity> {
-    const t = await this.getById(userId, id);
+    const t = await this.getById(userId, id, currency);
     const normalizedUpdates = { ...updates };
     if (normalizedUpdates.amount_cents !== undefined) {
       normalizedUpdates.amount_cents = normalizeAmountCents(
@@ -327,7 +329,7 @@ export class TransactionsService {
     }
 
     // run validation for updates (reuse same validator)
-    await this.validator.validateForUpdate(userId, merged);
+    await this.validator.validateForUpdate(userId, merged, currency);
 
     const data: Record<string, unknown> = {};
     for (const key of Object.keys(normalizedUpdates)) {
@@ -365,8 +367,8 @@ export class TransactionsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string): Promise<void> {
-    const t = await this.getById(userId, id);
+  async softDelete(userId: string, id: string, currency?: string): Promise<void> {
+    const t = await this.getById(userId, id, currency);
     await this.repo.softDelete(id);
     await this.balance.recalculateAccount(t.account_id);
     void this.audit.record({
@@ -384,6 +386,7 @@ export class TransactionsService {
     userId: string,
     q: string,
     pagination?: PaginationDto,
+    currency?: string,
   ): Promise<{
     data: TransactionEntity[];
     pagination: {
@@ -398,10 +401,9 @@ export class TransactionsService {
     const page = pagination?.page ? Number(pagination.page) : 1;
     const limit = pagination?.limit ? Number(pagination.limit) : 20;
 
-    const { items, total } = await this.repo.searchByUser(userId, q, {
-      page,
-      limit,
-    });
+    const { items, total } = currency
+      ? await this.repo.searchByUser(userId, q, { page, limit }, currency)
+      : await this.repo.searchByUser(userId, q, { page, limit });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
     return {

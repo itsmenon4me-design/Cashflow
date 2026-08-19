@@ -103,7 +103,7 @@ export function TransactionCard({
   const isIncome = transaction.type === "income";
 
   return (
-    <Card size="sm" className="shadow-sm">
+    <Card size="sm" className="shadow-sm" data-transaction-id={transaction.id}>
       <CardContent className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">

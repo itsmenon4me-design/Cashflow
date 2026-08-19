@@ -69,7 +69,7 @@ describe('InvestmentsService', () => {
   it('lists investments', async () => {
     const items = await service.listAll('u1');
     expect(items).toHaveLength(2);
-    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1');
+    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1', undefined);
   });
 
   it('denies access to another user investment', async () => {
@@ -122,6 +122,24 @@ describe('InvestmentsService', () => {
         current_value_cents: BigInt(150250),
         profit_loss_cents: BigInt(12660),
       }),
+    );
+  });
+
+  it('accepts and stores investment currency', async () => {
+    repoMock.create.mockResolvedValue(dummy('i1', { currency: 'SGD' }));
+    await service.create('u1', {
+      name: 'AAPL',
+      platform: 'NASDAQ',
+      investment_type: 'Stock',
+      quantity: 10,
+      average_buy_price: 137.59,
+      current_price: 150.25,
+      currency: 'SGD',
+      purchase_date: '2026-01-01',
+      status: 'ACTIVE',
+    });
+    expect(repoMock.create).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: 'SGD' }),
     );
   });
 

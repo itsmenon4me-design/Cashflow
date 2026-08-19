@@ -17,6 +17,7 @@ export function IncomeCard({ kpi, loading = false }: IncomeCardProps) {
       icon={ArrowDownToLine}
       trend={kpi.trend}
       loading={loading}
+      emphasis
     />
   );
 }

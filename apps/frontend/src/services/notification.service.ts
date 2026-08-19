@@ -89,4 +89,8 @@ export const notificationService = {
   remove: async (id: string): Promise<void> => {
     await apiClient.delete<{ success: boolean }>(`/notifications/${id}`);
   },
+
+  removeAll: async (): Promise<void> => {
+    await apiClient.delete<{ success: boolean }>("/notifications");
+  },
 };

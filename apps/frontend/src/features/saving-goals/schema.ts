@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type {
   CreateSavingGoalPayload,
   UpdateSavingGoalPayload,
@@ -27,15 +29,16 @@ export type SavingGoalFormValues = z.infer<typeof savingGoalFormSchema>;
 
 export function toCreateSavingGoalPayload(
   values: SavingGoalFormValues,
-  currency = 'IDR',
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
 ): CreateSavingGoalPayload {
-  // Saving goals can be linked to an account; the currency comes from that
-  // account when present, otherwise defaults to IDR.
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
     account_id: values.accountId || undefined,
     category_id: values.categoryId || undefined,
+    currency,
     target_amount_cents: toMinorUnits(values.target, currency),
     current_amount_cents: toMinorUnits(values.current, currency),
     start_date: values.startDate,
@@ -46,13 +49,16 @@ export function toCreateSavingGoalPayload(
 
 export function toUpdateSavingGoalPayload(
   values: SavingGoalFormValues,
-  currency = 'IDR',
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
 ): UpdateSavingGoalPayload {
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
     account_id: values.accountId || null,
     category_id: values.categoryId || null,
+    currency,
     target_amount_cents: toMinorUnits(values.target, currency),
     current_amount_cents: toMinorUnits(values.current, currency),
     start_date: values.startDate,

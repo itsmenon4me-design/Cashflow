@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 export interface CategoryBreakdownItem {
   categoryId: string;
@@ -54,6 +55,7 @@ export class CategoryBreakdownService {
     month?: number | string,
     year?: number | string,
     range?: { start?: Date; end?: Date },
+    currency?: string,
   ): Promise<CategoryBreakdownResult> {
     if (type !== 'income' && type !== 'expense') {
       throw new BadRequestException('Invalid type');
@@ -81,14 +83,19 @@ export class CategoryBreakdownService {
       end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
     }
 
-    // Resolve primary account currency to prevent cross-currency summation
+    // Resolve the target currency to prevent cross-currency summation.
+    const selectedCurrency = normalizeDashboardCurrency(currency);
     const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
+      },
       select: { currency: true, is_default: true },
     });
     const defaultAcc = accounts.find((a) => a.is_default);
     const targetCurrency =
-      defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+      selectedCurrency ?? defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     const totalAgg = await this.prisma.transaction.aggregate({
       where: {

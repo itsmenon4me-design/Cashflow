@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { normalizeDashboardCurrency } from '../dashboard-currency';
 
 export interface AnalyticsResult {
   /** Exact minor units as strings (BigInt-safe at the API boundary). */
@@ -21,7 +22,15 @@ export class CashflowAnalyticsService {
 
   // Resolve primary account currency so income/expense aggregates never mix
   // different currencies (Phase C multi-currency rule).
-  private async resolveTargetCurrency(userId: string): Promise<string> {
+  private async resolveTargetCurrency(
+    userId: string,
+    currency?: string,
+  ): Promise<string> {
+    const normalized = normalizeDashboardCurrency(currency);
+    if (normalized) {
+      return normalized;
+    }
+
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },
@@ -38,6 +47,7 @@ export class CashflowAnalyticsService {
     userId: string,
     startDate?: Date,
     endDate?: Date,
+    currency?: string,
   ): Promise<AnalyticsResult> {
     const now = new Date();
 
@@ -66,7 +76,7 @@ export class CashflowAnalyticsService {
     const prevEnd = new Date(rangeStart.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - lenMs + 1);
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
+    const targetCurrency = await this.resolveTargetCurrency(userId, currency);
 
     // helper to aggregate (single currency only)
     const aggFor = async (start: Date, end: Date) => {

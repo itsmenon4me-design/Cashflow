@@ -8,6 +8,7 @@ type BudgetRec = {
   id: string;
   user_id: string;
   category_id: string;
+  currency: string | null;
   budget_amount_cents: bigint;
   month: number;
   year: number;
@@ -26,6 +27,7 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     b.id = rec.id;
     b.user_id = rec.user_id;
     b.category_id = rec.category_id;
+    b.currency = rec.currency ?? null;
     b.budget_amount_cents =
       typeof rec.budget_amount_cents === 'bigint'
         ? rec.budget_amount_cents
@@ -43,6 +45,7 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     const data = {
       user_id: input.user_id!,
       category_id: input.category_id!,
+      currency: input.currency ?? null,
       budget_amount_cents:
         typeof input.budget_amount_cents === 'bigint'
           ? input.budget_amount_cents
@@ -57,18 +60,32 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string): Promise<BudgetEntity | null> {
-    const rec = await this.prisma.budget.findUnique({
-      where: { id },
+  async findById(id: string, currency?: string): Promise<BudgetEntity | null> {
+    const where: Prisma.BudgetWhereInput = { id };
+    if (currency) {
+      where.OR = [{ currency }, { currency: null }];
+    }
+    const rec = await this.prisma.budget.findFirst({
+      where,
       include: { category: { select: { name: true } } },
     });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string): Promise<BudgetEntity[]> {
+  async findAllByUser(
+    userId: string,
+    currency?: string,
+  ): Promise<BudgetEntity[]> {
+    const where: Prisma.BudgetWhereInput = {
+      user_id: userId,
+      deleted_at: null,
+    };
+    if (currency) {
+      where.OR = [{ currency }, { currency: null }];
+    }
     const recs = await this.prisma.budget.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where,
       include: { category: { select: { name: true } } },
       orderBy: { created_at: 'desc' },
     });
@@ -80,15 +97,20 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     categoryId: string,
     month: number,
     year: number,
+    currency?: string,
   ): Promise<BudgetEntity | null> {
+    const where: Prisma.BudgetWhereInput = {
+      user_id: userId,
+      category_id: categoryId,
+      month,
+      year,
+      deleted_at: null,
+    };
+    if (currency) {
+      where.OR = [{ currency }, { currency: null }];
+    }
     const rec = await this.prisma.budget.findFirst({
-      where: {
-        user_id: userId,
-        category_id: categoryId,
-        month,
-        year,
-        deleted_at: null,
-      },
+      where,
     });
     return rec ? this.map(rec) : null;
   }
@@ -100,6 +122,7 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     const data: Prisma.BudgetUncheckedUpdateInput = {};
     if (updates.category_id !== undefined)
       data.category_id = updates.category_id;
+    if (updates.currency !== undefined) data.currency = updates.currency;
     if (updates.budget_amount_cents !== undefined)
       data.budget_amount_cents =
         typeof updates.budget_amount_cents === 'bigint'

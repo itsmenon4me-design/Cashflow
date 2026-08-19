@@ -1,0 +1,4 @@
+﻿FAILED 1 failed (2.0m)
+phase9.spec.ts STEP 12G-1: Test timeout of 120000ms exceeded at page.waitForSelector('header') line 75.
+Page snapshot at timeout: LOGIN page (Masuk untuk mengelola keuangan Anda) - no <header> element.
+Root cause: spec injects DUMMY tokens (cashflow.accessToken='dummy-access-token') - verify backend enforces auth, frontend redirects to /login -> header never settles. Product behavior correct; spec fixture mismatch.

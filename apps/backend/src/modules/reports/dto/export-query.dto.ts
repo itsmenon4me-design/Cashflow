@@ -1,14 +1,14 @@
-import { IsIn, IsOptional, IsInt, Min, Max, IsISO8601 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsInt, Min, Max, IsISO8601, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ExportQueryDto {
   @ApiProperty({ enum: ['monthly', 'category', 'trend'] })
   @IsIn(['monthly', 'category', 'trend'])
   type: 'monthly' | 'category' | 'trend';
 
-  @ApiProperty({ enum: ['json', 'csv'] })
-  @IsIn(['json', 'csv'])
-  format: 'json' | 'csv';
+  @ApiProperty({ enum: ['csv'] })
+  @IsIn(['csv'])
+  format: 'csv';
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -32,4 +32,13 @@ export class ExportQueryDto {
   @IsOptional()
   @IsISO8601()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Financial dataset currency scope for report export.',
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

@@ -1,6 +1,7 @@
 # Local runtime verification override (avoid host port conflicts with dev stack)
 #   CASHFLOW_ENV_FILE=.env.verify docker compose \
 #     -f docker-compose.yml -f docker-compose.verify.yml --env-file .env.verify up -d --build
+
 services:
   backend:
     ports:
@@ -13,3 +14,10 @@ services:
   nginx:
     ports:
       - "8080:80"
+
+  postgres:
+    ports:
+      - "55432:5432"
+    networks:
+      - fronted
+      - internal

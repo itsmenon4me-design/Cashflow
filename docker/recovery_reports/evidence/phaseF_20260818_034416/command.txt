@@ -1,0 +1,1 @@
+﻿npx playwright test apps/frontend/playwright/phase9.spec.ts --workers=1 --trace=retain-on-failure --timeout=180000 --reporter=list (workdir apps/frontend; BASE_URL=http://localhost:8080, API_BASE=http://localhost:3101/api/v1, TEST_DATABASE_URL=postgresql://postgres:verifypass@localhost:55432/cashflow?schema=public)

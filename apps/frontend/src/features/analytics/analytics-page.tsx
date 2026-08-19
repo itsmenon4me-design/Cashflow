@@ -31,6 +31,7 @@ import {
 } from "@/services/analytics.service";
 import { fromCents } from "@/services/report.service";
 import type { FlowPoint } from "@/types/dashboard";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 function toDateInputValue(iso: string): string {
   const date = new Date(iso);
@@ -53,6 +54,7 @@ function formatPoints(value: number | null): { text: string; positive: boolean }
 }
 
 export function AnalyticsPage() {
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
   const [range, setRange] = useState<ReportRange>(() => computeRange("thisMonth"));
   const [customStart, setCustomStart] = useState("");
@@ -69,6 +71,8 @@ export function AnalyticsPage() {
   const [spending, setSpending] = useState<AnalyticsSpending | null>(null);
   const [health, setHealth] = useState<AnalyticsHealth | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  // Use non-hook store access for display currency (keeps parity with async run pattern)
+  const displayCurrency = useDashboardCurrencyStore.getState().currency;
 
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
@@ -103,13 +107,13 @@ export function AnalyticsPage() {
         const granularity = pickTrendType(range);
         const [overviewRes, incomeRes, expensesRes, cashflowRes, spendingRes, healthRes, insightsRes] =
           await Promise.all([
-            analyticsService.getOverview(range),
-            analyticsService.getIncome(range, granularity),
-            analyticsService.getExpenses(range, granularity),
-            analyticsService.getCashflow(range, granularity),
-            analyticsService.getSpending(range),
-            analyticsService.getFinancialHealth(range),
-            analyticsService.getInsights(range),
+            analyticsService.getOverview(range, activeCurrency),
+            analyticsService.getIncome(range, granularity, activeCurrency),
+            analyticsService.getExpenses(range, granularity, activeCurrency),
+            analyticsService.getCashflow(range, granularity, activeCurrency),
+            analyticsService.getSpending(range, activeCurrency),
+            analyticsService.getFinancialHealth(range, activeCurrency),
+            analyticsService.getInsights(range, activeCurrency),
           ]);
         if (cancelled) return;
 
@@ -131,7 +135,7 @@ export function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range]);
+  }, [refreshKey, range, activeCurrency]);
 
   const hasAnyData =
     (overview?.transactions ?? 0) > 0 ||
@@ -139,9 +143,9 @@ export function AnalyticsPage() {
     insights.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;
 
-  const incomeValue = overview ? fromCents(overview.income) : 0;
-  const expenseValue = overview ? fromCents(overview.expense) : 0;
-  const netValue = overview ? fromCents(overview.netCashFlow) : 0;
+  const incomeValue = overview ? fromCents(overview.income, displayCurrency) : 0;
+  const expenseValue = overview ? fromCents(overview.expense, displayCurrency) : 0;
+  const netValue = overview ? fromCents(overview.netCashFlow, displayCurrency) : 0;
   const savingRate = overview?.savingRate ?? 0;
   const txCount = overview?.transactions ?? 0;
 
@@ -154,8 +158,8 @@ export function AnalyticsPage() {
     () =>
       (cashflow?.trend ?? []).map((t) => ({
         month: t.period,
-        income: fromCents(t.income),
-        expense: fromCents(t.expense),
+      income: fromCents(t.income, displayCurrency),
+      expense: fromCents(t.expense, displayCurrency),
       })),
     [cashflow]
   );
@@ -165,7 +169,7 @@ export function AnalyticsPage() {
       (expenses?.categories ?? []).map((c) => ({
         name: c.categoryName ?? "-",
         value: c.percentage,
-        amount: fromCents(c.totalAmount),
+      amount: fromCents(c.totalAmount, displayCurrency),
       })),
     [expenses]
   );
@@ -174,7 +178,7 @@ export function AnalyticsPage() {
     () =>
       (expenses?.top ?? []).map((t) => ({
         name: t.name ?? "-",
-        amount: fromCents(t.total),
+      amount: fromCents(t.total, displayCurrency),
         percentage: t.percentage,
         transactionCount: 0,
       })),
@@ -185,7 +189,7 @@ export function AnalyticsPage() {
     () =>
       (income?.top ?? []).map((t) => ({
         name: t.name ?? "-",
-        amount: fromCents(t.total),
+      amount: fromCents(t.total, displayCurrency),
         percentage: t.percentage,
         transactionCount: 0,
       })),

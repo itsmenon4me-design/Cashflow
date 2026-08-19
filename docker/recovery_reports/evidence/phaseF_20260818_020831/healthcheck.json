@@ -1,0 +1,14 @@
+﻿{
+    "frontend_api_health":  {
+                                "status":  200,
+                                "success":  true
+                            },
+    "api_health":  {
+                       "status":  200,
+                       "success":  true
+                   },
+    "frontend_root":  {
+                          "status":  200,
+                          "success":  true
+                      }
+}

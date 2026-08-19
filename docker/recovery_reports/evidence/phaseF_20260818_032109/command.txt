@@ -1,0 +1,22 @@
+# Verification stack (cashflowverify)
+#   nginx    : http://localhost:8080
+#   backend  : http://localhost:3101/api/v1
+#   postgres : localhost:55432 (db=cashflow, user=postgres)
+
+# Environment used for the run:
+$env:BASE_URL = 'http://localhost:8080'
+$env:API_BASE = 'http://localhost:3101/api/v1'
+$env:TEST_DATABASE_URL = 'postgresql://postgres:verifypass@localhost:55432/cashflow?schema=public'
+# E2E_ACCESS_TOKEN: test-user JWT (HS256) signed with the verify stack secret,
+# payload: email=e2e@test.local, sub=00000000-0000-0000-0000-000000000001,
+# issued 2026-08-17, expires 2026-08-25 (source: phaseF_20260818_025051/generated.e2e.token.txt)
+$env:E2E_ACCESS_TOKEN = '<test-user JWT, see phaseF_20260818_025051/generated.e2e.token.txt>'
+$env:E2E_REFRESH_TOKEN = ''
+
+# Command:
+npx playwright test apps/frontend/playwright/transactions-e2e.spec.ts --workers=1 --trace=retain-on-failure --timeout=180000 --reporter=list
+
+# Result: 1 passed (6.7s)
+# Sanitization note: no JWT secrets or passwords are stored in this evidence bundle.
+# The E2E access token is a short-lived test-user token; its value is only referenced,
+# not re-embedded (it already exists in phaseF_20260818_025051 evidence).

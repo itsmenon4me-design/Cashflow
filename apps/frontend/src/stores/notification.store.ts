@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { notificationService } from "@/services/notification.service";
+import { useAuthStore } from "@/stores/auth.store";
 import type { NotificationItem } from "@/types/notification";
 
 interface NotificationState {
@@ -12,6 +13,7 @@ interface NotificationState {
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   remove: (id: string) => void;
+  removeAll: () => Promise<void>;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -22,6 +24,26 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   error: false,
 
   fetch: async () => {
+    // Prevent protected notification API calls when user is not authenticated.
+    const isAuth = useAuthStore.getState().isAuthenticated;
+    if (!isAuth) {
+      // Do not attempt network requests. Subscribe once to auth changes so fetch
+      // will re-run automatically when authentication becomes available.
+      let unsub: () => void = () => {};
+      unsub = useAuthStore.subscribe((s) => {
+        if (s.isAuthenticated) {
+          try {
+            unsub();
+          } catch {
+            // ignore
+          }
+          // Re-run fetch now that auth is available.
+          void get().fetch();
+        }
+      });
+      return;
+    }
+
     set({ loading: true, error: false });
     try {
       const [unreadCount, list] = await Promise.all([
@@ -67,5 +89,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           ? Math.max(0, state.unreadCount - 1)
           : state.unreadCount,
     });
+  },
+
+  removeAll: async () => {
+    await notificationService.removeAll();
+    set({ recent: [], unreadCount: 0 });
   },
 }));

@@ -1,0 +1,1 @@
+﻿verify stack: cashflowverify. Remediation approved x4: API login auth fixture + body.user extraction + URL base fix + storage key alignment sessionStorage->localStorage (lines 65/89/146-149) matching dashboardCurrency.store.ts (localStorage-first). No tokens/secrets stored. Fixture: user ACTIVE + 16 seeded tx (IDR=4 USD=4 SGD=3 EUR=5).

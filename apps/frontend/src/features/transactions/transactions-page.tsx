@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, ReceiptText } from "lucide-react";
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
@@ -83,11 +84,14 @@ export function TransactionsPage() {
 
   const [filters, setFilters] = useState<TransactionFiltersState>(defaultFilters);
 
-  // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues
+  const urlQuery = useSearchParams().get("q") ?? "";
+
+  // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues;
+  // a ?q= from the header search pre-fills the search box (header → /transactions?q=...)
   useEffect(() => {
-    setFilters(defaultFilters);
+    setFilters((prev) => ({ ...defaultFilters, search: urlQuery || prev.search }));
     setPage(1);
-  }, []);
+  }, [urlQuery]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -208,7 +212,7 @@ export function TransactionsPage() {
         }
         setTransactions(
           result.data.map((dto) =>
-            toTransactionItem(dto, accountNames, categoryNames),
+            toTransactionItem(dto, accountNames, categoryNames, accountCurrencies),
           ),
         );
         setTotalItems(result.pagination.totalItems);
@@ -371,9 +375,18 @@ export function TransactionsPage() {
     const target = deleting;
     setDeleting(null);
 
+    // TEMP DIAG: log delete attempt and context
+    try {
+      console.log('[DELETE FLOW] initiating delete for id=', target.id, 'activeCurrency=', activeCurrency);
+    } catch (e) {
+      // ignore logging errors
+    }
+
     try {
       await syncDeleteTransaction(target.id);
-    } catch {
+      console.log('[DELETE FLOW] syncDeleteTransaction resolved for id=', target.id);
+    } catch (err) {
+      console.error('[DELETE FLOW] syncDeleteTransaction rejected for id=', target.id, 'error=', err);
       // list tetap disinkronkan dengan state server
     }
 
@@ -392,7 +405,6 @@ export function TransactionsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.transactions.title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{uiText.transactions.subtitle}</p>
       </div>
 
       <TransactionToolbar

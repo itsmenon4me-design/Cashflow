@@ -1,14 +1,15 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Wallet } from "lucide-react";
+import { Apple, Eye, EyeOff, Globe, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { uiText } from "@/locales";
 import { ApiError } from "@/lib/axios";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
@@ -16,19 +17,74 @@ import { useAuthStore } from "@/stores/auth.store";
 export default function Page() {
   const router = useRouter();
   const loginSession = useAuthStore((state) => state.loginSession);
+  const t = uiText.auth;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [appleError, setAppleError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [appleSubmitting, setAppleSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const oauthError = new URLSearchParams(window.location.search).get("oauth_error");
+    if (oauthError) {
+      setGoogleError(t.oauthError);
+    }
+  }, []);
+
+  const handleGoogleClick = async () => {
+    setGoogleError(null);
+    setGoogleSubmitting(true);
+
+    try {
+      const response = await authService.googleLogin();
+      if (!response.success || !response.url) {
+        setGoogleError(response.message ?? t.oauthUnavailable);
+        return;
+      }
+
+      window.location.assign(response.url);
+    } catch {
+      setGoogleError(t.oauthUnavailable);
+    } finally {
+      setGoogleSubmitting(false);
+    }
+  };
+
+  const handleAppleClick = async () => {
+    setAppleError(null);
+    setAppleSubmitting(true);
+
+    try {
+      const response = await authService.appleLogin();
+      if (!response.success || !response.url) {
+        setAppleError(response.message ?? t.appleOauthUnavailable);
+        return;
+      }
+
+      window.location.assign(response.url);
+    } catch {
+      setAppleError(t.appleOauthUnavailable);
+    } finally {
+      setAppleSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setGoogleError(null);
 
     if (!email.trim() || !password) {
-      setError("Email dan kata sandi wajib diisi.");
+      setError(t.loginRequired);
       return;
     }
 
@@ -37,7 +93,7 @@ export default function Page() {
       const response = await authService.login({ email: email.trim(), password });
 
       if (!response.success || !response.data) {
-        setError(response.message ?? "Gagal masuk. Periksa kembali email dan kata sandi.");
+        setError(response.message ?? t.loginFailed);
         return;
       }
 
@@ -58,9 +114,9 @@ export default function Page() {
           typeof err.data === "object" && err.data !== null && "message" in err.data
             ? String((err.data as { message: unknown }).message)
             : null;
-        setError(message ?? "Email atau kata sandi salah.");
+        setError(message ?? t.loginInvalidCredentials);
       } else {
-        setError("Tidak dapat terhubung ke server. Periksa koneksi dan coba lagi.");
+        setError(t.genericError);
       }
     } finally {
       setSubmitting(false);
@@ -75,38 +131,38 @@ export default function Page() {
             <Wallet className="size-6" />
           </div>
           <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
-          <p className="text-sm text-muted-foreground">Masuk untuk mengelola keuangan Anda</p>
+         <p className="text-sm text-muted-foreground">{t.loginSubtitle}</p>
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Masuk</CardTitle>
-            <CardDescription>Gunakan email dan kata sandi akun Anda</CardDescription>
+           <CardTitle>{t.loginTitle}</CardTitle>
+             <CardDescription>{t.loginCardDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="nama@email.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  disabled={submitting}
-                />
-              </div>
+             <div className="space-y-2">
+              <Label htmlFor="email">{t.email}</Label>
+               <Input
+                 id="email"
+                 type="email"
+                 inputMode="email"
+                 autoComplete="email"
+                 placeholder="nama@email.com"
+                 value={email}
+                 onChange={(event) => setEmail(event.target.value)}
+                 disabled={submitting}
+               />
+             </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Kata Sandi</Label>
+                  <Label htmlFor="password">{t.password}</Label>
                   <Link
                     href="/forgot-password"
                     className="text-xs font-medium text-primary hover:underline"
                   >
-                    Lupa kata sandi?
+                    {t.forgotPassword}
                   </Link>
                 </div>
                 <div className="relative">
@@ -114,7 +170,7 @@ export default function Page() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    placeholder="Masukkan kata sandi"
+                    placeholder={t.loginPasswordPlaceholder}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     disabled={submitting}
@@ -124,7 +180,7 @@ export default function Page() {
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                    aria-label={showPassword ? t.hidePassword : t.showPassword}
                   >
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
@@ -138,16 +194,61 @@ export default function Page() {
               )}
 
               <Button type="submit" className="w-full" loading={submitting}>
-                {submitting ? "Memproses..." : "Masuk"}
+                {submitting ? t.processing : t.loginAction}
               </Button>
             </form>
+
+            <div className="space-y-3 pt-2">
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                  <span className="bg-background px-2">{t.or}</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                loading={googleSubmitting}
+                onClick={handleGoogleClick}
+              >
+                <Globe className="mr-2 size-4" />
+                {googleSubmitting ? t.preparing : t.continueGoogle}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                loading={appleSubmitting}
+                onClick={handleAppleClick}
+              >
+                <Apple className="mr-2 size-4" />
+                {appleSubmitting ? t.preparing : t.continueApple}
+              </Button>
+
+              {googleError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {googleError}
+                </p>
+              )}
+
+              {appleError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {appleError}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         <p className="text-center text-sm text-muted-foreground">
-          Belum punya akun?{" "}
+          {t.registerPrompt}{" "}
           <Link href="/register" className="font-medium text-primary hover:underline">
-            Daftar
+            {t.registerLink}
           </Link>
         </p>
       </div>

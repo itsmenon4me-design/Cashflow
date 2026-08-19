@@ -1,0 +1,3 @@
+﻿PASSED 1 passed (33.7s)
+phase9.spec.ts STEP 12G-1 PHASE 9: currency selector runtime verification - status=passed
+summary/widgets ?currency=IDR|USD|SGD|EUR -> 200; uiText matched per currency; totals 4/4/3/5; persisted=USD; quickAdd on /accounts=true

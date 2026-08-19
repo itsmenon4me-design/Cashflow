@@ -23,7 +23,7 @@ export class SearchTransactionDto {
   @IsInt()
   @Min(1)
   page?: number = 1;
-
+ 
   @ApiPropertyOptional({ description: 'Items per page', default: 20 })
   @IsOptional()
   @Type(() => Number)
@@ -31,4 +31,9 @@ export class SearchTransactionDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+ @ApiPropertyOptional({ description: 'Currency code to scope search (optional)' })
+ @IsOptional()
+ @IsString()
+ currency?: string;
 }

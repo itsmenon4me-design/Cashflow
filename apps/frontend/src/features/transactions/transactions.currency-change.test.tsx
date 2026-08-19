@@ -6,6 +6,10 @@ import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 describe("TransactionsPage currency change", () => {
   afterEach(() => {
     cleanup();

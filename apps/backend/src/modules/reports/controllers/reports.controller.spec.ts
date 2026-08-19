@@ -62,9 +62,9 @@ describe('ReportsController (security)', () => {
       getTrend: jest.fn().mockResolvedValue({ points: [] }),
       analyzeMonth: jest.fn().mockResolvedValue({ analysis: {} }),
       export: jest.fn().mockResolvedValue({
-        filename: 'report.json',
-        contentType: 'application/json',
-        content: '{}',
+        filename: 'report.csv',
+        contentType: 'text/csv',
+        content: 'a,b\n1,2',
       }),
       getInsights: jest.fn().mockResolvedValue({ insights: [] }),
     };
@@ -158,7 +158,7 @@ describe('ReportsController (security)', () => {
 
   it('export: passes authenticated userId in export options', async () => {
     await request(app.getHttpServer() as Server)
-      .get('/reports/export?type=monthly&format=json')
+      .get('/reports/export?type=monthly&format=csv')
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 

@@ -5,6 +5,41 @@ import { UserSettingsService } from '../../settings/services/user-settings.servi
 import { BudgetAnalyticsService } from '../../reports/services/budget-analytics.service';
 import { PrismaService } from '../../../database/prisma.service';
 
+const FINANCE_BOT_TRANSLATIONS = {
+  id: {
+    budgetAlmostFullTitle: 'Anggaran hampir penuh',
+    budgetAlmostFullMessage: (categoryName: string, percentage: number) =>
+      `Budget ${categoryName} kamu sudah ${percentage}%.`,
+    budgetExceededTitle: 'Anggaran terlewati',
+    budgetExceededMessage: (categoryName: string, percentage: number) =>
+      `Budget ${categoryName} sudah terlewati (${percentage}%).`,
+    recoveryTitle: 'Selamat! Kembali mencatat',
+    recoveryMessage: (diffDays: number) =>
+      `Akhirnya nyatet lagi — lanjutkan ya! (streak sebelumnya: ${diffDays} hari)`,
+    dailyReminderTitle: 'Ingat catat pengeluaran hari ini',
+    dailyReminderMessage: 'Jangan lupa catat transaksi hari ini ya!',
+    dailyEscalationTitle: 'Ayo catat sekarang juga!',
+    dailyEscalationMessage:
+      'Masih belum ada transaksi hari ini. Yuk catat biar ga ketinggalan.',
+  },
+  en: {
+    budgetAlmostFullTitle: 'Budget is almost full',
+    budgetAlmostFullMessage: (categoryName: string, percentage: number) =>
+      `Your ${categoryName} budget is already at ${percentage}%.`,
+    budgetExceededTitle: 'Budget exceeded',
+    budgetExceededMessage: (categoryName: string, percentage: number) =>
+      `Your ${categoryName} budget has exceeded the limit (${percentage}%).`,
+    recoveryTitle: 'Good to see you logging again',
+    recoveryMessage: (diffDays: number) =>
+      `You are back on track — keep going! (previous streak: ${diffDays} days)`,
+    dailyReminderTitle: 'Remember to log today\'s spending',
+    dailyReminderMessage: 'Don\'t forget to log today\'s transactions!',
+    dailyEscalationTitle: 'Log it now!',
+    dailyEscalationMessage:
+      'There is still no transaction recorded today. Please log it before it slips away.',
+  },
+} as const;
+
 @Injectable()
 export class FinanceBotService {
   private readonly logger = new Logger(FinanceBotService.name);
@@ -20,12 +55,23 @@ export class FinanceBotService {
    * Evaluate rules after a transaction is created.
    * This must not affect transaction success; errors are logged and swallowed.
    */
+  private resolveLanguage(language?: string | null): keyof typeof FINANCE_BOT_TRANSLATIONS {
+    return language === 'en' ? 'en' : 'id';
+  }
+
+  private getLocalizedCopy(language: keyof typeof FINANCE_BOT_TRANSLATIONS) {
+    return FINANCE_BOT_TRANSLATIONS[language];
+  }
+
   async evaluateOnTransaction(userId: string, transaction: any): Promise<void> {
     try {
       const settings = await this.settings.getSettings(userId);
+      const language = this.resolveLanguage(settings.language);
       const prefs = (settings.notification_preferences ?? {}) as any;
       const financeBot = prefs.financeBot ?? {};
       if (!financeBot.enabled) return;
+
+      const copy = this.getLocalizedCopy(language);
 
       // Budget threshold evaluation
       try {
@@ -53,8 +99,11 @@ export class FinanceBotService {
           if (percentage >= threshold && percentage < 100) {
             const period = `${year}-${String(month).padStart(2, '0')}`;
             const dedupe = `${userId}|BUDGET_THRESHOLD|${categoryId}|${period}|${threshold}`;
-            const title = `Anggaran hampir penuh`;
-            const message = `Budget ${item.categoryName ?? ''} kamu sudah ${percentage}%.`;
+            const title = copy.budgetAlmostFullTitle;
+            const message = copy.budgetAlmostFullMessage(
+              item.categoryName ?? '',
+              percentage,
+            );
             await this.notifications.createIfNotExists(
               userId,
               'BUDGET_THRESHOLD',
@@ -76,8 +125,11 @@ export class FinanceBotService {
           if (percentage >= 100) {
             const period = `${year}-${String(month).padStart(2, '0')}`;
             const dedupe = `${userId}|BUDGET_EXCEEDED|${categoryId}|${period}|100`;
-            const title = `Anggaran terlewati`;
-            const message = `Budget ${item.categoryName ?? ''} sudah terlewati (${percentage}%).`;
+            const title = copy.budgetExceededTitle;
+            const message = copy.budgetExceededMessage(
+              item.categoryName ?? '',
+              percentage,
+            );
             await this.notifications.createIfNotExists(
               userId,
               'BUDGET_EXCEEDED',
@@ -133,8 +185,8 @@ export class FinanceBotService {
 
           if (diffDays >= 1) {
             const dedupe = `${userId}|RECORDING_RECOVERY|${curDate.toISOString().slice(0, 10)}`;
-            const title = `Selamat! Kembali mencatat`;
-            const message = `Akhirnya nyatet lagi — lanjutkan ya! (streak sebelumnya: ${diffDays} hari)`;
+            const title = copy.recoveryTitle;
+            const message = copy.recoveryMessage(diffDays);
             await this.notifications.createIfNotExists(
               userId,
               'RECORDING_RECOVERY',
@@ -293,6 +345,8 @@ export class FinanceBotService {
       for (const s of settingsRows) {
         try {
           const userId = s.user_id;
+          const language = this.resolveLanguage(s.language);
+          const copy = this.getLocalizedCopy(language);
           const prefs = (s.notification_preferences ?? {}) as any;
           const financeBot = prefs.financeBot ?? {};
           if (!financeBot.enabled || !financeBot.dailyReminderEnabled) continue;
@@ -339,8 +393,8 @@ export class FinanceBotService {
               await this.notifications.createIfNotExists(
                 userId,
                 'DAILY_RECORDING_REMINDER',
-                'Ingat catat pengeluaran hari ini',
-                'Jangan lupa catat transaksi hari ini ya!',
+                copy.dailyReminderTitle,
+                copy.dailyReminderMessage,
                 {
                   ruleType: 'DAILY_RECORDING_REMINDER',
                   referenceDate: localDateParts,
@@ -376,8 +430,8 @@ export class FinanceBotService {
                 await this.notifications.createIfNotExists(
                   userId,
                   'DAILY_RECORDING_ESCALATION',
-                  'Ayo catat sekarang juga!',
-                  'Masih belum ada transaksi hari ini. Yuk catat biar ga ketinggalan.',
+                  copy.dailyEscalationTitle,
+                  copy.dailyEscalationMessage,
                   {
                     ruleType: 'DAILY_RECORDING_ESCALATION',
                     referenceDate: localDateParts,

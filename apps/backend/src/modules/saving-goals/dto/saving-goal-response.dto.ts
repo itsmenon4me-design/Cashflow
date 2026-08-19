@@ -14,6 +14,9 @@ export class SavingGoalResponseDto {
   @ApiPropertyOptional()
   category_id?: string | null;
 
+  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  currency?: string | null;
+
   @ApiProperty()
   name!: string;
 

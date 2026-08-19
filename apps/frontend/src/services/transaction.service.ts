@@ -18,6 +18,8 @@ export interface TransactionListParams {
   toDate?: string;
   sortBy?: "date" | "amount" | "createdAt";
   sortOrder?: "asc" | "desc";
+  // Optional currency hint for server-side filtering or client-side selection
+  currency?: string;
 }
 
 export interface CreateTransactionPayload {
@@ -64,6 +66,7 @@ export function toTransactionItem(
   return {
     id: dto.id,
     date: dto.transaction_date.slice(0, 10),
+    dateTime: dto.transaction_date,
     category: findNameById(categoryNames, dto.category_id),
     description: dto.note ?? "",
     account: findNameById(accountNames, dto.account_id),
@@ -89,6 +92,8 @@ export function toCreateTransactionPayload(
   accountNames: NameLookup,
   categoryNames: NameLookup,
   accountCurrencies: Record<string, string>,
+  // optional override: when parent wants to force a transaction type (e.g. incomes/expenses pages)
+  forcedType?: 'income' | 'expense',
 ): CreateTransactionPayload | null {
   const accountId = findIdByName(accountNames, values.account);
   const categoryId = findIdByName(categoryNames, values.category);
@@ -99,10 +104,12 @@ export function toCreateTransactionPayload(
 
   const note = values.notes?.trim() || values.description?.trim() || undefined;
 
+  const typeSource = forcedType ?? values.type;
+
   return {
     account_id: accountId,
     category_id: categoryId,
-    transaction_type: values.type === "income" ? "INCOME" : "EXPENSE",
+    transaction_type: typeSource === "income" ? "INCOME" : "EXPENSE",
     amount_cents: toMinorUnits(
       values.amount,
       accountCurrency(values, accountNames, accountCurrencies),
@@ -140,24 +147,49 @@ export function toUpdateTransactionPayload(
   };
 }
 
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
+
 export const transactionService = {
-  list: (params: TransactionListParams = {}): Promise<PaginatedTransactionResponse> =>
-    withOfflineCache(
+  list: (params: TransactionListParams = {}): Promise<PaginatedTransactionResponse> => {
+    // Ensure currency hint is present - default to active dashboard currency to avoid cross-currency leakage
+    const currency = params.currency ?? useDashboardCurrencyStore.getState().currency;
+    const merged = { ...params, currency } as TransactionListParams;
+    return withOfflineCache(
       "transactions",
-      `list:${JSON.stringify(params)}`,
-      () => apiClient.get<PaginatedTransactionResponse>("/transactions", { params: { ...params } }),
-    ),
+      `list:${JSON.stringify(merged)}`,
+      () => apiClient.get<PaginatedTransactionResponse>("/transactions", { params: { ...merged } }),
+    );
+  },
 
-  create: (payload: CreateTransactionPayload): Promise<TransactionDTO> =>
-    apiClient
-      .post<{ success: boolean; data: TransactionDTO }>("/transactions", payload)
-      .then((res) => res.data),
+  create: (payload: CreateTransactionPayload, currency?: string): Promise<TransactionDTO> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    const url = activeCurrency ? `/transactions?currency=${encodeURIComponent(activeCurrency)}` : "/transactions";
+    return apiClient
+      .post<{ success: boolean; data: TransactionDTO }>(url, payload)
+      .then((res) => res.data);
+  },
 
-  update: (id: string, payload: UpdateTransactionPayload): Promise<TransactionDTO> =>
-    apiClient
-      .patch<{ success: boolean; data: TransactionDTO }>(`/transactions/${id}`, payload)
-      .then((res) => res.data),
+  update: (id: string, payload: UpdateTransactionPayload, currency?: string): Promise<TransactionDTO> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    const url = activeCurrency ? `/transactions/${id}?currency=${encodeURIComponent(activeCurrency)}` : `/transactions/${id}`;
+    return apiClient
+      .patch<{ success: boolean; data: TransactionDTO }>(url, payload)
+      .then((res) => res.data);
+  },
 
-  remove: (id: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/transactions/${id}`),
+  remove: (id: string, currency?: string): Promise<{ success: boolean }> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    const url = activeCurrency ? `/transactions/${id}?currency=${encodeURIComponent(activeCurrency)}` : `/transactions/${id}`;
+    try {
+      console.log('[DELETE FLOW] transaction.service.remove calling DELETE URL=', url);
+    } catch (e) {}
+    return apiClient.delete<{ success: boolean }>(url).then((res: any) => {
+      try {
+        console.log('[DELETE FLOW] transaction.service.remove response status=', res.status);
+      } catch (e) {}
+      return res.data;
+    });
+  },
+
+
 };

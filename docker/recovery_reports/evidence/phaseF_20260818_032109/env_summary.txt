@@ -1,0 +1,24 @@
+# Sanitized environment summary — phaseF_20260818_032109
+# Values that are secrets (JWT secrets, DB passwords) are REDACTED.
+
+BASE_URL=http://localhost:8080
+API_BASE=http://localhost:3101/api/v1
+TEST_DATABASE_URL=postgresql://postgres:<REDACTED>@localhost:55432/cashflow?schema=public
+E2E_ACCESS_TOKEN=set (test-user JWT, exp 2026-08-25, value NOT echoed here)
+E2E_REFRESH_TOKEN=set (empty)
+E2E_EMAIL=e2e@test.local (spec default)
+E2E_USER=unset (spec default { id: 00000000-0000-0000-0000-000000000001, ... })
+
+Host: win32, PowerShell 5.1
+Playwright: 1.62.1 (chromium headless)
+Node: npx from repo root (monorepo)
+
+Verification stack containers (all healthy at run time):
+- cashflowverify_nginx   (0.0.0.0:8080->80)
+- cashflowverify_backend (0.0.0.0:3101->3001)
+- cashflowverify_frontend(0.0.0.0:3100->3000)
+- cashflowverify_postgres(0.0.0.0:55432->5432)
+- cashflowverify_redis / minio healthy
+
+Health pre-run: GET http://localhost:8080/api/v1/health -> 200 {"success":true,"status":"healthy"}
+                GET http://localhost:3101/api/v1/health -> 200

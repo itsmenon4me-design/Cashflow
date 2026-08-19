@@ -2,18 +2,25 @@ import {
   formatCurrency as formatMajorCurrency,
   formatMoneyFromMinorUnits,
 } from "@/lib/money";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import { DEFAULT_CURRENCY, useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
+
+function resolveDisplayCurrency(currency?: string): string {
+  const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+  return normalizeDashboardCurrency(activeCurrency) ?? DEFAULT_CURRENCY;
+}
 
 /** Format an amount that is already expressed in major units. */
-export function formatCurrency(amount: number, currency = "IDR"): string {
-  return formatMajorCurrency(amount, currency);
+export function formatCurrency(amount: number, currency?: string): string {
+  return formatMajorCurrency(amount, resolveDisplayCurrency(currency));
 }
 
 /** Format persisted minor units with currency-specific precision and locale. */
-export function formatCurrencyCents(amount: string | number | bigint, currency = "IDR"): string {
-  return formatMoneyFromMinorUnits(amount, currency);
+export function formatCurrencyCents(amount: string | number | bigint, currency?: string): string {
+  return formatMoneyFromMinorUnits(amount, resolveDisplayCurrency(currency));
 }
 
-export function formatMoney(amount: number, currency = "IDR"): string {
+export function formatMoney(amount: number, currency?: string): string {
   return formatCurrency(amount, currency);
 }
 

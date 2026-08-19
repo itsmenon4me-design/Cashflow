@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AnalyticsSpending } from "@/services/analytics.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface SpendingAnalysisCardProps {
   spending: AnalyticsSpending | null;
@@ -33,6 +34,8 @@ function Tile({
 }
 
 export function SpendingAnalysisCard({ spending, loading = false }: SpendingAnalysisCardProps) {
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -42,17 +45,17 @@ export function SpendingAnalysisCard({ spending, loading = false }: SpendingAnal
       <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <Tile
           label={uiText.analytics.avgExpense}
-          value={spending ? formatCurrencyCents(spending.avgExpense) : "—"}
+          value={spending ? formatCurrencyCents(spending.avgExpense, activeCurrency) : "—"}
           loading={loading}
         />
         <Tile
           label={uiText.analytics.largestExpense}
-          value={spending ? formatCurrencyCents(spending.largestExpense) : "—"}
+          value={spending ? formatCurrencyCents(spending.largestExpense, activeCurrency) : "—"}
           loading={loading}
         />
         <Tile
           label={uiText.analytics.avgTransaction}
-          value={spending ? formatCurrencyCents(spending.avgTransaction) : "—"}
+          value={spending ? formatCurrencyCents(spending.avgTransaction, activeCurrency) : "—"}
           loading={loading}
         />
         <Tile

@@ -5,6 +5,7 @@ export class SavingGoalEntity {
   user_id!: string;
   account_id?: string | null;
   category_id?: string | null;
+  currency?: string | null;
   name!: string;
   description?: string | null;
   target_amount_cents!: bigint;

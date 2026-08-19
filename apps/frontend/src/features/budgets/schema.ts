@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { UpdateBudgetPayload } from "@/services/budget.service";
 
 const requiredMessage = "Wajib diisi";
@@ -15,18 +17,26 @@ export const budgetFormSchema = z.object({
 
 export type BudgetFormValues = z.infer<typeof budgetFormSchema>;
 
-export function toCreateBudgetPayload(values: BudgetFormValues) {
-  // Budgets in CashFlow are per category (not per account/currency)
-  // Default to IDR as primary currency
-  // TODO: Consider linking budgets to accounts for multi-currency support
+export function toCreateBudgetPayload(
+  values: BudgetFormValues,
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
+) {
   return {
     category_id: values.categoryId,
-    budget_amount_cents: toMinorUnits(values.amount, 'IDR'),
+    currency,
+    budget_amount_cents: toMinorUnits(values.amount, currency),
     month: values.month,
     year: values.year,
   };
 }
 
-export function toUpdateBudgetPayload(values: BudgetFormValues): UpdateBudgetPayload {
-  return toCreateBudgetPayload(values);
+export function toUpdateBudgetPayload(
+  values: BudgetFormValues,
+  currency = normalizeDashboardCurrency(
+    useDashboardCurrencyStore.getState().currency,
+  ) ?? 'USD',
+): UpdateBudgetPayload {
+  return toCreateBudgetPayload(values, currency);
 }

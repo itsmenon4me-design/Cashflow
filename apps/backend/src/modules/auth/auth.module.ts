@@ -23,6 +23,14 @@ import { SessionService } from './services/session.service';
 import { SessionsController } from './controllers/sessions.controller';
 import { RolesService } from './services/roles.service';
 import { PermissionsService } from './services/permissions.service';
+import { GoogleOauthController } from './controllers/google-oauth.controller';
+import { AppleOauthController } from './controllers/apple-oauth.controller';
+import { GoogleAuthService } from './services/google-auth.service';
+import { AppleAuthService } from './services/apple-auth.service';
+import { GoogleOAuthProvider } from './providers/google/google-oauth.provider';
+import { AppleOAuthProvider } from './providers/apple/apple-oauth.provider';
+import { PrismaOauthAccountRepository } from './repositories/prisma-oauth-account.repository';
+import { OAuthAccountService } from './services/oauth-account.service';
 
 @Module({
   imports: [
@@ -45,7 +53,7 @@ import { PermissionsService } from './services/permissions.service';
       },
     }),
   ],
-  controllers: [AuthController, SessionsController, EmailController],
+  controllers: [AuthController, SessionsController, EmailController, GoogleOauthController, AppleOauthController],
   providers: [
     AuthService,
     JwtStrategy,
@@ -59,11 +67,18 @@ import { PermissionsService } from './services/permissions.service';
     RefreshTokensService,
     // Email verification service
     EmailVerificationService,
+    // OAuth preparation layers
+    GoogleOAuthProvider,
+    GoogleAuthService,
+    AppleOAuthProvider,
+    AppleAuthService,
+    PrismaOauthAccountRepository,
+    OAuthAccountService,
     // Users repo provider for Auth module internal updates
     PrismaUsersRepository,
     // Rate limiting guard for auth endpoints
     AuthRateLimitGuard,
   ],
-  exports: [AuthService, SessionService, RolesService, PermissionsService],
+  exports: [AuthService, SessionService, RolesService, PermissionsService, OAuthAccountService],
 })
 export class AuthModule {}

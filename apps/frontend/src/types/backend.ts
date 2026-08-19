@@ -33,6 +33,7 @@ export interface RefreshResponse {
 }
 
 export interface DashboardSummaryResponse {
+  currency?: string;
   total_assets_cents: string;
   total_income_cents: string;
   total_expense_cents: string;
@@ -41,6 +42,13 @@ export interface DashboardSummaryResponse {
   total_categories: number;
   total_transactions: number;
   last_updated_at: string | null;
+  by_currency?: Array<{
+    currency: string;
+    total_assets_cents: string;
+    total_income_cents: string;
+    total_expense_cents: string;
+    net_cash_flow_cents: string;
+  }>;
 }
 
 export interface TransactionDTO {

@@ -59,7 +59,7 @@ const makeMocks = (): {
 };
 
 describe('ReportExportService', () => {
-  it('exports monthly report as JSON', async () => {
+  it('exports monthly report as CSV', async () => {
     const mocks = makeMocks();
     const svc = new ReportExportService(
       mocks.monthlySvc,
@@ -68,17 +68,16 @@ describe('ReportExportService', () => {
     );
     const res = await svc.export({
       type: 'monthly',
-      format: 'json',
+      format: 'csv',
       month: 8,
       year: 2026,
       userId: 'user-1',
     });
     expect(res.filename).toContain('monthly-report-2026-08');
-    expect(res.contentType).toContain('application/json');
-    const obj = JSON.parse(String(res.content)) as unknown as {
-      summary: { income: string };
-    };
-    expect(obj.summary.income).toBe('100');
+    expect(res.contentType).toContain('text/csv');
+    const content = String(res.content);
+    expect(content).toContain('income');
+    expect(content).toContain('100');
   });
 
   it('exports category breakdown as CSV with headers', async () => {
@@ -102,7 +101,7 @@ describe('ReportExportService', () => {
     expect(content).toContain('Food');
   });
 
-  it('exports trend as CSV and JSON', async () => {
+  it('exports trend as CSV', async () => {
     const mocks = makeMocks();
     const svc = new ReportExportService(
       mocks.monthlySvc,
@@ -117,14 +116,6 @@ describe('ReportExportService', () => {
       userId: 'user-1',
     });
     expect(resCsv.contentType).toContain('text/csv');
-    const resJson = await svc.export({
-      type: 'trend',
-      format: 'json',
-      startDate: new Date('2026-07-01'),
-      endDate: new Date('2026-07-31'),
-      userId: 'user-1',
-    });
-    expect(resJson.contentType).toContain('application/json');
   });
 
   it('handles empty dataset (category CSV has only headers)', async () => {
@@ -160,14 +151,14 @@ describe('ReportExportService', () => {
     await expect(
       svc.export({
         type: 'foo' as unknown as 'monthly' | 'category' | 'trend',
-        format: 'json',
+        format: 'json' as unknown as 'csv',
         userId: 'user-1',
       }),
     ).rejects.toThrow();
     await expect(
       svc.export({
         type: 'monthly',
-        format: 'xml' as unknown as 'json' | 'csv',
+        format: 'xml' as unknown as 'csv',
         userId: 'user-1',
       }),
     ).rejects.toThrow();

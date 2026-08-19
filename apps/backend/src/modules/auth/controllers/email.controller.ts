@@ -122,7 +122,11 @@ export class EmailController {
       password_reset_requested_at: new Date(),
     });
 
-    const link = `${process.env.APP_URL ?? 'http://localhost:3001'}/api/v1/auth/reset-password?token=${raw}&id=${user.id}`;
+    const baseUrl =
+      process.env.FRONTEND_URL ??
+      process.env.APP_URL ??
+      'http://localhost:3000';
+    const link = `${baseUrl}/reset-password?token=${raw}&id=${user.id}`;
     this.mail.sendPasswordReset(user.email, user.full_name, link);
 
     return generic;

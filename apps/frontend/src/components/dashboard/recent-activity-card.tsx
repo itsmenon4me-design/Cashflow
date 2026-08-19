@@ -125,8 +125,8 @@ export function RecentActivityCard() {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle>{uiText.dashboard.recentActivities}</CardTitle>
+      <CardHeader className="px-5">
+        <CardTitle className="text-lg font-semibold">{uiText.dashboard.recentActivities}</CardTitle>
         <CardAction>
           <Button
             type="button"
@@ -147,7 +147,7 @@ export function RecentActivityCard() {
         </CardAction>
       </CardHeader>
 
-      <CardContent id="recent-activity-content">
+      <CardContent id="recent-activity-content" className="p-5 pt-0">
         {!expanded ? (
           <div className="flex items-center justify-between gap-2 py-1">
             <p className="text-sm text-muted-foreground">

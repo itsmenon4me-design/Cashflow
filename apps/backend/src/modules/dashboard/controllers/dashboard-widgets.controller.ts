@@ -21,14 +21,16 @@ export class DashboardWidgetsController {
   @ApiOperation({ summary: 'Get combined dashboard widgets' })
   @ApiQuery({ name: 'month', required: false, type: Number })
   @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'currency', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Dashboard widgets' })
   async getWidgets(
     @CurrentUser('sub') userId: string,
     @Query('month') monthStr?: string,
     @Query('year') yearStr?: string,
+    @Query('currency') currency?: string,
   ) {
     const month = monthStr ? Number(monthStr) : undefined;
     const year = yearStr ? Number(yearStr) : undefined;
-    return this.svc.getWidgets(userId, month, year);
+    return this.svc.getWidgets(userId, month, year, currency);
   }
 }

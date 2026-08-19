@@ -1,4 +1,12 @@
-import { IsInt, Min, Max, IsOptional, IsISO8601 } from 'class-validator';
+import {
+  IsInt,
+  Min,
+  Max,
+  IsOptional,
+  IsISO8601,
+  IsIn,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -29,4 +37,13 @@ export class MonthlyReportQueryDto {
   @IsOptional()
   @IsISO8601()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Financial dataset currency scope for report aggregation.',
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

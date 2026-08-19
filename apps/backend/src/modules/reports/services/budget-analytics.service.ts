@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { Prisma, TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 export interface BudgetCategoryItem {
   categoryId: string;
@@ -60,7 +61,11 @@ export class BudgetAnalyticsService {
     userId: string,
     month: number,
     year: number,
+    currency?: string,
   ): Promise<BudgetRow[]> {
+    const currencyFilter = currency
+      ? Prisma.sql`AND (b.currency = ${currency} OR b.currency IS NULL)`
+      : Prisma.empty;
     return this.prisma.$queryRaw<BudgetRow[]>(
       Prisma.sql`
         SELECT
@@ -71,6 +76,7 @@ export class BudgetAnalyticsService {
           AND b.month = ${month}
           AND b.year = ${year}
           AND b.deleted_at IS NULL
+          ${currencyFilter}
         ORDER BY b.budget_amount_cents DESC
       `,
     );
@@ -80,6 +86,7 @@ export class BudgetAnalyticsService {
     userId: string,
     month: number,
     year: number,
+    currency?: string,
   ): Promise<BudgetAnalysisResult> {
     const m = Number(month);
     const y = Number(year);
@@ -88,17 +95,27 @@ export class BudgetAnalyticsService {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0, 23, 59, 59, 999);
 
-    // budgets
-    const budgets = await this.fetchBudgets(userId, m, y);
-
-    // Resolve primary account currency to prevent cross-currency summation
+    // Resolve the active dashboard currency to prevent cross-currency summation.
+    const selectedCurrency = normalizeDashboardCurrency(currency);
     const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
+      },
       select: { currency: true, is_default: true },
     });
     const defaultAcc = accounts.find((a) => a.is_default);
     const targetCurrency =
-      defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+      selectedCurrency ?? defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+
+    // budgets (explicit scope only: legacy NULL budgets match any scope)
+    const budgets = await this.fetchBudgets(
+      userId,
+      m,
+      y,
+      selectedCurrency ?? undefined,
+    );
 
     // transactions
     const groups = await this.prisma.transaction

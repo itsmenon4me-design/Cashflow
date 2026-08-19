@@ -21,6 +21,15 @@ export class CreateInvestmentDto {
   @IsString()
   account_id?: string;
 
+  @ApiPropertyOptional({
+    description: 'Record currency ownership for the investment. Nullable until migration backfill is approved.',
+    enum: ['USD', 'IDR', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['USD', 'IDR', 'SGD', 'EUR'])
+  currency?: string;
+
   @ApiProperty({
     enum: [
       'Stock',

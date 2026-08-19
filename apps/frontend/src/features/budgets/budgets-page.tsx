@@ -28,6 +28,7 @@ import {
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import {
   budgetService,
   toBudgetItem,
@@ -54,6 +55,7 @@ function currentPeriod(): BudgetPeriod {
 }
 
 export function BudgetsPage() {
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [rawBudgets, setRawBudgets] = useState<BudgetResponse[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseOption[]>([]);
   const [analysis, setAnalysis] = useState<BudgetAnalysisResponse | null>(null);
@@ -84,7 +86,7 @@ export function BudgetsPage() {
       setError(false);
       try {
         const [budgets, categories] = await Promise.all([
-          budgetService.list(),
+          budgetService.list(activeCurrency),
           categoryService.list(),
         ]);
         if (cancelled) {
@@ -112,7 +114,7 @@ export function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, activeCurrency]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +125,11 @@ export function BudgetsPage() {
         return;
       }
       try {
-        const result = await budgetService.analysis(period.month, period.year);
+        const result = await budgetService.analysis(
+          period.month,
+          period.year,
+          activeCurrency,
+        );
         if (!cancelled) {
           setAnalysis(result);
         }
@@ -139,7 +145,7 @@ export function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [period, refreshKey]);
+  }, [period, refreshKey, activeCurrency]);
 
   const budgetItems = useMemo(() => {
     const spentByCategory: Record<string, number> = {};
@@ -228,6 +234,7 @@ export function BudgetsPage() {
         await budgetService.update(
           formState.budget.id,
           toUpdateBudgetPayload(values),
+          activeCurrency,
         );
       } catch {
         // daftar tetap disinkronkan dengan state server
@@ -253,7 +260,7 @@ export function BudgetsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await budgetService.remove(target.id);
+      await budgetService.remove(target.id, activeCurrency);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -268,7 +275,6 @@ export function BudgetsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.budgets.title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{uiText.budgets.subtitle}</p>
       </div>
 
       <BudgetToolbar

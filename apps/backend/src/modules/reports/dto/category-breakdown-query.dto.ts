@@ -1,4 +1,12 @@
-import { IsInt, Min, Max, IsIn, IsOptional, IsISO8601 } from 'class-validator';
+import {
+  IsInt,
+  Min,
+  Max,
+  IsIn,
+  IsOptional,
+  IsISO8601,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -33,4 +41,13 @@ export class CategoryBreakdownQueryDto {
   @IsOptional()
   @IsISO8601()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Financial dataset currency scope for report aggregation.',
+    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  currency?: string;
 }

@@ -1,6 +1,7 @@
 ﻿import { apiClient } from "@/lib/axios";
 
 import { getCurrencySpec } from "@/lib/money";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 export interface ReportPeriod {
   startDate: string;
@@ -55,7 +56,7 @@ export interface TrendResult {
 }
 
 export type ExportType = "monthly" | "category" | "trend";
-export type ExportFormat = "json" | "csv";
+export type ExportFormat = "csv";
 
 export interface ReportExportResponse {
   filename: string;
@@ -70,6 +71,7 @@ export interface ReportExportParams {
   year?: number;
   startDate?: string;
   endDate?: string;
+  currency?: string;
 }
 
 /** Backend reports return exact minor-unit strings. Convert to major units only at the display boundary. */
@@ -96,26 +98,34 @@ export function downloadExport(res: ReportExportResponse): void {
 }
 
 export const reportService = {
-  getSummary: (period: ReportPeriod): Promise<ReportSummary> =>
-    apiClient.get<ReportSummary>("/reports/monthly", {
-      params: { startDate: period.startDate, endDate: period.endDate },
-    }),
+  getSummary: (period: ReportPeriod, currency?: string): Promise<ReportSummary> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    return apiClient.get<ReportSummary>("/reports/monthly", {
+      params: { startDate: period.startDate, endDate: period.endDate, ...(activeCurrency ? { currency: activeCurrency } : {}) },
+    });
+  },
 
   getCategoryBreakdown: (
     type: "income" | "expense",
     period: ReportPeriod,
-  ): Promise<CategoryBreakdownResult> =>
-    apiClient.get<CategoryBreakdownResult>("/reports/category-breakdown", {
-      params: { type, startDate: period.startDate, endDate: period.endDate },
-    }),
+    currency?: string,
+  ): Promise<CategoryBreakdownResult> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    return apiClient.get<CategoryBreakdownResult>("/reports/category-breakdown", {
+      params: { type, startDate: period.startDate, endDate: period.endDate, ...(activeCurrency ? { currency: activeCurrency } : {}) },
+    });
+  },
 
-  getCashflowTrend: (type: TrendType, period: ReportPeriod): Promise<TrendResult> =>
-    apiClient.get<TrendResult>("/reports/cashflow-trend", {
-      params: { type, startDate: period.startDate, endDate: period.endDate },
-    }),
+  getCashflowTrend: (type: TrendType, period: ReportPeriod, currency?: string): Promise<TrendResult> => {
+    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+    return apiClient.get<TrendResult>("/reports/cashflow-trend", {
+      params: { type, startDate: period.startDate, endDate: period.endDate, ...(activeCurrency ? { currency: activeCurrency } : {}) },
+    });
+  },
 
-  exportReport: (params: ReportExportParams): Promise<ReportExportResponse> =>
-    apiClient.get<ReportExportResponse>("/reports/export", {
+  exportReport: (params: ReportExportParams): Promise<ReportExportResponse> => {
+    const activeCurrency = params.currency ?? useDashboardCurrencyStore.getState().currency;
+    return apiClient.get<ReportExportResponse>("/reports/export", {
       params: {
         type: params.type,
         format: params.format,
@@ -123,6 +133,8 @@ export const reportService = {
         year: params.year,
         startDate: params.startDate,
         endDate: params.endDate,
+        ...(activeCurrency ? { currency: activeCurrency } : {}),
       },
-    }),
+    });
+  },
 };

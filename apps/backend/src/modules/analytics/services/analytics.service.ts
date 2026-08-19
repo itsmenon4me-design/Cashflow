@@ -195,17 +195,18 @@ export class AnalyticsService {
     };
   }
 
-  private async getSummary(userId: string, range: ResolvedRange) {
+  private async getSummary(userId: string, range: ResolvedRange, currency?: string) {
     return this.monthly.getMonthlyReport(userId, undefined, undefined, {
       start: range.start,
       end: range.end,
-    });
+    }, currency);
   }
 
   private async getBreakdown(
     userId: string,
     type: 'income' | 'expense',
     range: ResolvedRange,
+    currency?: string,
   ) {
     return this.categoryBreakdown.getBreakdown(
       userId,
@@ -216,15 +217,17 @@ export class AnalyticsService {
         start: range.start,
         end: range.end,
       },
+      currency,
     );
   }
 
-  private async getTrend(userId: string, range: ResolvedRange) {
+  private async getTrend(userId: string, range: ResolvedRange, currency?: string) {
     const result = await this.cashflowTrend.getTrend(
       userId,
       range.granularity,
       range.start,
       range.end,
+      currency,
     );
     return result.data;
   }
@@ -257,8 +260,8 @@ export class AnalyticsService {
   ): Promise<AnalyticsOverviewResult> {
     const range = this.resolveRange(query);
     const [summary, prev] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getSummary(userId, this.previousRange(range)),
+      this.getSummary(userId, range, query.currency),
+      this.getSummary(userId, this.previousRange(range), query.currency),
     ]);
 
     const income = summary.summary.income;
@@ -309,10 +312,10 @@ export class AnalyticsService {
   ): Promise<AnalyticsTypeResult> {
     const range = this.resolveRange(query);
     const [summary, prev, trend, breakdown] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getSummary(userId, this.previousRange(range)),
-      this.getTrend(userId, range),
-      this.getBreakdown(userId, 'income', range),
+      this.getSummary(userId, range, query.currency),
+      this.getSummary(userId, this.previousRange(range), query.currency),
+      this.getTrend(userId, range, query.currency),
+      this.getBreakdown(userId, 'income', range, query.currency),
     ]);
 
     const total = summary.summary.income;
@@ -342,10 +345,10 @@ export class AnalyticsService {
   ): Promise<AnalyticsTypeResult> {
     const range = this.resolveRange(query);
     const [summary, prev, trend, breakdown] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getSummary(userId, this.previousRange(range)),
-      this.getTrend(userId, range),
-      this.getBreakdown(userId, 'expense', range),
+      this.getSummary(userId, range, query.currency),
+      this.getSummary(userId, this.previousRange(range), query.currency),
+      this.getTrend(userId, range, query.currency),
+      this.getBreakdown(userId, 'expense', range, query.currency),
     ]);
 
     const total = summary.summary.expense;
@@ -375,8 +378,8 @@ export class AnalyticsService {
   ): Promise<AnalyticsCashflowResult> {
     const range = this.resolveRange(query);
     const [summary, trend] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getTrend(userId, range),
+      this.getSummary(userId, range, query.currency),
+      this.getTrend(userId, range, query.currency),
     ]);
 
     const totalIncome = summary.summary.income;
@@ -412,11 +415,11 @@ export class AnalyticsService {
     query: AnalyticsQueryDto,
   ): Promise<AnalyticsSpendingResult> {
     const range = this.resolveRange(query);
-    const targetCurrency = await this.resolveTargetCurrency(userId);
+    const targetCurrency = query.currency ?? (await this.resolveTargetCurrency(userId));
     const [summary, breakdown, expAgg, incomeCount, expenseCount, totalCount] =
       await Promise.all([
-        this.getSummary(userId, range),
-        this.getBreakdown(userId, 'expense', range),
+        this.getSummary(userId, range, query.currency),
+        this.getBreakdown(userId, 'expense', range, query.currency),
         this.prisma.transaction.aggregate({
           where: {
             user_id: userId,
@@ -433,6 +436,7 @@ export class AnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
+            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -441,6 +445,7 @@ export class AnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
+            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -448,6 +453,7 @@ export class AnalyticsService {
           where: {
             user_id: userId,
             deleted_at: null,
+            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -478,15 +484,71 @@ export class AnalyticsService {
     query: AnalyticsQueryDto,
   ): Promise<AnalyticsHealthResult> {
     const range = this.resolveRange(query);
+
+    // Use overview as a strict source-of-truth for empty-data detection to avoid
+    // any discrepancy between different aggregation paths. This is a minimal,
+    // safe guard: if overview shows no transactions/income/expense we treat the
+    // dataset as empty and return zero health.
+    const overviewResult = await this.overview(userId, query);
+
+    // If overview shows truly empty activity, treat dataset as empty.
+    if (
+      this.toNumber(overviewResult.income) === 0 &&
+      this.toNumber(overviewResult.expense) === 0 &&
+      this.toNumber(overviewResult.transactions) === 0
+    ) {
+      // Additionally check account balances in the target currency: if total assets are
+      // zero we must not introduce any artificial baseline score. Return zero health.
+      const targetCurrency = query.currency ?? (await this.resolveTargetCurrency(userId));
+      const accAgg = await this.prisma.account.aggregate({
+        where: { user_id: userId, deleted_at: null, currency: targetCurrency },
+        _sum: { current_balance_cents: true },
+      });
+      const totalAssets = this.toNumber(accAgg._sum?.current_balance_cents ?? 0);
+      if (totalAssets === 0) {
+        return {
+          score: 0,
+          label: 'risk',
+          savingRate: 0,
+          expenseRatio: 0,
+          incomeVsExpense: null,
+          netCashFlow: '0',
+          cashFlowPositive: false,
+          spendingConcentration: 0,
+        };
+      }
+    }
+
     const [summary, breakdown] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getBreakdown(userId, 'expense', range),
+      this.getSummary(userId, range, query.currency),
+      this.getBreakdown(userId, 'expense', range, query.currency),
     ]);
 
     const income = this.toNumber(summary.summary.income);
     const expense = this.toNumber(summary.summary.expense);
     const netCashFlow = this.toNumber(summary.summary.netCashFlow);
     const totalExpense = this.toNumber(breakdown.total);
+    const transactionsCount = this.toNumber(summary.summary.transactions);
+
+    const isCompletelyEmptyDataset =
+      income === 0 &&
+      expense === 0 &&
+      totalExpense === 0 &&
+      transactionsCount === 0 &&
+      (!breakdown.categories || breakdown.categories.length === 0);
+
+    if (isCompletelyEmptyDataset) {
+      return {
+        score: 0,
+        label: 'risk',
+        savingRate: 0,
+        expenseRatio: 0,
+        incomeVsExpense: null,
+        netCashFlow: '0',
+        cashFlowPositive: false,
+        spendingConcentration: 0,
+      };
+    }
 
     const savingRate =
       income > 0 ? this.round(((income - expense) / income) * 100) : 0;
@@ -528,11 +590,12 @@ export class AnalyticsService {
 
   async insights(userId: string, query: AnalyticsQueryDto): Promise<string[]> {
     const range = this.resolveRange(query);
-    const targetCurrency = await this.resolveTargetCurrency(userId);
+    const targetCurrency =
+      query.currency ?? (await this.resolveTargetCurrency(userId));
     const [summary, prev, breakdown] = await Promise.all([
-      this.getSummary(userId, range),
-      this.getSummary(userId, this.previousRange(range)),
-      this.getBreakdown(userId, 'expense', range),
+      this.getSummary(userId, range, query.currency),
+      this.getSummary(userId, this.previousRange(range), query.currency),
+      this.getBreakdown(userId, 'expense', range, query.currency),
     ]);
 
     const income = this.normalizeToNumber(summary.summary.income);

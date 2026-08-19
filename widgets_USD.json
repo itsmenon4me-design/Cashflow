@@ -1,0 +1,70 @@
+﻿{
+    "summary":  {
+                    "currency":  "USD",
+                    "total_assets_cents":  "0",
+                    "total_income_cents":  "0",
+                    "total_expense_cents":  "0",
+                    "net_cash_flow_cents":  "0",
+                    "total_accounts":  0,
+                    "total_categories":  16,
+                    "total_transactions":  0,
+                    "last_updated_at":  null,
+                    "by_currency":  [
+                                        {
+                                            "currency":  "USD",
+                                            "total_assets_cents":  "0",
+                                            "total_income_cents":  "0",
+                                            "total_expense_cents":  "0",
+                                            "net_cash_flow_cents":  "0"
+                                        }
+                                    ]
+                },
+    "cashFlow":  {
+                     "income":  "0",
+                     "expense":  "0",
+                     "netCashFlow":  "0",
+                     "comparison":  {
+                                        "income":  0,
+                                        "expense":  0,
+                                        "netCashFlow":  0
+                                    }
+                 },
+    "monthlyReport":  {
+                          "month":  8,
+                          "year":  2026,
+                          "summary":  {
+                                          "income":  "0",
+                                          "expense":  "0",
+                                          "netCashFlow":  "0",
+                                          "transactions":  0
+                                      },
+                          "topExpenseCategories":  [
+
+                                                   ],
+                          "topIncomeCategories":  [
+
+                                                  ]
+                      },
+    "categoryBreakdown":  [
+
+                          ],
+    "trend":  {
+                  "type":  "monthly",
+                  "data":  [
+
+                           ]
+              },
+    "budget":  {
+                   "month":  8,
+                   "year":  2026,
+                   "overall":  {
+                                   "budget":  "0",
+                                   "spent":  "0",
+                                   "remaining":  "0",
+                                   "percentageUsed":  0
+                               },
+                   "categories":  [
+
+                                  ]
+               }
+}

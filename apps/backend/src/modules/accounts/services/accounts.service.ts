@@ -38,8 +38,11 @@ export class AccountsService {
         'Opening balance cannot be negative',
       );
 
-    // Unique name per user
-    const existing = await this.repo.findByUserAndName(userId, input.name);
+    // Determine account currency from input (frontend should supply active dashboard currency)
+    const accountCurrency = input.currency ?? 'IDR';
+
+    // Unique name per user within the same currency
+    const existing = await this.repo.findByUserAndName(userId, input.name, accountCurrency);
     if (existing)
       throw ErrorService.create(
         ErrorCode.CONFLICT,
@@ -50,7 +53,7 @@ export class AccountsService {
       user_id: userId,
       name: input.name,
       account_type: input.account_type ?? 'OTHER',
-      currency: input.currency ?? 'IDR',
+      currency: accountCurrency,
       opening_balance_cents:
         input.opening_balance_cents !== undefined
           ? BigInt(input.opening_balance_cents)
@@ -99,8 +102,8 @@ export class AccountsService {
     }
   }
 
-  async getById(userId: string, id: string): Promise<AccountEntity> {
-    const acc = await this.repo.findById(id);
+  async getById(userId: string, id: string, currency?: string): Promise<AccountEntity> {
+    const acc = await this.repo.findById(id, currency);
     if (!acc)
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Account not found');
     if (acc.user_id !== userId)
@@ -108,23 +111,32 @@ export class AccountsService {
     return acc;
   }
 
-  async listAll(userId: string): Promise<AccountEntity[]> {
-    return this.repo.findAllByUser(userId);
+  async listAll(userId: string, currency?: string): Promise<AccountEntity[]> {
+    return this.repo.findAllByUser(userId, currency);
   }
 
   async update(
     userId: string,
     id: string,
     updates: Partial<AccountEntity> | UpdateAccountDto,
+    currency?: string,
   ): Promise<AccountEntity> {
-    const acc = await this.getById(userId, id);
+    const acc = await this.getById(userId, id, currency);
     if (updates.name && updates.name !== acc.name) {
-      const other = await this.repo.findByUserAndName(userId, updates.name);
-      if (other)
+      const other = await this.repo.findByUserAndName(userId, updates.name, acc.currency);
+      if (other && other.id !== id)
         throw ErrorService.create(
           ErrorCode.CONFLICT,
           'Account name already exists',
         );
+    }
+
+    // Do not allow changing account currency after creation
+    if (updates.currency !== undefined && updates.currency !== acc.currency) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Changing account currency is not allowed',
+      );
     }
 
     if (
@@ -186,8 +198,8 @@ export class AccountsService {
     }
   }
 
-  async softDelete(userId: string, id: string): Promise<void> {
-    await this.getById(userId, id);
+  async softDelete(userId: string, id: string, currency?: string): Promise<void> {
+    await this.getById(userId, id, currency);
     await this.repo.softDelete(id);
     void this.audit.record({
       userId,
@@ -199,8 +211,8 @@ export class AccountsService {
     this.logger.log(`Account Deleted user=${userId} account=${id}`);
   }
 
-  async setDefault(userId: string, id: string): Promise<void> {
-    await this.getById(userId, id);
+  async setDefault(userId: string, id: string, currency?: string): Promise<void> {
+    await this.getById(userId, id, currency);
     await this.repo.unsetDefaultForUser(userId);
     await this.repo.update(id, { is_default: true });
     void this.audit.record({

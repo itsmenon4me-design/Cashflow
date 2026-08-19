@@ -1,11 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdateBudgetDto {
   @ApiPropertyOptional({ description: 'Expense category id' })
   @IsOptional()
   @IsString()
   category_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Record currency ownership for the budget. Nullable until migration backfill is approved.',
+    enum: ['USD', 'IDR', 'SGD', 'EUR'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['USD', 'IDR', 'SGD', 'EUR'])
+  currency?: string;
 
   @ApiPropertyOptional({ description: 'Budget limit in cents' })
   @IsOptional()

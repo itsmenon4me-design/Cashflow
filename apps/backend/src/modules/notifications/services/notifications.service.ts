@@ -80,6 +80,10 @@ export class NotificationsService {
     }
   }
 
+  async removeAll(userId: string): Promise<number> {
+    return this.repository.removeAll(userId);
+  }
+
   async create(
     userId: string,
     type: string,

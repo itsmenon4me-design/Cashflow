@@ -5,6 +5,13 @@ import { setUiTextLanguage } from "@/locales";
 const STORAGE_KEY = "cashflow.language";
 const DEFAULT_LANGUAGE: LanguagePreference = "id";
 
+export function hydrateLanguagePreference(): LanguagePreference {
+  const active = readStored();
+  setUiTextLanguage(active);
+  useLanguageStore.setState({ language: active });
+  return active;
+}
+
 function readStored(): LanguagePreference {
   if (typeof window === "undefined") return DEFAULT_LANGUAGE;
   const value = window.localStorage.getItem(STORAGE_KEY);
@@ -44,3 +51,7 @@ export const useLanguageStore = create<LanguageState>((set) => ({
     return active;
   },
 }));
+
+if (typeof window !== "undefined") {
+  hydrateLanguagePreference();
+}

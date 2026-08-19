@@ -13,8 +13,11 @@ export type InvestmentType =
 
 export type InvestmentStatus = "ACTIVE" | "SOLD" | "CLOSED";
 
+export type SupportedEntityCurrency = "USD" | "IDR" | "SGD" | "EUR";
+
 export interface CreateInvestmentPayload {
   account_id?: string;
+  currency?: SupportedEntityCurrency;
   investment_type: InvestmentType;
   platform: string;
   name: string;
@@ -30,6 +33,7 @@ export interface CreateInvestmentPayload {
 
 export type UpdateInvestmentPayload = {
   account_id?: string | null;
+  currency?: SupportedEntityCurrency;
   investment_type?: InvestmentType;
   platform?: string;
   name?: string;
@@ -46,6 +50,7 @@ export type UpdateInvestmentPayload = {
 export interface InvestmentResponse {
   id: string;
   account_id: string | null;
+  currency?: SupportedEntityCurrency;
   investment_type: InvestmentType;
   platform: string;
   name: string;
@@ -105,7 +110,9 @@ export function toInvestmentItem(
   accountNames: Record<string, string>,
   accountCurrencies: Record<string, string> = {},
 ): InvestmentItem {
-  const currency = item.account_id ? (accountCurrencies[item.account_id] ?? "IDR") : "IDR";
+  const currency =
+    item.currency ??
+    (item.account_id ? accountCurrencies[item.account_id] ?? "USD" : "USD");
   return {
     id: item.id,
     accountId: item.account_id,
@@ -128,16 +135,19 @@ export function toInvestmentItem(
 }
 
 export const investmentService = {
-  list: async (): Promise<InvestmentResponse[]> => {
+  list: async (currency?: string): Promise<InvestmentResponse[]> => {
+    const url = currency ? `/investments?currency=${encodeURIComponent(currency)}` : "/investments";
     const res = await apiClient.get<{ success: boolean; data: InvestmentResponse[] }>(
-      "/investments",
+      url,
     );
     return res.data ?? [];
   },
 
-  get: (id: string): Promise<InvestmentResponse> =>
+  get: (id: string, currency?: string): Promise<InvestmentResponse> =>
     apiClient
-      .get<{ success: boolean; data: InvestmentResponse }>(`/investments/${id}`)
+      .get<{ success: boolean; data: InvestmentResponse }>(`/investments/${id}`, {
+        params: currency ? { currency } : {},
+      })
       .then((res) => res.data),
 
   create: (payload: CreateInvestmentPayload): Promise<InvestmentResponse> =>
@@ -145,17 +155,28 @@ export const investmentService = {
       .post<{ success: boolean; data: InvestmentResponse }>("/investments", payload)
       .then((res) => res.data),
 
-  update: (id: string, payload: UpdateInvestmentPayload): Promise<InvestmentResponse> =>
+  update: (
+    id: string,
+    payload: UpdateInvestmentPayload,
+    currency?: string,
+  ): Promise<InvestmentResponse> =>
     apiClient
-      .patch<{ success: boolean; data: InvestmentResponse }>(`/investments/${id}`, payload)
+      .patch<{ success: boolean; data: InvestmentResponse }>(
+        `/investments/${id}`,
+        payload,
+        { params: currency ? { currency } : {} },
+      )
       .then((res) => res.data),
 
-  remove: (id: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/investments/${id}`),
+  remove: (id: string, currency?: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/investments/${id}`, {
+      params: currency ? { currency } : {},
+    }),
 
-  overview: async (): Promise<InvestmentOverview | null> => {
+  overview: async (currency?: string): Promise<InvestmentOverview | null> => {
+    const url = currency ? `/investments/overview?currency=${encodeURIComponent(currency)}` : "/investments/overview";
     const res = await apiClient.get<{ success: boolean; data: InvestmentOverview }>(
-      "/investments/overview",
+      url,
     );
     return res.data ?? null;
   },

@@ -1,0 +1,1 @@
+{"success":false,"message":"Transaction not found","errorCode":"ERR_NOT_FOUND","timestamp":"2026-08-17T18:01:29.637Z","path":"/api/v1/transactions/a0877bd9-2ef0-455b-85f9-d5466a7f7227","statusCode":404}

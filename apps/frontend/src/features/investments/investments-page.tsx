@@ -21,10 +21,12 @@ import {
   toUpdateInvestmentPayload,
   type InvestmentFormValues,
 } from "@/features/investments/schema";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
 import { cn } from "@/lib/utils";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import {
   investmentService,
   toInvestmentItem,
@@ -45,6 +47,7 @@ type NameLookup = Record<string, string>;
 export function InvestmentsPage() {
   const [items, setItems] = useState<InvestmentItem[]>([]);
   const [overview, setOverview] = useState<InvestmentOverview | null>(null);
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [filters, setFilters] = useState<InvestmentFiltersState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -73,9 +76,9 @@ export function InvestmentsPage() {
       setError(false);
       try {
         const [list, overviewResult, accounts] = await Promise.all([
-          investmentService.list(),
-          investmentService.overview(),
-          accountService.list().catch(() => [] as AccountResponse[]),
+          investmentService.list(activeCurrency),
+          investmentService.overview(activeCurrency),
+          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
         ]);
         if (cancelled) {
           return;
@@ -173,8 +176,12 @@ export function InvestmentsPage() {
     setFormState((state) => ({ open: true, mode, item, session: state.session + 1 }));
   };
 
-  const itemCurrency = (values: InvestmentFormValues): string =>
-    values.accountId ? (accountCurrencies[values.accountId] ?? "IDR") : "IDR";
+  const itemCurrency = (
+    values: InvestmentFormValues,
+  ): "USD" | "IDR" | "SGD" | "EUR" =>
+    normalizeDashboardCurrency(
+      values.accountId ? accountCurrencies[values.accountId] : undefined,
+    ) ?? "USD";
 
   const handleFormSubmit = async (values: InvestmentFormValues) => {
     if (formState.mode === "edit" && formState.item) {
@@ -182,6 +189,7 @@ export function InvestmentsPage() {
         await investmentService.update(
           formState.item.id,
           toUpdateInvestmentPayload(values, itemCurrency(values)),
+          activeCurrency,
         );
       } catch {
         // daftar tetap disinkronkan dengan state server
@@ -208,7 +216,7 @@ export function InvestmentsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await investmentService.remove(target.id);
+      await investmentService.remove(target.id, activeCurrency);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }

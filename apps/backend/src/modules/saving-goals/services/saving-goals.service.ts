@@ -11,6 +11,7 @@ import {
 } from '../../audit-logs/constants/audit.constants';
 import { CreateSavingGoalDto } from '../dto/create-saving-goal.dto';
 import { UpdateSavingGoalDto } from '../dto/update-saving-goal.dto';
+import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 @Injectable()
 export class SavingGoalsService {
@@ -26,6 +27,7 @@ export class SavingGoalsService {
     userId: string,
     accountId?: string | null,
     categoryId?: string | null,
+    currency?: string,
   ) {
     if (accountId) {
       const account = await this.prisma.account.findUnique({
@@ -38,6 +40,13 @@ export class SavingGoalsService {
         throw ErrorService.create(
           ErrorCode.INVALID_INPUT,
           'Account is not active',
+        );
+      }
+      const normalized = normalizeDashboardCurrency(currency);
+      if (normalized && account.currency !== normalized) {
+        throw ErrorService.create(
+          ErrorCode.INVALID_INPUT,
+          'Account does not match provided currency context',
         );
       }
     }
@@ -73,7 +82,10 @@ export class SavingGoalsService {
     userId: string,
     input: CreateSavingGoalDto,
   ): Promise<SavingGoalEntity> {
-    await this.validateReferences(userId, input.account_id, input.category_id);
+    const currency = input.currency
+      ? normalizeDashboardCurrency(input.currency)
+      : undefined;
+    await this.validateReferences(userId, input.account_id, input.category_id, currency);
 
     const startDate = new Date(input.start_date);
     const targetDate = new Date(input.target_date);
@@ -83,6 +95,7 @@ export class SavingGoalsService {
       user_id: userId,
       account_id: input.account_id ?? null,
       category_id: input.category_id ?? null,
+      currency,
       name: input.name,
       description: input.description ?? null,
       target_amount_cents: BigInt(input.target_amount_cents),
@@ -90,7 +103,7 @@ export class SavingGoalsService {
       start_date: startDate,
       target_date: targetDate,
       status: input.status ?? 'ACTIVE',
-    });
+    } as any);
 
     void this.audit.record({
       userId,
@@ -103,8 +116,12 @@ export class SavingGoalsService {
     return created;
   }
 
-  async getById(userId: string, id: string): Promise<SavingGoalEntity> {
-    const goal = await this.repo.findById(id);
+  async getById(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<SavingGoalEntity> {
+    const goal = await this.repo.findById(id, currency);
     if (!goal) {
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Saving goal not found');
     }
@@ -114,16 +131,20 @@ export class SavingGoalsService {
     return goal;
   }
 
-  async listAll(userId: string): Promise<SavingGoalEntity[]> {
-    return this.repo.findAllByUser(userId);
+  async listAll(
+    userId: string,
+    currency?: string,
+  ): Promise<SavingGoalEntity[]> {
+    return this.repo.findAllByUser(userId, currency);
   }
 
   async update(
     userId: string,
     id: string,
     updates: UpdateSavingGoalDto,
+    currency?: string,
   ): Promise<SavingGoalEntity> {
-    const current = await this.getById(userId, id);
+    const current = await this.getById(userId, id, currency);
 
     const nextAccountId =
       updates.account_id !== undefined
@@ -133,7 +154,16 @@ export class SavingGoalsService {
       updates.category_id !== undefined
         ? updates.category_id
         : current.category_id;
-    await this.validateReferences(userId, nextAccountId, nextCategoryId);
+    await this.validateReferences(
+      userId,
+      nextAccountId,
+      nextCategoryId,
+      updates.currency
+        ? normalizeDashboardCurrency(updates.currency)
+        : currency
+          ? normalizeDashboardCurrency(currency)
+          : undefined,
+    );
 
     const startDate =
       updates.start_date !== undefined
@@ -150,6 +180,9 @@ export class SavingGoalsService {
       const value = (updates as unknown as Record<string, unknown>)[key];
       if (value !== undefined) data[key] = value;
     }
+    if (updates.currency !== undefined) {
+      data.currency = normalizeDashboardCurrency(updates.currency);
+    }
     if (updates.target_amount_cents !== undefined) {
       data.target_amount_cents = BigInt(updates.target_amount_cents);
     }
@@ -163,7 +196,7 @@ export class SavingGoalsService {
       data.target_date = targetDate;
     }
 
-    const updated = await this.repo.update(id, data);
+    const updated = await this.repo.update(id, data as any);
 
     void this.audit.record({
       userId,
@@ -176,8 +209,12 @@ export class SavingGoalsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string): Promise<void> {
-    await this.getById(userId, id);
+  async softDelete(
+    userId: string,
+    id: string,
+    currency?: string,
+  ): Promise<void> {
+    await this.getById(userId, id, currency);
     await this.repo.softDelete(id);
     void this.audit.record({
       userId,
@@ -189,11 +226,18 @@ export class SavingGoalsService {
     this.logger.log(`SavingGoal Deleted user=${userId} id=${id}`);
   }
 
-  async overview(userId: string) {
-    const goals = await this.repo.findAllByUser(userId);
+  async overview(userId: string, currency?: string) {
+    // If a currency hint is provided, normalize and filter goals to that currency context.
+    const normalizedCurrency = currency
+      ? normalizeDashboardCurrency(currency)
+      : undefined;
+
+    // Filter at DB level so no cross-currency records are fetched in the first place.
+    const goals = await this.repo.findAllByUser(userId, normalizedCurrency);
+
     const active = goals.filter((g) => g.status === 'ACTIVE');
 
-    // Resolve currencies for linked accounts
+    // Resolve currencies for linked accounts (for the remaining active goals)
     const accountIds = active
       .map((g) => g.account_id)
       .filter((id): id is string => typeof id === 'string');
@@ -212,17 +256,18 @@ export class SavingGoalsService {
     const currencyMap = new Map<string, { target: bigint; current: bigint }>();
 
     for (const g of active) {
-      const currency = g.account_id
-        ? (currencyByAccountId.get(g.account_id) ?? 'IDR')
-        : 'IDR';
-      const entry = currencyMap.get(currency) ?? { target: 0n, current: 0n };
+      const curr = g.currency ?? (g.account_id ? (currencyByAccountId.get(g.account_id) ?? 'IDR') : 'IDR');
+      const entry = currencyMap.get(curr) ?? { target: 0n, current: 0n };
       entry.target += g.target_amount_cents;
       entry.current += g.current_amount_cents;
-      currencyMap.set(currency, entry);
+      currencyMap.set(curr, entry);
     }
 
     if (currencyMap.size === 0) {
-      currencyMap.set('IDR', { target: 0n, current: 0n });
+      // If there are no active goals in this currency, return a zeroed bucket
+      // in the requested scope currency (fallback IDR preserves legacy shape).
+      const fallbackCurrency = normalizedCurrency ?? 'IDR';
+      currencyMap.set(fallbackCurrency, { target: 0n, current: 0n });
     }
 
     const primaryCurrency = Array.from(currencyMap.keys())[0] ?? 'IDR';
@@ -256,5 +301,6 @@ export class SavingGoalsService {
       percentageUsed: primaryPercentage,
       by_currency: byCurrency,
     };
-  }
 }
+}
+

@@ -70,9 +70,8 @@ describe('DashboardController (security)', () => {
       .query(query)
       .expect(200);
 
-    expect(dashboardServiceMock.getSummaryForUser).toHaveBeenCalledWith(
-      'user-auth',
-    );
+    expect(dashboardServiceMock.getSummaryForUser).toHaveBeenCalled();
+    expect((dashboardServiceMock.getSummaryForUser as jest.Mock).mock.calls[0][0]).toBe('user-auth');
   });
 
   it('getSummary: identity comes from AuthUser context, not arbitrary request data', async () => {

@@ -93,4 +93,13 @@ export class NotificationsController {
     await this.notifications.remove(userId, id);
     return { success: true };
   }
+
+  @Delete()
+  @ApiOperation({ summary: 'Delete all notifications owned by the user' })
+  @ApiResponse({ status: 200, description: 'Number of notifications deleted' })
+  async removeAll(@CurrentUser('sub') userId: string) {
+    const count = await this.notifications.removeAll(userId);
+    return { success: true, data: { deleted: count } };
+  }
 }
+

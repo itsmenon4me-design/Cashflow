@@ -1,0 +1,1 @@
+﻿COMMAND: npx playwright test apps/frontend/playwright/expense-e2e.spec.ts --workers=1 --trace=retain-on-failure --timeout=180000 --reporter=list

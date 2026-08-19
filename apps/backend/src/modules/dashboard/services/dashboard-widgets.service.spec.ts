@@ -144,8 +144,81 @@ describe('DashboardWidgetsService', () => {
     expect(res.cashFlow).toBeDefined();
     expect(res.monthlyReport).toBeDefined();
     expect(res.categoryBreakdown.length).toBeGreaterThan(0);
-    expect(res.trend.length).toBeGreaterThan(0);
+    expect(res.trend?.type).toBe('monthly');
+    expect(res.trend?.data.length).toBeGreaterThan(0);
     expect(res.budget).toBeDefined();
+  });
+
+  it('passes the selected currency through to the monthly report scope', async () => {
+    const mocks = makeMocks();
+
+    const svc = new DashboardWidgetsService(
+      mocks.summarySvc,
+      mocks.cashflowSvc,
+      mocks.monthlySvc,
+      mocks.categorySvc,
+      mocks.trendSvc,
+      mocks.budgetSvc,
+    );
+
+    await svc.getWidgets('user-1', 8, 2026, 'USD');
+
+    expect(mocks.monthlySvc.getMonthlyReport).toHaveBeenCalledWith(
+      'user-1',
+      8,
+      2026,
+      undefined,
+      'USD',
+    );
+  });
+
+  it('wraps trend as { type, data } to match the frontend contract', async () => {
+    const mocks = makeMocks();
+
+    const svc = new DashboardWidgetsService(
+      mocks.summarySvc,
+      mocks.cashflowSvc,
+      mocks.monthlySvc,
+      mocks.categorySvc,
+      mocks.trendSvc,
+      mocks.budgetSvc,
+    );
+
+    const res = await svc.getWidgets('user-1', 8, 2026);
+
+    expect(res.trend).toEqual({
+      type: 'monthly',
+      data: [
+        {
+          period: '2026-03',
+          income: '100',
+          expense: '50',
+          netCashFlow: '50',
+        },
+      ],
+    });
+  });
+
+  it('returns null trend when the trend service fails', async () => {
+    const mocks = makeMocks();
+
+    mocks.trendSvc.getTrend = jest.fn(() =>
+      Promise.reject(new Error('trend boom')),
+    );
+
+    const svc = new DashboardWidgetsService(
+      mocks.summarySvc,
+      mocks.cashflowSvc,
+      mocks.monthlySvc,
+      mocks.categorySvc,
+      mocks.trendSvc,
+      mocks.budgetSvc,
+    );
+
+    const res = await svc.getWidgets('user-1', 8, 2026);
+
+    expect(res.trend).toBeNull();
+    expect(res.summary).toBeDefined();
   });
 
   it('returns partial dashboard when some widgets fail', async () => {
@@ -220,7 +293,7 @@ describe('DashboardWidgetsService', () => {
     expect(res.cashFlow).toEqual({});
     expect(res.monthlyReport).toEqual({});
     expect(res.categoryBreakdown).toEqual([]);
-    expect(res.trend).toEqual([]);
+    expect(res.trend).toEqual({ type: 'monthly', data: [] });
     expect(res.budget).toEqual({});
   });
 

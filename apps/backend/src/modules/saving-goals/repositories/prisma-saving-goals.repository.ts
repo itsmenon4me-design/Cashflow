@@ -9,6 +9,7 @@ type GoalRec = {
   user_id: string;
   account_id: string | null;
   category_id: string | null;
+  currency: string | null;
   name: string;
   description: string | null;
   target_amount_cents: bigint;
@@ -31,6 +32,7 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     g.user_id = rec.user_id;
     g.account_id = rec.account_id ?? null;
     g.category_id = rec.category_id ?? null;
+    g.currency = rec.currency ?? null;
     g.name = rec.name;
     g.description = rec.description ?? null;
     g.target_amount_cents = BigInt(String(rec.target_amount_cents ?? 0));
@@ -51,6 +53,7 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
         name: input.name!,
         account_id: input.account_id ?? null,
         category_id: input.category_id ?? null,
+        currency: input.currency ?? null,
         description: input.description ?? null,
         target_amount_cents: BigInt(String(input.target_amount_cents ?? 0)),
         current_amount_cents: BigInt(String(input.current_amount_cents ?? 0)),
@@ -62,15 +65,29 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string): Promise<SavingGoalEntity | null> {
-    const rec = await this.prisma.savingGoal.findUnique({ where: { id } });
+  async findById(id: string, currency?: string): Promise<SavingGoalEntity | null> {
+    const where: Prisma.SavingGoalWhereInput = { id };
+    if (currency) {
+      where.OR = [{ currency }, { account: { currency } }];
+    }
+    const rec = await this.prisma.savingGoal.findFirst({ where });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string): Promise<SavingGoalEntity[]> {
+  async findAllByUser(
+    userId: string,
+    currency?: string,
+  ): Promise<SavingGoalEntity[]> {
+    const where: Prisma.SavingGoalWhereInput = {
+      user_id: userId,
+      deleted_at: null,
+    };
+    if (currency) {
+      where.OR = [{ currency }, { account: { currency } }];
+    }
     const recs = await this.prisma.savingGoal.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where,
       orderBy: { created_at: 'desc' },
     });
     return (recs as unknown as GoalRec[]).map((rec) => this.map(rec));
@@ -85,6 +102,7 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     if (updates.account_id !== undefined) data.account_id = updates.account_id;
     if (updates.category_id !== undefined)
       data.category_id = updates.category_id;
+    if (updates.currency !== undefined) data.currency = updates.currency;
     if (updates.description !== undefined)
       data.description = updates.description;
     if (updates.target_amount_cents !== undefined)

@@ -10,6 +10,7 @@ import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { AuthConfigService } from '../../../config/auth-config.service';
 import { LoggerService } from '../../../common/logger/logger.service';
 import { RedisService } from '../../../redis/redis.service';
+import crypto from 'crypto';
 
 // Minimal mocks for dependent services
 const makeMocks = () => {
@@ -121,7 +122,8 @@ describe('AuthService (rate-limit failures)', () => {
 
     const res = await svc.login({ email: 'a@b.com', password: 'x' });
     expect(res.success).toBe(true);
-    expect((redis as unknown as { del: jest.Mock }).del).toHaveBeenCalled();
+    const delMock = (redis as unknown as { del: jest.Mock }).del;
+    expect(delMock).toHaveBeenCalled();
   });
 
   test('non-existing user increments failure and may hit rate limit', async () => {
@@ -157,5 +159,202 @@ describe('AuthService (rate-limit failures)', () => {
     await expect(
       svc.login({ email: 'notfound@example.com', password: 'x' }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RATE_LIMIT });
+  });
+});
+
+describe('AuthService.resetPassword', () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  const buildService = () => {
+    const users = {
+      findById: jest.fn(),
+      applyPasswordReset: jest.fn(),
+    } as unknown as jest.Mocked<UsersService>;
+    const passwordService = {
+      hashPassword: jest.fn(),
+      verifyPassword: jest.fn(),
+    } as unknown as jest.Mocked<PasswordService>;
+    const jwtService = {
+      sign: jest.fn(() => 'token'),
+    } as unknown as jest.Mocked<JwtService>;
+    const jwtConfig = {
+      config: { accessExpiresIn: '15m' },
+    } as unknown as jest.Mocked<JwtConfigService>;
+    const refreshService = {
+      createForUser: jest.fn(),
+      rotate: jest.fn(),
+    } as unknown as jest.Mocked<RefreshTokensService>;
+    const sessionService = {
+      create: jest.fn(),
+      revokeAllExcept: jest.fn(),
+    } as unknown as jest.Mocked<SessionService>;
+    const auditLogService = {
+      record: jest.fn(),
+    } as unknown as jest.Mocked<AuditLogService>;
+    const redis = {
+      incr: jest.fn(),
+      del: jest.fn(),
+    } as unknown as jest.Mocked<RedisService>;
+    const authConfig = {
+      config: {
+        failLimit: 10,
+        failWindowSeconds: 3600,
+        loginLimit: 5,
+        loginWindowSeconds: 60,
+        registerLimit: 10,
+        registerWindowSeconds: 60,
+        refreshLimit: 30,
+        refreshWindowSeconds: 60,
+        emailVerificationLimit: 10,
+        emailVerificationWindowSeconds: 60,
+        resetPasswordLimit: 5,
+        resetPasswordWindowSeconds: 60,
+      },
+    } as unknown as jest.Mocked<AuthConfigService>;
+    const appLogger = {
+      securityLog: jest.fn(),
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
+    const svc = new AuthService(
+      users,
+      passwordService,
+      jwtService,
+      jwtConfig,
+      refreshService,
+      sessionService,
+      auditLogService,
+      redis,
+      authConfig,
+      appLogger,
+    );
+    return { svc, users, passwordService, sessionService, auditLogService };
+  };
+
+  const VALID_INPUT = {
+    token: 'x'.repeat(64),
+    id: 'u1',
+    new_password: 'NewPassw0rd!123',
+  };
+
+  const userWithReset = (overrides: Record<string, unknown> = {}) => ({
+    id: 'u1',
+    email: 'a@b.com',
+    username: 'u1',
+    full_name: 'Test User',
+    created_at: new Date(),
+    updated_at: new Date(),
+    status: 'ACTIVE' as const,
+    password_hash: 'old-hash',
+    password_reset_token_hash: crypto
+      .createHash('sha256')
+      .update('x'.repeat(64))
+      .digest('hex'),
+    password_reset_expires_at: new Date(Date.now() + 10 * 60 * 1000),
+    password_reset_requested_at: new Date(),
+    ...overrides,
+  });
+
+  test('valid reset re-hashes password, clears state and revokes sessions', async () => {
+    const { svc, users, passwordService, sessionService, auditLogService } =
+      buildService();
+    users.findById.mockResolvedValue(userWithReset());
+    passwordService.hashPassword.mockResolvedValue('new-hash');
+
+    const res = await svc.resetPassword(VALID_INPUT);
+
+    expect(res.success).toBe(true);
+    expect(
+      (passwordService.hashPassword as unknown as jest.Mock).mock.calls,
+    ).toEqual(expect.arrayContaining([[VALID_INPUT.new_password]]));
+    expect(
+      (users.applyPasswordReset as unknown as jest.Mock).mock.calls,
+    ).toEqual(expect.arrayContaining([['u1', 'new-hash']]));
+    expect(
+      (sessionService.revokeAllExcept as unknown as jest.Mock).mock.calls,
+    ).toEqual(expect.arrayContaining([['u1']]));
+    expect(
+      (auditLogService.record as unknown as jest.Mock).mock.calls.length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('invalid token is rejected with generic error', async () => {
+    const { svc, users, sessionService } = buildService();
+    users.findById.mockResolvedValue(
+      userWithReset({
+        password_reset_token_hash: 'ff'.repeat(32), // different hash
+      }),
+    );
+
+    await expect(svc.resetPassword(VALID_INPUT)).rejects.toMatchObject({
+      errorCode: ErrorCode.INVALID_TOKEN,
+    });
+    expect(
+      (sessionService.revokeAllExcept as unknown as jest.Mock).mock.calls
+        .length,
+    ).toBe(0);
+  });
+
+  test('expired token is rejected', async () => {
+    const { svc, users } = buildService();
+    users.findById.mockResolvedValue(
+      userWithReset({ password_reset_expires_at: new Date(Date.now() - 1000) }),
+    );
+
+    await expect(svc.resetPassword(VALID_INPUT)).rejects.toMatchObject({
+      errorCode: ErrorCode.INVALID_TOKEN,
+    });
+  });
+
+  test('missing reset state is rejected', async () => {
+    const { svc, users } = buildService();
+    users.findById.mockResolvedValue(
+      userWithReset({
+        password_reset_token_hash: null,
+        password_reset_expires_at: null,
+      }),
+    );
+
+    await expect(svc.resetPassword(VALID_INPUT)).rejects.toMatchObject({
+      errorCode: ErrorCode.INVALID_TOKEN,
+    });
+  });
+
+  test('non-existent user returns generic success (no enumeration)', async () => {
+    const { svc, users, sessionService } = buildService();
+    users.findById.mockResolvedValue(null);
+
+    const res = await svc.resetPassword(VALID_INPUT);
+
+    expect(res.success).toBe(true);
+    expect(
+      (sessionService.revokeAllExcept as unknown as jest.Mock).mock.calls
+        .length,
+    ).toBe(0);
+  });
+
+  test('reused token is rejected after first use (state cleared)', async () => {
+    const { svc, users, passwordService, sessionService } = buildService();
+    users.findById.mockResolvedValueOnce(userWithReset());
+    passwordService.hashPassword.mockResolvedValue('new-hash');
+
+    expect((await svc.resetPassword(VALID_INPUT)).success).toBe(true);
+    expect(
+      (sessionService.revokeAllExcept as unknown as jest.Mock).mock.calls
+        .length,
+    ).toBe(1);
+
+    // Second call: reset state is now cleared (null) -> rejected
+    users.findById.mockResolvedValue(
+      userWithReset({
+        password_reset_token_hash: null,
+        password_reset_expires_at: null,
+      }),
+    );
+    await expect(svc.resetPassword(VALID_INPUT)).rejects.toMatchObject({
+      errorCode: ErrorCode.INVALID_TOKEN,
+    });
   });
 });

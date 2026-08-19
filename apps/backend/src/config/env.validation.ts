@@ -49,6 +49,10 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  FRONTEND_URL: string = 'http://localhost:3000';
+
+  @IsString()
+  @IsOptional()
   API_PREFIX: string = 'api';
 
   @IsString()
@@ -204,6 +208,15 @@ class EnvironmentVariables {
   @IsBoolean()
   @IsOptional()
   EMAIL_VERIFICATION_ENABLED: boolean = false;
+
+  // INTERNAL_API_KEY is a shared secret used to protect internal HTTP endpoints.
+  // Keep optional in non-production environments; when present it must be at least 32 characters.
+  @IsString()
+  @IsOptional()
+  @MinLength(32, {
+    message: 'INTERNAL_API_KEY must be at least 32 characters when provided',
+  })
+  INTERNAL_API_KEY?: string;
 
   @IsBoolean()
   @IsOptional()

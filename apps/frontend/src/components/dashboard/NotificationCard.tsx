@@ -33,10 +33,10 @@ export function NotificationCard() {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 px-5">
         <div>
-          <CardTitle>{uiText.navigation.notifications}</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <CardTitle className="text-lg font-semibold">{uiText.navigation.notifications}</CardTitle>
+          <p className="text-sm text-muted-foreground">
             {unreadCount > 0
               ? `${unreadCount} ${uiText.notificationsPage.unread}`
               : uiText.notificationsPage.empty}
@@ -44,7 +44,7 @@ export function NotificationCard() {
         </div>
         <Bell className="size-4 text-muted-foreground" />
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="p-5 pt-0 space-y-3">
         {loading ? (
           <NotificationListSkeleton rows={3} />
         ) : error ? (
@@ -82,7 +82,7 @@ export function NotificationCard() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                      <p title={item.title} className="text-sm font-semibold text-foreground truncate">{item.title}</p>
                       {!item.isRead && (
                         <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
                       )}
@@ -107,7 +107,7 @@ export function NotificationCard() {
                         </Badge>
                       )}
                     </div>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">{item.message}</p>
+                    <p title={item.message} className="mt-1 text-sm text-muted-foreground line-clamp-2">{item.message}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{formatRelativeTime(item.createdAt)}</p>
                   </div>
                   {ruleRoute && (

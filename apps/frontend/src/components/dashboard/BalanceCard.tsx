@@ -17,6 +17,7 @@ export function BalanceCard({ kpi, loading = false }: BalanceCardProps) {
       icon={Wallet}
       trend={kpi.trend}
       loading={loading}
+      emphasis
     />
   );
 }

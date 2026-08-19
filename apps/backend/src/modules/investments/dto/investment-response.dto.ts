@@ -11,6 +11,9 @@ export class InvestmentResponseDto {
   @ApiPropertyOptional()
   account_id?: string | null;
 
+  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  currency?: string | null;
+
   @ApiProperty()
   investment_type!: InvestmentType;
 

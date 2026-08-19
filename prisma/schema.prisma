@@ -40,25 +40,46 @@ model User {
   password_reset_expires_at DateTime? @db.Timestamptz
   password_reset_requested_at DateTime? @db.Timestamptz
 
-role_id String? @db.Uuid
-  role            Role?    @relation(fields: [role_id], references: [id])
+ role_id String? @db.Uuid
+ role            Role?    @relation(fields: [role_id], references: [id])
 
-refresh_tokens  RefreshToken[]
-sessions        Session[]
+ refresh_tokens  RefreshToken[]
+ sessions        Session[]
+ oauth_accounts  OAuthAccount[]
 
-// Finance modules
-accounts        Account[]
-categories      Category[]
-transactions    Transaction[]
-bills           Bill[]
-audit_logs      AuditLog[]
-budgets         Budget[]
-savingGoals     SavingGoal[]
-investments     Investment[]
-notifications   Notification[]
-userSettings    UserSettings?
+ // Finance modules
+ accounts        Account[]
+ categories      Category[]
+ transactions    Transaction[]
+ bills           Bill[]
+ audit_logs      AuditLog[]
+ budgets         Budget[]
+ savingGoals     SavingGoal[]
+ investments     Investment[]
+ notifications   Notification[]
+ userSettings    UserSettings?
 
-@@map("users")
+ @@map("users")
+}
+
+model OAuthAccount {
+ id                 String   @id @default(uuid()) @db.Uuid
+ user_id            String   @db.Uuid
+ provider           String
+ provider_account_id String
+ email              String
+ email_verified     Boolean  @default(false)
+ created_at         DateTime @default(now())
+ updated_at         DateTime @updatedAt
+
+ user User @relation(fields: [user_id], references: [id])
+
+ @@unique([provider, provider_account_id])
+ @@unique([user_id, provider])
+ @@index([user_id])
+ @@index([provider_account_id])
+ @@index([email])
+ @@map("oauth_accounts")
 }
 
 model Role {
@@ -222,7 +243,6 @@ model Account {
   investments Investment[]
 
   @@index([user_id])
-  @@unique([user_id, name])
   @@map("accounts")
 }
 // Category model
@@ -313,6 +333,7 @@ model Budget {
   id                 String   @id @default(uuid()) @db.Uuid
   user_id            String   @db.Uuid
   category_id        String   @db.Uuid
+  currency           String?
   budget_amount_cents BigInt  @db.BigInt
   month              Int
   year               Int
@@ -333,6 +354,7 @@ model SavingGoal {
   user_id            String   @db.Uuid
   account_id         String?  @db.Uuid
   category_id        String?  @db.Uuid
+  currency           String?
   name               String
   description        String?
   target_amount_cents BigInt  @db.BigInt
@@ -358,6 +380,7 @@ model Investment {
   id                    String   @id @default(uuid()) @db.Uuid
   user_id               String   @db.Uuid
   account_id            String?  @db.Uuid
+  currency              String?
   investment_type       String
   platform              String
   name                  String

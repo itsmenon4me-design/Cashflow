@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { AccountItem } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 function typeInfo(type: string) {
   return (
@@ -108,6 +109,7 @@ export function AccountCard({
 }: AccountCardProps) {
   const info = typeInfo(account.accountType);
   const TypeIcon = info.icon;
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
 
   return (
     <Card size="sm" className="shadow-sm">
@@ -137,7 +139,7 @@ export function AccountCard({
         )}
 
         <p className="text-lg font-semibold tracking-tight">
-          {formatMoney(account.balance, account.currency)}
+          {formatMoney(account.balance, activeCurrency)}
         </p>
 
         <div className="border-t pt-3">

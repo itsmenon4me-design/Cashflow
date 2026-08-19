@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/format";
 import { getPercentage, getRemaining } from "@/lib/progress";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { MonthlyTargetItem } from "@/types/dashboard";
 
 interface MonthlyTargetCardProps {
@@ -16,6 +17,7 @@ interface MonthlyTargetCardProps {
 
 export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
   const [expanded, setExpanded] = useState(true);
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
 
   const totalTarget = items.reduce((sum, item) => sum + item.target, 0);
   const totalRealized = items.reduce((sum, item) => sum + item.realized, 0);
@@ -23,8 +25,8 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle>{uiText.dashboard.monthlyTarget}</CardTitle>
+      <CardHeader className="px-4 py-3">
+        <CardTitle className="text-base font-semibold">{uiText.dashboard.monthlyTarget}</CardTitle>
         <CardAction>
           <Button
             type="button"
@@ -47,17 +49,19 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
 
       <CardContent
         id="monthly-target-content"
-        className={cn(expanded ? "space-y-5" : "space-y-2")}
+        className={cn(expanded ? "p-3 pt-0 space-y-3" : "p-3 pt-0 space-y-2")}
       >
-        {expanded ? (
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{uiText.common.noDataAvailable}</p>
+        ) : expanded ? (
           items.map((item) => {
             const percentage = getPercentage(item.realized, item.target);
             const remaining = getRemaining(item.realized, item.target);
 
             return (
-              <div key={item.id} className="space-y-2">
+              <div key={item.id} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{item.name}</span>
+                  <span className="font-medium text-foreground truncate">{item.name}</span>
                   <span className="font-semibold text-primary">{percentage}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -66,18 +70,18 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                <div className="space-y-1 pt-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{uiText.dashboard.targetMonth}</span>
-                    <span className="font-medium text-foreground">{formatCurrency(item.target)}</span>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">{uiText.dashboard.targetMonth}</p>
+                    <p className="font-medium text-foreground">{formatCurrency(item.target, activeCurrency)}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{uiText.dashboard.realized}</span>
-                    <span className="font-medium text-emerald-500">{formatCurrency(item.realized)}</span>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">{uiText.dashboard.realized}</p>
+                    <p className="font-medium text-emerald-500">{formatCurrency(item.realized, activeCurrency)}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{uiText.dashboard.remaining}</span>
-                    <span className="font-medium text-foreground">{formatCurrency(remaining)}</span>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">{uiText.dashboard.remaining}</p>
+                    <p className="font-medium text-foreground">{formatCurrency(remaining, activeCurrency)}</p>
                   </div>
                 </div>
               </div>
@@ -98,7 +102,7 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{uiText.dashboard.realized}</span>
               <span className="font-medium text-foreground">
-                {formatCurrency(totalRealized)} / {formatCurrency(totalTarget)}
+                {formatCurrency(totalRealized, activeCurrency)} / {formatCurrency(totalTarget, activeCurrency)}
               </span>
             </div>
           </>

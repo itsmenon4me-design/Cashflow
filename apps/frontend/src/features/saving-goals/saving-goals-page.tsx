@@ -18,8 +18,10 @@ import {
   toUpdateSavingGoalPayload,
   type SavingGoalFormValues,
 } from "@/features/saving-goals/schema";
+import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import {
   savingGoalService,
@@ -40,6 +42,7 @@ type NameLookup = Record<string, string>;
 export function SavingGoalsPage() {
   const [goals, setGoals] = useState<SavingGoalItem[]>([]);
   const [filters, setFilters] = useState<SavingGoalFiltersState>(EMPTY_FILTERS);
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
@@ -68,8 +71,8 @@ export function SavingGoalsPage() {
       setError(false);
       try {
         const [items, accounts, categories] = await Promise.all([
-          savingGoalService.list(),
-          accountService.list().catch(() => [] as AccountResponse[]),
+          savingGoalService.list(activeCurrency),
+          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]);
         if (cancelled) {
@@ -99,7 +102,7 @@ export function SavingGoalsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, activeCurrency]);
 
   const visible = useMemo(() => {
     const keyword = filters.search.trim().toLowerCase();
@@ -170,8 +173,12 @@ export function SavingGoalsPage() {
     setFormState((state) => ({ open: true, mode, goal, session: state.session + 1 }));
   };
 
-  const goalCurrency = (values: SavingGoalFormValues): string =>
-    values.accountId ? (accountCurrencies[values.accountId] ?? "IDR") : "IDR";
+  const goalCurrency = (
+    values: SavingGoalFormValues,
+  ): "USD" | "IDR" | "SGD" | "EUR" =>
+    normalizeDashboardCurrency(
+      values.accountId ? accountCurrencies[values.accountId] : undefined,
+    ) ?? "USD";
 
   const handleFormSubmit = async (values: SavingGoalFormValues) => {
     if (formState.mode === "edit" && formState.goal) {
@@ -179,6 +186,7 @@ export function SavingGoalsPage() {
         await savingGoalService.update(
           formState.goal.id,
           toUpdateSavingGoalPayload(values, goalCurrency(values)),
+          activeCurrency,
         );
       } catch {
         // daftar tetap disinkronkan dengan state server
@@ -205,7 +213,7 @@ export function SavingGoalsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await savingGoalService.remove(target.id);
+      await savingGoalService.remove(target.id, activeCurrency);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -224,7 +232,6 @@ export function SavingGoalsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.savingGoals.title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{uiText.savingGoals.subtitle}</p>
       </div>
 
       <SavingGoalToolbar

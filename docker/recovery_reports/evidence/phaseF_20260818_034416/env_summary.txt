@@ -1,0 +1,1 @@
+﻿verify stack: cashflowverify. Remediation (approved): phase9.spec.ts dummy-token fixture replaced with API login (E2E_EMAIL/E2E_PASSWORD env, defaults e2e.api.user@test.local). No tokens/secrets stored. Fixture: user ACTIVE 3634cf2a-8973-491b-9518-bf44af639b4a + 16 seeded tx (IDR=4 USD=4 SGD=3 EUR=5).

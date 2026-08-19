@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { uiText, locales } from "@/locales";
-import { useLanguageStore } from "@/stores/language.store";
+import { hydrateLanguagePreference, useLanguageStore } from "@/stores/language.store";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { useAuthStore } from "@/stores/auth.store";
 import { settingsService } from "@/services/settings.service";
@@ -51,6 +51,17 @@ describe("global language store", () => {
     // Simulates a fresh module read on next app load.
     const stored = window.localStorage.getItem("cashflow.language");
     expect(stored === "en" ? "en" : "id").toBe("en");
+  });
+
+  it("hydrates the shared uiText binding from persisted storage on startup", () => {
+    window.localStorage.setItem("cashflow.language", "en");
+
+    const active = hydrateLanguagePreference();
+
+    expect(active).toBe("en");
+    expect(useLanguageStore.getState().language).toBe("en");
+    expect(uiText).toBe(locales.en);
+    expect(document.documentElement.lang).toBe("en");
   });
 });
 

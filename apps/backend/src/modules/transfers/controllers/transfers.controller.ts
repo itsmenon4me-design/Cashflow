@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -24,6 +24,7 @@ export class TransfersController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateTransferDto,
+    @Query('currency') currency?: string,
   ) {
     if (!userId) throw new Error('Unauthorized');
     const result = await this.service.create(userId, {
@@ -42,9 +43,9 @@ export class TransfersController {
   @Get()
   @ApiOperation({ summary: 'List transfers for current user' })
   @ApiResponse({ status: 200, type: [TransferResponseDto] })
-  async list(@CurrentUser('sub') userId: string) {
+  async list(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
     if (!userId) throw new Error('Unauthorized');
-    return this.service.list(userId);
+    return this.service.list(userId, currency);
   }
 
   @Get(':id')

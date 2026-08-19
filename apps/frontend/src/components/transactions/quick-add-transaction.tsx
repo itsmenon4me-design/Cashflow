@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from 'next/navigation';
 import { CirclePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { uiText } from "@/locales";
 import { syncCreateTransaction } from "@/lib/offline/sync-client";
 import { accountService } from "@/services/account.service";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import {
   toCreateTransactionPayload,
@@ -30,10 +32,13 @@ function buildCategoryTypes(
 }
 
 export function QuickAddTransaction() {
+  const clientPath = typeof window !== 'undefined' ? window.location.pathname : usePathname();
+  const controlledType: "income" | "expense" | undefined = clientPath?.startsWith('/incomes') ? 'income' : clientPath?.startsWith('/expenses') ? 'expense' : undefined;
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [lookupsReady, setLookupsReady] = useState(false);
+  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
 
   const initialValues = useMemo<Partial<TransactionFormValues>>(() => {
@@ -48,7 +53,7 @@ export function QuickAddTransaction() {
       setOpen(nextOpen);
       if (nextOpen && !lookupsReady) {
         void Promise.all([
-          accountService.list().catch(() => [] as AccountResponse[]),
+          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]).then(([accs, cats]) => {
           setAccounts(accs);
@@ -57,8 +62,17 @@ export function QuickAddTransaction() {
         });
       }
     },
-    [lookupsReady],
+    [lookupsReady, activeCurrency],
   );
+
+  // If the active dashboard currency changes, invalidate previous lookups so the
+  // Quick Add will fetch accounts/categories for the new currency on next open.
+  // Avoids showing stale cross-currency accounts after switching dashboards.
+  useEffect(() => {
+    setLookupsReady(false);
+    setAccounts([]);
+    setCategories([]);
+  }, [activeCurrency]);
 
   const accountNames = useMemo<NameLookup>(
     () => Object.fromEntries(accounts.map((account) => [account.id, account.name])),
@@ -91,12 +105,15 @@ export function QuickAddTransaction() {
 
   const handleSubmit = useCallback(
     async (values: TransactionFormValues) => {
+      // If the quick-add is being used from an incomes/expenses route, force the transaction type
       const payload = toCreateTransactionPayload(
         values,
         accountNames,
         categoryNames,
         accountCurrencyByName,
+        controlledType,
       ) as CreateTransactionPayload | null;
+      console.log('[quick-add] controlledType', controlledType, 'payload', payload);
       if (!payload) {
         throw new Error("Invalid account or category");
       }
@@ -130,6 +147,7 @@ export function QuickAddTransaction() {
         accounts={accountOptions}
         accountCurrencyByName={accountCurrencyByName}
         initialValues={initialValues}
+        transactionType={controlledType}
         onSubmit={handleSubmit}
       />
     </>
