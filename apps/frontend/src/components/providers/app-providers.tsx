@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import { OfflineBanner } from "@/components/layout/offline-banner";
 import { OfflineProvider } from "@/components/providers/offline-provider";
@@ -15,6 +16,26 @@ interface AppProvidersProps {
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleClientRoute = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      if (typeof detail !== "string" || !detail.startsWith("/")) {
+        return;
+      }
+
+      if (window.location.pathname !== detail) {
+        router.replace(detail);
+      }
+    };
+
+    window.addEventListener("cashflow:client-route", handleClientRoute);
+    return () => {
+      window.removeEventListener("cashflow:client-route", handleClientRoute);
+    };
+  }, [router]);
+
   // Attach syncController to window for diagnostics in staging E2E (temporary)
   try {
     if (typeof window !== 'undefined') {

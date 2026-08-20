@@ -263,9 +263,15 @@ export class TransfersService {
     return out;
   }
 
-  async findById(userId: string, id: string) {
+  async findById(userId: string, id: string, currency?: string) {
+    const where: any = {
+      user_id: userId,
+      transfer_group_id: id,
+      deleted_at: null,
+    };
+    if (currency) where.account = { currency };
     const recs: Transaction[] = await this.prisma.transaction.findMany({
-      where: { user_id: userId, transfer_group_id: id, deleted_at: null },
+      where,
     });
     if (!recs || recs.length === 0)
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Transfer not found');

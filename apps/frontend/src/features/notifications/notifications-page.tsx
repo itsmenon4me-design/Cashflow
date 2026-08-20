@@ -18,6 +18,8 @@ import {
 import { uiText } from "@/locales";
 import { notificationService } from "@/services/notification.service";
 import { useNotificationStore } from "@/stores/notification.store";
+import { useDataRefreshStore } from "@/stores/refresh.store";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { NotificationItem } from "@/types/notification";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -33,6 +35,8 @@ export function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const dataVersion = useDataRefreshStore((state) => state.version);
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
 
   const markReadInStore = useNotificationStore((state) => state.markRead);
   const markAllReadInStore = useNotificationStore((state) => state.markAllRead);
@@ -53,6 +57,7 @@ export function NotificationsPage() {
           page,
           limit: pageSize,
           unread: filter === "unread" ? true : undefined,
+          currency: activeCurrency,
         });
         if (cancelled) return;
         setItems(result.items);
@@ -77,7 +82,7 @@ export function NotificationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, page, pageSize, filter]);
+  }, [refreshKey, dataVersion, page, pageSize, filter, activeCurrency]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 

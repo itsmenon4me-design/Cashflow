@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MonthlyTargetCard } from "@/components/dashboard/MonthlyTargetCard";
 import { NotificationCard } from "@/components/dashboard/NotificationCard";
 import { budgetService } from "@/services/budget.service";
+import { categoryLabel } from "@/lib/categories";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { MonthlyTargetItem } from "@/types/dashboard";
 
@@ -25,7 +26,7 @@ export function RightPanel() {
           setMonthlyTargets(
             (analysis.categories ?? []).map((item) => ({
               id: item.categoryId,
-              name: item.categoryName || "Lainnya",
+              name: categoryLabel(item.categoryName || "Lainnya"),
               target: item.budgetAmount,
               realized: item.spentAmount,
             })),

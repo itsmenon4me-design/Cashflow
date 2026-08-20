@@ -11,16 +11,17 @@ import {
 } from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { ChartCard } from "@/components/dashboard/charts/ChartCard";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrencyCents, formatCompactCurrency } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { TrendPoint } from "@/services/report.service";
 
 interface CashflowTrendChartProps {
   data: TrendPoint[];
   loading?: boolean;
+  currency?: string;
 }
 
-export function CashflowTrendChart({ data, loading = false }: CashflowTrendChartProps) {
+export function CashflowTrendChart({ data, loading = false, currency }: CashflowTrendChartProps) {
   return (
     <ChartCard
       title={uiText.reports.cashFlowTrend}
@@ -58,14 +59,10 @@ export function CashflowTrendChart({ data, loading = false }: CashflowTrendChart
             tickLine={false}
             width={56}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            tickFormatter={(value) =>
-              Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(
-                Number(value)
-              )
-            }
+            tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
           />
           <Tooltip
-            content={<ChartTooltip valueFormatter={(value) => formatCurrency(Number(value))} />}
+            content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
             cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "4 4" }}
           />
           <Area

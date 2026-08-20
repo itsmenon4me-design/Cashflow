@@ -21,6 +21,8 @@ export const MIN_OUTLIER_SAMPLE = 3;
 
 export interface SpendingPredictionOptions {
   horizon?: number;
+  /** Ledger currency scope. When omitted the primary account currency is used. */
+  currency?: string;
 }
 
 interface MonthRef {
@@ -68,7 +70,10 @@ export class SpendingPredictionService {
     const periods = this.targetPeriods(cur, horizon);
     const period = periods[0];
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
+    const targetCurrency = await this.resolveTargetCurrency(
+      userId,
+      options?.currency,
+    );
 
     const windowMonths = this.buildWindowMonths(now, timezone);
     const { monthlyTotal, categoryMonthly } = await this.loadSpendingHistory(
@@ -137,7 +142,21 @@ export class SpendingPredictionService {
    * code would make minor units uninterpretable, so it is rejected instead of
    * emitting an ambiguous monetary prediction.
    */
-  private async resolveTargetCurrency(userId: string): Promise<string> {
+  private async resolveTargetCurrency(
+    userId: string,
+    preferred?: string,
+  ): Promise<string> {
+    if (preferred) {
+      try {
+        getCurrencySpec(preferred);
+        return preferred;
+      } catch {
+        throw ErrorService.create(
+          ErrorCode.INVALID_INPUT,
+          `Spending prediction does not support currency ${preferred}`,
+        );
+      }
+    }
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },

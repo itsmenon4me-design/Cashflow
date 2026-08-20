@@ -1,5 +1,5 @@
 import { XAxis, YAxis } from "recharts";
-import { formatCompact } from "@/lib/format";
+import { formatCompactCurrency } from "@/lib/format";
 
 export function ChartXAxis() {
   return (
@@ -14,14 +14,14 @@ export function ChartXAxis() {
   );
 }
 
-export function ChartYAxis() {
+export function ChartYAxis({ currency }: { currency?: string }) {
   return (
     <YAxis
       axisLine={false}
       tickLine={false}
       width={56}
       tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-      tickFormatter={(value) => formatCompact(Number(value))}
+      tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
     />
   );
 }

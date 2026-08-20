@@ -59,7 +59,7 @@ export function TransactionSummaryCard({ data, loading = false }: TransactionSum
                 {tx.type === "income" ? "+" : "−"}
                 {formatMoney(tx.amount)}
               </p>
-              <p className="text-xs text-muted-foreground">{formatTransactionDate(tx.date)}</p>
+              <p className="text-xs text-muted-foreground">{formatTransactionDate(tx.dateTime ?? tx.date)}</p>
             </div>
           </li>
         ))}

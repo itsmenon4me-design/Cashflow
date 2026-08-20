@@ -130,9 +130,15 @@ export class TransactionsService {
       input.reference_number &&
       typeof this.repo.findByReferenceNumber === 'function'
     ) {
+      // Scope the replay lookup to the transaction's own ledger so a
+      // reference_number can never collide across currencies.
+      const accountCurrency = await this.repo.getAccountCurrency(
+        input.account_id,
+      );
       const existing = await this.repo.findByReferenceNumber(
         userId,
         input.reference_number,
+        accountCurrency,
       );
       if (existing) {
         this.logger.log(

@@ -1,6 +1,20 @@
-import { DASHBOARD_CURRENCIES as SHARED_DASHBOARD_CURRENCIES, SupportedCurrency } from '../../../backend/src/common/currencies';
+import { SupportedCurrency } from "@/lib/money";
 
-export const DASHBOARD_CURRENCIES = SHARED_DASHBOARD_CURRENCIES;
+export const DASHBOARD_CURRENCIES: readonly SupportedCurrency[] = [
+  'IDR',
+  'USD',
+  'SGD',
+  'EUR',
+  'JPY',
+  'VND',
+  'MYR',
+  'THB',
+  'PHP',
+  'GBP',
+  'AUD',
+  'CNY',
+  'HKD',
+];
 export type DashboardCurrency = SupportedCurrency;
 
 export function normalizeDashboardCurrency(

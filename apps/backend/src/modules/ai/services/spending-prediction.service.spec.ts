@@ -700,7 +700,7 @@ describe('SpendingPredictionService', () => {
   it('AA. rejects unsupported currencies instead of emitting ambiguous money', async () => {
     const { service } = makeService({
       account: {
-        findMany: makeFindAccounts([{ currency: 'JPY', is_default: true }]),
+        findMany: makeFindAccounts([{ currency: 'KRW', is_default: true }]),
       },
       transaction: {
         findMany: makeFindMany([makeTx('2026-04', 'EXPENSE', 1000, CAT.food)]),

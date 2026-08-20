@@ -8,17 +8,28 @@ export class CategoriesSeederService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      // Default system categories per user
-      const income = ['Salary', 'Bonus', 'Investment', 'Gift', 'Other Income'];
+      // Default system categories per user.
+      // Internal names stay in English for database consistency; the UI maps
+      // them to Indonesian labels (see apps/frontend/src/lib/categories.ts).
+      const income = [
+        'Salary',
+        'Bonus',
+        'Gift',
+        'Investment',
+        'Transfer In',
+        'Other Income',
+      ];
       const expense = [
+        'Housing',
+        'Bills',
         'Food',
         'Transport',
         'Shopping',
-        'Bills',
+        'Entertainment',
+        'Travel',
         'Health',
         'Education',
-        'Entertainment',
-        'Investment',
+        'Transfer Out',
         'Other Expense',
       ];
 
@@ -44,31 +55,6 @@ export class CategoriesSeederService implements OnModuleInit {
             });
           }
         }
-        // Ensure transfer specific categories
-        const out = await this.prisma.category.findFirst({
-          where: { user_id: u.id, name: 'Transfer Out', type: 'EXPENSE' },
-        });
-        if (!out)
-          await this.prisma.category.create({
-            data: {
-              user_id: u.id,
-              name: 'Transfer Out',
-              type: 'EXPENSE',
-              is_system: true,
-            },
-          });
-        const inp = await this.prisma.category.findFirst({
-          where: { user_id: u.id, name: 'Transfer In', type: 'INCOME' },
-        });
-        if (!inp)
-          await this.prisma.category.create({
-            data: {
-              user_id: u.id,
-              name: 'Transfer In',
-              type: 'INCOME',
-              is_system: true,
-            },
-          });
       }
 
       this.logger.log(`Seeded system categories for ${users.length} users`);

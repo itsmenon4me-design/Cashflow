@@ -237,6 +237,9 @@ export function CategoriesPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.categories.title}
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {uiText.categories.subtitle}
+        </p>
       </div>
 
       <CategoryToolbar

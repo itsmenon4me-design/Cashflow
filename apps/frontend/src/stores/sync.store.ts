@@ -22,7 +22,7 @@ interface SyncState {
 }
 
 const initialState = {
-  online: typeof navigator === "undefined" ? true : navigator.onLine,
+  online: typeof window === "undefined" ? true : navigator.onLine,
   status: "online" as SyncUiStatus,
   pendingCount: 0,
   failedCount: 0,

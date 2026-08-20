@@ -30,13 +30,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") {
-      return;
-    }
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
-    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+
+    const swUrl = new URL("/sw.js", window.location.origin);
+    swUrl.searchParams.set("v", String(Date.now()));
+    navigator.serviceWorker.register(swUrl.toString()).catch(() => undefined);
 
     // mark mounted for diagnostics
     try{ (window as any).__offline_provider_mounted = true; }catch(e){}

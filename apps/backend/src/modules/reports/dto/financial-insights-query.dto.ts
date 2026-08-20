@@ -1,3 +1,4 @@
+﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 import {
   IsOptional,
   IsInt,
@@ -24,10 +25,10 @@ export class FinancialInsightsQueryDto {
 
   @ApiPropertyOptional({
     description: 'Financial dataset currency scope for insights aggregation.',
-    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 }

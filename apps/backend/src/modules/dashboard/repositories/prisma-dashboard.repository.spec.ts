@@ -44,7 +44,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
     expect(res.total_accounts).toBe(2);
   });
 
-  it('aggregates per-currency separately and does not mix USD and IDR', async () => {
+  it('aggregates a single ledger only and never mixes USD and IDR', async () => {
     const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
@@ -79,12 +79,55 @@ describe('PrismaDashboardRepository.getSummary', () => {
       new Date('2026-08-01'),
       new Date('2026-08-31'),
     );
-    const idrEntry = res.by_currency!.find((b) => b.currency === 'IDR');
-    const usdEntry = res.by_currency!.find((b) => b.currency === 'USD');
-    expect(idrEntry?.total_assets_cents).toBe('100000');
-    expect(usdEntry?.total_assets_cents).toBe('10000');
-    // primary currency should be the default account's currency (IDR)
+    // primary currency = default account currency (IDR)
     expect(res.currency).toBe('IDR');
+    // USD must never appear in the active ledger
+    expect(res.by_currency!.find((b) => b.currency === 'USD')).toBeUndefined();
+    expect(res.by_currency!.map((b) => b.currency)).toEqual(['IDR']);
+    expect(res.total_assets_cents).toBe('100000');
+    expect(res.total_accounts).toBe(1);
+  });
+
+  it('respects an explicit currency scope and ignores other ledgers', async () => {
+    const prismaMock = {
+      account: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'a1',
+            currency: 'IDR',
+            current_balance_cents: 100000n,
+            is_default: true,
+            updated_at: new Date(),
+          },
+          {
+            id: 'a2',
+            currency: 'USD',
+            current_balance_cents: 10000n,
+            is_default: false,
+            updated_at: new Date(),
+          },
+        ]),
+      },
+      transaction: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      category: { count: jest.fn().mockResolvedValue(0) },
+    };
+
+    const repo = new PrismaDashboardRepository(
+      prismaMock as unknown as PrismaService,
+    );
+    const res = await repo.getSummary(
+      'u1',
+      new Date('2026-08-01'),
+      new Date('2026-08-31'),
+      'USD',
+    );
+    expect(res.currency).toBe('USD');
+    expect(res.total_assets_cents).toBe('10000');
+    expect(res.total_accounts).toBe(1);
+    expect(res.by_currency!.map((b) => b.currency)).toEqual(['USD']);
   });
 
   it('excludes deleted accounts and queries with deleted_at = null', async () => {
@@ -300,7 +343,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
     expect(resOrder.currency).toBe('USD');
   });
 
-  it('ensures IDR and USD values are not double-scaled during aggregation', async () => {
+  it('ensures values are not double-scaled during aggregation', async () => {
     const prismaMock = {
       account: {
         findMany: jest.fn().mockResolvedValue([
@@ -335,13 +378,10 @@ describe('PrismaDashboardRepository.getSummary', () => {
       new Date('2026-08-01'),
       new Date('2026-08-31'),
     );
-    const idrEntry = res.by_currency!.find((b) => b.currency === 'IDR');
-    const usdEntry = res.by_currency!.find((b) => b.currency === 'USD');
 
-    // IDR should remain 100000 minor units, USD should remain 10000 minor units
-    expect(idrEntry?.total_assets_cents).toBe('100000');
-    expect(usdEntry?.total_assets_cents).toBe('10000');
-    // Also primary totals should match primary currency assets only
-    expect(res.total_assets_cents).toBe(idrEntry?.total_assets_cents);
+    // IDR remains 100000 minor units in the active (default) ledger
+    expect(res.by_currency![0].currency).toBe('IDR');
+    expect(res.by_currency![0].total_assets_cents).toBe('100000');
+    expect(res.total_assets_cents).toBe('100000');
   });
 });

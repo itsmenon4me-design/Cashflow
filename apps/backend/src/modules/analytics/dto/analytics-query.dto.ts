@@ -1,6 +1,7 @@
 import { IsISO8601, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { TrendType } from '../../reports/services/cashflow-trend.service';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class AnalyticsQueryDto {
   @ApiProperty({ description: 'Start date (ISO 8601). Required.' })
@@ -20,10 +21,10 @@ export class AnalyticsQueryDto {
   granularity?: TrendType;
 
   @ApiPropertyOptional({
-    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
     description: 'Currency code to scope analytics',
   })
   @IsOptional()
-  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 }

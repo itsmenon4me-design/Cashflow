@@ -1,3 +1,4 @@
+﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 
@@ -9,11 +10,11 @@ export class CreateBudgetDto {
 
   @ApiPropertyOptional({
     description: 'Record currency ownership for the budget. Nullable until migration backfill is approved.',
-    enum: ['USD', 'IDR', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['USD', 'IDR', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 
   @ApiProperty({

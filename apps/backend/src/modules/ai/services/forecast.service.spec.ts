@@ -302,7 +302,7 @@ describe('ForecastService', () => {
       account: {
         findMany: jest
           .fn()
-          .mockResolvedValue([{ currency: 'JPY', is_default: true }]),
+          .mockResolvedValue([{ currency: 'KRW', is_default: true }]),
         aggregate: makeBalanceAgg(100000n),
       },
     });

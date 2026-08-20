@@ -36,7 +36,10 @@ export function BudgetSuggestCard() {
       const list = await categoryService.list();
       setCategories(
         list
-          .filter((category) => category.type === "EXPENSE")
+          .filter(
+            (category) =>
+              category.type === "EXPENSE" && category.name !== "Transfer Out",
+          )
           .map((category) => ({ id: category.id, name: category.name })),
       );
       setOpen(true);

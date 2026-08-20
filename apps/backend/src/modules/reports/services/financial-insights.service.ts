@@ -2,8 +2,8 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { Transaction, Category } from '../../../generated/prisma/client';
 import { TransactionType } from '../../../generated/prisma/client';
-import { CURRENCY_SPECS } from '../../../common/types/money';
 import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
+import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
 
 export interface FinancialStatistics {
   averageDailyExpense: number;
@@ -40,8 +40,8 @@ export class FinancialInsightsService {
   }
 
   private formatCurrency(amount: number, currency: string): string {
-    // simple formatter without locale dependency; displays minor units
-    return `${CURRENCY_SPECS[currency]?.symbol ?? 'Rp'} ${amount.toLocaleString('en-US')}`;
+    // Minor units (cents) rendered with the currency's own locale/precision.
+    return formatMoneyFromMinorUnits(Math.round(amount), currency);
   }
 
   // Resolve the active financial dataset scope so insights never mix currencies.

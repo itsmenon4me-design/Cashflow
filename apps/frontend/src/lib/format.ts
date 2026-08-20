@@ -1,6 +1,8 @@
 import {
   formatCurrency as formatMajorCurrency,
   formatMoneyFromMinorUnits,
+  getCurrencySpec,
+  toMajorUnits,
 } from "@/lib/money";
 import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
 import { DEFAULT_CURRENCY, useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
@@ -10,7 +12,14 @@ function resolveDisplayCurrency(currency?: string): string {
   return normalizeDashboardCurrency(activeCurrency) ?? DEFAULT_CURRENCY;
 }
 
-/** Format an amount that is already expressed in major units. */
+/**
+ * Single display formatter for monetary values expressed in major units
+ * (dollars, rupiah, yen, etc.).
+ *
+ * Locale and decimal precision are derived from the currency spec, so IDR/JPY
+ * render with 0 decimals and USD/SGD/EUR/GBP/AUD/MYR/THB/PHP/CNY/HKD render
+ * with 2 decimals - never hardcoded per UI file.
+ */
 export function formatCurrency(amount: number, currency?: string): string {
   return formatMajorCurrency(amount, resolveDisplayCurrency(currency));
 }
@@ -24,11 +33,24 @@ export function formatMoney(amount: number, currency?: string): string {
   return formatCurrency(amount, currency);
 }
 
-export function formatCompact(amount: number): string {
-  return new Intl.NumberFormat("id-ID", {
+/**
+ * Compact, currency-aware number for chart axis ticks.
+ *
+ * Expects a value in minor units (the canonical storage form) and converts to
+ * major units before applying the currency locale/notation so the scale label
+ * matches the currency (e.g. "Rp1,5jt" for IDR, "$15K" for USD) instead of a
+ * hardcoded Indonesian "…jt" suffix or locale.
+ */
+export function formatCompactCurrency(value: number, currency?: string): string {
+  const resolved = resolveDisplayCurrency(currency);
+  const spec = getCurrencySpec(resolved);
+  const majorUnits = toMajorUnits(Number.isFinite(value) ? value : 0, resolved);
+  return new Intl.NumberFormat(spec.primaryLocale, {
+    style: "currency",
+    currency: spec.code,
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(amount);
+  }).format(majorUnits);
 }
 
 export function formatTransactionDate(date: string): string {

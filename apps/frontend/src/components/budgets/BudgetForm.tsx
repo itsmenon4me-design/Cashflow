@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EMPTY_FORM_VALUES, MONTH_OPTIONS } from "@/features/budgets/constants";
+import { categoryLabel } from "@/lib/categories";
 import {
   budgetFormSchema,
   type BudgetFormValues,
@@ -148,7 +149,7 @@ export function BudgetForm({
                       <SelectContent>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
-                            {category.name}
+                            {categoryLabel(category.name)}
                           </SelectItem>
                         ))}
                       </SelectContent>

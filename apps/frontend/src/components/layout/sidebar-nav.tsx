@@ -38,7 +38,7 @@ interface NavItem {
 
 function getNavItems(): NavItem[] {
   return [
-    { label: uiText.navigation.dashboard, href: "/", icon: Home },
+  { label: uiText.navigation.dashboard, href: "/dashboard", icon: Home },
     { label: uiText.navigation.accounts, href: "/accounts", icon: CreditCard },
     { label: uiText.navigation.income, href: "/incomes", icon: ArrowDownToLine },
     { label: uiText.navigation.expense, href: "/expenses", icon: ArrowUpFromLine },

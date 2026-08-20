@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
@@ -193,8 +193,13 @@ export class GoogleAuthService {
 
     this.validateState(input.state);
 
+    // debug-able holders for token/profile responses so we can log them on error
+    let tokenResponse: any = undefined;
+    let tokenData: any = undefined;
+    let profileResponse: any = undefined;
+
     try {
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -208,12 +213,39 @@ export class GoogleAuthService {
         }),
       });
 
-      const tokenData = (await tokenResponse.json().catch(() => ({}))) as GoogleTokenResponse;
+      // Read raw body first to avoid 'Body has already been consumed' when logging
+      let tokenRaw = '';
+      // Some test mocks return an object with json(), others emulate Response with text().
+      try {
+        if (typeof tokenResponse.text === 'function') {
+          tokenRaw = await tokenResponse.text().catch(() => '');
+          try {
+            tokenData = tokenRaw ? JSON.parse(tokenRaw) : ({} as GoogleTokenResponse);
+          } catch (parseErr) {
+            console.error('[GoogleAuth] failed to parse tokenResponse JSON from text', parseErr, 'raw:', tokenRaw);
+            tokenData = {} as GoogleTokenResponse;
+          }
+        } else if (typeof tokenResponse.json === 'function') {
+          tokenData = await tokenResponse.json().catch(() => ({} as GoogleTokenResponse));
+          try {
+            tokenRaw = tokenData ? JSON.stringify(tokenData) : '';
+          } catch {
+            tokenRaw = '';
+          }
+        } else {
+          tokenData = {} as GoogleTokenResponse;
+        }
+      } catch (e) {
+        console.error('[GoogleAuth] error reading tokenResponse body', e);
+        tokenData = {} as GoogleTokenResponse;
+      }
+
       if (!tokenResponse.ok || !tokenData.access_token) {
+        console.error('[GoogleAuth] token exchange response not ok or missing access_token', { status: tokenResponse && tokenResponse.status, tokenData, raw: tokenRaw });
         throw new Error('Google token exchange failed');
       }
 
-      const profileResponse = await fetch(
+      profileResponse = await fetch(
         'https://openidconnect.googleapis.com/v1/userinfo',
         {
           headers: {
@@ -313,6 +345,38 @@ export class GoogleAuthService {
         ),
       };
     } catch (error) {
+      try {
+        console.error('[GoogleAuth] handleGoogleCallback error:', error);
+
+        if (tokenResponse) {
+          try {
+            const trText = await (tokenResponse.clone ? tokenResponse.clone().text() : tokenResponse.text()).catch(() => '<unreadable>');
+            console.error('[GoogleAuth] tokenResponse status:', tokenResponse.status, 'body:', trText);
+          } catch (e) {
+            console.error('[GoogleAuth] failed to read tokenResponse body', e);
+          }
+        }
+
+        if (typeof tokenData !== 'undefined') {
+          try {
+            console.error('[GoogleAuth] tokenData:', tokenData);
+          } catch (e) {
+            console.error('[GoogleAuth] failed to log tokenData', e);
+          }
+        }
+
+        if (profileResponse) {
+          try {
+            const prText = await (profileResponse.clone ? profileResponse.clone().text() : profileResponse.text()).catch(() => '<unreadable>');
+            console.error('[GoogleAuth] profileResponse status:', profileResponse.status, 'body:', prText);
+          } catch (e) {
+            console.error('[GoogleAuth] failed to read profileResponse body', e);
+          }
+        }
+      } catch (logErr) {
+        console.error('[GoogleAuth] error while logging error:', logErr);
+      }
+
       if (error instanceof AppError) {
         throw error;
       }

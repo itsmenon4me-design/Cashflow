@@ -26,6 +26,7 @@ import {
   type BudgetFormValues,
 } from "@/features/budgets/schema";
 import { formatCurrencyCents } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
@@ -95,7 +96,10 @@ export function BudgetsPage() {
         setRawBudgets(budgets);
         setExpenseCategories(
           categories
-            .filter((category) => category.type === "EXPENSE")
+            .filter(
+              (category) =>
+                category.type === "EXPENSE" && category.name !== "Transfer Out",
+            )
             .map((category) => ({ id: category.id, name: category.name })),
         );
       } catch {
@@ -161,7 +165,9 @@ export function BudgetsPage() {
       (budget) =>
         budget.month === period.month &&
         budget.year === period.year &&
-        (keyword === "" || budget.categoryName.toLowerCase().includes(keyword)),
+        (keyword === "" ||
+          budget.categoryName.toLowerCase().includes(keyword) ||
+          categoryLabel(budget.categoryName).toLowerCase().includes(keyword)),
     );
     const arr = [...list];
     switch (filters.sort) {
@@ -268,6 +274,7 @@ export function BudgetsPage() {
   };
 
   const isEmpty = !loading && !error && visible.length === 0;
+  const isSearchActive = filters.search.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -275,6 +282,9 @@ export function BudgetsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.budgets.title}
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {uiText.budgets.subtitle}
+        </p>
       </div>
 
       <BudgetToolbar
@@ -324,14 +334,16 @@ export function BudgetsPage() {
         />
       ) : isEmpty ? (
         <EmptyState
-          title={uiText.budgets.emptyTitle}
-          description={uiText.budgets.emptySubtitle}
+          title={isSearchActive ? uiText.budgets.emptySearchTitle : uiText.budgets.emptyTitle}
+          description={isSearchActive ? uiText.budgets.emptySearchSubtitle : uiText.budgets.emptySubtitle}
           icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />}
           actionButton={
-            <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
-              <Plus />
-              {uiText.budgets.add}
-            </Button>
+            !isSearchActive ? (
+              <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
+                <Plus />
+                {uiText.budgets.add}
+              </Button>
+            ) : undefined
           }
         />
       ) : (

@@ -17,6 +17,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { IncomeExpenseChartCard } from "@/components/dashboard/income-expense-chart-card";
 import { computeRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
@@ -169,8 +170,8 @@ export function ReportsPage() {
     () =>
       trend.map((t) => ({
         month: t.period,
-        income: fromCents(t.income, displayCurrency),
-        expense: fromCents(t.expense, displayCurrency),
+        income: Number(t.income),
+        expense: Number(t.expense),
       })),
     [trend]
   );
@@ -178,7 +179,7 @@ export function ReportsPage() {
   const incomeSlices = useMemo<CategorySlice[]>(
     () =>
       (incomeBreakdown?.categories ?? []).map((c) => ({
-        name: c.categoryName ?? "-",
+        name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
         amount: fromCents(c.totalAmount, displayCurrency),
       })),
@@ -188,7 +189,7 @@ export function ReportsPage() {
   const expenseSlices = useMemo<CategorySlice[]>(
     () =>
       (expenseBreakdown?.categories ?? []).map((c) => ({
-        name: c.categoryName ?? "-",
+        name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
         amount: fromCents(c.totalAmount, displayCurrency),
       })),
@@ -330,10 +331,10 @@ export function ReportsPage() {
             />
           </div>
 
-          <CashflowTrendChart data={trend} loading={loading} />
+          <CashflowTrendChart data={trend} loading={loading} currency={activeCurrency} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <IncomeExpenseChartCard data={cashFlow} />
+            <IncomeExpenseChartCard data={cashFlow} currency={activeCurrency} />
             <CategoryBreakdownCard
               title={uiText.reports.expenseByCategory}
               subtitle={uiText.reports.expenseByCategorySubtitle}

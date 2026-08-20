@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatTransactionDate } from "@/lib/format";
 import { uiText } from "@/locales";
 import { auditLogService } from "@/services/audit-log.service";
+import { useDataRefreshStore } from "@/stores/refresh.store";
 import type { AuditLogItem } from "@/types/audit-log";
 import { cn } from "@/lib/utils";
 
@@ -70,11 +71,13 @@ const ACTION_OPTIONS = [
 
 function formatActionLabel(action: string) {
   // Map backend audit action constants to localized, human-friendly strings (uiText.activity)
+  const normalized = action.toUpperCase();
   const map: Record<string, string> = {
     AUTH_LOGIN: uiText.activity.login,
     AUTH_LOGOUT: uiText.activity.logout,
     AUTH_REFRESH_TOKEN: uiText.activity.refreshToken,
     AUTH_PASSWORD_CHANGED: uiText.activity.passwordChanged,
+    AUDIT_VIEW: uiText.activity.auditViewed,
     USER_CREATED: uiText.activity.userCreated,
     USER_UPDATED: uiText.activity.userUpdated,
     USER_DELETED: uiText.activity.userDeleted,
@@ -102,7 +105,7 @@ function formatActionLabel(action: string) {
     INVESTMENT_UPDATED: uiText.activity.investmentUpdated,
     INVESTMENT_DELETED: uiText.activity.investmentDeleted,
   };
-  return map[action] ?? prettify(action);
+  return map[normalized] ?? prettify(normalized);
 }
 
 function prettify(key: string) {
@@ -114,7 +117,9 @@ function prettify(key: string) {
 }
 
 function formatModuleLabel(module: string) {
-  // Use uiText.navigation when possible
+  // Prefer localized module labels, then uiText.navigation, then prettify
+  const activity = (uiText.activity as any) || {};
+  if (activity.moduleLabels?.[module]) return activity.moduleLabels[module];
   const nav = (uiText.navigation as any) || {};
   if (nav[module]) return nav[module];
   // Convert snake-case modules like saving_goal -> Saving Goal
@@ -136,6 +141,7 @@ export function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const dataVersion = useDataRefreshStore((state) => state.version);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,7 +181,7 @@ export function AuditLogPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, page, pageSize, module, action, fromDate, toDate]);
+  }, [refreshKey, dataVersion, page, pageSize, module, action, fromDate, toDate]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 
@@ -373,7 +379,9 @@ function AuditLogRow({ item }: { item: AuditLogItem }) {
             </span>
           </div>
           <p className="mt-2 text-sm font-medium text-foreground">
-            {item.description ?? item.action}
+            {item.description
+              ? prettify(item.description)
+              : formatActionLabel(item.action)}
           </p>
           <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
             <ShieldCheck className="size-3" aria-hidden="true" />

@@ -8,8 +8,9 @@ export interface ITransactionsRepository {
   findByReferenceNumber(
     userId: string,
     referenceNumber: string,
+    currency?: string,
   ): Promise<TransactionEntity | null>;
-  findAllByUser(userId: string): Promise<TransactionEntity[]>;
+  findAllByUser(userId: string, currency?: string): Promise<TransactionEntity[]>;
   update(
     id: string,
     updates: Partial<TransactionEntity>,

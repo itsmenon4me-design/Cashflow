@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { ChartCard } from "@/components/dashboard/charts/ChartCard";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
-import { formatCurrencyCents } from "@/lib/format";
+import { formatCurrencyCents, formatCompactCurrency } from "@/lib/format";
 import type { ForecastResponse } from "@/types/backend";
 
 interface ForecastChartProps {
@@ -86,9 +86,7 @@ export function ForecastChart({ data, currency, loading = false, text, locale }:
             tickLine={false}
             width={56}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            tickFormatter={(value) =>
-              Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value))
-            }
+            tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
           />
           <Tooltip
             content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}

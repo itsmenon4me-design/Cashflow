@@ -36,6 +36,7 @@ export class GoogleOauthController {
     @Query('state') state?: string,
   ) {
     try {
+      // Use raw code value provided by Express (query params are already decoded)
       const result = await this.googleAuthService.handleGoogleCallback({
         code,
         state,
@@ -43,6 +44,8 @@ export class GoogleOauthController {
 
       return res.redirect(result.redirectUrl);
     } catch (error) {
+      // log original error message for debugging
+      try { console.error('[GoogleOAuthController] callback handler error:', error?.message ?? error); } catch (e) { /* ignore */ }
       const fallback = await this.googleAuthService.handleGoogleCallbackError();
       return res.redirect(fallback.redirectUrl);
     }

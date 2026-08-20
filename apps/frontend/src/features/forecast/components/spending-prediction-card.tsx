@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/states/EmptyState';
 import { ErrorState } from '@/components/states/ErrorState';
 import { formatCurrencyCents } from '@/lib/format';
+import { categoryLabel } from '@/lib/categories';
 import type { SpendingPredictionResponse } from '@/types/backend';
 import { ConfidenceBadge } from './confidence-badge';
 
@@ -159,7 +160,7 @@ export function SpendingPredictionCard({
                   className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium text-foreground">{item.categoryName}</p>
+                    <p className="font-medium text-foreground">{categoryLabel(item.categoryName)}</p>
                     <p className="text-sm text-muted-foreground">
                       {text.basedOnMonths.replace('{count}', String(item.basedOnMonths))}
                     </p>

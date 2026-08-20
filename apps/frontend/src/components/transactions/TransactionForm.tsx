@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
+import { currentLocalTime, isoToLocalTime } from "@/lib/date";
+import { categoryLabel } from "@/lib/categories";
 import { EMPTY_FORM_VALUES } from "@/features/transactions/constants";
 import { transactionFormSchema, type TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
@@ -49,6 +51,7 @@ interface TransactionFormProps {
 function toFormValues(transaction: TransactionItem): TransactionFormValues {
   return {
     date: transaction.date,
+    time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
     type: transaction.type,
     category: transaction.category,
     account: transaction.account,
@@ -97,7 +100,7 @@ export function TransactionForm({
 
   useEffect(() => {
     if (open) {
-      form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
+      form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
       try {
         // expose the intended create type for sync layer to read (helps quick-add/header variants)
         if (typeof window !== 'undefined') {
@@ -198,6 +201,19 @@ export function TransactionForm({
                 <FormError message={errors.date?.message} />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="transaction-time">{uiText.transactions.fieldTime}</Label>
+                <Input
+                  id="transaction-time"
+                  type="time"
+                  className="h-11 sm:h-9"
+                  disabled={isView}
+                  aria-invalid={!!errors.time}
+                  {...form.register("time")}
+                />
+                <FormError message={errors.time?.message} />
+              </div>
+
               {/* Type selector: hide when transactionType is controlled by parent page */}
               {typeof transactionType === 'undefined' && (
                 <div className="space-y-2">
@@ -252,7 +268,7 @@ export function TransactionForm({
                       <SelectContent>
                         {visibleCategories.map((category) => (
                           <SelectItem key={category} value={category}>
-                            {category}
+                            {categoryLabel(category)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -390,5 +406,5 @@ function formatSummary(transaction: TransactionItem | null): string {
   if (!transaction) {
     return "";
   }
-  return `${transaction.category} · ${transaction.account}`;
+  return `${categoryLabel(transaction.category)} · ${transaction.account}`;
 }

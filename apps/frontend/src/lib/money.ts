@@ -8,21 +8,41 @@
 /**
  * Currency specification for frontend.
  * Mirrors backend structure but optimized for browser usage.
+ * NOTE: This is a vendored copy of apps/backend/src/common/currencies.ts so the
+ * frontend bundle stays self-contained (no cross-package imports in the Docker build).
+ * Keep the two definitions in sync when adding/removing currencies.
  */
-import { CURRENCY_SPECS as SHARED_CURRENCY_SPECS, getCurrencySpec as getCurrencySpecShared, SupportedCurrency as SharedSupportedCurrency, CurrencySpec as SharedCurrencySpec } from "../../../backend/src/common/currencies";
+export interface CurrencySpec {
+  code: string;
+  minorUnits: number;
+  primaryLocale: string;
+  /** Optional display symbol (e.g. Rp, $). Not required by frontend formatting but useful server-side */
+  symbol?: string;
+  /** Optional flag mirroring whether the currency has minor units */
+  hasMinorUnits?: boolean;
+}
 
-export type CurrencySpec = SharedCurrencySpec;
-export const CURRENCY_SPECS: Record<string, CurrencySpec> = SHARED_CURRENCY_SPECS;
+export const CURRENCY_SPECS: Record<string, CurrencySpec> = {
+  IDR: { code: 'IDR', minorUnits: 0, primaryLocale: 'id-ID', symbol: 'Rp', hasMinorUnits: false },
+  USD: { code: 'USD', minorUnits: 2, primaryLocale: 'en-US', symbol: '$', hasMinorUnits: true },
+  SGD: { code: 'SGD', minorUnits: 2, primaryLocale: 'en-SG', symbol: 'S$', hasMinorUnits: true },
+  EUR: { code: 'EUR', minorUnits: 2, primaryLocale: 'de-DE', symbol: '€', hasMinorUnits: true },
+  JPY: { code: 'JPY', minorUnits: 0, primaryLocale: 'ja-JP', symbol: '¥', hasMinorUnits: false },
+  VND: { code: 'VND', minorUnits: 0, primaryLocale: 'vi-VN', symbol: '₫', hasMinorUnits: false },
+  MYR: { code: 'MYR', minorUnits: 2, primaryLocale: 'ms-MY', symbol: 'RM', hasMinorUnits: true },
+  THB: { code: 'THB', minorUnits: 2, primaryLocale: 'th-TH', symbol: '฿', hasMinorUnits: true },
+  PHP: { code: 'PHP', minorUnits: 2, primaryLocale: 'fil-PH', symbol: '₱', hasMinorUnits: true },
+  GBP: { code: 'GBP', minorUnits: 2, primaryLocale: 'en-GB', symbol: '£', hasMinorUnits: true },
+  AUD: { code: 'AUD', minorUnits: 2, primaryLocale: 'en-AU', symbol: 'A$', hasMinorUnits: true },
+  CNY: { code: 'CNY', minorUnits: 2, primaryLocale: 'zh-CN', symbol: '¥', hasMinorUnits: true },
+  HKD: { code: 'HKD', minorUnits: 2, primaryLocale: 'zh-HK', symbol: 'HK$', hasMinorUnits: true },
+};
 
 /** Union of every supported ISO-4217 code. */
-export type SupportedCurrency = SharedSupportedCurrency;
+export type SupportedCurrency = keyof typeof CURRENCY_SPECS;
 
 /** Every ISO-4217 code the app can display/format. */
 export const SUPPORTED_CURRENCIES: readonly string[] = Object.keys(CURRENCY_SPECS);
-
-export function getCurrencySpec(code: string | undefined): CurrencySpec {
-  return getCurrencySpecShared(code);
-}
 
 export function getCurrencySpec(code: string | undefined): CurrencySpec {
   if (!code) {
@@ -34,6 +54,7 @@ export function getCurrencySpec(code: string | undefined): CurrencySpec {
   }
   return spec;
 }
+
 
 /**
  * Parse currency amount from user input, respecting currency rules.

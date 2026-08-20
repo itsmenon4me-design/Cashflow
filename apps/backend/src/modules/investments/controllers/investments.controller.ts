@@ -61,8 +61,9 @@ export class InvestmentsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateInvestmentDto,
+    @Query('currency') currency?: string,
   ) {
-    const created = await this.investments.create(userId, body);
+    const created = await this.investments.create(userId, body, currency);
     return { success: true, data: toInvestmentResponse(created) };
   }
 

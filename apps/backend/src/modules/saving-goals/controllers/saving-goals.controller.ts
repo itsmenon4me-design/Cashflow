@@ -62,8 +62,9 @@ export class SavingGoalsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateSavingGoalDto,
+    @Query('currency') currency?: string,
   ) {
-    const created = await this.goals.create(userId, body);
+    const created = await this.goals.create(userId, body, currency);
     return { success: true, data: toSavingGoalResponse(created) };
   }
 

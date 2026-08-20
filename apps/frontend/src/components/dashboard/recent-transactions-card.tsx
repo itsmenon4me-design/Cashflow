@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import CenteredEmptyState from "@/components/states/CenteredEmptyState";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionItem, TransactionStatus, TransactionType } from "@/types/dashboard";
@@ -64,7 +65,8 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
       const matchesQuery =
         keyword === "" ||
         item.description.toLowerCase().includes(keyword) ||
-        item.category.toLowerCase().includes(keyword);
+        item.category.toLowerCase().includes(keyword) ||
+        categoryLabel(item.category).toLowerCase().includes(keyword);
       const matchesType = typeFilter === "all" || item.type === typeFilter;
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
       return matchesQuery && matchesType && matchesStatus;
@@ -173,7 +175,7 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-lg bg-muted">
-                        {txn.category}
+                        {categoryLabel(txn.category)}
                       </Badge>
                     </TableCell>
                     <TableCell title={txn.description} className="font-medium min-w-0 truncate">{txn.description}</TableCell>

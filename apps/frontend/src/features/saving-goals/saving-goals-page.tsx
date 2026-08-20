@@ -27,6 +27,7 @@ import {
   savingGoalService,
   toSavingGoalItem,
   type SavingGoalItem,
+  type SupportedEntityCurrency,
 } from "@/services/saving-goal.service";
 import type { AccountResponse, CategoryResponse } from "@/types/backend";
 
@@ -175,7 +176,7 @@ export function SavingGoalsPage() {
 
   const goalCurrency = (
     values: SavingGoalFormValues,
-  ): "USD" | "IDR" | "SGD" | "EUR" =>
+  ): SupportedEntityCurrency =>
     normalizeDashboardCurrency(
       values.accountId ? accountCurrencies[values.accountId] : undefined,
     ) ?? "USD";
@@ -232,6 +233,9 @@ export function SavingGoalsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.savingGoals.title}
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {uiText.savingGoals.subtitle}
+        </p>
       </div>
 
       <SavingGoalToolbar

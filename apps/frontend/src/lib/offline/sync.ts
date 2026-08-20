@@ -74,7 +74,7 @@ function nowIso(): string {
 }
 
 function isOnline(): boolean {
-  return typeof navigator === "undefined" ? true : navigator.onLine;
+  return typeof window === "undefined" ? true : navigator.onLine;
 }
 
 function toSyncStatus(status: SyncUiStatus): SyncStatus {

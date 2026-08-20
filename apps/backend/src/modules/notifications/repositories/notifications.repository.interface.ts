@@ -5,6 +5,8 @@ export interface NotificationListOptions {
   limit: number;
   unread?: boolean;
   type?: string;
+  /** Ledger currency scope: only notifications carrying this currency in metadata. */
+  currency?: string;
 }
 
 export interface NotificationListResult {

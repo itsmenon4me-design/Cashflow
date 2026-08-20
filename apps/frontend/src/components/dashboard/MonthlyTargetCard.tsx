@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrencyCents } from "@/lib/format";
 import { getPercentage, getRemaining } from "@/lib/progress";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
@@ -73,15 +73,15 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.targetMonth}</p>
-                    <p className="font-medium text-foreground">{formatCurrency(item.target, activeCurrency)}</p>
+                    <p className="font-medium text-foreground">{formatCurrencyCents(item.target, activeCurrency)}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.realized}</p>
-                    <p className="font-medium text-emerald-500">{formatCurrency(item.realized, activeCurrency)}</p>
+                    <p className="font-medium text-emerald-500">{formatCurrencyCents(item.realized, activeCurrency)}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.remaining}</p>
-                    <p className="font-medium text-foreground">{formatCurrency(remaining, activeCurrency)}</p>
+                    <p className="font-medium text-foreground">{formatCurrencyCents(remaining, activeCurrency)}</p>
                   </div>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{uiText.dashboard.realized}</span>
               <span className="font-medium text-foreground">
-                {formatCurrency(totalRealized, activeCurrency)} / {formatCurrency(totalTarget, activeCurrency)}
+                {formatCurrencyCents(totalRealized, activeCurrency)} / {formatCurrencyCents(totalTarget, activeCurrency)}
               </span>
             </div>
           </>

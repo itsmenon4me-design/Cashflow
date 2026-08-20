@@ -22,6 +22,8 @@ import {
 import type { TransactionFiltersState } from "@/features/transactions/types";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
+import { isoToLocalTime } from "@/lib/date";
+import type { CategoryGroup } from "@/lib/categories";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import {
@@ -72,6 +74,7 @@ export function TransactionsPage() {
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const dataVersion = useDataRefreshStore((state) => state.version);
+  const bumpRefresh = useDataRefreshStore((state) => state.bump);
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
 
   const defaultFilters = (() => {
@@ -256,6 +259,22 @@ export function TransactionsPage() {
     () => [...new Set(Object.values(categoryNames))].sort(),
     [categoryNames],
   );
+  const categoryGroups = useMemo<CategoryGroup[]>(() => {
+    const income: string[] = [];
+    const expense: string[] = [];
+    for (const [name, types] of Object.entries(categoryTypes)) {
+      const bucket = types.includes("INCOME") ? income : expense;
+      if (!bucket.includes(name)) {
+        bucket.push(name);
+      }
+    }
+    income.sort();
+    expense.sort();
+    return [
+      ...(income.length ? [{ label: uiText.transactions.typeIncome, items: income }] : []),
+      ...(expense.length ? [{ label: uiText.transactions.typeExpense, items: expense }] : []),
+    ];
+  }, [categoryTypes]);
   const accountOptions = useMemo(
     () => [...new Set(Object.values(accountNames))].sort(),
     [accountNames],
@@ -318,6 +337,7 @@ export function TransactionsPage() {
           // list tetap disinkronkan dengan state server
         }
         refresh();
+        bumpRefresh();
       }
       return;
     }
@@ -336,12 +356,14 @@ export function TransactionsPage() {
       }
       setPage(1);
       refresh();
+      bumpRefresh();
     }
   };
 
   const handleDuplicate = async (transaction: TransactionItem) => {
     const values: TransactionFormValues = {
       date: transaction.date,
+      time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
       type: transaction.type,
       category: transaction.category,
       account: transaction.account,
@@ -364,6 +386,7 @@ export function TransactionsPage() {
       }
       setPage(1);
       refresh();
+      bumpRefresh();
     }
   };
 
@@ -395,6 +418,7 @@ export function TransactionsPage() {
     } else {
       refresh();
     }
+    bumpRefresh();
   };
 
   const isEmpty = !loading && !error && totalItems === 0;
@@ -405,6 +429,9 @@ export function TransactionsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.transactions.title}
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {uiText.transactions.subtitle}
+        </p>
       </div>
 
       <TransactionToolbar
@@ -415,7 +442,7 @@ export function TransactionsPage() {
 
       <TransactionFilters
         filters={filters}
-        categories={categoryOptions}
+        categoryGroups={categoryGroups}
         accounts={accountOptions}
         onChange={handleFiltersChange}
         onReset={handleResetFilters}

@@ -36,6 +36,14 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
       user_id: userId,
       ...(options.unread === true ? { is_read: false } : {}),
       ...(options.type ? { type: options.type } : {}),
+      ...(options.currency
+        ? {
+            metadata: {
+              path: ['currency'],
+              equals: options.currency,
+            },
+          }
+        : {}),
     };
 
     const skip = (options.page - 1) * options.limit;

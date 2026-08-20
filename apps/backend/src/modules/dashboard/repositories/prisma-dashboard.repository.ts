@@ -15,14 +15,17 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     monthEnd: Date,
     currency?: string,
   ): Promise<DashboardSummaryResponseDto> {
-    const targetCurrency = normalizeDashboardCurrency(currency);
+    // The dashboard always represents ONE active ledger. When no currency is
+    // requested, resolve it from the default account -> first account -> IDR
+    // so amounts are never summed across currencies.
+    const requestedCurrency = normalizeDashboardCurrency(currency);
 
     // 1. Fetch user accounts grouped by currency
     const accounts = await this.prisma.account.findMany({
       where: {
         user_id: userId,
         deleted_at: null,
-        ...(targetCurrency ? { currency: targetCurrency } : {}),
+        ...(requestedCurrency ? { currency: requestedCurrency } : {}),
       },
       select: {
         id: true,
@@ -33,6 +36,13 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       },
     });
 
+    const defaultAcc = accounts.find((a) => a.is_default);
+    const targetCurrency =
+      requestedCurrency ??
+      defaultAcc?.currency ??
+      accounts[0]?.currency ??
+      'IDR';
+
     // 2. Fetch income transactions with account currency
     const txIncome = await this.prisma.transaction.findMany({
       where: {
@@ -40,7 +50,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         deleted_at: null,
         transaction_type: TransactionType.INCOME,
         transaction_date: { gte: monthStart, lte: monthEnd },
-        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
+        account: { currency: targetCurrency },
       },
       select: {
         amount_cents: true,
@@ -56,7 +66,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         deleted_at: null,
         transaction_type: TransactionType.EXPENSE,
         transaction_date: { gte: monthStart, lte: monthEnd },
-        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
+        account: { currency: targetCurrency },
       },
       select: {
         amount_cents: true,
@@ -73,7 +83,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       where: {
         user_id: userId,
         deleted_at: null,
-        ...(targetCurrency ? { account: { currency: targetCurrency } } : {}),
+        account: { currency: targetCurrency },
       },
     });
 
@@ -86,6 +96,7 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     // Map account balances
     for (const acc of accounts) {
       const curr = acc.currency ?? 'IDR';
+      if (curr !== targetCurrency) continue;
       const entry = currencyMap.get(curr) ?? {
         assets: 0n,
         income: 0n,
@@ -131,28 +142,16 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       currencyMap.set(curr, entry);
     }
 
-    // Default to IDR if no accounts exist
+    // Default to target currency if no accounts exist
     if (currencyMap.size === 0) {
-      currencyMap.set(targetCurrency ?? 'IDR', { assets: 0n, income: 0n, expense: 0n });
+      currencyMap.set(targetCurrency, {
+        assets: 0n,
+        income: 0n,
+        expense: 0n,
+      });
     }
 
-    // Determine primary currency (default account currency, or first currency in map)
-    const defaultAcc = accounts.find((a) => a.is_default);
-    const primaryCurrency =
-      targetCurrency ?? defaultAcc?.currency ?? Array.from(currencyMap.keys())[0] ?? 'IDR';
-
-    // Build per-currency list
-    const byCurrency = Array.from(currencyMap.entries()).map(
-      ([curr, data]) => ({
-        currency: curr,
-        total_assets_cents: data.assets.toString(),
-        total_income_cents: data.income.toString(),
-        total_expense_cents: data.expense.toString(),
-        net_cash_flow_cents: (data.income - data.expense).toString(),
-      }),
-    );
-
-    const primaryData = currencyMap.get(primaryCurrency) ?? {
+    const primaryData = currencyMap.get(targetCurrency) ?? {
       assets: 0n,
       income: 0n,
       expense: 0n,
@@ -169,19 +168,31 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         ? new Date(Math.max(...candidates.map((d) => d.getTime())))
         : null;
 
+    const ledgerAccounts = accounts.filter((a) => a.currency === targetCurrency);
+
     return new DashboardSummaryResponseDto({
-      currency: primaryCurrency,
+      currency: targetCurrency,
       total_assets_cents: primaryData.assets.toString(),
       total_income_cents: primaryData.income.toString(),
       total_expense_cents: primaryData.expense.toString(),
       net_cash_flow_cents: (
         primaryData.income - primaryData.expense
       ).toString(),
-      total_accounts: accounts.length,
+      total_accounts: ledgerAccounts.length,
       total_categories: catsCount,
       total_transactions: txTotalCount,
       last_updated_at: lastUpdatedAt,
-      by_currency: targetCurrency ? byCurrency.filter((item) => item.currency === targetCurrency) : byCurrency,
+      by_currency: [
+        {
+          currency: targetCurrency,
+          total_assets_cents: primaryData.assets.toString(),
+          total_income_cents: primaryData.income.toString(),
+          total_expense_cents: primaryData.expense.toString(),
+          net_cash_flow_cents: (
+            primaryData.income - primaryData.expense
+          ).toString(),
+        },
+      ],
     });
   }
 }

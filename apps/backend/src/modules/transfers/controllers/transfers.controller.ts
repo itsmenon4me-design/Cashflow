@@ -27,16 +27,20 @@ export class TransfersController {
     @Query('currency') currency?: string,
   ) {
     if (!userId) throw new Error('Unauthorized');
-    const result = await this.service.create(userId, {
-      source_account_id: body.source_account_id,
-      destination_account_id: body.destination_account_id,
-      amount_cents: BigInt(body.amount_cents),
-      reference: body.reference ?? null,
-      transaction_date: body.transaction_date
-        ? new Date(body.transaction_date)
-        : undefined,
-      note: body.note ?? null,
-    });
+    const result = await this.service.create(
+      userId,
+      {
+        source_account_id: body.source_account_id,
+        destination_account_id: body.destination_account_id,
+        amount_cents: BigInt(body.amount_cents),
+        reference: body.reference ?? null,
+        transaction_date: body.transaction_date
+          ? new Date(body.transaction_date)
+          : undefined,
+        note: body.note ?? null,
+      },
+      currency,
+    );
     return result;
   }
 
@@ -51,8 +55,12 @@ export class TransfersController {
   @Get(':id')
   @ApiOperation({ summary: 'Get transfer by id (transfer_group_id)' })
   @ApiResponse({ status: 200, type: TransferResponseDto })
-  async findById(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+  async findById(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
     if (!userId) throw new Error('Unauthorized');
-    return this.service.findById(userId, id);
+    return this.service.findById(userId, id, currency);
   }
 }

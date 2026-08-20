@@ -105,8 +105,8 @@ describe("DashboardPage financial health", () => {
     render(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Housing")).toBeInTheDocument();
-      expect(screen.getByText("Food")).toBeInTheDocument();
+      expect(screen.getByText("Tempat Tinggal")).toBeInTheDocument();
+      expect(screen.getByText("Makanan")).toBeInTheDocument();
     });
 
     expect(screen.queryByText("Dana Darurat")).not.toBeInTheDocument();

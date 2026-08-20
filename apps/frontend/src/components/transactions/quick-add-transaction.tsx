@@ -32,7 +32,10 @@ function buildCategoryTypes(
 }
 
 export function QuickAddTransaction() {
-  const clientPath = typeof window !== 'undefined' ? window.location.pathname : usePathname();
+  // Must always call the hook unconditionally (Rules of Hooks) — calling it only
+  // on the server would break hydration on every non-dashboard route.
+  const pathname = usePathname();
+  const clientPath = typeof window !== 'undefined' ? window.location.pathname : pathname;
   const controlledType: "income" | "expense" | undefined = clientPath?.startsWith('/incomes') ? 'income' : clientPath?.startsWith('/expenses') ? 'expense' : undefined;
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
@@ -113,14 +116,13 @@ export function QuickAddTransaction() {
         accountCurrencyByName,
         controlledType,
       ) as CreateTransactionPayload | null;
-      console.log('[quick-add] controlledType', controlledType, 'payload', payload);
       if (!payload) {
         throw new Error("Invalid account or category");
       }
       await syncCreateTransaction(payload);
       bumpRefresh();
     },
-    [accountNames, categoryNames, accountCurrencyByName, bumpRefresh],
+    [accountNames, categoryNames, accountCurrencyByName, controlledType, bumpRefresh],
   );
 
   return (

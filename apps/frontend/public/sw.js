@@ -1,6 +1,6 @@
-// Bump VERSION on every deployment so activate() purges stale caches
-// and clients receive fresh shell/static assets instead of the old build.
-const VERSION = "cashflow-v2";
+// Keep the service worker in network-first mode so the browser always gets the
+// latest shell and static assets instead of reusing stale cached versions.
+const VERSION = "cashflow-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
 
@@ -27,6 +27,16 @@ const isSafeAsset = (url) =>
   url.pathname === "/icon.svg" ||
   url.pathname === "/favicon.ico" ||
   url.pathname === "/manifest.webmanifest";
+
+const putInCache = async (cacheName, request, response) => {
+  if (!response || response.type !== "basic" || response.status !== 200) {
+    return response;
+  }
+
+  const cache = await caches.open(cacheName);
+  await cache.put(request, response.clone());
+  return response;
+};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -60,24 +70,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (!isSameOrigin(url)) {
-    return;
-  }
-
-  if (isApi(url)) {
+  if (!isSameOrigin(url) || isApi(url)) {
     return;
   }
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put("/", copy));
-          }
-          return response;
-        })
+        .then((response) => putInCache(SHELL_CACHE, "/", response))
         .catch(() => caches.match("/")),
     );
     return;
@@ -85,20 +85,9 @@ self.addEventListener("fetch", (event) => {
 
   if (isStatic(url) || isSafeAsset(url)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) {
-          return cached;
-        }
-        return fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              const copy = response.clone();
-              caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-            }
-            return response;
-          })
-          .catch(() => cached);
-      }),
+      fetch(request)
+        .then((response) => putInCache(STATIC_CACHE, request, response))
+        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
     );
   }
 });

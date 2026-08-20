@@ -1,10 +1,12 @@
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
+
 export const THEMES = ['light', 'dark'] as const;
 export type ThemePreference = (typeof THEMES)[number];
 
 export const LANGUAGES = ['id', 'en'] as const;
 export type LanguagePreference = (typeof LANGUAGES)[number];
 
-export const CURRENCIES = ['IDR', 'USD', 'SGD', 'EUR'] as const;
+export const CURRENCIES = SUPPORTED_CURRENCIES;
 export type CurrencyPreference = (typeof CURRENCIES)[number];
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: Record<string, boolean> = {

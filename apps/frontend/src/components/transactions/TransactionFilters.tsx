@@ -7,17 +7,20 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { categoryLabel, type CategoryGroup } from "@/lib/categories";
 import { uiText } from "@/locales";
 import type { TransactionFiltersState } from "@/features/transactions/types";
 import type { TransactionStatus, TransactionType } from "@/types/dashboard";
 
 interface TransactionFiltersProps {
   filters: TransactionFiltersState;
-  categories: string[];
+  categoryGroups: CategoryGroup[];
   accounts: string[];
   onChange: (filters: TransactionFiltersState) => void;
   onReset: () => void;
@@ -25,7 +28,7 @@ interface TransactionFiltersProps {
 
 export function TransactionFilters({
   filters,
-  categories,
+  categoryGroups,
   accounts,
   onChange,
   onReset,
@@ -55,10 +58,15 @@ export function TransactionFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{uiText.transactions.allCategories}</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
+            {categoryGroups.map((group) => (
+              <SelectGroup key={group.label}>
+                <SelectLabel>{group.label}</SelectLabel>
+                {group.items.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {categoryLabel(category)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>

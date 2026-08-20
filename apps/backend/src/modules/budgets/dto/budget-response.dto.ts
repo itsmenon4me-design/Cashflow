@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class BudgetResponseDto {
   @ApiProperty()
@@ -10,7 +11,7 @@ export class BudgetResponseDto {
   @ApiProperty({ required: false })
   category_name?: string | null;
 
-  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  @ApiPropertyOptional({ enum: SUPPORTED_CURRENCIES })
   currency?: string | null;
 
   @ApiProperty({ description: 'Budget limit in cents' })

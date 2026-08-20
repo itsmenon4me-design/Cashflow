@@ -17,6 +17,7 @@ export const EMPTY_FILTERS: TransactionFiltersState = {
 
 export const EMPTY_FORM_VALUES: TransactionFormValues = {
   date: "",
+  time: "",
   type: "expense",
   category: "",
   account: "",

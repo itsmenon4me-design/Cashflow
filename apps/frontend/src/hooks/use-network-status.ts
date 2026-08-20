@@ -7,7 +7,9 @@ interface NetworkStatus {
   wasOffline: boolean;
 }
 
-const FALLBACK_ONLINE = typeof navigator === "undefined" ? true : navigator.onLine;
+// Node 21+ exposes a global `navigator` object (onLine: undefined), so guard on
+// `window` instead: connectivity is a browser-side concept and SSR must stay online.
+const FALLBACK_ONLINE = typeof window === "undefined" ? true : navigator.onLine;
 
 export function useNetworkStatus(): NetworkStatus {
   const [status, setStatus] = useState<NetworkStatus>({

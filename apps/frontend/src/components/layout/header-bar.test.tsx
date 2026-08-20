@@ -182,7 +182,7 @@ describe('HeaderBar', () => {
     expect(useDashboardCurrencyStore.getState().currency).toBe('IDR');
   });
 
-  it('hides Quick Add on non-dashboard routes in favor of the currency selector', () => {
+  it('does not show Quick Add on non-dashboard routes either, only the currency selector', () => {
     localStorage.clear();
     sessionStorage.clear();
     act(() => {
@@ -191,6 +191,7 @@ describe('HeaderBar', () => {
     mockPathname.mockReturnValue('/accounts');
     render(<HeaderBar />);
 
+    // Quick Add must not be present in the header on any route
     expect(screen.queryByLabelText(uiText.common.quickAdd)).not.toBeInTheDocument();
     expect(screen.getByText('USD')).toBeInTheDocument();
   });

@@ -63,6 +63,7 @@ describe('BillsService (ownership)', () => {
   const ownAccount = {
     id: validCreate.account_id,
     user_id: 'user-auth',
+    currency: 'IDR',
     deleted_at: null,
     is_active: true,
   };

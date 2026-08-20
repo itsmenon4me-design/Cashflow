@@ -39,7 +39,9 @@ const TX_PREV_ID = '00000000-0000-0000-0000-000000000012';
  * removed before the user itself. No CASCADE is used.
  */
 async function deleteUserArtifacts(client: PoolClient) {
-  // transactions: leaf rows referencing the fixture account
+  // transactions: leaf rows referencing the fixture account (scoped to the
+  // fixture user so rows created by the UI/API during any test run are removed)
+  await client.query('DELETE FROM transactions WHERE user_id = $1', [USER_ID]);
   await client.query('DELETE FROM transactions WHERE id = ANY($1)', [[TX_CURR_ID, TX_PREV_ID]]);
   await client.query('DELETE FROM transactions WHERE account_id = $1', [ACCOUNT_ID]);
   // child tables with FK -> users (and some -> accounts/categories): remove before parents

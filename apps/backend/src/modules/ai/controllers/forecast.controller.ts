@@ -42,6 +42,7 @@ export class ForecastController {
       horizon: query.horizon,
       startDate: query.startDate,
       endDate: query.endDate,
+      currency: query.currency,
     });
     return { success: true, data: result };
   }

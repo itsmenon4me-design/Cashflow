@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { formatCurrencyCents } from "@/lib/format";
@@ -76,7 +77,9 @@ export function CategoryDistributionCard({ data, currency }: CategoryDistributio
               </div>
 
               <div className="mt-4 text-right">
-                <a href="/categories" className="text-sm text-primary">Lihat semua</a>
+                <Link href="/categories" className="text-sm text-primary hover:underline">
+                  {uiText.common.viewAll}
+                </Link>
               </div>
             </div>
           </>

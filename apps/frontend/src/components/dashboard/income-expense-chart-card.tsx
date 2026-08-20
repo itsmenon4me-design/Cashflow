@@ -3,16 +3,17 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrencyCents, formatCompactCurrency } from "@/lib/format";
 import { uiText } from "@/locales";
 import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 import type { FlowPoint } from "@/types/dashboard";
 
 interface IncomeExpenseChartCardProps {
   data: FlowPoint[];
+  currency?: string;
 }
 
-export function IncomeExpenseChartCard({ data }: IncomeExpenseChartCardProps) {
+export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCardProps) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 px-5">
@@ -47,10 +48,10 @@ export function IncomeExpenseChartCard({ data }: IncomeExpenseChartCardProps) {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  tickFormatter={(value) => `${Number(value) / 1000000}jt`}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
                 />
                 <Tooltip
-                  content={<ChartTooltip valueFormatter={(value) => formatCurrency(Number(value))} />}
+                  content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
                   cursor={{ fill: "var(--muted)" }}
                 />
                 <Bar

@@ -17,7 +17,14 @@ services:
 
   postgres:
     ports:
-      - "55432:5432"
+      - "55433:5432"
+    networks:
+      - fronted
+      - internal
+
+  redis:
+    ports:
+      - "6379:6379"
     networks:
       - fronted
       - internal

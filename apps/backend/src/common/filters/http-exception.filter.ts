@@ -46,13 +46,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = payload;
       } else if (payload && typeof payload === 'object') {
         const body = payload as Record<string, unknown>;
-        if (typeof body.message === 'string') {
-          message = body.message;
-        } else if (Array.isArray(body.message)) {
-          // AppValidationPipe returns array of {field,message}
-          errors = body.message.map((m) => ({ message: String(m) }));
-          message = 'Validation Error';
-        } else if (Array.isArray(body.errors)) {
+        if (Array.isArray(body.errors)) {
           const rawErrors = body.errors as unknown;
           if (Array.isArray(rawErrors)) {
             errors = rawErrors.map((item) => {
@@ -71,7 +65,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
               return { message: String(item) };
             });
           }
-          message = (body.message as string | undefined) ?? message;
+        }
+        if (typeof body.message === 'string') {
+          message = body.message;
+        } else if (Array.isArray(body.message)) {
+          // AppValidationPipe returns array of {field,message}
+          errors = body.message.map((m) => ({ message: String(m) }));
+          message = 'Validation Error';
         }
 
         if (typeof body['errorCode'] === 'string') {

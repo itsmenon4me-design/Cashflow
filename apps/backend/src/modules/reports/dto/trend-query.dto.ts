@@ -1,3 +1,4 @@
+﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 import { IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -16,10 +17,10 @@ export class TrendQueryDto {
 
   @ApiPropertyOptional({
     description: 'Financial dataset currency scope for trend aggregation.',
-    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 }

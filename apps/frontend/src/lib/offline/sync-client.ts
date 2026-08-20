@@ -96,7 +96,7 @@ export async function syncCreateTransaction(
   const referenceNumber = randomUuid();
   const body = { ...payload, reference_number: referenceNumber };
 
-  if (typeof navigator === "undefined" || !navigator.onLine) {
+  if (typeof window === "undefined" || !navigator.onLine) {
     await syncController.enqueue({
       entityType: "transaction",
       entityId: referenceNumber,
@@ -150,7 +150,7 @@ export async function syncUpdateTransaction(
   id: string,
   payload: UpdateTransactionPayload,
 ): Promise<TransactionMutationResult> {
-  if (typeof navigator === "undefined" || !navigator.onLine) {
+  if (typeof window === "undefined" || !navigator.onLine) {
     await syncController.enqueue({
       entityType: "transaction",
       entityId: id,
@@ -186,7 +186,7 @@ export async function syncDeleteTransaction(
     console.log('[DELETE FLOW] syncDeleteTransaction called id=', id, 'navigator.onLine=', typeof navigator !== 'undefined' ? navigator.onLine : 'no-navigator');
   } catch (e) {}
 
-  if (typeof navigator === "undefined" || !navigator.onLine) {
+  if (typeof window === "undefined" || !navigator.onLine) {
     try {
       console.log('[DELETE FLOW] offline branch - enqueue delete id=', id);
     } catch (e) {}

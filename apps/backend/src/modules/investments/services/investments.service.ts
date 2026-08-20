@@ -73,13 +73,20 @@ export class InvestmentsService {
   private async resolveAccountCurrency(
     userId: string,
     accountId?: string | null,
+    expectedCurrency?: string | null,
   ): Promise<string> {
-    if (!accountId) return 'IDR';
+    if (!accountId) return expectedCurrency ?? 'IDR';
     const account = await this.prisma.account.findUnique({
       where: { id: accountId },
     });
     if (!account || account.deleted_at || account.user_id !== userId) {
       throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Invalid account');
+    }
+    if (expectedCurrency && account.currency !== expectedCurrency) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Investment currency must match its linked account currency',
+      );
     }
     return account.currency ?? 'IDR';
   }
@@ -90,8 +97,11 @@ export class InvestmentsService {
     currency?: string,
   ): Promise<InvestmentEntity> {
     const normalizedCurrency = currency ?? input.currency ?? undefined;
-    const resolvedCurrency = normalizedCurrency
+    const normalized = normalizedCurrency
       ? normalizeDashboardCurrency(normalizedCurrency) ?? 'IDR'
+      : undefined;
+    const resolvedCurrency = normalized
+      ? await this.resolveAccountCurrency(userId, input.account_id, normalized)
       : await this.resolveAccountCurrency(userId, input.account_id);
 
     const currencyToUse = resolvedCurrency;

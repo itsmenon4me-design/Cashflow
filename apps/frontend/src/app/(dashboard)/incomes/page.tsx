@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { accountService } from "@/services/account.service";
 import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { formatCurrency } from "@/lib/format";
+import { toInputDate, isoToLocalTime } from "@/lib/date";
 import { categoryService } from "@/services/category.service";
 import {
   findIdByName,
@@ -55,6 +56,7 @@ export default function Page() {
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
   const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
+  const [categoryTypes, setCategoryTypes] = useState<Record<string, ("INCOME" | "EXPENSE")[]>>({});
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit" | "view">("create");
@@ -73,6 +75,11 @@ export default function Page() {
       setAccountNames(Object.fromEntries(accounts.map((a) => [a.id, a.name])));
       setAccountCurrencies(Object.fromEntries(accounts.map((a) => [a.id, a.currency])));
       setCategoryNames(Object.fromEntries(categories.map((c) => [c.id, c.name])));
+      const typeLookup: Record<string, ("INCOME" | "EXPENSE")[]> = {};
+      for (const c of categories) {
+        (typeLookup[c.name] ??= []).push(c.type);
+      }
+      setCategoryTypes(typeLookup);
       setLookupsReady(true);
     })();
     return () => {
@@ -147,7 +154,22 @@ export default function Page() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const categoryOptions = useMemo(() => [...new Set(Object.values(categoryNames))].sort(), [categoryNames]);
+  const categoryOptions = useMemo(
+    () => [...new Set(Object.values(categoryNames))].sort(),
+    [categoryNames],
+  );
+  const incomeCategories = useMemo(
+    () =>
+      Object.entries(categoryTypes)
+        .filter(([, types]) => types.includes("INCOME"))
+        .map(([name]) => name)
+        .sort(),
+    [categoryTypes],
+  );
+  const incomeCategoryGroups = useMemo(
+    () => (incomeCategories.length ? [{ label: uiText.transactions.typeIncome, items: incomeCategories }] : []),
+    [incomeCategories],
+  );
   const accountOptions = useMemo(() => [...new Set(Object.values(accountNames))].sort(), [accountNames]);
   const accountCurrencyByName = useMemo(() => {
     const map: Record<string, string> = {};
@@ -243,6 +265,7 @@ export default function Page() {
   const handleDuplicate = async (transaction: TransactionItem) => {
     const values: TransactionFormValues = {
       date: transaction.date,
+      time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
       type: transaction.type,
       category: transaction.category,
       account: transaction.account,
@@ -275,7 +298,8 @@ export default function Page() {
   return (
     <div className="space-y-6">
         <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Pemasukan</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">{uiText.navigation.income}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{uiText.transactions.incomeSubtitle}</p>
       </div>
 
       <TransactionToolbar
@@ -287,7 +311,7 @@ export default function Page() {
 
       <TransactionFilters
         filters={filters}
-        categories={categoryOptions}
+        categoryGroups={incomeCategoryGroups}
         accounts={accountOptions}
         onChange={handleFiltersChange}
         onReset={handleResetFilters}
@@ -338,10 +362,11 @@ export default function Page() {
         mode={formMode}
         transaction={formTransaction}
         categories={categoryOptions}
+        categoryTypes={categoryTypes}
         accounts={accountOptions}
         accountCurrencyByName={accountCurrencyByName}
         transactionType={"income"}
-        initialValues={{ date: new Date().toISOString().slice(0, 10), type: "income" }}
+        initialValues={{ date: toInputDate(new Date()), type: "income" }}
         onSubmit={(v) => void handleFormSubmit(v)}
       />
 

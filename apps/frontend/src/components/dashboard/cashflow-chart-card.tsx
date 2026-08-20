@@ -3,16 +3,17 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrencyCents, formatCompactCurrency } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { CashFlowPoint } from "@/types/dashboard";
 import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 
 interface CashflowChartCardProps {
   data: CashFlowPoint[];
+  currency?: string;
 }
 
-export function CashflowChartCard({ data }: CashflowChartCardProps) {
+export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 px-5">
@@ -51,10 +52,10 @@ export function CashflowChartCard({ data }: CashflowChartCardProps) {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  tickFormatter={(value) => `${Number(value) / 1000000}jt`}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
                 />
                 <Tooltip
-                  content={<ChartTooltip valueFormatter={(value) => formatCurrency(Number(value))} />}
+                  content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
                   cursor={{ stroke: "var(--border)" }}
                 />
                 <Area

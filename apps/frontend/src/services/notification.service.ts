@@ -44,6 +44,8 @@ export interface NotificationListParams {
   limit?: number;
   unread?: boolean;
   type?: NotificationType;
+  /** Ledger currency scope: only notifications carrying this currency. */
+  currency?: string;
 }
 
 export interface NotificationListResult {
@@ -59,6 +61,7 @@ export const notificationService = {
     };
     if (params.unread !== undefined) query.unread = String(params.unread);
     if (params.type) query.type = params.type;
+    if (params.currency) query.currency = params.currency;
 
     const body = await apiClient.get<NotificationListBody>("/notifications", { params: query });
     return {

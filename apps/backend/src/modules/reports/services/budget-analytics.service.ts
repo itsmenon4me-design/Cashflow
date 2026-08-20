@@ -63,8 +63,11 @@ export class BudgetAnalyticsService {
     year: number,
     currency?: string,
   ): Promise<BudgetRow[]> {
+    // Strict ledger isolation: legacy budgets without a currency are treated as
+    // unmapped data and are excluded from analysis. They must be backfilled or
+    // migrated to a real currency before they can participate in a ledger scope.
     const currencyFilter = currency
-      ? Prisma.sql`AND (b.currency = ${currency} OR b.currency IS NULL)`
+      ? Prisma.sql`AND b.currency = ${currency}`
       : Prisma.empty;
     return this.prisma.$queryRaw<BudgetRow[]>(
       Prisma.sql`
@@ -110,12 +113,7 @@ export class BudgetAnalyticsService {
       selectedCurrency ?? defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     // budgets (explicit scope only: legacy NULL budgets match any scope)
-    const budgets = await this.fetchBudgets(
-      userId,
-      m,
-      y,
-      selectedCurrency ?? undefined,
-    );
+    const budgets = await this.fetchBudgets(userId, m, y, targetCurrency);
 
     // transactions
     const groups = await this.prisma.transaction

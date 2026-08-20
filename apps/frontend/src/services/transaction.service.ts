@@ -1,5 +1,6 @@
 ﻿import { apiClient } from "@/lib/axios";
 import { withOfflineCache } from "@/lib/offline/read-cache";
+import { inputDateTimeToIso, isoToInputDate } from "@/lib/date";
 import { toMajorUnits, toMinorUnits } from "@/lib/money";
 import type {
   PaginatedTransactionResponse,
@@ -65,7 +66,7 @@ export function toTransactionItem(
 ): TransactionItem {
   return {
     id: dto.id,
-    date: dto.transaction_date.slice(0, 10),
+    date: isoToInputDate(dto.transaction_date),
     dateTime: dto.transaction_date,
     category: findNameById(categoryNames, dto.category_id),
     description: dto.note ?? "",
@@ -79,6 +80,7 @@ export function toTransactionItem(
 
 interface CreateFormValues {
   date: string;
+  time?: string;
   type: TransactionType;
   category: string;
   account: string;
@@ -114,7 +116,8 @@ export function toCreateTransactionPayload(
       values.amount,
       accountCurrency(values, accountNames, accountCurrencies),
     ),
-    transaction_date: values.date,
+    // Local wall time -> UTC instant: the database stores UTC, the UI renders local.
+    transaction_date: inputDateTimeToIso(values.date, values.time),
     ...(note ? { note } : {}),
   };
 }
@@ -142,7 +145,7 @@ export function toUpdateTransactionPayload(
       values.amount,
       accountCurrency(values, accountNames, accountCurrencies),
     ),
-    transaction_date: values.date,
+    transaction_date: inputDateTimeToIso(values.date, values.time),
     ...(note ? { note } : {}),
   };
 }
@@ -159,6 +162,13 @@ export const transactionService = {
       `list:${JSON.stringify(merged)}`,
       () => apiClient.get<PaginatedTransactionResponse>("/transactions", { params: { ...merged } }),
     );
+  },
+
+  search: (q: string, currency?: string): Promise<PaginatedTransactionResponse> => {
+    // Global search must span all currencies; only scope when explicitly requested.
+    return apiClient.get<PaginatedTransactionResponse>("/transactions/search", {
+      params: { q, limit: 5, ...(currency ? { currency } : {}) },
+    });
   },
 
   create: (payload: CreateTransactionPayload, currency?: string): Promise<TransactionDTO> => {

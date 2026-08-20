@@ -33,8 +33,8 @@ describe("dashboard context widgets", () => {
           {
             id: "monthly-target-1",
             name: "Savings Goal",
-            target: 1000,
-            realized: 500,
+            target: 100000,
+            realized: 50000,
           },
         ]}
       />,

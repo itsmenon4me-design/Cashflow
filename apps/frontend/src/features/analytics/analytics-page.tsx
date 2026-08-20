@@ -20,6 +20,7 @@ import {
   type ReportRange,
 } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import {
   analyticsService,
@@ -158,8 +159,8 @@ export function AnalyticsPage() {
     () =>
       (cashflow?.trend ?? []).map((t) => ({
         month: t.period,
-      income: fromCents(t.income, displayCurrency),
-      expense: fromCents(t.expense, displayCurrency),
+      income: Number(t.income),
+      expense: Number(t.expense),
       })),
     [cashflow]
   );
@@ -167,7 +168,7 @@ export function AnalyticsPage() {
   const expenseSlices = useMemo<CategorySlice[]>(
     () =>
       (expenses?.categories ?? []).map((c) => ({
-        name: c.categoryName ?? "-",
+        name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
       amount: fromCents(c.totalAmount, displayCurrency),
       })),
@@ -279,10 +280,10 @@ export function AnalyticsPage() {
             />
           </div>
 
-          <CashflowTrendChart data={cashflow?.trend ?? []} loading={loading} />
+          <CashflowTrendChart data={cashflow?.trend ?? []} loading={loading} currency={activeCurrency} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <IncomeExpenseChartCard data={cashFlowData} />
+            <IncomeExpenseChartCard data={cashFlowData} currency={activeCurrency} />
             <CategoryBreakdownCard
               title={uiText.analytics.categoryTitle}
               subtitle={uiText.analytics.categorySubtitle}

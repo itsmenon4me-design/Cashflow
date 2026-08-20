@@ -33,25 +33,8 @@ services:
       - ../apps/frontend:/app/apps/frontend:cached
       - /app/node_modules
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT}:3000"
     command: ["npm", "run", "dev", "-w", "frontend"]
     depends_on:
       backend:
         condition: service_healthy
-
-        services:
-  postgres:
-    ports:
-      - "55432:5432"
-
-  backend:
-    ports:
-      - "3101:3001"
-
-  frontend:
-    ports:
-      - "3100:3000"
-
-  nginx:
-    ports:
-      - "8080:80"

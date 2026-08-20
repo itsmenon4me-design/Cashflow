@@ -1,10 +1,5 @@
-﻿import { Suspense } from "react";
-import { TransactionsPage } from "@/features/transactions/transactions-page";
+﻿import { TransactionsPage } from "@/features/transactions/transactions-page";
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <TransactionsPage />
-    </Suspense>
-  );
+  return <TransactionsPage />;
 }

@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { categoryIconInfo } from "@/features/categories/constants";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { CategoryItem } from "@/services/category.service";
@@ -78,7 +79,7 @@ export function CategoryTable({
                           <Icon className="size-4" />
                         </span>
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate font-medium">{category.name}</span>
+                          <span className="truncate font-medium">{categoryLabel(category.name)}</span>
                           <span className="text-xs text-muted-foreground">{category.type}</span>
                         </span>
                       </span>

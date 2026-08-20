@@ -72,8 +72,8 @@ describe("SpendingPredictionCard", () => {
     expect(
       screen.getAllByText((_, element) => (element?.textContent ?? "").includes(locales.id.forecast.spendingPeriodLabel)).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/Food/i)).toBeInTheDocument();
-    expect(screen.getByText(/Transport/i)).toBeInTheDocument();
+    expect(screen.getByText(/Makanan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Transportasi/i)).toBeInTheDocument();
     // 1,500,000 / 750,000 IDR minor units must render as Rp1.500.000 / Rp750.000,
     // never the old /100 "15.000" / "7.500" artifact.
     expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes(foodValue)).length).toBeGreaterThan(0);

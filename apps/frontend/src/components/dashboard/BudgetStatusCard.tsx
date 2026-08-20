@@ -5,7 +5,7 @@ import { ReceiptText, TriangleAlert } from "lucide-react";
 import { BudgetProgress } from "@/components/budgets/BudgetProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatMoney } from "@/lib/format";
+import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { BudgetWidget } from "@/services/dashboard.service";
 
@@ -46,19 +46,19 @@ export function BudgetStatusCard({ data, loading = false }: BudgetStatusCardProp
                 <div>
                   <p className="text-[11px] text-muted-foreground">{uiText.budgets.totalBudget}</p>
                   <p className="font-semibold text-foreground">
-                    {formatMoney(Math.round(overall.budget))}
+                    {formatCurrencyCents(Math.round(overall.budget))}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">{uiText.budgets.totalSpent}</p>
                   <p className="font-semibold text-foreground">
-                    {formatMoney(Math.round(overall.spent))}
+                    {formatCurrencyCents(Math.round(overall.spent))}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">{uiText.budgets.remaining}</p>
                   <p className="font-semibold text-foreground">
-                    {formatMoney(Math.round(Math.max(0, overall.budget - overall.spent)))}
+                    {formatCurrencyCents(Math.round(Math.max(0, overall.budget - overall.spent)))}
                   </p>
                 </div>
               </div>

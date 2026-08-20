@@ -3,6 +3,7 @@ import type {
   InvestmentStatus,
   InvestmentType,
 } from '../entities/investment.entity';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class InvestmentResponseDto {
   @ApiProperty()
@@ -11,7 +12,7 @@ export class InvestmentResponseDto {
   @ApiPropertyOptional()
   account_id?: string | null;
 
-  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  @ApiPropertyOptional({ enum: SUPPORTED_CURRENCIES })
   currency?: string | null;
 
   @ApiProperty()

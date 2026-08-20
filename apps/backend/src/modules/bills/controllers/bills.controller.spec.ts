@@ -234,6 +234,7 @@ describe('BillsController (security)', () => {
     expect(billsServiceMock.softDelete).toHaveBeenCalledWith(
       'user-auth',
       billId,
+      undefined,
     );
   });
 

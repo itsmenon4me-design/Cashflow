@@ -93,21 +93,24 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
   async findByReferenceNumber(
     userId: string,
     referenceNumber: string,
+    currency?: string,
   ): Promise<TransactionEntity | null> {
-    const rec = await this.prisma.transaction.findFirst({
-      where: {
-        user_id: userId,
-        reference_number: referenceNumber,
-        deleted_at: null,
-      },
-    });
+    const where: Prisma.TransactionWhereInput = {
+      user_id: userId,
+      reference_number: referenceNumber,
+      deleted_at: null,
+    };
+    if (currency) where.account = { currency };
+    const rec = await this.prisma.transaction.findFirst({ where });
     if (!rec) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string): Promise<TransactionEntity[]> {
+  async findAllByUser(userId: string, currency?: string): Promise<TransactionEntity[]> {
+    const where: Prisma.TransactionWhereInput = { user_id: userId, deleted_at: null };
+    const whereWithCurrency = currency ? { AND: [where, { account: { currency } }] } : where;
     const recs: TxRec[] = await this.prisma.transaction.findMany({
-      where: { user_id: userId, deleted_at: null },
+      where: whereWithCurrency,
       orderBy: { transaction_date: 'desc' },
     });
     return recs.map((r: TxRec) => this.map(r));

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { notificationService } from "@/services/notification.service";
 import { useAuthStore } from "@/stores/auth.store";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { NotificationItem } from "@/types/notification";
 
 interface NotificationState {
@@ -48,7 +49,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     try {
       const [unreadCount, list] = await Promise.all([
         notificationService.unreadCount(),
-        notificationService.list({ page: 1, limit: 5 }),
+        notificationService.list({
+          page: 1,
+          limit: 5,
+          currency: useDashboardCurrencyStore.getState().currency,
+        }),
       ]);
       set({ unreadCount, recent: list.items, initialized: true, loading: false, error: false });
     } catch {

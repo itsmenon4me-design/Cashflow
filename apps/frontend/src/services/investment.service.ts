@@ -1,5 +1,5 @@
-import { apiClient } from "@/lib/axios";
-import { toMajorUnits } from "@/lib/money";
+﻿import { apiClient } from "@/lib/axios";
+import { toMajorUnits, type SupportedCurrency } from "@/lib/money";
 
 export type InvestmentType =
   | "Stock"
@@ -13,7 +13,7 @@ export type InvestmentType =
 
 export type InvestmentStatus = "ACTIVE" | "SOLD" | "CLOSED";
 
-export type SupportedEntityCurrency = "USD" | "IDR" | "SGD" | "EUR";
+export type SupportedEntityCurrency = SupportedCurrency;
 
 export interface CreateInvestmentPayload {
   account_id?: string;

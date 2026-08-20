@@ -5,5 +5,6 @@ export interface IDashboardRepository {
     userId: string,
     monthStart: Date,
     monthEnd: Date,
+    currency?: string,
   ): Promise<DashboardSummaryResponseDto>;
 }

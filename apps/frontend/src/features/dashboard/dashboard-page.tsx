@@ -18,6 +18,7 @@ import { FinancialHealthCard } from "@/components/analytics/financial-health-car
 import { dashboardKpis } from "@/lib/mock-data";
 import { formatCurrencyCents } from "@/lib/format";
 import { normalizeDashboardCurrency, type DashboardCurrency } from "@/lib/dashboard-currency";
+import { categoryLabel } from "@/lib/categories";
 import {
   hydrateDashboardCurrency,
   useDashboardCurrencyStore,
@@ -145,6 +146,7 @@ export function DashboardPage() {
     let cancelled = false;
 
     const load = async () => {
+      try { console.log('[DashboardPage] load start activeCurrency=', activeCurrency); } catch (e) {}
       setHealth(null);
       setHealthError(false);
       setDataLoaded(false);
@@ -209,7 +211,7 @@ export function DashboardPage() {
               setMonthlyTargets(
                 (analysis.categories ?? []).map((item) => ({
                   id: item.categoryId,
-                  name: item.categoryName || "Lainnya",
+                  name: categoryLabel(item.categoryName || "Lainnya"),
                   target: item.budgetAmount,
                   realized: item.spentAmount,
                 })),
@@ -253,6 +255,7 @@ export function DashboardPage() {
           }),
       ]).finally(() => {
         if (!cancelled) {
+          try { console.log('[DashboardPage] load finished, setting dataLoaded=true'); } catch (e) {}
           setDataLoaded(true);
         }
       });
@@ -306,7 +309,7 @@ export function DashboardPage() {
 
       {/* Reduced clutter: place cashflow chart and category distribution together; CashFlowCard moved below to reduce KPI competition */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <CashflowChartCard data={flowSeries.cashFlow} />
+        <CashflowChartCard data={flowSeries.cashFlow} currency={activeCurrency} />
         <CategoryDistributionCard data={categories} currency={activeCurrency} />
       </section>
 
@@ -320,7 +323,7 @@ export function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <IncomeExpenseChartCard data={flowSeries.flow} />
+        <IncomeExpenseChartCard data={flowSeries.flow} currency={activeCurrency} />
         {healthError ? (
           <ErrorState
             title={uiText.states.errorTitle}

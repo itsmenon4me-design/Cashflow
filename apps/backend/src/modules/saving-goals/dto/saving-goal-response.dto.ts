@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { SavingGoalStatus } from '../entities/saving-goal.entity';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class SavingGoalResponseDto {
   @ApiProperty()
@@ -14,7 +15,7 @@ export class SavingGoalResponseDto {
   @ApiPropertyOptional()
   category_id?: string | null;
 
-  @ApiPropertyOptional({ enum: ['IDR', 'USD', 'SGD', 'EUR'] })
+  @ApiPropertyOptional({ enum: SUPPORTED_CURRENCIES })
   currency?: string | null;
 
   @ApiProperty()

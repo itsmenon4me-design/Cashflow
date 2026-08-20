@@ -29,6 +29,7 @@ import {
   type SavingGoalFormValues,
 } from "@/features/saving-goals/schema";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import type { SavingGoalItem } from "@/services/saving-goal.service";
 
@@ -251,7 +252,7 @@ export function SavingGoalForm({
                         <SelectItem value="">—</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
-                            {category.name}
+                            {categoryLabel(category.name)}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { SUPPORTED_CURRENCIES } from '../../common/types/money';
 
-export const DASHBOARD_CURRENCIES = ['IDR', 'USD', 'SGD', 'EUR'] as const;
+export const DASHBOARD_CURRENCIES = SUPPORTED_CURRENCIES;
 export type DashboardCurrency = (typeof DASHBOARD_CURRENCIES)[number];
 
 export function normalizeDashboardCurrency(

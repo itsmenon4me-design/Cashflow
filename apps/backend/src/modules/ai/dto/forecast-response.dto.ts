@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class ForecastMonthDto {
   @ApiProperty({ description: 'Forecast period in YYYY-MM format' })
@@ -62,7 +63,7 @@ export class ForecastResponseDto {
   @ApiProperty({
     description:
       'ISO-4217 currency code the forecast is expressed in (all cents are minor units of this currency)',
-    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
   })
   currency: string;
 

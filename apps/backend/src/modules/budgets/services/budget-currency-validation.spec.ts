@@ -1,10 +1,10 @@
-import { validate } from 'class-validator';
+﻿import { validate } from 'class-validator';
 import { CreateBudgetDto } from '../dto/create-budget.dto';
 import { CreateSavingGoalDto } from '../../saving-goals/dto/create-saving-goal.dto';
 import { CreateInvestmentDto } from '../../investments/dto/create-investment.dto';
 
 describe('Multi-currency DTO validation', () => {
-  it.each(['USD', 'IDR', 'SGD', 'EUR'])(
+  it.each(['USD', 'IDR', 'SGD', 'EUR', 'JPY', 'VND'])(
     'accepts %s as a valid budget currency',
     async (currency) => {
       const dto = Object.assign(new CreateBudgetDto(), {
@@ -20,7 +20,7 @@ describe('Multi-currency DTO validation', () => {
     },
   );
 
-  it.each(['JPY', 'random string'])(
+  it.each(['KRW', 'random string'])(
     'rejects %s as invalid budget currency',
     async (currency) => {
       const dto = Object.assign(new CreateBudgetDto(), {
@@ -36,7 +36,7 @@ describe('Multi-currency DTO validation', () => {
     },
   );
 
-  it.each(['USD', 'IDR', 'SGD', 'EUR'])(
+  it.each(['USD', 'IDR', 'SGD', 'EUR', 'JPY', 'VND'])(
     'accepts %s as a valid saving goal currency',
     async (currency) => {
       const dto = Object.assign(new CreateSavingGoalDto(), {
@@ -52,7 +52,7 @@ describe('Multi-currency DTO validation', () => {
     },
   );
 
-  it.each(['JPY', 'random string'])(
+  it.each(['KRW', 'random string'])(
     'rejects %s as invalid saving goal currency',
     async (currency) => {
       const dto = Object.assign(new CreateSavingGoalDto(), {
@@ -68,7 +68,7 @@ describe('Multi-currency DTO validation', () => {
     },
   );
 
-  it.each(['USD', 'IDR', 'SGD', 'EUR'])(
+  it.each(['USD', 'IDR', 'SGD', 'EUR', 'JPY', 'VND'])(
     'accepts %s as a valid investment currency',
     async (currency) => {
       const dto = Object.assign(new CreateInvestmentDto(), {
@@ -87,7 +87,7 @@ describe('Multi-currency DTO validation', () => {
     },
   );
 
-  it.each(['JPY', 'random string'])(
+  it.each(['KRW', 'random string'])(
     'rejects %s as invalid investment currency',
     async (currency) => {
       const dto = Object.assign(new CreateInvestmentDto(), {

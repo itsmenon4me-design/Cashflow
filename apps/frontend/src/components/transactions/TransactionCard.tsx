@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionItem } from "@/types/dashboard";
@@ -123,14 +124,14 @@ export function TransactionCard({
               <p className="truncate text-sm font-medium text-foreground">
                 {transaction.description}
               </p>
-              <p className="truncate text-xs text-muted-foreground">{transaction.category}</p>
+              <p className="truncate text-xs text-muted-foreground">{categoryLabel(transaction.category)}</p>
             </div>
           </div>
           <TransactionStatusBadge status={transaction.status} />
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{formatTransactionDate(transaction.date)}</span>
+          <span>{formatTransactionDate(transaction.dateTime ?? transaction.date)}</span>
           <span className="flex min-w-0 items-center gap-1">
             <Landmark className="size-3.5 shrink-0" />
             <span className="truncate">{transaction.account}</span>

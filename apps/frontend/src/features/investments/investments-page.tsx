@@ -32,6 +32,7 @@ import {
   toInvestmentItem,
   type InvestmentItem,
   type InvestmentOverview,
+  type SupportedEntityCurrency,
 } from "@/services/investment.service";
 import type { AccountResponse } from "@/types/backend";
 
@@ -178,7 +179,7 @@ export function InvestmentsPage() {
 
   const itemCurrency = (
     values: InvestmentFormValues,
-  ): "USD" | "IDR" | "SGD" | "EUR" =>
+  ): SupportedEntityCurrency =>
     normalizeDashboardCurrency(
       values.accountId ? accountCurrencies[values.accountId] : undefined,
     ) ?? "USD";

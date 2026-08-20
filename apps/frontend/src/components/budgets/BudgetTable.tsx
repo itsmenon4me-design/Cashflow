@@ -17,6 +17,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MONTH_OPTIONS } from "@/features/budgets/constants";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { BudgetItem } from "@/services/budget.service";
@@ -139,7 +140,7 @@ export function BudgetTable({
                   <TableRow key={budget.id}>
                     <TableCell>
                       <span className="flex flex-col">
-                        <span className="truncate font-medium">{budget.categoryName}</span>
+                        <span className="truncate font-medium">{categoryLabel(budget.categoryName)}</span>
                         {over && <OverLine />}
                       </span>
                     </TableCell>
@@ -213,7 +214,7 @@ function BudgetCard({
     <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">{budget.categoryName}</p>
+          <p className="truncate text-sm font-medium text-foreground">{categoryLabel(budget.categoryName)}</p>
           <p className="text-xs text-muted-foreground">
             {monthLabel(budget.month)} {budget.year}
           </p>

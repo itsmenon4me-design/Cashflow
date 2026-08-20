@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { categoryIconInfo } from "@/features/categories/constants";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { CategoryItem } from "@/services/category.service";
@@ -109,7 +110,7 @@ export function CategoryCard({
             <Icon className="size-4" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{category.name}</p>
+            <p className="truncate text-sm font-medium text-foreground">{categoryLabel(category.name)}</p>
             <p className="truncate text-xs text-muted-foreground">
               {category.isSystem ? uiText.categories.system : uiText.categories.active}
             </p>

@@ -1,3 +1,4 @@
+﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 import {
   IsInt,
   Min,
@@ -44,10 +45,10 @@ export class CategoryBreakdownQueryDto {
 
   @ApiPropertyOptional({
     description: 'Financial dataset currency scope for report aggregation.',
-    enum: ['IDR', 'USD', 'SGD', 'EUR'],
+    enum: SUPPORTED_CURRENCIES,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 }

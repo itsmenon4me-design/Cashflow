@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionListParams } from "@/services/transaction.service";
@@ -152,7 +153,7 @@ export function TransactionTable({
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-lg bg-muted">
-                        {txn.category}
+                        {categoryLabel(txn.category)}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden max-w-56 truncate font-medium xl:table-cell">

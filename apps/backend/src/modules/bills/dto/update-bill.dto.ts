@@ -1,4 +1,4 @@
-﻿import {
+import {
   IsBoolean,
   IsDateString,
   IsIn,
@@ -11,6 +11,7 @@
   MinLength,
 } from 'class-validator';
 import { BILL_RECURRENCE_TYPES } from './create-bill.dto';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class UpdateBillDto {
   @IsOptional()
@@ -25,15 +26,15 @@ export class UpdateBillDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(3)
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   account_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   category_id?: string;
 
   @IsOptional()

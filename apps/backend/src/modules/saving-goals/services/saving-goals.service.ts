@@ -81,11 +81,20 @@ export class SavingGoalsService {
   async create(
     userId: string,
     input: CreateSavingGoalDto,
+    currencyParam?: string,
   ): Promise<SavingGoalEntity> {
+    const contextCurrency = currencyParam
+      ? normalizeDashboardCurrency(currencyParam)
+      : undefined;
     const currency = input.currency
       ? normalizeDashboardCurrency(input.currency)
-      : undefined;
-    await this.validateReferences(userId, input.account_id, input.category_id, currency);
+      : contextCurrency;
+    await this.validateReferences(
+      userId,
+      input.account_id,
+      input.category_id,
+      contextCurrency,
+    );
 
     const startDate = new Date(input.start_date);
     const targetDate = new Date(input.target_date);

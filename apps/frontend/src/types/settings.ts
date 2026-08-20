@@ -42,4 +42,6 @@ export interface UserSettingsPatch {
   financeBotSettings?: Partial<FinanceBotSettings> | null;
 }
 
-export const CURRENCY_OPTIONS = ["IDR", "USD", "SGD", "EUR"] as const;
+import { SUPPORTED_CURRENCIES } from "@/lib/money";
+
+export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES;

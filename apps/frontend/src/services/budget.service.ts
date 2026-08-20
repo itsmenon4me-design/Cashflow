@@ -1,8 +1,8 @@
 ﻿import { apiClient } from "@/lib/axios";
 import { withOfflineCache } from "@/lib/offline/read-cache";
-import { toMajorUnits } from "@/lib/money";
+import { toMajorUnits, type SupportedCurrency } from "@/lib/money";
 
-export type SupportedEntityCurrency = "USD" | "IDR" | "SGD" | "EUR";
+export type SupportedEntityCurrency = SupportedCurrency;
 
 export interface CreateBudgetPayload {
   category_id: string;

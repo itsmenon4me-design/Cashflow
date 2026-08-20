@@ -15,6 +15,8 @@ export interface ForecastOptions {
   horizon?: number;
   startDate?: string;
   endDate?: string;
+  /** Ledger currency scope. When omitted the primary account currency is used. */
+  currency?: string;
 }
 
 @Injectable()
@@ -40,14 +42,18 @@ export class ForecastService {
     const now = this.clock();
     const window = this.engine.buildHistoryWindow(now, timezone, options);
 
-    // Resolve target currency (primary/default account currency) to avoid mixing multi-currency amounts
+    // Resolve target currency (requested ledger scope, else primary/default
+    // account currency) to avoid mixing multi-currency amounts
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },
     });
     const defaultAcc = accounts.find((a) => a.is_default);
     const targetCurrency =
-      defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+      options?.currency ??
+      defaultAcc?.currency ??
+      accounts[0]?.currency ??
+      'IDR';
     try {
       getCurrencySpec(targetCurrency);
     } catch {

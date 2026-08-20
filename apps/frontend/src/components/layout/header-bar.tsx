@@ -35,9 +35,10 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { useThemeStore } from "@/stores/theme.store";
+import { useDataRefreshStore } from "@/stores/refresh.store";
 import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { formatRelativeTime } from "@/features/notifications/relative-time";
-import { usePathname } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   hydrateDashboardCurrency,
@@ -89,6 +90,27 @@ export function HeaderBar() {
     }
   }, [initialized, fetch]);
 
+  // Near-realtime notifications: poll periodically, refresh on window focus,
+  // and refetch whenever any global data refresh is triggered (e.g. new transaction).
+  const dataVersion = useDataRefreshStore((state) => state.version);
+  useEffect(() => {
+    const isAuthed = () => useAuthStore.getState().isAuthenticated;
+    const refresh = () => {
+      if (isAuthed()) {
+        void fetch();
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(refresh, 30000);
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [dataVersion, fetch]);
+
   const handleLogout = () => {
     void authService.logout().catch(() => undefined);
     logout();
@@ -114,8 +136,6 @@ export function HeaderBar() {
     : "";
 
   // Dashboard currency selector hooks (top-level hooks only)
-  const pathname = usePathname();
-  const showQuickAdd = pathname === "/" || pathname?.startsWith("/dashboard");
   const currency = useDashboardCurrencyStore((s) => s.currency);
   const setCurrency = useDashboardCurrencyStore((s) => s.setCurrency);
 
@@ -138,19 +158,7 @@ export function HeaderBar() {
           <span className="text-sm font-semibold">CashFlow</span>
         </Link>
 
-        <div className="relative hidden w-full max-w-md flex-1 md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="rounded-xl bg-card pl-9"
-            placeholder={uiText.common.searchPlaceholder}
-            aria-label={uiText.common.searchAriaLabel}
-            value={headerSearch}
-            onChange={(event) => setHeaderSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") submitHeaderSearch();
-            }}
-          />
-        </div>
+        <GlobalSearch />
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Button
@@ -268,7 +276,7 @@ export function HeaderBar() {
             {safeMode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          {/* Header slot: always show dashboard currency selector. Quick Add should not be in header per design. */}
+          {/* Header slot: dashboard currency selector everywhere (Quick Add is not in the header per design) */}
           <div className="flex items-center">
             <Select value={currency} onValueChange={(v) => setCurrency(v)}>
               <SelectTrigger className="h-9 w-28 rounded-xl border border-border bg-card px-3 text-sm">

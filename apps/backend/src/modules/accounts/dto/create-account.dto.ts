@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import type { AccountType } from '../entities/account.entity';
+import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class CreateAccountDto {
   @ApiProperty({ description: 'Account name' })
@@ -40,7 +41,7 @@ export class CreateAccountDto {
 
   @ApiProperty({ description: 'Currency (ISO code)', default: 'IDR' })
   @IsOptional()
-  @IsIn(['IDR', 'USD', 'SGD', 'EUR'])
+  @IsIn(SUPPORTED_CURRENCIES as string[])
   currency?: string = 'IDR';
 
   @ApiProperty({
