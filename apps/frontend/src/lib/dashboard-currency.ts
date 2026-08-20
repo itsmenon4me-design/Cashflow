@@ -1,5 +1,7 @@
-export const DASHBOARD_CURRENCIES = ['IDR', 'USD', 'SGD', 'EUR'] as const;
-export type DashboardCurrency = (typeof DASHBOARD_CURRENCIES)[number];
+import { DASHBOARD_CURRENCIES as SHARED_DASHBOARD_CURRENCIES, SupportedCurrency } from '../../../backend/src/common/currencies';
+
+export const DASHBOARD_CURRENCIES = SHARED_DASHBOARD_CURRENCIES;
+export type DashboardCurrency = SupportedCurrency;
 
 export function normalizeDashboardCurrency(
   currency?: string | null,

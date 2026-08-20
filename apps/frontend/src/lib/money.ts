@@ -9,34 +9,20 @@
  * Currency specification for frontend.
  * Mirrors backend structure but optimized for browser usage.
  */
-export interface CurrencySpec {
-  code: string;
-  minorUnits: number;
-  primaryLocale: string;
-}
+import { CURRENCY_SPECS as SHARED_CURRENCY_SPECS, getCurrencySpec as getCurrencySpecShared, SupportedCurrency as SharedSupportedCurrency, CurrencySpec as SharedCurrencySpec } from "../../../backend/src/common/currencies";
 
-export const CURRENCY_SPECS: Record<string, CurrencySpec> = {
-  IDR: {
-    code: 'IDR',
-    minorUnits: 0,
-    primaryLocale: 'id-ID',
-  },
-  USD: {
-    code: 'USD',
-    minorUnits: 2,
-    primaryLocale: 'en-US',
-  },
-  SGD: {
-    code: 'SGD',
-    minorUnits: 2,
-    primaryLocale: 'en-SG',
-  },
-  EUR: {
-    code: 'EUR',
-    minorUnits: 2,
-    primaryLocale: 'de-DE',
-  },
-};
+export type CurrencySpec = SharedCurrencySpec;
+export const CURRENCY_SPECS: Record<string, CurrencySpec> = SHARED_CURRENCY_SPECS;
+
+/** Union of every supported ISO-4217 code. */
+export type SupportedCurrency = SharedSupportedCurrency;
+
+/** Every ISO-4217 code the app can display/format. */
+export const SUPPORTED_CURRENCIES: readonly string[] = Object.keys(CURRENCY_SPECS);
+
+export function getCurrencySpec(code: string | undefined): CurrencySpec {
+  return getCurrencySpecShared(code);
+}
 
 export function getCurrencySpec(code: string | undefined): CurrencySpec {
   if (!code) {

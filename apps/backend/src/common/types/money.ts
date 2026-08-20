@@ -14,74 +14,28 @@
  * - SGD (Singapore Dollar): 2 decimal places
  * - EUR (Euro): 2 decimal places
  */
-export interface CurrencySpec {
-  /** ISO 4217 currency code */
-  code: string;
+import { CurrencySpec as SharedCurrencySpec, CURRENCY_SPECS as SHARED_CURRENCY_SPECS, getCurrencySpec as getCurrencySpecShared, SupportedCurrency as SharedSupportedCurrency, SUPPORTED_CURRENCIES as SHARED_SUPPORTED_CURRENCIES } from '../currencies';
 
-  /** Number of decimal places in this currency (minor units per major unit) */
-  minorUnits: number;
-
-  /** Currency symbol for display */
-  symbol: string;
-
-  /**
-   * Locales where this currency is primarily used.
-   * First entry is the primary locale for formatting.
-   */
-  primaryLocale: string;
-
-  /** Whether this currency has standardized cents/minor units */
-  hasMinorUnits: boolean;
-}
+export type CurrencySpec = SharedCurrencySpec;
 
 /**
  * Supported currency specifications.
  *
  * Critical for determining how to parse, store, and format monetary values.
  */
-export const CURRENCY_SPECS: Record<string, CurrencySpec> = {
-  IDR: {
-    code: 'IDR',
-    minorUnits: 0, // IDR has NO decimal places - no cents exist
-    symbol: 'Rp',
-    primaryLocale: 'id-ID',
-    hasMinorUnits: false,
-  },
-  USD: {
-    code: 'USD',
-    minorUnits: 2, // USD has 2 decimal places (cents)
-    symbol: '$',
-    primaryLocale: 'en-US',
-    hasMinorUnits: true,
-  },
-  SGD: {
-    code: 'SGD',
-    minorUnits: 2, // SGD has 2 decimal places (cents)
-    symbol: 'S$',
-    primaryLocale: 'en-SG',
-    hasMinorUnits: true,
-  },
-  EUR: {
-    code: 'EUR',
-    minorUnits: 2, // EUR has 2 decimal places (cents)
-    symbol: '€',
-    primaryLocale: 'de-DE',
-    hasMinorUnits: true,
-  },
-};
+export const CURRENCY_SPECS: Record<string, CurrencySpec> = SHARED_CURRENCY_SPECS;
+
+/** Every ISO-4217 code the backend accepts/stores/aggregates. */
+export const SUPPORTED_CURRENCIES: readonly string[] = SHARED_SUPPORTED_CURRENCIES;
+
+/** Union of every supported ISO-4217 code. */
+export type SupportedCurrency = SharedSupportedCurrency;
 
 /**
  * Get currency specification, with fallback to default (IDR).
  */
 export function getCurrencySpec(code: string | undefined): CurrencySpec {
-  if (!code) {
-    return CURRENCY_SPECS.IDR;
-  }
-  const spec = CURRENCY_SPECS[code.toUpperCase()];
-  if (!spec) {
-    throw new Error(`Unsupported currency: ${code}`);
-  }
-  return spec;
+  return getCurrencySpecShared(code);
 }
 
 /**
