@@ -8,7 +8,8 @@ import {
   type TrendType,
 } from '../../reports/services/cashflow-trend.service';
 import { AnalyticsQueryDto } from '../dto/analytics-query.dto';
-import { CURRENCY_SPECS } from '../../../common/types/money';
+import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
+import { getCurrencySpec } from '../../../common/currencies';
 
 interface ResolvedRange {
   start: Date;
@@ -612,10 +613,11 @@ export class AnalyticsService {
     const insights: string[] = [];
     if (txCount === 0) return insights;
 
-    const fmt = (v: number) =>
-      new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(
-        Math.round(Math.abs(v)),
-      );
+    const locale = getCurrencySpec(targetCurrency).primaryLocale;
+      const fmt = (v: number) =>
+        new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+          Math.round(Math.abs(v)),
+        );
 
     if (income > 0 && prevIncome > 0) {
       const change = this.percentChange(income, prevIncome);
@@ -646,14 +648,13 @@ export class AnalyticsService {
       );
     }
 
-    const insightSymbol = CURRENCY_SPECS[targetCurrency]?.symbol ?? 'Rp';
     if (netCashFlow > 0) {
       insights.push(
-        `Arus kas bersih positif sebesar ${insightSymbol} ${fmt(netCashFlow)}.`,
+        `Arus kas bersih positif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), targetCurrency)}.`,
       );
     } else if (netCashFlow < 0) {
       insights.push(
-        `Arus kas bersih negatif sebesar −${insightSymbol} ${fmt(netCashFlow)}.`,
+        `Arus kas bersih negatif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), targetCurrency)}.`,
       );
     }
 
