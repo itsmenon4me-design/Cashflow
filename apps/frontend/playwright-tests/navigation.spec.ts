@@ -104,11 +104,15 @@ test('navigation matrix - direct URL and client navigation', async ({ browser })
       await page2.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 60000 });
     } catch (e) {}
 
-    // attempt to click a link to the route
+    // attempt to click a link to the route (wait for a visible element to avoid hitting hidden/mobile-only anchors)
     try {
-      await page2.click(`a[href='${route}']`, { timeout: 5000 });
+      await page2.waitForSelector(`a[href='${route}']`, { state: 'visible', timeout: 10000 });
+      await page2.locator(`a[href='${route}']`).first().click({ timeout: 10000 });
     } catch (e) {
-      try { await page2.click(`[data-route='${route}']`, { timeout: 3000 }); } catch (e2) {}
+      try {
+        await page2.waitForSelector(`[data-route='${route}']`, { state: 'visible', timeout: 10000 });
+        await page2.locator(`[data-route='${route}']`).first().click({ timeout: 10000 });
+      } catch (e2) {}
     }
 
     try {
