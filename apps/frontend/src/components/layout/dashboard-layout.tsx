@@ -45,11 +45,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useGlobalAutoRefresh();
 
   useEffect(() => {
-    try { console.log('[DashboardLayout] mount'); } catch(e) {}
-    return () => { try { console.log('[DashboardLayout] unmount'); } catch(e) {} };
+    return () => {};
   }, []);
 
-  try { console.log('[DashboardLayout] rendering children, mobileOpen=', mobileOpen); } catch(e) {}
 
   return (
     <TooltipProvider delayDuration={200}>

@@ -20,19 +20,13 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }, []);
 
   useEffect(() => {
-    // Debug: log auth state transitions
-    try { console.log('[RequireAuth] mounted=', mounted, 'isAuthenticated=', isAuthenticated); } catch(e) {}
     if (mounted && !isAuthenticated) {
-      console.log('[RequireAuth] not authenticated, redirecting to /login');
       router.replace("/login");
     }
   }, [mounted, isAuthenticated, router]);
 
   if (!mounted || !isAuthenticated) {
-    try { console.log('[RequireAuth] returning null (suspending render) mounted=', mounted, 'isAuthenticated=', isAuthenticated); } catch(e) {}
     return null;
   }
-
-  try { console.log('[RequireAuth] rendering children'); } catch(e) {}
   return <>{children}</>;
 }

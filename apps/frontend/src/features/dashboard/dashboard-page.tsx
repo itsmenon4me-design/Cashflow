@@ -146,10 +146,10 @@ export function DashboardPage() {
     let cancelled = false;
 
     const load = async () => {
-      try { console.log('[DashboardPage] load start activeCurrency=', activeCurrency); } catch (e) {}
       setHealth(null);
       setHealthError(false);
-      setDataLoaded(false);
+      // Keep current page content visible while new data loads to avoid a full-page blank flash.
+      // We will set dataLoaded=true when the fetches complete.
 
       const now = new Date();
 
