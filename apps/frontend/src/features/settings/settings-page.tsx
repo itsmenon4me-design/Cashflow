@@ -91,12 +91,15 @@ export function SettingsPage() {
   const { theme, setTheme } = useThemeStore();
   const user = useAuthStore((state) => state.user);
   const setUiLanguage = useLanguageStore((state) => state.setLanguage);
+  const currentLanguage = useLanguageStore((state) => state.language);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [language, setLanguageDraft] = useState<LanguagePreference>('id');
+  // Use the global language store as the single source of truth. Avoid local drafts
+  // that can get out-of-sync with the shared language binding.
+  const language = currentLanguage;
   const [currency, setCurrencyDraft] = useState("IDR");
   const [preferences, setPreferences] =
     useState<NotificationPreferences>(DEFAULT_PREFS);
@@ -128,7 +131,8 @@ export function SettingsPage() {
       try {
         const settings = await settingsService.getSettings();
         if (cancelled) return;
-        setLanguageDraft(settings.language);
+        // Apply language immediately to the shared store so UI updates optimistically.
+        setUiLanguage(settings.language);
         setCurrencyDraft(settings.currency);
         setPreferences(settings.notificationPreferences);
         document.documentElement.lang = settings.language;
@@ -143,7 +147,7 @@ export function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, setUiLanguage]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 
@@ -157,7 +161,7 @@ export function SettingsPage() {
   };
 
   const handleLanguageChange = (value: LanguagePreference) => {
-    setLanguageDraft(value);
+    // Update shared store immediately (optimistic) and persist in background.
     setUiLanguage(value);
     persist({ language: value });
   };
