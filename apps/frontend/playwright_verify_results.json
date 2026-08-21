@@ -1,0 +1,91 @@
+[
+  {
+    "page": "/dashboard",
+    "navigated": true,
+    "visible": false,
+    "elapsed": 1783
+  },
+  {
+    "page": "/accounts",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 442
+  },
+  {
+    "page": "/incomes",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 508
+  },
+  {
+    "page": "/expenses",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 648
+  },
+  {
+    "page": "/transactions",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 395
+  },
+  {
+    "page": "/categories",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 562
+  },
+  {
+    "page": "/budgets",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 614
+  },
+  {
+    "page": "/goals",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 555
+  },
+  {
+    "page": "/investments",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 592
+  },
+  {
+    "page": "/reports",
+    "navigated": true,
+    "visible": false,
+    "elapsed": 1716
+  },
+  {
+    "page": "/analytics",
+    "navigated": true,
+    "visible": false,
+    "elapsed": 1669
+  },
+  {
+    "page": "/notifications",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 377
+  },
+  {
+    "page": "/settings",
+    "navigated": true,
+    "visible": true,
+    "elapsed": 384
+  },
+  {
+    "languageToggle": {
+      "page": "/settings",
+      "h1ChangedMs": 44,
+      "radioChangedMs": null,
+      "h1Before": "",
+      "h1After": "CashFlow",
+      "radioInitiallyChecked": false,
+      "radioFinallyChecked": false
+    }
+  }
+]

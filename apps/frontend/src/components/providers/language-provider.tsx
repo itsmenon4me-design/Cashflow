@@ -18,9 +18,10 @@ interface LanguageProviderProps {
  * 2. backend settings (authoritative) — reconciled once for authenticated
  *    sessions.
  *
- * The `key={language}` remount makes the whole tree re-render exactly once on
- * a language switch, which is what lets static `uiText.*` consumers flip to
- * the new language without a manual page refresh.
+ * This provider subscribes to the language store so it re-renders when the
+ * language changes without remounting the whole app tree. That keeps live user
+ * state (header, auth session, dashboard widgets, etc.) intact while the text
+ * bundle switches over to the new locale.
  */
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const language = useLanguageStore((state) => state.language);
@@ -46,5 +47,5 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     };
   }, [isAuthenticated, setLanguage]);
 
-  return <div key={language} className="contents">{children}</div>;
+  return <div data-language={language} className="contents">{children}</div>;
 }

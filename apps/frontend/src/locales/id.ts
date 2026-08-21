@@ -110,6 +110,7 @@ export const idText = {
     unread: "Belum dibaca",
     read: "Sudah dibaca",
     empty: "Belum ada notifikasi.",
+    emptyDescription: "Notifikasi dan aktivitas akun Anda akan muncul di sini.",
     rowsPerPage: "Baris per halaman",
   },
   time: {

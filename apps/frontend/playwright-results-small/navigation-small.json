@@ -1,0 +1,136 @@
+[
+  {
+    "route": "/transactions",
+    "direct": {
+      "url": "http://localhost:3000/login",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results-small\\direct-_transactions.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/login",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results-small\\client-_transactions.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/notifications",
+    "direct": {
+      "url": "http://localhost:3000/login",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results-small\\direct-_notifications.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/login",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results-small\\client-_notifications.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        }
+      ],
+      "failedRequests": []
+    }
+  }
+]

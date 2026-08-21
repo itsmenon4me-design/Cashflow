@@ -1,0 +1,1199 @@
+[
+  {
+    "route": "/",
+    "direct": {
+      "url": "http://localhost:3000/",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-root.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-root.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/accounts",
+    "direct": {
+      "url": "http://localhost:3000/accounts",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_accounts.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/accounts",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_accounts.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/incomes",
+    "direct": {
+      "url": "http://localhost:3000/incomes",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_incomes.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/incomes",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_incomes.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/expenses",
+    "direct": {
+      "url": "http://localhost:3000/expenses",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_expenses.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/expenses",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_expenses.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/transactions",
+    "direct": {
+      "url": "http://localhost:3000/transactions",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_transactions.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/transactions",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_transactions.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/budgets",
+    "direct": {
+      "url": "http://localhost:3000/budgets",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_budgets.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/budgets",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_budgets.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/goals",
+    "direct": {
+      "url": "http://localhost:3000/goals",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_goals.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/goals",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_goals.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/investments",
+    "direct": {
+      "url": "http://localhost:3000/investments",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_investments.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/investments",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_investments.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/bills",
+    "direct": {
+      "url": "http://localhost:3000/bills",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_bills.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_bills.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/reports",
+    "direct": {
+      "url": "http://localhost:3000/reports",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_reports.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/reports",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_reports.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/analytics",
+    "direct": {
+      "url": "http://localhost:3000/analytics",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_analytics.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/analytics",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_analytics.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/dashboard",
+    "direct": {
+      "url": "http://localhost:3000/dashboard",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_dashboard.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/dashboard",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_dashboard.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/categories",
+    "direct": {
+      "url": "http://localhost:3000/categories",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_categories.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/categories",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_categories.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/notifications",
+    "direct": {
+      "url": "http://localhost:3000/notifications",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_notifications.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/notifications",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_notifications.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  },
+  {
+    "route": "/settings",
+    "direct": {
+      "url": "http://localhost:3000/settings",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\direct-_settings.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        }
+      ],
+      "failedRequests": []
+    },
+    "client": {
+      "url": "http://localhost:3000/settings",
+      "title": "CashFlow Enterprise",
+      "screenshot": "playwright-results\\client-_settings.png",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+        },
+        {
+          "type": "log",
+          "text": "[HMR] connected"
+        },
+        {
+          "type": "log",
+          "text": "[sync-client] syncController attached to window for diagnostics"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() already running, skipping"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+        },
+        {
+          "type": "log",
+          "text": "[sync] flush() nothing to do, status= synced"
+        },
+        {
+          "type": "log",
+          "text": "[DashboardPage] load finished, setting dataLoaded=true"
+        }
+      ],
+      "failedRequests": []
+    }
+  }
+]

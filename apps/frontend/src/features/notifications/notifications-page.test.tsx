@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useNotificationStore } from '@/stores/notification.store';
+import { useDashboardCurrencyStore } from '@/stores/dashboardCurrency.store';
 import { notificationService } from '@/services/notification.service';
 import { NotificationsPage } from './notifications-page';
 import { uiText } from '@/locales';
@@ -38,6 +39,7 @@ vi.mock('@/services/notification.service', () => ({
 
 describe('NotificationsPage', () => {
   beforeEach(() => {
+    useDashboardCurrencyStore.setState({ currency: 'USD', hydrated: true });
     useNotificationStore.setState({
       markRead: async () => {},
       markAllRead: async () => {},
@@ -46,7 +48,7 @@ describe('NotificationsPage', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('shows loading skeleton while notifications load', async () => {
@@ -68,6 +70,26 @@ describe('NotificationsPage', () => {
         items: [],
         pagination: { page: 1, limit: 20, totalItems: 0, totalPages: 0, hasNext: false, hasPrevious: false },
       });
+    });
+  });
+
+  it('waits for dashboard currency hydration before fetching notifications', async () => {
+    useDashboardCurrencyStore.setState({ currency: 'USD', hydrated: false });
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [],
+      pagination: { page: 1, limit: 20, totalItems: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+    });
+
+    render(<NotificationsPage />);
+
+    expect(notificationService.list).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useDashboardCurrencyStore.setState({ currency: 'USD', hydrated: true });
+    });
+
+    await waitFor(() => {
+      expect(notificationService.list).toHaveBeenCalled();
     });
   });
 
@@ -140,5 +162,18 @@ describe('NotificationsPage', () => {
     });
 
     expect(screen.getByText(uiText.notificationsPage.empty)).toBeInTheDocument();
+    expect(screen.getByText(uiText.notificationsPage.emptyDescription)).toBeInTheDocument();
   });
+
+  it('renders an error state when the notification API fails', async () => {
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network down'));
+
+    await act(async () => {
+      render(<NotificationsPage />);
+    });
+
+    expect(screen.getByText(uiText.states.errorTitle)).toBeInTheDocument();
+    expect(screen.getByText(uiText.states.errorDescription)).toBeInTheDocument();
+  });
+
 });

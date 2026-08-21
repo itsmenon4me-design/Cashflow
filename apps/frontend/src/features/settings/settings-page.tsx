@@ -238,11 +238,11 @@ export function SettingsPage() {
                 <RadioGroup value={language} onValueChange={(value) => handleLanguageChange(value as LanguagePreference)}>
                   <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
                     <Label htmlFor="lang-id" className="cursor-pointer">Indonesia</Label>
-                    <RadioGroupItem value="id" id="lang-id" />
+                    <RadioGroupItem value="id" id="lang-id" data-testid="lang-id" />
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
                     <Label htmlFor="lang-en" className="cursor-pointer">English</Label>
-                    <RadioGroupItem value="en" id="lang-en" />
+                    <RadioGroupItem value="en" id="lang-en" data-testid="lang-en" />
                   </div>
                 </RadioGroup>
               )}

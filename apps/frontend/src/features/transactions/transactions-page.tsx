@@ -219,8 +219,10 @@ export function TransactionsPage() {
           ),
         );
         setTotalItems(result.pagination.totalItems);
-        if (page > result.pagination.totalPages) {
-          setPage(result.pagination.totalPages);
+        // Ensure we never set page to less than 1 — backend validates page >= 1.
+        const totalPages = result.pagination.totalPages ?? 1;
+        if (page > totalPages) {
+          setPage(Math.max(1, totalPages));
         }
       } catch {
         if (!cancelled) {

@@ -227,7 +227,3 @@ input[type="number"] {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* Remove default focus outline on scrollbar thumbs but keep accessibility via focus-visible on elements */
-*::-webkit-scrollbar-thumb:focus {
-  outline: none;
-}

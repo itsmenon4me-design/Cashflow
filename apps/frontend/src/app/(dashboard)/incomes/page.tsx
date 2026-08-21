@@ -132,7 +132,8 @@ export default function Page() {
         if (cancelled) return;
         setTransactions(res.data.map((d: any) => toTransactionItem(d, accountNames, categoryNames, accountCurrencies)));
         setTotalItems(res.pagination.totalItems);
-        if (page > res.pagination.totalPages) setPage(res.pagination.totalPages);
+        const totalPages = res.pagination.totalPages ?? 1;
+        if (page > totalPages) setPage(Math.max(1, totalPages));
       } catch (e) {
         if (!cancelled) setError(true);
       } finally {

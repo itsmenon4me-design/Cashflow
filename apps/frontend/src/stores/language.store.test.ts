@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { createElement } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createElement, useEffect } from "react";
 import { uiText, locales } from "@/locales";
 import { hydrateLanguagePreference, useLanguageStore } from "@/stores/language.store";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { useAuthStore } from "@/stores/auth.store";
 import { settingsService } from "@/services/settings.service";
+import { SettingsPage } from "@/features/settings/settings-page";
 
 function Probe() {
   // Reads the shared live binding during render, like application components.
@@ -90,6 +91,93 @@ describe("LanguageProvider reconciliation", () => {
     });
     expect(screen.getByText(locales.en.forecast.pageTitle)).toBeInTheDocument();
     expect(uiText).toBe(locales.en);
+  });
+
+  it("does not remount the app tree when the locale changes", () => {
+    let mountCount = 0;
+
+    function MountProbe() {
+      useEffect(() => {
+        mountCount += 1;
+      }, []);
+
+      return createElement("p", null, "mounted");
+    }
+
+    render(
+      createElement(LanguageProvider, null, createElement(MountProbe)),
+    );
+
+    expect(mountCount).toBe(1);
+
+    useLanguageStore.getState().setLanguage("en");
+
+    expect(mountCount).toBe(1);
+    expect(screen.getByText("mounted")).toBeInTheDocument();
+  });
+
+  it("does not refetch settings or remount settings content when preferences change", async () => {
+    let mountCount = 0;
+    const getSettingsSpy = vi.spyOn(settingsService, "getSettings").mockResolvedValue({
+      id: "settings-1",
+      userId: "user-1",
+      theme: "dark",
+      language: "id",
+      currency: "IDR",
+      timezone: null,
+      notificationPreferences: {
+        transactions: true,
+        budgets: true,
+        savingGoals: true,
+        accounts: true,
+        investments: true,
+        system: true,
+      },
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    } as never);
+    vi.spyOn(settingsService, "updateSettings").mockImplementation(async (patch) => ({
+      id: "settings-1",
+      userId: "user-1",
+      theme: patch.theme ?? "dark",
+      language: patch.language ?? "id",
+      currency: patch.currency ?? "IDR",
+      timezone: null,
+      notificationPreferences: {
+        transactions: patch.notificationPreferences?.transactions ?? true,
+        budgets: patch.notificationPreferences?.budgets ?? true,
+        savingGoals: patch.notificationPreferences?.savingGoals ?? true,
+        accounts: patch.notificationPreferences?.accounts ?? true,
+        investments: patch.notificationPreferences?.investments ?? true,
+        system: patch.notificationPreferences?.system ?? true,
+      },
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    }) as never);
+
+    function SettingsProbe() {
+      useEffect(() => {
+        mountCount += 1;
+      }, []);
+
+      return createElement(SettingsPage);
+    }
+
+    render(createElement(SettingsProbe));
+
+    await waitFor(() => {
+      expect(screen.getByText("Pengaturan")).toBeInTheDocument();
+    });
+
+    const initialCalls = getSettingsSpy.mock.calls.length;
+    const initialMountCount = mountCount;
+
+    fireEvent.click(screen.getByText("Terang"));
+    fireEvent.click(screen.getByText("Transaksi"));
+    fireEvent.click(document.getElementById("settings-currency") as HTMLElement);
+
+    expect(mountCount).toBe(initialMountCount);
+    expect(getSettingsSpy).toHaveBeenCalledTimes(initialCalls);
   });
 
   it("keeps the persisted language when settings are unavailable", async () => {

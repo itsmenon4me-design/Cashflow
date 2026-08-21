@@ -14,11 +14,12 @@ interface NotificationDTO {
   updated_at: string;
 }
 
-interface NotificationListBody {
+type NotificationListPayload = {
   success: boolean;
-  data: NotificationDTO[];
-  pagination: PaginationInfo;
-}
+  data?: NotificationDTO[] | { items?: NotificationDTO[]; pagination?: PaginationInfo };
+  items?: NotificationDTO[];
+  pagination?: PaginationInfo;
+};
 
 interface UnreadCountBody {
   success: boolean;
@@ -63,10 +64,29 @@ export const notificationService = {
     if (params.type) query.type = params.type;
     if (params.currency) query.currency = params.currency;
 
-    const body = await apiClient.get<NotificationListBody>("/notifications", { params: query });
+    const body = await apiClient.get<NotificationListPayload>("/notifications", { params: query });
+    const data = body.data;
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(body.items)
+        ? body.items
+        : Array.isArray(data && typeof data === "object" && "items" in data ? data.items : undefined)
+          ? (data as { items?: NotificationDTO[] }).items ?? []
+          : [];
+
+    const pagination = body.pagination ??
+      (data && typeof data === "object" && "pagination" in data ? data.pagination : undefined) ?? {
+        page: params.page ?? 1,
+        limit: params.limit ?? 20,
+        totalItems: items.length,
+        totalPages: items.length === 0 ? 0 : 1,
+        hasNext: false,
+        hasPrevious: false,
+      };
+
     return {
-      items: body.data.map(toNotificationItem),
-      pagination: body.pagination,
+      items: items.map(toNotificationItem),
+      pagination,
     };
   },
 

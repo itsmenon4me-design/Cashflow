@@ -25,6 +25,25 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   error: false,
 
   fetch: async () => {
+    const currencyState = useDashboardCurrencyStore.getState();
+
+    // Prevent protected notification API calls before the dashboard currency has
+    // been hydrated from storage during client-side navigation.
+    if (!currencyState.hydrated) {
+      let unsub: () => void = () => {};
+      unsub = useDashboardCurrencyStore.subscribe((s) => {
+        if (s.hydrated) {
+          try {
+            unsub();
+          } catch {
+            // ignore
+          }
+          void get().fetch();
+        }
+      });
+      return;
+    }
+
     // Prevent protected notification API calls when user is not authenticated.
     const isAuth = useAuthStore.getState().isAuthenticated;
     if (!isAuth) {

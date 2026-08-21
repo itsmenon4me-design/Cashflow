@@ -3,6 +3,7 @@ import { normalizeDashboardCurrency, DASHBOARD_CURRENCIES } from "@/lib/dashboar
 
 interface DashboardCurrencyState {
   currency: (typeof DASHBOARD_CURRENCIES)[number];
+  hydrated: boolean;
   setCurrency: (c: string) => void;
 }
 
@@ -29,7 +30,10 @@ export function readStoredCurrency(): (typeof DASHBOARD_CURRENCIES)[number] {
 
 export function hydrateDashboardCurrency(): (typeof DASHBOARD_CURRENCIES)[number] {
   const nextCurrency = readStoredCurrency();
-  useDashboardCurrencyStore.setState({ currency: nextCurrency });
+  useDashboardCurrencyStore.setState({
+    currency: nextCurrency,
+    hydrated: true,
+  });
   return nextCurrency;
 }
 
@@ -46,10 +50,11 @@ function writeStoredCurrency(currency: (typeof DASHBOARD_CURRENCIES)[number]) {
 
 export const useDashboardCurrencyStore = create<DashboardCurrencyState>((set) => ({
   currency: readStoredCurrency(),
+  hydrated: false,
   setCurrency: (c: string) => {
     const norm = normalizeDashboardCurrency(c) ?? DEFAULT_CURRENCY;
     writeStoredCurrency(norm);
-    set({ currency: norm });
+    set({ currency: norm, hydrated: true });
   },
 }));
 

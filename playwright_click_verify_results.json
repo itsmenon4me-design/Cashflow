@@ -1,0 +1,93 @@
+[
+  {
+    "page": "/dashboard",
+    "method": "click",
+    "clickSelector": "a[href=\"/dashboard\"]",
+    "navigated": true,
+    "elapsed": 161
+  },
+  {
+    "page": "/accounts",
+    "method": "click",
+    "clickSelector": "a[href=\"/accounts\"]",
+    "navigated": true,
+    "elapsed": 486
+  },
+  {
+    "page": "/incomes",
+    "method": "click",
+    "clickSelector": "a[href=\"/incomes\"]",
+    "navigated": true,
+    "elapsed": 1032
+  },
+  {
+    "page": "/expenses",
+    "method": "click",
+    "clickSelector": "a[href=\"/expenses\"]",
+    "navigated": true,
+    "elapsed": 930
+  },
+  {
+    "page": "/transactions",
+    "method": "click",
+    "clickSelector": "a[href=\"/transactions\"]",
+    "navigated": true,
+    "elapsed": 954
+  },
+  {
+    "page": "/categories",
+    "method": "click",
+    "clickSelector": "a[href=\"/categories\"]",
+    "navigated": true,
+    "elapsed": 984
+  },
+  {
+    "page": "/budgets",
+    "method": "click",
+    "clickSelector": "a[href=\"/budgets\"]",
+    "navigated": true,
+    "elapsed": 1052
+  },
+  {
+    "page": "/goals",
+    "method": "click",
+    "clickSelector": "a[href=\"/goals\"]",
+    "navigated": true,
+    "elapsed": 544
+  },
+  {
+    "page": "/investments",
+    "method": "click",
+    "clickSelector": "a[href=\"/investments\"]",
+    "navigated": true,
+    "elapsed": 496
+  },
+  {
+    "page": "/reports",
+    "method": "click",
+    "clickSelector": "a[href=\"/reports\"]",
+    "navigated": true,
+    "elapsed": 989
+  },
+  {
+    "page": "/analytics",
+    "method": "click",
+    "clickSelector": "a[href=\"/analytics\"]",
+    "navigated": true,
+    "elapsed": 1529
+  },
+  {
+    "page": "/notifications",
+    "method": "click",
+    "clickSelector": "a[href=\"/notifications\"]",
+    "navigated": true,
+    "elapsed": 1787
+  },
+  {
+    "page": "/settings",
+    "method": "click",
+    "clickSelector": "a[href=\"/settings\"]",
+    "navigated": true,
+    "elapsed": 861
+  }
+]

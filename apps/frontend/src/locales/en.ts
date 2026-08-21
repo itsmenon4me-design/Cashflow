@@ -110,6 +110,7 @@ export const enText = {
     unread: "Unread",
     read: "Read",
     empty: "No notifications yet.",
+    emptyDescription: "Notifications and account activity will appear here.",
     rowsPerPage: "Rows per page",
   },
   time: {
