@@ -37,6 +37,7 @@ export function NotificationsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
+  const currencyHydrated = useDashboardCurrencyStore((state) => state.hydrated);
 
   const markReadInStore = useNotificationStore((state) => state.markRead);
   const markAllReadInStore = useNotificationStore((state) => state.markAllRead);
@@ -44,6 +45,12 @@ export function NotificationsPage() {
   const removeAllInStore = useNotificationStore((state) => state.removeAll);
 
   useEffect(() => {
+    if (!useDashboardCurrencyStore.getState().hydrated) {
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     let cancelled = false;
 
     const run = async () => {
@@ -62,8 +69,10 @@ export function NotificationsPage() {
         if (cancelled) return;
         setItems(result.items);
         setTotalItems(result.pagination.totalItems);
-        if (page > result.pagination.totalPages) {
-          setPage(result.pagination.totalPages);
+        // Ensure we never set page to less than 1 — backend validates page >= 1.
+        const totalPages = result.pagination.totalPages ?? 1;
+        if (page > totalPages) {
+          setPage(Math.max(1, totalPages));
         }
       } catch {
         if (!cancelled) {
@@ -82,7 +91,7 @@ export function NotificationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, dataVersion, page, pageSize, filter, activeCurrency]);
+  }, [refreshKey, dataVersion, page, pageSize, filter, activeCurrency, currencyHydrated]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 
@@ -213,6 +222,7 @@ export function NotificationsPage() {
       ) : isEmpty ? (
         <EmptyState
           title={uiText.notificationsPage.empty}
+          description={uiText.notificationsPage.emptyDescription}
           icon={<BellRing className="size-8 text-muted-foreground" aria-hidden="true" />}
         />
       ) : loading ? (
