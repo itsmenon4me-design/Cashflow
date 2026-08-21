@@ -176,4 +176,31 @@ describe('NotificationsPage', () => {
     expect(screen.getByText(uiText.states.errorDescription)).toBeInTheDocument();
   });
 
+  it('never calls the API with page=0 (regression guard)', async () => {
+    // Ensure dashboard currency is hydrated
+    useDashboardCurrencyStore.setState({ currency: 'USD', hydrated: true });
+
+    // Mock list to resolve to an empty page (totalPages = 0)
+    (notificationService.list as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [],
+      pagination: { page: 1, limit: 20, totalItems: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+    });
+
+    await act(async () => {
+      render(<NotificationsPage />);
+    });
+
+    // Wait for list to have been called at least once
+    await waitFor(() => expect(notificationService.list).toHaveBeenCalled());
+
+    // Assert none of the calls used page=0 in the first argument
+    const calls = (notificationService.list as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    for (const c of calls) {
+      const arg = c[0] as any;
+      expect(arg).toBeDefined();
+      // page might be undefined if called differently; treat undefined as safe, but ensure it's not explicitly 0
+      expect(arg.page === 0).toBeFalsy();
+    }
+  });
+
 });
