@@ -57,7 +57,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="app-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{
           __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
         }} />
-        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{
+        <Script id="theme-init" strategy="afterInteractive" dangerouslySetInnerHTML={{
           __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);var dark=t==='dark';document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';}catch(e){document.documentElement.classList.add('dark')}})();`,
         }} />
         <Script id="fetch-intercept" strategy="afterInteractive" dangerouslySetInnerHTML={{
