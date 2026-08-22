@@ -38,6 +38,7 @@ export function AppProviders({ children }: AppProvidersProps) {
       try { hydrateLanguagePreference(); console.log('[app-providers] hydrated language preference'); } catch (e) { console.warn('[app-providers] hydrateLanguagePreference failed', e); }
       try { hydrateThemePreference(); console.log('[app-providers] hydrated theme preference'); } catch (e) { console.warn('[app-providers] hydrateThemePreference failed', e); }
       try { hydrateDashboardCurrency(); console.log('[app-providers] hydrated dashboard currency'); } catch (e) { console.warn('[app-providers] hydrateDashboardCurrency failed', e); }
+      try { console.trace('[app-providers] post-hydration state', { store: useDashboardCurrencyStore.getState().currency, ls: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
     } catch (e) {}
 
     const handleClientRoute = (event: Event) => {

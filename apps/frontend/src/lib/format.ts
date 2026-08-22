@@ -45,6 +45,16 @@ export function formatCompactCurrency(value: number, currency?: string): string 
   const resolved = resolveDisplayCurrency(currency);
   const spec = getCurrencySpec(resolved);
   const majorUnits = toMajorUnits(Number.isFinite(value) ? value : 0, resolved);
+  try {
+    // Log where this formatter runs (server vs client) for hydration diagnostics only.
+    if (typeof window === 'undefined') {
+      // eslint-disable-next-line no-console
+      console.trace('[format] formatCompactCurrency running on server', { resolved, locale: spec.primaryLocale, ts: Date.now() });
+    } else {
+      // eslint-disable-next-line no-console
+      console.trace('[format] formatCompactCurrency running on client', { resolved, locale: spec.primaryLocale, ts: Date.now() });
+    }
+  } catch (e) {}
   return new Intl.NumberFormat(spec.primaryLocale, {
     style: "currency",
     currency: spec.code,

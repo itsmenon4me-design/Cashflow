@@ -84,6 +84,7 @@ export function HeaderBar() {
   useEffect(() => {
     hydrateDashboardCurrency();
     try { console.log('[header] mounted -> store currency', { currency: useDashboardCurrencyStore.getState().currency, ls: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
+    try { console.trace('[header] computed today after mount', { today: (typeof window !== 'undefined' ? new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()) : 'server'), ts: Date.now() }); } catch (e) {}
   }, []);
 
   useEffect(() => {
