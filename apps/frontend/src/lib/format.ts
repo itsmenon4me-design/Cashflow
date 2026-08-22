@@ -50,6 +50,10 @@ export function formatCompactCurrency(value: number, currency?: string): string 
     if (typeof window === 'undefined') {
       // eslint-disable-next-line no-console
       console.trace('[format] formatCompactCurrency running on server', { resolved, locale: spec.primaryLocale, ts: Date.now() });
+      try {
+        // eslint-disable-next-line no-console
+        console.log('[format] server stack', (new Error()).stack);
+      } catch (e) {}
     } else {
       // eslint-disable-next-line no-console
       console.trace('[format] formatCompactCurrency running on client', { resolved, locale: spec.primaryLocale, ts: Date.now() });

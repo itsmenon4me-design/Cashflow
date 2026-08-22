@@ -12,9 +12,7 @@
 # Error details
 
 ```
-Error: expect(received).toBeTruthy()
-
-Received: false
+Error: page.goto: Target page, context or browser has been closed
 ```
 
 # Test source
@@ -33,15 +31,15 @@ Received: false
   11  |   const res = await request.post(API_BASE + '/auth/login', {
   12  |     data: { email: USER_EMAIL, password: USER_PASSWORD },
   13  |   });
-> 14  |   expect(res.ok()).toBeTruthy();
-      |                    ^ Error: expect(received).toBeTruthy()
+  14  |   expect(res.ok()).toBeTruthy();
   15  |   const body = await res.json();
   16  |   const data = body?.data ?? body;
   17  |   return { token: data.accessToken, refresh: data.refreshToken, user: body?.user ?? data?.user };
   18  | }
   19  | 
   20  | async function seedAuth(page: any, auth: any) {
-  21  |   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+> 21  |   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+      |              ^ Error: page.goto: Target page, context or browser has been closed
   22  |   await page.evaluate((a: any) => {
   23  |     try {
   24  |       localStorage.setItem('cashflow.accessToken', a.token);
@@ -135,4 +133,11 @@ Received: false
   112 |   // Inject instrumentation before navigation: log when tokens are written to storage and when requests are sent.
   113 |   await page.addInitScript(() => {
   114 |     try {
+  115 |       try { (window as any).__cf_events = (window as any).__cf_events || []; } catch (e) {}
+  116 |       const origSet = Storage.prototype.setItem;
+  117 |       Storage.prototype.setItem = function (k: string, v: string) {
+  118 |         try {
+  119 |           try { (window as any).__cf_events.push({ type: 'setItem', key: k, value: v, ts: Date.now(), stack: (new Error()).stack }); } catch (e) {}
+  120 |           if (k === 'cashflow.accessToken' || k === 'cashflow.refreshToken') {
+  121 |             const t = v ?? '';
 ```
