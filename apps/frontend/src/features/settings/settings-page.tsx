@@ -39,7 +39,6 @@ import type {
   UserSettingsPatch,
 } from "@/types/settings";
 import { FinanceBotCard } from "@/features/finance-bot/FinanceBotCard";
-import ClientCurrencySelectPlaceholder from "./ClientCurrencySelectPlaceholder";
 
 const DEFAULT_PREFS: NotificationPreferences = {
   transactions: true,
@@ -374,14 +373,22 @@ export function SettingsPage() {
             {loading ? (
               <Skeleton className="h-24 w-full rounded-xl" />
             ) : (
-              // To avoid SSR/CSR mismatch, delay rendering the currency select until the client-side app hydration
-              // has completed (AppProviders sets window.__app_client_ready). Render a visual skeleton placeholder
-              // on first paint so server and client HTML are consistent and avoid hydration rehydration failures.
-              <ClientCurrencySelectPlaceholder
-                currency={currency}
-                persistError={persistError}
-                onChange={(v: string) => void handleCurrencyChange(v)}
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="settings-currency" className="text-xs text-muted-foreground">
+                  {uiText.settingsPage.currency}
+                </Label>
+                <Select value={currency} onValueChange={(v) => void handleCurrencyChange(v)}>
+                  <SelectTrigger id="settings-currency" className="w-full sm:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCY_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {persistError && <p className="text-sm text-destructive mt-1">{persistError}</p>}
+              </div>
             )}
             </CardContent>
           </Card>
