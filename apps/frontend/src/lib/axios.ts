@@ -60,12 +60,23 @@ function redirectToLogin(): void {
   try {
     if (typeof window !== "undefined") {
       const path = "/login";
-      if (window.location.pathname !== path) {
-        window.dispatchEvent(new CustomEvent("cashflow:client-route", { detail: path }));
+      const clientReady = (window as any).__app_client_ready === true;
+      // If the client shell is ready, dispatch the client-route event to navigate.
+      // If not yet ready (hydration in progress), queue the intended route so the
+      // AppProviders can perform navigation once it finishes hydrating. This
+      // prevents dispatching navigation during hydration which can trigger
+      // unnecessary remounts or blank flashes.
+      if (clientReady) {
+        if (window.location.pathname !== path) {
+          window.dispatchEvent(new CustomEvent("cashflow:client-route", { detail: path }));
+        }
+      } else {
+        // Queue pending client route for AppProviders to handle after hydration
+        (window as any).__app_pending_client_route = path;
       }
     }
   } catch (e) {
-    // In restricted runtimes, navigation may be unsupported — fail silently
+    // In restricted runtimes, navigation may be unsupported � fail silently
   }
 }
 
@@ -104,20 +115,43 @@ async function request<T>(
   const { headers = {}, params, refresh = true } = options;
 
   const url = buildUrl(path, params);
-  const accessToken = getAccessToken();
 
-  const doFetch = (token: string | null) =>
-    fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+// Wait briefly (up to 2s) for a token to be hydrated into storage to avoid
+// firing authenticated requests before hydrateFromStorage completes.
+async function waitForToken(maxWaitMs = 2000): Promise<string | null> {
+  const start = Date.now();
+  let t = getAccessToken();
+  if (t) return t;
+  return new Promise((resolve) => {
+    const iv = setInterval(() => {
+      t = getAccessToken();
+      if (t) {
+        clearInterval(iv);
+        resolve(t);
+        return;
+      }
+      if (Date.now() - start > maxWaitMs) {
+        clearInterval(iv);
+        resolve(null);
+      }
+    }, 50);
+  });
+}
 
-  let response = await doFetch(accessToken);
+const accessToken = await waitForToken(2000);
+
+const doFetch = (token: string | null) =>
+  fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+let response = await doFetch(accessToken);
 
   if (response.status === 401 && refresh) {
     const refreshed = await handleUnauthorized();
@@ -151,3 +185,7 @@ export const apiClient = {
     request<T>(path, "PATCH", options, body),
   delete: <T>(path: string, options?: RequestOptions) => request<T>(path, "DELETE", options),
 };
+
+
+
+

@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/axios";
+import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type {
   ThemePreference,
   LanguagePreference,
@@ -115,6 +116,35 @@ export const settingsService = {
       "/settings",
       payload
     );
-    return toUserSettings(body.data);
+    const userSettings = toUserSettings(body.data);
+    // ensure dashboard currency store persists the server-updated currency to localStorage
+    try {
+      // Force-update the dashboard currency store state directly to avoid any stale setter/closure issues
+      try { console.log('[settings-service] setting dashboard currency state directly to', userSettings.currency); } catch (e) {}
+      useDashboardCurrencyStore.setState({ currency: userSettings.currency as any, hydrated: true });
+    } catch (e) { try { console.warn('[settings-service] setting dashboard currency state failed', e); } catch (e) {} }
+
+    // As a fallback (and to cover cases where this service is invoked from serverless/server-side),
+    // also write the storage key when running in the browser so client rehydration observes the change.
+    try {
+      if (typeof window !== 'undefined' && window?.localStorage) {
+        window.localStorage.setItem('cashflow-dashboard-currency', userSettings.currency);
+        try {
+          // notify any global listeners in the client that settings were updated
+          window.dispatchEvent(new CustomEvent('cashflow:settings-updated', { detail: { currency: userSettings.currency } }));
+          try { console.log('[settings-service] dispatched cashflow:settings-updated', { ts: Date.now(), written: window.localStorage.getItem('cashflow-dashboard-currency') }); } catch (e) {}
+          // also request client navigate to dashboard so UI reflects updated settings immediately
+          try { console.log('[settings-service] about to dispatch cashflow:client-route -> /dashboard', { ts: Date.now() }); } catch (e) {}
+          try { window.dispatchEvent(new CustomEvent('cashflow:client-route', { detail: '/dashboard' })); } catch (e) {}
+          // As a last-resort ensure the UI reflects updated settings immediately by reloading the client.
+          try { console.log('[settings-service] about to call window.location.reload', { ts: Date.now(), stack: (new Error()).stack }); } catch (e) {}
+          try { window.location.reload(); } catch (e) {}
+        } catch (e) {}
+        try { console.log('[settings-service] wrote localStorage cashflow-dashboard-currency', window.localStorage.getItem('cashflow-dashboard-currency')); } catch (e) {}
+      }
+    } catch (e) { try { console.warn('[settings-service] writing localStorage failed', e); } catch (e) {} }
+
+    return userSettings;
   },
+
 };

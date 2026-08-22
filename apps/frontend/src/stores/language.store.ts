@@ -39,7 +39,8 @@ interface LanguageState {
  *   their next render.
  */
 export const useLanguageStore = create<LanguageState>((set) => ({
-  language: readStored(),
+  // Initialize to default on module load so server and client initial render match.
+  language: DEFAULT_LANGUAGE,
 
   setLanguage: (language) => {
     const active = setUiTextLanguage(language);
@@ -52,6 +53,5 @@ export const useLanguageStore = create<LanguageState>((set) => ({
   },
 }));
 
-if (typeof window !== "undefined") {
-  hydrateLanguagePreference();
-}
+// Hydration should be triggered from a central client-side entry (AppProviders) to avoid
+// reading localStorage at module initialization which causes SSR/client mismatches.

@@ -30,9 +30,17 @@ interface ThemeState {
   toggleMode: () => void;
 }
 
+export function hydrateThemePreference(): ThemePreference {
+  const stored = readStored();
+  useThemeStore.setState({ theme: stored, mode: stored });
+  try { if (typeof document !== 'undefined') document.documentElement.dataset.theme = stored; } catch (e) {}
+  return stored;
+}
+
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  theme: readStored(),
-  mode: readStored(),
+  // Initialize to default to avoid reading localStorage during SSR/module init.
+  theme: DEFAULT_THEME,
+  mode: DEFAULT_THEME,
 
   setTheme: (theme) => {
     const next = sanitize(theme);

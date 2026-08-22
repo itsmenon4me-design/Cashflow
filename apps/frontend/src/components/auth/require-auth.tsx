@@ -12,20 +12,14 @@ interface RequireAuthProps {
 export function RequireAuth({ children }: RequireAuthProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && !isAuthenticated) {
+    if (!isAuthenticated) {
       router.replace("/login");
     }
-  }, [mounted, isAuthenticated, router]);
+  }, [isAuthenticated, router]);
 
-  if (!mounted || !isAuthenticated) {
+  if (!isAuthenticated) {
     return null;
   }
   return <>{children}</>;

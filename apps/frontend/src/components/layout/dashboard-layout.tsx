@@ -25,12 +25,17 @@ function useGlobalAutoRefresh() {
       }
     };
 
-    const interval = window.setInterval(refresh, AUTO_REFRESH_MS);
+    // Perform an initial refresh and refresh when the window becomes visible or focused.
+    void refresh();
     const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 }

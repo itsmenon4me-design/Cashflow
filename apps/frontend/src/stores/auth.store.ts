@@ -19,6 +19,7 @@ interface AuthState {
   isAuthenticated: boolean;
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
+  hydrateFromStorage: () => void;
   loginSession: (params: { accessToken: string; refreshToken: string; user?: StoredUser | null }) => void;
   logout: () => void;
 }
@@ -29,6 +30,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => {
     setStoredUser(user);
     set({ user });
+  },
+  hydrateFromStorage: () => {
+    const token = getAccessToken();
+    const storedUser = getStoredUser() as AuthUser | null;
+    set({
+      isAuthenticated: token !== null,
+      user: storedUser,
+    });
   },
   loginSession: ({ accessToken, refreshToken, user }) => {
     setAuthTokens(accessToken, refreshToken);

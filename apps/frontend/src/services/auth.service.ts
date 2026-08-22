@@ -27,6 +27,9 @@ export interface ResetPasswordPayload {
   new_password: string;
 }
 
+import { ApiError } from "@/lib/axios";
+import { getStoredUser } from "@/lib/auth-token";
+
 export const authService = {
   login: (payload: LoginPayload): Promise<LoginResponse> =>
     apiClient.post<LoginResponse>("/auth/login", payload),
@@ -46,6 +49,32 @@ export const authService = {
         success: false,
         message: "Apple OAuth belum dikonfigurasi. Harap aktifkan Apple client configuration terlebih dahulu.",
       })),
+
+  updateProfile: async (payload: { full_name?: string }): Promise<{ success: boolean; data?: any; message?: string }> => {
+    try {
+      const res = await apiClient.patch<{ success: boolean; data?: any }>("/auth/profile", payload);
+      return res;
+    } catch (err) {
+      // If the endpoint doesn't exist in the backend (404), try a fallback to /settings
+      if (err instanceof ApiError && err.status === 404) {
+        // Try PATCH /users/:id if we can infer the current user id from stored user payload
+        try {
+          const stored = getStoredUser() as any;
+          const maybeId = stored?.id ?? stored?.user_id ?? stored?.sub ?? stored?.uuid ?? null;
+          if (maybeId) {
+            const userPatch: Record<string, unknown> = {};
+            if (payload.full_name) userPatch['full_name'] = payload.full_name;
+            const r = await apiClient.patch<{ success: boolean; data?: any }>(`/users/${maybeId}`, userPatch);
+            return r;
+          }
+        } catch (e) {
+          // fall through to generic failure below
+        }
+        return { success: false, message: 'No fallback endpoint available for profile update' };
+      }
+      return { success: false, message: String(err) };
+    }
+  },
 
   logout: (): Promise<{ success: boolean }> =>
     apiClient.delete<{ success: boolean }>("/auth/logout"),

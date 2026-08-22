@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Bell,
   CalendarDays,
@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import { authService } from "@/services/auth.service";
+import { settingsService } from "@/services/settings.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { useSidebarStore } from "@/stores/sidebar.store";
@@ -82,6 +83,7 @@ export function HeaderBar() {
 
   useEffect(() => {
     hydrateDashboardCurrency();
+    try { console.log('[header] mounted -> store currency', { currency: useDashboardCurrencyStore.getState().currency, ls: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
   }, []);
 
   useEffect(() => {
@@ -102,14 +104,80 @@ export function HeaderBar() {
     };
 
     void refresh();
-    const interval = window.setInterval(refresh, 30000);
     const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [dataVersion, fetch]);
+
+  // Ensure dashboard settings (currency) are in sync when the window regains focus or visibility,
+  // particularly to pick up server-side changes that may have been applied via server actions.
+  useEffect(() => {
+    let mounted = true;
+    const syncSettings = async () => {
+      try {
+        const s = await settingsService.getSettings();
+        if (!mounted) return;
+        if (s && s.currency) {
+          try {
+            useDashboardCurrencyStore.getState().setCurrency(s.currency);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem('cashflow-dashboard-currency', s.currency);
+          try { console.log('[header] syncSettings -> wrote localStorage', { written: s.currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
+        }
+          } catch (e) {
+        console.warn('[header] syncSettings apply failed', e);
+          }
+        }
+      } catch (e) {
+        // ignore network errors here; not critical
+      }
+    };
+
+    const onFocus = () => void syncSettings();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void syncSettings();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // also run once on mount so navigating back to dashboard sees latest server state
+    void syncSettings();
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  // When route changes, ensure dashboard view fetches latest settings from server (covers server-action update paths)
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname === '/dashboard') {
+      void (async () => {
+        try {
+          const s = await settingsService.getSettings();
+          if (s && s.currency) {
+            useDashboardCurrencyStore.getState().setCurrency(s.currency);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem('cashflow-dashboard-currency', s.currency);
+            try { console.log('[header] pathname /dashboard sync wrote localStorage', { written: s.currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
+          }
+          console.log('[header] pathname /dashboard sync applied', s.currency);
+          }
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
+  }, [pathname]);
 
   const handleLogout = () => {
     void authService.logout().catch(() => undefined);

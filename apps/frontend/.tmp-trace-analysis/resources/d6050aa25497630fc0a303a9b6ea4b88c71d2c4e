@@ -1,0 +1,90 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: playwright-tests\navigation.spec.ts >> navigation matrix - direct URL and client navigation
+- Location: playwright-tests\navigation.spec.ts:30:5
+
+# Error details
+
+```
+Test timeout of 120000ms exceeded.
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: CashFlow
+        - paragraph [ref=e12]: Sistem keuangan pribadi
+      - navigation "Buka menu navigasi" [ref=e16]:
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: Utama
+          - link "Beranda" [ref=e20] [cursor=pointer]:
+            - /url: /dashboard
+        - generic [ref=e25]:
+          - button "Ciutkan Keuangan" [expanded] [ref=e26] [cursor=pointer]: Keuangan
+          - generic [ref=e29]:
+            - link "Akun" [ref=e30] [cursor=pointer]:
+              - /url: /accounts
+            - link "Pemasukan" [ref=e34] [cursor=pointer]:
+              - /url: /incomes
+            - link "Pengeluaran" [ref=e38] [cursor=pointer]:
+              - /url: /expenses
+            - link "Transaksi" [ref=e42] [cursor=pointer]:
+              - /url: /transactions
+            - link "Kategori" [ref=e46] [cursor=pointer]:
+              - /url: /categories
+        - generic [ref=e50]:
+          - button "Ciutkan Perencanaan" [expanded] [ref=e51] [cursor=pointer]: Perencanaan
+          - generic [ref=e54]:
+            - link "Anggaran" [ref=e55] [cursor=pointer]:
+              - /url: /budgets
+            - link "Target Tabungan" [ref=e60] [cursor=pointer]:
+              - /url: /goals
+            - link "Investasi" [ref=e66] [cursor=pointer]:
+              - /url: /investments
+        - generic [ref=e71]:
+          - button "Ciutkan Analisis & Insight" [expanded] [ref=e72] [cursor=pointer]: Analisis & Insight
+          - generic [ref=e75]:
+            - link "Perkiraan Keuangan" [ref=e76] [cursor=pointer]:
+              - /url: /forecast
+            - link "Laporan" [ref=e81] [cursor=pointer]:
+              - /url: /reports
+            - link "Analitik" [ref=e86] [cursor=pointer]:
+              - /url: /analytics
+        - generic [ref=e90]:
+          - button "Ciutkan Sistem" [expanded] [ref=e91] [cursor=pointer]: Sistem
+          - generic [ref=e94]:
+            - link "Notifikasi" [ref=e95] [cursor=pointer]:
+              - /url: /notifications
+            - link "Audit Log" [ref=e100] [cursor=pointer]:
+              - /url: /audit-log
+            - link "Pengaturan" [ref=e105] [cursor=pointer]:
+              - /url: /settings
+      - button "Ciutkan Menu" [ref=e111]
+    - generic [ref=e113]:
+      - banner [ref=e114]:
+        - generic [ref=e115]:
+          - textbox "Pencarian global" [ref=e117]:
+            - /placeholder: Cari transaksi, akun, wawasan, kategori, anggaran, target, investasi, notifikasi...
+          - generic [ref=e118]:
+            - button "Notifikasi" [ref=e122]
+            - button "Ganti ke mode terang" [ref=e123]
+            - generic [ref=e124]:
+              - combobox [ref=e125]
+              - combobox [ref=e126]
+            - button "U" [ref=e127]:
+              - generic:
+                - paragraph
+                - paragraph
+      - main [ref=e130]
+  - button "Open Next.js Dev Tools" [ref=e136] [cursor=pointer]
+```

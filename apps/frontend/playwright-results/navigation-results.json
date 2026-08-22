@@ -19,8 +19,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -28,7 +36,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -59,8 +67,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -68,7 +84,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -102,8 +118,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"accounts/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/accounts\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <AccountsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -111,7 +135,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -138,8 +162,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -147,7 +179,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -181,8 +213,16 @@
           "text": "[HMR] connected"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"incomes/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/incomes\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>\n                          <Page params={Promise} searchParams={Promise}>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -190,7 +230,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -217,8 +257,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -226,7 +274,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -260,8 +308,16 @@
           "text": "[HMR] connected"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"expenses/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/expenses\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>\n                          <Page params={Promise} searchParams={Promise}>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -269,7 +325,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -296,8 +352,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -305,7 +369,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -339,8 +403,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"transactions/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/transactions\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <TransactionsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -348,7 +420,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -375,8 +447,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -384,7 +464,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -418,8 +498,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"budgets/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/budgets\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <BudgetsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -427,7 +515,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -454,8 +542,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -463,7 +559,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -497,8 +593,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"goals/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/goals\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <SavingGoalsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -506,7 +610,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -533,8 +637,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -542,7 +654,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -576,8 +688,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"investments/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/investments\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <InvestmentsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -585,7 +705,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -612,8 +732,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -621,7 +749,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -655,8 +783,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"bills/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/bills\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <PagePlaceholder>\n                            <Card>\n+                             <div\n+                               data-slot=\"card\"\n+                               data-size=\"default\"\n+                               data-variant=\"default\"\n+                               className={\"group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-lg ...\"}\n+                             >\n                      ...\n                    ...\n          ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -664,7 +800,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -691,8 +827,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -700,7 +844,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -734,8 +878,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"reports/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/reports\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <ReportsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -743,7 +895,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -770,8 +922,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -779,7 +939,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -813,8 +973,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"analytics/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/analytics\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <AnalyticsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -822,7 +990,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -849,8 +1017,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -858,7 +1034,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -892,8 +1068,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"dashboard/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/dashboard\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <DashboardPage>\n+                           <div className=\"space-y-4\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -901,7 +1085,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -932,8 +1116,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -941,7 +1133,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -979,8 +1171,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"categories/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/categories\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <CategoriesPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -988,7 +1188,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -1015,8 +1215,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -1024,7 +1232,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -1058,8 +1266,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"notificati...\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/notificat...\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <NotificationsPage>\n+                           <div className=\"space-y-6\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -1067,7 +1283,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -1094,8 +1310,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -1103,7 +1327,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -1137,8 +1361,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>\n        <InnerScrollHandlerNew focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary name=\"settings/\" loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/settings\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>\n                      <SegmentViewNode type=\"page\" pagePath=\"(dashboard...\">\n                        <SegmentTrieNode>\n                        <Page>\n                          <SettingsPage>\n+                           <div className=\"space-y-8\">\n                      ...\n                    ...\n          ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -1146,7 +1378,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",
@@ -1173,8 +1405,16 @@
           "text": "[sync-client] syncController attached to window for diagnostics"
         },
         {
+          "type": "error",
+          "text": "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+        },
+        {
+          "type": "pageerror",
+          "text": "Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <DashboardLayout>\n          <TooltipProvider delayDuration={200}>\n            <TooltipProvider data-slot=\"tooltip-pr...\" delayDuration={200}>\n              <TooltipProviderProvider scope={undefined} isOpenDelayedRef={{current:true}} delayDuration={200} ...>\n                <div className=\"mx-auto fl...\">\n                  <Sidebar>\n                  <MobileDrawer>\n                  <div className=\"flex min-w...\">\n                    <HeaderBar>\n                    <main className=\"flex-1 px-...\">\n                      <div className=\"grid gap-6\">\n                        <div className=\"min-w-0 sp...\">\n                          <RequireAuth>\n                            <DashboardPage>\n+                             <div className=\"space-y-4\">\n                  ...\n    ...\n"
+        },
+        {
           "type": "log",
-          "text": "[sync] flush() called, computed scope: admin@cashflow.local navigator.onLine= true"
+          "text": "[sync] flush() called, computed scope: e2e.api.user@test.local navigator.onLine= true"
         },
         {
           "type": "log",
@@ -1182,7 +1422,7 @@
         },
         {
           "type": "log",
-          "text": "[sync] flush() scope= admin@cashflow.local pending= 0 failedCount= 0"
+          "text": "[sync] flush() scope= e2e.api.user@test.local pending= 0 failedCount= 0"
         },
         {
           "type": "log",

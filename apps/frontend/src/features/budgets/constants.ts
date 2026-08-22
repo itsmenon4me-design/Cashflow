@@ -57,9 +57,12 @@ export const EMPTY_FILTERS: BudgetFiltersState = {
   sort: "category_asc",
 };
 
-export const EMPTY_FORM_VALUES: BudgetFormValues = {
-  categoryId: "",
-  amount: 0,
-  month: new Date().getMonth() + 1,
-  year: new Date().getFullYear(),
-};
+export function getEmptyFormValues(): BudgetFormValues {
+  const now = new Date();
+  return {
+    categoryId: "",
+    amount: 0,
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  };
+}

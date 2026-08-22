@@ -1,0 +1,14 @@
+[
+  {
+    "type": "replaceState",
+    "url": "http://localhost:3000/dashboard",
+    "pathname": "/dashboard",
+    "time": 1787345224147
+  },
+  {
+    "type": "replaceState",
+    "url": "http://localhost:3000/login",
+    "pathname": "/login",
+    "time": 1787345225857
+  }
+]

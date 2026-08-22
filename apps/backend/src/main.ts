@@ -31,7 +31,7 @@ async function bootstrap(): Promise<void> {
   const allowedOrigins =
     config.corsOrigins.length > 0
       ? config.corsOrigins
-      : process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test'
+      : process.env.NODE_ENV === 'production'
         ? []
         : [
             'http://localhost:3000',

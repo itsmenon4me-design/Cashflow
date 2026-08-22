@@ -1,0 +1,40 @@
+2:"$Sreact.fragment"
+4:I["[project]/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js"],"SegmentViewNode"]
+c:I["[project]/apps/frontend/src/components/layout/dashboard-layout.tsx [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js","/_next/static/chunks/apps_frontend_src_1labexy._.js","/_next/static/chunks/node_modules_%40radix-ui_0y1jeya._.js","/_next/static/chunks/node_modules_recharts_es6_component_1_kj2xa._.js","/_next/static/chunks/node_modules_recharts_es6_state_0ypd_27._.js","/_next/static/chunks/node_modules_recharts_es6_util_1qygebt._.js","/_next/static/chunks/node_modules_recharts_es6_cartesian_1hjovzo._.js","/_next/static/chunks/node_modules_recharts_es6_17e5bi9._.js","/_next/static/chunks/node_modules_es-toolkit_dist_0ah57-l._.js","/_next/static/chunks/node_modules_%40radix-ui_1su9pvu._.js","/_next/static/chunks/node_modules_%40floating-ui_08aw1s3._.js","/_next/static/chunks/node_modules_0kxjl0g._.js"],"DashboardLayout"]
+e:I["[project]/apps/frontend/src/features/dashboard/dashboard-page.tsx [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js","/_next/static/chunks/apps_frontend_src_1labexy._.js","/_next/static/chunks/node_modules_%40radix-ui_0y1jeya._.js","/_next/static/chunks/node_modules_recharts_es6_component_1_kj2xa._.js","/_next/static/chunks/node_modules_recharts_es6_state_0ypd_27._.js","/_next/static/chunks/node_modules_recharts_es6_util_1qygebt._.js","/_next/static/chunks/node_modules_recharts_es6_cartesian_1hjovzo._.js","/_next/static/chunks/node_modules_recharts_es6_17e5bi9._.js","/_next/static/chunks/node_modules_es-toolkit_dist_0ah57-l._.js","/_next/static/chunks/node_modules_%40radix-ui_1su9pvu._.js","/_next/static/chunks/node_modules_%40floating-ui_08aw1s3._.js","/_next/static/chunks/node_modules_0kxjl0g._.js"],"DashboardPage"]
+1f:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js"],"OutletBoundary"]
+21:"$Sreact.suspense"
+2e:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js"],"ViewportBoundary"]
+38:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js"],"MetadataBoundary"]
+5:D"$9"
+5:D"$6"
+5:D"$b"
+5:["$","$Lc",null,{"children":["$","$Le",null,{},"$6","$d",1]},"$6","$a",1]
+1a:D"$1c"
+1a:D"$1b"
+1a:D"$1e"
+1a:["$","$L1f",null,{"children":["$","$21",null,{"name":"Next.MetadataOutlet","children":"$@22"},"$1b","$20",1]},"$1b","$1d",1]
+24:D"$27"
+24:D"$25"
+24:D"$28"
+24:null
+29:D"$2b"
+29:D"$2a"
+29:D"$2d"
+2f:D"$31"
+2f:D"$30"
+29:["$","$L2e","68dd59e2v",{"children":"$L2f"},"$2a","$2c",1]
+32:D"$34"
+32:D"$33"
+32:D"$36"
+3a:D"$3c"
+3a:D"$3b"
+32:["$","div","68dd59e2m",{"hidden":true,"children":["$","$L38",null,{"children":["$","$21",null,{"name":"Next.Metadata","children":"$L3a"},"$33","$39",1]},"$33","$37",1]},"$33","$35",1]
+0:{"f":[["children","__PAGE__",["__PAGE__",{},"$undefined","$undefined",4096],[["$","$2","c",{"children":[["$","$L4","c-page",{"type":"page","pagePath":"page.tsx","children":"$5"},null,"$3",1],[["$","script","script-0",{"src":"/_next/static/chunks/apps_frontend_src_1labexy._.js","async":true,"nonce":"$undefined"},null,"$f",0],["$","script","script-1",{"src":"/_next/static/chunks/node_modules_%40radix-ui_0y1jeya._.js","async":true,"nonce":"$undefined"},null,"$10",0],["$","script","script-2",{"src":"/_next/static/chunks/node_modules_recharts_es6_component_1_kj2xa._.js","async":true,"nonce":"$undefined"},null,"$11",0],["$","script","script-3",{"src":"/_next/static/chunks/node_modules_recharts_es6_state_0ypd_27._.js","async":true,"nonce":"$undefined"},null,"$12",0],["$","script","script-4",{"src":"/_next/static/chunks/node_modules_recharts_es6_util_1qygebt._.js","async":true,"nonce":"$undefined"},null,"$13",0],["$","script","script-5",{"src":"/_next/static/chunks/node_modules_recharts_es6_cartesian_1hjovzo._.js","async":true,"nonce":"$undefined"},null,"$14",0],["$","script","script-6",{"src":"/_next/static/chunks/node_modules_recharts_es6_17e5bi9._.js","async":true,"nonce":"$undefined"},null,"$15",0],["$","script","script-7",{"src":"/_next/static/chunks/node_modules_es-toolkit_dist_0ah57-l._.js","async":true,"nonce":"$undefined"},null,"$16",0],["$","script","script-8",{"src":"/_next/static/chunks/node_modules_%40radix-ui_1su9pvu._.js","async":true,"nonce":"$undefined"},null,"$17",0],["$","script","script-9",{"src":"/_next/static/chunks/node_modules_%40floating-ui_08aw1s3._.js","async":true,"nonce":"$undefined"},null,"$18",0],["$","script","script-10",{"src":"/_next/static/chunks/node_modules_0kxjl0g._.js","async":true,"nonce":"$undefined"},null,"$19",0]],"$1a"]},null,"$1",0],{},null,false,null],["$","$2","h",{"children":["$24","$29","$32"]},null,"$23",0],false]],"q":"","i":true,"S":false,"h":null,"r":"$undefined","b":"development"}
+2f:D"$3d"
+2f:[["$","meta","0",{"charSet":"utf-8"},"$1b","$3e",0],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"},"$1b","$3f",0],["$","meta","2",{"name":"theme-color","content":"#020202"},"$1b","$40",0],["$","meta","3",{"name":"color-scheme","content":"dark light"},"$1b","$41",0]]
+4f:I["[project]/node_modules/next/dist/lib/metadata/generate/icon-mark.js [app-client] (ecmascript)",["/_next/static/chunks/apps_frontend_src_20myful._.js","/_next/static/chunks/node_modules_18pvdo5._.js"],"IconMark"]
+22:D"$42"
+22:null
+3a:D"$43"
+3a:[["$","title","0",{"children":"CashFlow Enterprise"},"$1b","$44",0],["$","meta","1",{"name":"description","content":"Production-first CashFlow enterprise platform blueprint for secure multi-platform financial operations."},"$1b","$45",0],["$","link","2",{"rel":"manifest","href":"/manifest.webmanifest","crossOrigin":"$undefined"},"$1b","$46",0],["$","meta","3",{"name":"mobile-web-app-capable","content":"yes"},"$1b","$47",0],["$","meta","4",{"name":"apple-mobile-web-app-title","content":"CashFlow"},"$1b","$48",0],["$","meta","5",{"name":"apple-mobile-web-app-status-bar-style","content":"black-translucent"},"$1b","$49",0],["$","link","6",{"rel":"shortcut icon","href":"/icon.svg","type":"image/svg+xml"},"$1b","$4a",0],["$","link","7",{"rel":"icon","href":"/favicon.ico?favicon.2vob68tjqpejf.ico","sizes":"256x256","type":"image/x-icon"},"$1b","$4b",0],["$","link","8",{"rel":"icon","href":"/icons/icon-192.png","sizes":"192x192","type":"image/png"},"$1b","$4c",0],["$","link","9",{"rel":"apple-touch-icon","href":"/icons/apple-touch-icon.png","sizes":"180x180","type":"image/png"},"$1b","$4d",0],["$","$L4f","10",{},"$1b","$4e",0]]

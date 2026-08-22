@@ -45,11 +45,14 @@ function writeStoredCurrency(currency: (typeof DASHBOARD_CURRENCIES)[number]) {
   try {
     window.localStorage.setItem(STORAGE_KEY, currency);
     window.sessionStorage.removeItem(STORAGE_KEY);
+    try { console.log('[dashboardCurrency.store] wrote storage', STORAGE_KEY, window.localStorage.getItem(STORAGE_KEY)); } catch (e) {}
   } catch {}
 }
 
 export const useDashboardCurrencyStore = create<DashboardCurrencyState>((set) => ({
-  currency: readStoredCurrency(),
+  // Initialize to DEFAULT_CURRENCY on module load so server and client initial render match.
+  // Actual stored value is applied during hydrateDashboardCurrency() on mount.
+  currency: DEFAULT_CURRENCY,
   hydrated: false,
   setCurrency: (c: string) => {
     const norm = normalizeDashboardCurrency(c) ?? DEFAULT_CURRENCY;

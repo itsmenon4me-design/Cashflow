@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EMPTY_FORM_VALUES, MONTH_OPTIONS } from "@/features/budgets/constants";
+import { getEmptyFormValues, MONTH_OPTIONS } from "@/features/budgets/constants";
 import { categoryLabel } from "@/lib/categories";
 import {
   budgetFormSchema,
@@ -85,12 +85,12 @@ export function BudgetForm({
 
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetFormSchema),
-    defaultValues: EMPTY_FORM_VALUES,
+    defaultValues: getEmptyFormValues(),
   });
 
   useEffect(() => {
     if (open) {
-      form.reset(budget ? toFormValues(budget) : EMPTY_FORM_VALUES);
+      form.reset(budget ? toFormValues(budget) : getEmptyFormValues());
     }
   }, [open, budget, form]);
 
