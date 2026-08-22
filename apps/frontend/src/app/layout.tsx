@@ -41,6 +41,12 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  try {
+    if (typeof window === 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[ssr] RootLayout server render', { ts: Date.now(), pid: process ? process.pid : null });
+    }
+  } catch (e) {}
   return (
     <html
       lang="id"
