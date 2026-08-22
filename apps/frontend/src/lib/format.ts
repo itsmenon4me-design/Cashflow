@@ -21,12 +21,40 @@ function resolveDisplayCurrency(currency?: string): string {
  * with 2 decimals - never hardcoded per UI file.
  */
 export function formatCurrency(amount: number, currency?: string): string {
-  return formatMajorCurrency(amount, resolveDisplayCurrency(currency));
+  const resolved = resolveDisplayCurrency(currency);
+  const spec = getCurrencySpec(resolved);
+  // Avoid calling Intl on the server to prevent SSR/CSR mismatches. Return a deterministic string.
+  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
+    try {
+      // eslint-disable-next-line no-console
+      console.trace('[format] formatCurrency running on server (fallback)', { resolved, ts: Date.now() });
+    } catch (e) {}
+    try {
+      return `${amount.toFixed(spec.minorUnits)} ${spec.code}`;
+    } catch (e) {
+      return `${amount} ${spec.code}`;
+    }
+  }
+  return formatMajorCurrency(amount, resolved);
 }
 
 /** Format persisted minor units with currency-specific precision and locale. */
 export function formatCurrencyCents(amount: string | number | bigint, currency?: string): string {
-  return formatMoneyFromMinorUnits(amount, resolveDisplayCurrency(currency));
+  const resolved = resolveDisplayCurrency(currency);
+  const spec = getCurrencySpec(resolved);
+  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
+    try {
+      // eslint-disable-next-line no-console
+      console.trace('[format] formatCurrencyCents running on server (fallback)', { resolved, ts: Date.now() });
+    } catch (e) {}
+    try {
+      const major = Number(toMajorUnits(Number.isFinite(Number(amount)) ? Number(amount) : 0, resolved));
+      return `${major.toFixed(spec.minorUnits)} ${spec.code}`;
+    } catch (e) {
+      return `${String(amount)} ${spec.code}`;
+    }
+  }
+  return formatMoneyFromMinorUnits(amount, resolved);
 }
 
 export function formatMoney(amount: number, currency?: string): string {
