@@ -55,6 +55,19 @@ export function formatCompactCurrency(value: number, currency?: string): string 
       console.trace('[format] formatCompactCurrency running on client', { resolved, locale: spec.primaryLocale, ts: Date.now() });
     }
   } catch (e) {}
+  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
+    // Server-side: return a deterministic compact fallback to avoid SSR/CSR mismatches.
+    // Example: "1.5K USD" — use basic magnitude-based compacting to keep the server output stable.
+    try {
+      const abs = Math.abs(majorUnits);
+      if (abs >= 1_000_000) return `${(majorUnits / 1_000_000).toFixed(1)}M ${spec.code}`;
+      if (abs >= 1_000) return `${(majorUnits / 1_000).toFixed(1)}K ${spec.code}`;
+      return `${majorUnits.toFixed(0)} ${spec.code}`;
+    } catch (e) {
+      return `${majorUnits} ${spec.code}`;
+    }
+  }
+
   return new Intl.NumberFormat(spec.primaryLocale, {
     style: "currency",
     currency: spec.code,
@@ -72,6 +85,16 @@ export function formatTransactionDate(date: string): string {
   // Use user's locale and timezone (browser environment). If unavailable, fall back to id-ID and system timezone.
   const locale = typeof navigator !== "undefined" && navigator.language ? navigator.language : "id-ID";
   const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+
+  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
+    // Server-side deterministic fallback: use a stable ISO-like date to avoid differences
+    // between server and client locale/timezone rendering.
+    try {
+      return parsed.toISOString();
+    } catch (e) {
+      return date;
+    }
+  }
 
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     day: "numeric",
