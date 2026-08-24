@@ -3,6 +3,7 @@ import { PrismaBudgetsRepository } from '../repositories/prisma-budgets.reposito
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { CreateBudgetDto } from '../dto/create-budget.dto';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 
 const makeRepoMock = (overrides: Record<string, unknown> = {}) => {
   return {
@@ -56,6 +57,11 @@ const makeAuditMock = () =>
     record: jest.fn().mockResolvedValue(undefined),
   }) as unknown as AuditLogService;
 
+const makeSettingsMock = () =>
+  ({
+    getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }),
+  }) as unknown as UserSettingsService;
+
 describe('BudgetsService', () => {
   it('creates budget successfully and preserves BigInt', async () => {
     const repo = makeRepoMock();
@@ -65,6 +71,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     const input = {
@@ -80,7 +87,8 @@ describe('BudgetsService', () => {
       'c1',
       8,
       2026,
-      undefined,
+      // currency now always resolves (settings fallback -> 'IDR')
+      'IDR',
     );
     expect(repo.create).toHaveBeenCalled();
     expect(created.budget_amount_cents).toEqual(BigInt(5000));
@@ -109,6 +117,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await svc.create('u1', {
@@ -140,6 +149,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     const payloadBad: CreateBudgetDto = {
@@ -170,6 +180,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await expect(
@@ -201,6 +212,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await expect(
@@ -234,6 +246,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await expect(
@@ -265,6 +278,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await expect(svc.getById('u1', 'b1')).rejects.toBeDefined();
@@ -292,6 +306,7 @@ describe('BudgetsService', () => {
       repo as unknown as PrismaBudgetsRepository,
       audit,
       prisma,
+      makeSettingsMock(),
     );
 
     await svc.softDelete('u1', 'b1');

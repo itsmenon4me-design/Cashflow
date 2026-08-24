@@ -12,6 +12,7 @@ import {
 import { CreateBudgetDto } from '../dto/create-budget.dto';
 import { UpdateBudgetDto } from '../dto/update-budget.dto';
 import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 
 interface CategoryRecord {
   id: string;
@@ -30,6 +31,7 @@ export class BudgetsService {
     private readonly repo: PrismaBudgetsRepository,
     private readonly audit: AuditLogService,
     private readonly prisma: PrismaService,
+    private readonly userSettings: UserSettingsService,
   ) {}
 
   private async findValidCategory(
@@ -63,9 +65,11 @@ export class BudgetsService {
 
   async create(userId: string, input: CreateBudgetDto): Promise<BudgetEntity> {
     await this.findValidCategory(userId, input.category_id);
+    // A budget must always belong to a currency ledger: explicit input wins,
+    // then the user's active currency, then IDR as the final fallback.
     const currency = input.currency
       ? normalizeDashboardCurrency(input.currency)
-      : undefined;
+      : ((await this.userSettings.getSettings(userId)).currency ?? 'IDR');
 
     const existing = await this.repo.findByUserAndCategoryAndPeriod(
       userId,

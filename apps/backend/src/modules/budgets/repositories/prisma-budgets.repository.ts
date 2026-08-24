@@ -61,10 +61,14 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
   }
 
   async findById(id: string, currency?: string): Promise<BudgetEntity | null> {
-    // Currency is display-scoping only — never hide rows by it.
-    void currency;
+    // Each currency is its own ledger; legacy rows without currency stay
+    // visible in every ledger until the backfill assigns them one.
+    const where: Prisma.BudgetWhereInput = { id };
+    if (currency) {
+      where.OR = [{ currency }, { currency: null }];
+    }
     const rec = await this.prisma.budget.findFirst({
-      where: { id },
+      where,
       include: { category: { select: { name: true } } },
     });
     if (!rec || rec.deleted_at) return null;
@@ -75,11 +79,13 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     userId: string,
     currency?: string,
   ): Promise<BudgetEntity[]> {
-    void currency;
     const where: Prisma.BudgetWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
+    if (currency) {
+      where.OR = [{ currency }, { currency: null }];
+    }
     const recs = await this.prisma.budget.findMany({
       where,
       include: { category: { select: { name: true } } },

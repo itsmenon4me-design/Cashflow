@@ -1,5 +1,6 @@
 import { SavingGoalsService } from './saving-goals.service';
 import { PrismaSavingGoalsRepository } from '../repositories/prisma-saving-goals.repository';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import type { PrismaService } from '../../../database/prisma.service';
 import { SavingGoalEntity } from '../entities/saving-goal.entity';
@@ -56,6 +57,7 @@ describe('SavingGoalsService - regression money invariants', () => {
       repoMock as unknown as PrismaSavingGoalsRepository,
       { record: jest.fn() } as unknown as AuditLogService,
       prismaMock as PrismaService,
+      { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) } as unknown as UserSettingsService,
     );
 
     const overview = await svc.overview('u1');
@@ -103,6 +105,7 @@ describe('SavingGoalsService - regression money invariants', () => {
       repoMock as unknown as PrismaSavingGoalsRepository,
       { record: jest.fn() } as unknown as AuditLogService,
       prismaMock as PrismaService,
+      { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) } as unknown as UserSettingsService,
     );
 
     const overview = await svc.overview('u1');

@@ -3,6 +3,7 @@ import { SavingGoalsService } from './saving-goals.service';
 import { PrismaSavingGoalsRepository } from '../repositories/prisma-saving-goals.repository';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { PrismaService } from '../../../database/prisma.service';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { SavingGoalEntity } from '../entities/saving-goal.entity';
 
 const dummyGoal = (
@@ -57,6 +58,10 @@ describe('SavingGoalsService', () => {
         { provide: PrismaSavingGoalsRepository, useValue: repoMock },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: UserSettingsService,
+          useValue: { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) },
+        },
       ],
     }).compile();
 

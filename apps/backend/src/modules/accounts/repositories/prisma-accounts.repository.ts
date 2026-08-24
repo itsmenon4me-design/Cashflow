@@ -66,17 +66,24 @@ export class PrismaAccountsRepository implements IAccountsRepository {
   }
 
   async findById(id: string, currency?: string): Promise<AccountEntity | null> {
-    // Currency is display-scoping only — never hide records by it.
-    void currency;
-    let rec: AccountRec | null = await this.prisma.account.findUnique({ where: { id } });
-    if (rec && rec.deleted_at) rec = null;
+    // Each currency is its own ledger: when a currency hint is provided the
+    // account must belong to that ledger, otherwise it is not visible.
+    let rec: AccountRec | null = null;
+    if (currency) {
+      rec = await this.prisma.account.findFirst({
+        where: { id, deleted_at: null, currency },
+      });
+    } else {
+      rec = await this.prisma.account.findUnique({ where: { id } });
+      if (rec && rec.deleted_at) rec = null;
+    }
 
     return rec ? this.map(rec) : null;
   }
 
   async findAllByUser(userId: string, currency?: string): Promise<AccountEntity[]> {
-    void currency;
     const where: any = { user_id: userId, deleted_at: null };
+    if (currency) where.currency = currency;
     const recs: AccountRec[] = await this.prisma.account.findMany({
       where,
       orderBy: {

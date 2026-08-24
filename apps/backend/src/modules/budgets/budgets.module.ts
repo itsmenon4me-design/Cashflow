@@ -4,9 +4,10 @@ import { BudgetsService } from './services/budgets.service';
 import { PrismaBudgetsRepository } from './repositories/prisma-budgets.repository';
 import { PrismaModule } from '../../database/prisma.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, AuditLogsModule],
+  imports: [PrismaModule, AuditLogsModule, SettingsModule],
   controllers: [BudgetsController],
   providers: [BudgetsService, PrismaBudgetsRepository],
   exports: [BudgetsService],

@@ -13,6 +13,7 @@ import { CreateInvestmentDto } from '../dto/create-investment.dto';
 import { UpdateInvestmentDto } from '../dto/update-investment.dto';
 import { getCurrencySpec } from '../../../common/types/money';
 import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 
 interface PriceInput {
   quantity: number;
@@ -68,6 +69,7 @@ export class InvestmentsService {
     private readonly repo: PrismaInvestmentsRepository,
     private readonly audit: AuditLogService,
     private readonly prisma: PrismaService,
+    private readonly userSettings: UserSettingsService,
   ) {}
 
   private async resolveAccountCurrency(
@@ -75,7 +77,14 @@ export class InvestmentsService {
     accountId?: string | null,
     expectedCurrency?: string | null,
   ): Promise<string> {
-    if (!accountId) return expectedCurrency ?? 'IDR';
+    if (!accountId) {
+      // No linked account: fall back to the user's active currency, then IDR.
+      return (
+        expectedCurrency ??
+        (await this.userSettings.getSettings(userId)).currency ??
+        'IDR'
+      );
+    }
     const account = await this.prisma.account.findUnique({
       where: { id: accountId },
     });

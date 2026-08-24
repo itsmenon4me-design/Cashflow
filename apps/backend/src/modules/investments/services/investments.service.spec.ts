@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InvestmentsService } from './investments.service';
 import { PrismaInvestmentsRepository } from '../repositories/prisma-investments.repository';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { InvestmentEntity } from '../entities/investment.entity';
@@ -60,6 +61,10 @@ describe('InvestmentsService', () => {
         { provide: PrismaInvestmentsRepository, useValue: repoMock },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: UserSettingsService,
+          useValue: { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) },
+        },
       ],
     }).compile();
 

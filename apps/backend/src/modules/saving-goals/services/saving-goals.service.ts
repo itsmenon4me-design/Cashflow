@@ -12,6 +12,7 @@ import {
 import { CreateSavingGoalDto } from '../dto/create-saving-goal.dto';
 import { UpdateSavingGoalDto } from '../dto/update-saving-goal.dto';
 import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
+import { UserSettingsService } from '../../settings/services/user-settings.service';
 
 @Injectable()
 export class SavingGoalsService {
@@ -21,6 +22,7 @@ export class SavingGoalsService {
     private readonly repo: PrismaSavingGoalsRepository,
     private readonly audit: AuditLogService,
     private readonly prisma: PrismaService,
+    private readonly userSettings: UserSettingsService,
   ) {}
 
   private async validateReferences(
@@ -86,9 +88,15 @@ export class SavingGoalsService {
     const contextCurrency = currencyParam
       ? normalizeDashboardCurrency(currencyParam)
       : undefined;
-    const currency = input.currency
-      ? normalizeDashboardCurrency(input.currency)
-      : contextCurrency;
+    // A goal must always belong to a currency ledger: explicit input wins,
+    // then the request currency context, then the user's active currency,
+    // then IDR as the final fallback.
+    const currency =
+      input.currency
+        ? normalizeDashboardCurrency(input.currency)
+        : (contextCurrency ??
+          (await this.userSettings.getSettings(userId)).currency ??
+          'IDR');
     await this.validateReferences(
       userId,
       input.account_id,

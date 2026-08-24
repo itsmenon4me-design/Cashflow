@@ -209,10 +209,11 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       : where;
 
     // Build prisma query
-    // ponytail: currency is display-scoping only — listing must not hide rows
-    // whose account uses another (or absent) currency. Rows carry their own currency.
-    void filter?.currency;
-    const whereWithCurrency = baseWhere;
+    // ponytail reverted: each currency is its own ledger — when the dashboard
+    // currency is provided, only rows whose account belongs to that ledger.
+    const whereWithCurrency = filter?.currency
+      ? ({ AND: [baseWhere, { account: { currency: filter.currency } }] } as Prisma.TransactionWhereInput)
+      : baseWhere;
 
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -278,9 +279,10 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const take = limit;
 
     const baseWhere = { AND: [where, { OR: or }] } as Prisma.TransactionWhereInput;
-    // Global search spans every currency (display concern only).
-    void currency;
-    const whereWithCurrency = baseWhere;
+    // Ledger scoping: when a currency hint is provided, restrict to that ledger.
+    const whereWithCurrency = currency
+      ? ({ AND: [baseWhere, { account: { currency } }] } as Prisma.TransactionWhereInput)
+      : baseWhere;
 
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
