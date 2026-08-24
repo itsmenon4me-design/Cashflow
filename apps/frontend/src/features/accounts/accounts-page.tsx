@@ -258,13 +258,17 @@ export function AccountsPage() {
             onSetDefault={(account) => void handleSetDefault(account)}
             onDelete={setDeleting}
           />
-          <TransactionPagination
-            page={currentPage}
-            pageSize={pageSize}
-            totalItems={sorted.length}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
-          />
+          {/* Render pagination only after load: inserting it below the table
+              moves no existing element, keeping CLS at zero. */}
+          {!loading && (
+            <TransactionPagination
+              page={currentPage}
+              pageSize={pageSize}
+              totalItems={sorted.length}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </>
       )}
 

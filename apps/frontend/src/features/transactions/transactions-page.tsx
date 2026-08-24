@@ -476,13 +476,15 @@ export function TransactionsPage() {
             onDuplicate={(transaction) => void handleDuplicate(transaction)}
             onDelete={setDeleting}
           />
-          <TransactionPagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
-          />
+          {!loading && (
+            <TransactionPagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </>
       )}
 

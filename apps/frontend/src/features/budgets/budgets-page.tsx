@@ -377,13 +377,15 @@ export function BudgetsPage() {
             onEdit={(budget) => openForm("edit", budget)}
             onDelete={setDeleting}
           />
-          <TransactionPagination
-            page={currentPage}
-            pageSize={pageSize}
-            totalItems={visible.length}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
-          />
+          {!loading && (
+            <TransactionPagination
+              page={currentPage}
+              pageSize={pageSize}
+              totalItems={visible.length}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </>
       )}
 

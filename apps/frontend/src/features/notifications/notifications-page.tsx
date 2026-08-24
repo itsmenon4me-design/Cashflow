@@ -240,13 +240,15 @@ export function NotificationsPage() {
             ))}
           </ul>
 
-          <TransactionPagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
-          />
+          {!loading && (
+            <TransactionPagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </>
       )}
     </div>

@@ -48,7 +48,9 @@ export function SummaryCard({
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-1 pt-0">
+      {/* Reserved space: the loaded change row is ~20px — reserving it keeps
+          the cards below stable when data arrives. */}
+      <CardContent className="min-h-5 space-y-1 pt-0">
         {showChange && change ? (
           <div className="flex items-center justify-between text-sm">
             <span

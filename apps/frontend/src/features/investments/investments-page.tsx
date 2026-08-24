@@ -280,42 +280,47 @@ export function InvestmentsPage() {
         />
       </section>
 
-      {error ? (
-        <ErrorState
-          title={uiText.states.errorTitle}
-          description={uiText.states.errorDescription}
-          onRetry={() => setRefreshKey((key) => key + 1)}
-        />
-      ) : isEmpty ? (
-        <EmptyState
-          title={uiText.investments.emptyTitle}
-          description={uiText.investments.emptySubtitle}
-          icon={<TrendingUp className="size-8 text-muted-foreground" aria-hidden="true" />}
-          actionButton={
-            <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
-              <Plus />
-              {uiText.investments.add}
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          <InvestmentTable
-            items={rows}
-            loading={loading}
-            onView={(item) => openForm("view", item)}
-            onEdit={(item) => openForm("edit", item)}
-            onDelete={setDeleting}
+      {/* ponytail: reserve skeleton height so loading->data/empty/error swaps never shift layout; revisit if rows routinely exceed 6 */}
+      <div className="min-h-[593px]">
+        {error ? (
+          <ErrorState
+            title={uiText.states.errorTitle}
+            description={uiText.states.errorDescription}
+            onRetry={() => setRefreshKey((key) => key + 1)}
           />
-          <TransactionPagination
-            page={currentPage}
-            pageSize={pageSize}
-            totalItems={visible.length}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
+        ) : isEmpty ? (
+          <EmptyState
+            title={uiText.investments.emptyTitle}
+            description={uiText.investments.emptySubtitle}
+            icon={<TrendingUp className="size-8 text-muted-foreground" aria-hidden="true" />}
+            actionButton={
+              <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
+                <Plus />
+                {uiText.investments.add}
+              </Button>
+            }
           />
-        </>
-      )}
+        ) : (
+          <>
+            <InvestmentTable
+              items={rows}
+              loading={loading}
+              onView={(item) => openForm("view", item)}
+              onEdit={(item) => openForm("edit", item)}
+              onDelete={setDeleting}
+            />
+            {!loading && (
+              <TransactionPagination
+                page={currentPage}
+                pageSize={pageSize}
+                totalItems={visible.length}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <AllocationPieCard allocation={overview?.allocation ?? []} />
 

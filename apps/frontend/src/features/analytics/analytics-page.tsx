@@ -338,7 +338,9 @@ export function AnalyticsPage() {
             <FinancialHealthCard health={health} loading={loading} />
           </div>
 
-          <InsightsCard insights={insights} loading={loading} />
+          {/* Last element: render after load so variable insight count can
+              never push existing content. */}
+          {!loading && <InsightsCard insights={insights} loading={loading} />}
         </>
       )}
     </div>

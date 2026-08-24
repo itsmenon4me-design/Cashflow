@@ -109,6 +109,17 @@ export default function Page() {
   useEffect(() => {
     if (!lookupsReady) return;
     let cancelled = false;
+
+    // Stale-while-revalidate: only show the table skeleton on the very first
+    // load. On background refetches (search, filter, global refresh) keep the
+    // previously loaded rows visible so typing/searching doesn't blink.
+    if (transactions.length > 0) {
+      setError(false);
+    } else {
+      setLoading(true);
+      setError(false);
+    }
+
     const params: TransactionListParams = {
       page,
       limit: pageSize,
@@ -124,8 +135,15 @@ export default function Page() {
     if (queryConfig.toDate) params.toDate = queryConfig.toDate;
 
     const run = async () => {
-      setLoading(true);
-      setError(false);
+      // Stale-while-revalidate (A3): keep previously loaded rows visible while
+      // a background refetch runs — no skeleton flash on search typing.
+      if (transactions.length > 0 || totalItems > 0) {
+        setError(false);
+      } else {
+        setLoading(true);
+        setError(false);
+      }
+
       try {
         const res = await transactionService.list(params as any);
         if (cancelled) return;
@@ -331,7 +349,7 @@ export default function Page() {
         <>
           <TransactionTable
             transactions={transactions}
-            loading={loading}
+            loading={loading && transactions.length === 0}
             sortBy={sort.key}
             sortOrder={sort.order}
             onSortChange={handleSortChange}
@@ -341,13 +359,17 @@ export default function Page() {
             onDelete={setDeleting}
             hideTypeColumn
           />
-          <TransactionPagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
+          {/* Pagination after load only: appearing below the table moves no
+              existing element, keeping CLS at zero. */}
+          {!loading && (
+            <TransactionPagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
         </>
       )}
 

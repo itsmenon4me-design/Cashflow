@@ -403,22 +403,24 @@ export function ForecastPage() {
         </>
       )}
 
-      <SpendingPredictionCard
-        data={spendingPrediction}
-        currency={spendingPrediction?.currency ?? currency}
-        loading={spendingLoading}
-        error={spendingError}
-        onRetry={() => {
-          setSpendingError(false);
-          void forecastService.getSpendingPrediction({ horizon: 1 }).then(setSpendingPrediction).catch(() => setSpendingError(true));
-        }}
-        locale={language}
-        text={{
-          title: text.forecast.spendingTitle,
-          subtitle: text.forecast.spendingSubtitle,
-          periodLabel: text.forecast.spendingPeriodLabel,
-          totalLabel: text.forecast.spendingTotalLabel,
-          otherLabel: text.forecast.spendingOtherLabel,
+      {/* Last element on the page: render after load so its height change
+          (placeholder -> data) can never push existing content. */}
+      {!spendingLoading && (
+        <SpendingPredictionCard
+          data={spendingPrediction}
+          currency={spendingPrediction?.currency ?? currency}
+          error={spendingError}
+          onRetry={() => {
+            setSpendingError(false);
+            void forecastService.getSpendingPrediction({ horizon: 1 }).then(setSpendingPrediction).catch(() => setSpendingError(true));
+          }}
+          locale={language}
+          text={{
+            title: text.forecast.spendingTitle,
+            subtitle: text.forecast.spendingSubtitle,
+            periodLabel: text.forecast.spendingPeriodLabel,
+            totalLabel: text.forecast.spendingTotalLabel,
+            otherLabel: text.forecast.spendingOtherLabel,
           breakdownTitle: text.forecast.spendingBreakdownTitle,
           basedOnMonths: text.forecast.spendingBasedOnMonths,
           noCategoryData: text.forecast.spendingNoCategoryData,
@@ -431,7 +433,8 @@ export function ForecastPage() {
           errorTitle: text.forecast.errorTitle,
           errorDescription: text.forecast.errorDescription,
         }}
-      />
+        />
+      )}
     </div>
   );
 }

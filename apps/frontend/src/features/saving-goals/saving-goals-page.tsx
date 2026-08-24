@@ -277,13 +277,15 @@ export function SavingGoalsPage() {
             onEdit={(goal) => openForm("edit", goal)}
             onDelete={setDeleting}
           />
-          <TransactionPagination
-            page={currentPage}
-            pageSize={pageSize}
-            totalItems={visible.length}
-            onPageChange={setPage}
-            onPageSizeChange={handlePageSizeChange}
-          />
+          {!loading && (
+            <TransactionPagination
+              page={currentPage}
+              pageSize={pageSize}
+              totalItems={visible.length}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </>
       )}
 

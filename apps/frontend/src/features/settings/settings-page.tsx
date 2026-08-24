@@ -114,9 +114,7 @@ export function SettingsPage() {
     setSaveError(null);
     setSavingName(true);
     try {
-      console.log('[settings] saveName -> calling authService.updateProfile', { full_name: userName });
       const res = await authService.updateProfile({ full_name: userName });
-      console.log('[settings] saveName -> authService.updateProfile result', res);
       // If the service returns a success flag, update local store accordingly.
       if (res && (res as any).success) {
         const currentUser = useAuthStore.getState().user;
@@ -191,13 +189,10 @@ export function SettingsPage() {
 
   const persist = async (patch: UserSettingsPatch) : Promise<import("@/types/settings").UserSettings | null> => {
     try {
-      console.log('[settings] persist -> updateSettings payload', patch);
       const updated = await settingsService.updateSettings(patch);
-      console.log('[settings] persist -> updateSettings result', updated);
       // Re-fetch authoritative settings from server to ensure client reflects server state
       try {
         const fresh = await settingsService.getSettings();
-        console.log('[settings] persist -> re-fetched settings', fresh);
         setPersistError(null);
         return fresh;
       } catch (e) {
@@ -237,7 +232,6 @@ export function SettingsPage() {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem('cashflow-dashboard-currency', value);
       }
-      console.log('[settings] handleCurrencyChange -> optimistic apply', { value, stored: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null });
     } catch (e) {
       console.error('[settings] handleCurrencyChange -> optimistic apply failed', e);
     }
@@ -254,9 +248,8 @@ export function SettingsPage() {
           // write multiple times with short delays to survive possible hydrations/overwrites
           for (let i = 0; i < 4; i++) {
             try { window.localStorage.setItem('cashflow-dashboard-currency', updated.currency); } catch (e) {}
-          try { console.log('[settings] handleCurrencyChange -> wrote localStorage (loop)', { iteration: i, written: updated.currency, now: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
-          try { if (typeof setter2 === 'function') setter2(updated.currency); } catch (e) {}
-          await new Promise((r) => setTimeout(r, 40));
+            try { if (typeof setter2 === 'function') setter2(updated.currency); } catch (e) {}
+            await new Promise((r) => setTimeout(r, 40));
           }
         }
         try { window.dispatchEvent(new CustomEvent('cashflow:settings-updated', { detail: { currency: updated.currency } })); } catch (e) {}
@@ -273,7 +266,6 @@ export function SettingsPage() {
           if (typeof setter3 === 'function') setter3(fresh.currency);
           if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.setItem('cashflow-dashboard-currency', fresh.currency);
-            try { console.log('[settings] handleCurrencyChange -> wrote localStorage after refetch', { written: fresh.currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
           }
           try { window.dispatchEvent(new CustomEvent('cashflow:settings-updated', { detail: { currency: fresh.currency } })); } catch (e) {}
         } catch (e) {
@@ -349,7 +341,8 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <Skeleton className="h-40 w-full rounded-xl" />
+                /* height matches the loaded radio pair (2 items + gap) */
+                <Skeleton className="h-[100px] w-full rounded-xl" />
               ) : (
                 <RadioGroup value={language} onValueChange={(value) => handleLanguageChange(value as LanguagePreference)}>
                   <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">

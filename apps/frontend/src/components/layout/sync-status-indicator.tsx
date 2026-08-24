@@ -20,6 +20,9 @@ const CONFIG: Record<
   },
 };
 
+const PILL_CLASSES =
+  "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground";
+
 export function SyncStatusIndicator({
   className,
   showLabel = true,
@@ -37,8 +40,18 @@ export function SyncStatusIndicator({
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Reserve the exact pill geometry before mount so hydration never shifts the header.
   if (!mounted) {
-    return null;
+    return (
+      <div aria-hidden className={cn(PILL_CLASSES, "invisible", className)}>
+        <Cloud className="size-3.5 shrink-0" />
+        {showLabel && (
+          <span className="inline-block min-w-[3.4rem] text-center tabular-nums">
+            {CONFIG.online.label}
+          </span>
+        )}
+      </div>
+    );
   }
 
   const resolved: SyncUiStatus = online && status === "online" ? "online" : status;
@@ -53,13 +66,16 @@ export function SyncStatusIndicator({
       role="status"
       aria-live="polite"
       title={label}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground",
-        className,
-      )}
+      className={cn(PILL_CLASSES, className)}
     >
       <Icon className={cn("size-3.5 shrink-0", iconClassName)} aria-hidden="true" />
-      {showLabel && <span className="tabular-nums">{label + pending}</span>}
+      {/* Fixed-width label: Online/Syncing/Synced share the same slot so the
+          header row never re-flows when the status text changes. */}
+      {showLabel && (
+        <span className="inline-block min-w-[3.4rem] text-center tabular-nums">
+          {label + pending}
+        </span>
+      )}
     </div>
   );
 }
