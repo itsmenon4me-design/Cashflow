@@ -107,10 +107,10 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
   }
 
   async findAllByUser(userId: string, currency?: string): Promise<TransactionEntity[]> {
+    void currency;
     const where: Prisma.TransactionWhereInput = { user_id: userId, deleted_at: null };
-    const whereWithCurrency = currency ? { AND: [where, { account: { currency } }] } : where;
     const recs: TxRec[] = await this.prisma.transaction.findMany({
-      where: whereWithCurrency,
+      where,
       orderBy: { transaction_date: 'desc' },
     });
     return recs.map((r: TxRec) => this.map(r));
@@ -209,10 +209,10 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       : where;
 
     // Build prisma query
-    // If currency provided, add relation filter to the where clause so DB filters by account.currency
-    const whereWithCurrency = filter?.currency
-      ? ({ AND: [baseWhere, { account: { currency: filter.currency } }] } as Prisma.TransactionWhereInput)
-      : baseWhere;
+    // ponytail: currency is display-scoping only — listing must not hide rows
+    // whose account uses another (or absent) currency. Rows carry their own currency.
+    void filter?.currency;
+    const whereWithCurrency = baseWhere;
 
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -278,7 +278,9 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const take = limit;
 
     const baseWhere = { AND: [where, { OR: or }] } as Prisma.TransactionWhereInput;
-    const whereWithCurrency = currency ? { AND: [baseWhere, { account: { currency } }] } : baseWhere;
+    // Global search spans every currency (display concern only).
+    void currency;
+    const whereWithCurrency = baseWhere;
 
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({

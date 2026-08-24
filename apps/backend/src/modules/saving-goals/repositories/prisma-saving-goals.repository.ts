@@ -66,11 +66,10 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
   }
 
   async findById(id: string, currency?: string): Promise<SavingGoalEntity | null> {
-    const where: Prisma.SavingGoalWhereInput = { id };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
-    const rec = await this.prisma.savingGoal.findFirst({ where });
+    // ponytail: currency is display-scoping only — ownership via user_id in service layer.
+    // Ignore the hint so records in other (or absent) currencies stay manageable.
+    void currency;
+    const rec = await this.prisma.savingGoal.findFirst({ where: { id } });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
@@ -79,13 +78,12 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     userId: string,
     currency?: string,
   ): Promise<SavingGoalEntity[]> {
+    // Currency must never hide rows (display concern, not a data filter).
+    void currency;
     const where: Prisma.SavingGoalWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
     const recs = await this.prisma.savingGoal.findMany({
       where,
       orderBy: { created_at: 'desc' },

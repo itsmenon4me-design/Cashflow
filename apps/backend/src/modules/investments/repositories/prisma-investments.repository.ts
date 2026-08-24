@@ -85,20 +85,16 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
   }
 
   async findById(id: string, currency?: string): Promise<InvestmentEntity | null> {
-    const where: Prisma.InvestmentWhereInput = { id };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
-    const rec = await this.prisma.investment.findFirst({ where });
+    // Currency is display-scoping only — never hide rows by it.
+    void currency;
+    const rec = await this.prisma.investment.findFirst({ where: { id } });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
   async findAllByUser(userId: string, currency?: string): Promise<InvestmentEntity[]> {
+    void currency;
     const where: any = { user_id: userId, deleted_at: null };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
     const recs = await this.prisma.investment.findMany({
       where,
       orderBy: { purchase_date: 'desc' },
