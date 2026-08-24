@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Bell,
+  Compass,
   Folder,
   Landmark,
   Lightbulb,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { categoryLabel, CATEGORY_LABELS } from "@/lib/categories";
+import { matchAppMenuItems, type AppMenuItem } from "@/lib/navigation";
 import { toInputDate } from "@/lib/date";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { uiText } from "@/locales";
@@ -95,6 +98,7 @@ interface NotificationResult {
 }
 
 interface SearchResults {
+  menus: AppMenuItem[];
   transactions: TxResult[];
   accounts: AccountResult[];
   insights: string[];
@@ -106,6 +110,7 @@ interface SearchResults {
 }
 
 const EMPTY_RESULTS: SearchResults = {
+  menus: [],
   transactions: [],
   accounts: [],
   insights: [],
@@ -130,7 +135,40 @@ export function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // The results panel is portaled to <body> with fixed positioning: the header
+  // combines overflow-hidden + backdrop-blur, which clips (and creates a
+  // containing block for) any dropdown rendered inside it — the panel used to
+  // be invisible even though it was in the DOM.
+  useEffect(() => {
+    const panelOpen = open && debouncedQuery.trim().length >= MIN_QUERY_LENGTH;
+    if (!panelOpen) {
+      setAnchor(null);
+      return;
+    }
+    const update = () => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setAnchor({ top: r.bottom + 8, left: r.left, width: r.width });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, debouncedQuery]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
@@ -152,6 +190,9 @@ export function GlobalSearch() {
     let cancelled = false;
     setLoading(true);
     setSearched(false);
+
+    // Quick-nav: pure client-side menu matching, instant, no API calls.
+    setResults((prev) => ({ ...prev, menus: matchAppMenuItems(q) }));
 
     const categoryTerms = new Set<string>([q]);
     for (const [name, label] of Object.entries(CATEGORY_LABELS)) {
@@ -336,6 +377,7 @@ export function GlobalSearch() {
 
       if (!cancelled) {
         setResults({
+          menus: matchAppMenuItems(q),
           transactions,
           accounts: accountResults,
           insights: insightResults,
@@ -357,6 +399,7 @@ export function GlobalSearch() {
   }, [normalizedQuery]);
 
   const totalCount =
+    results.menus.length +
     results.transactions.length +
     results.accounts.length +
     results.insights.length +
@@ -374,6 +417,12 @@ export function GlobalSearch() {
   };
 
   const submitToTransactions = () => {
+    // Command-palette behavior: Enter jumps to the top menu match when the
+    // query names a page; otherwise falls back to the transactions search.
+    if (results.menus.length > 0) {
+      navigate(results.menus[0].href);
+      return;
+    }
     const q = query.trim();
     if (!q) return;
     navigate(`/transactions?q=${encodeURIComponent(q)}`);
@@ -382,7 +431,7 @@ export function GlobalSearch() {
   const hasQuery = useMemo(() => query.trim().length >= MIN_QUERY_LENGTH, [query]);
 
   return (
-    <div className="relative hidden w-full max-w-md flex-1 md:block">
+    <div ref={wrapRef} className="relative hidden w-full max-w-md flex-1 md:block">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         ref={inputRef}
@@ -404,18 +453,25 @@ export function GlobalSearch() {
         }}
       />
 
-      {showPanel && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            aria-hidden="true"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="listbox"
-            aria-label={uiText.common.searchAriaLabel}
-            className="absolute top-full left-0 z-50 mt-2 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
-          >
+      {/* Portal to <body>: the header's overflow-hidden + backdrop-blur clip
+          and contain any in-header dropdown, which used to make this panel
+          invisible even while present in the DOM. */}
+      {mounted &&
+        showPanel &&
+        anchor &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              aria-hidden="true"
+              onClick={() => setOpen(false)}
+            />
+            <div
+              role="listbox"
+              aria-label={uiText.common.searchAriaLabel}
+              className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
+              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
+            >
             {loading && (
               <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
@@ -427,6 +483,34 @@ export function GlobalSearch() {
               <p className="px-4 py-4 text-sm text-muted-foreground">
                 {uiText.common.noSearchResults}
               </p>
+            )}
+
+            {/* Quick-nav: menu pages first — typing a page name usually means
+                "take me there", not "search the data". Rendered instantly
+                (pure client-side matching) without waiting for data fetches. */}
+            {results.menus.length > 0 && (
+              <SearchGroup label={uiText.common.searchResultsMenu}>
+                {results.menus.map((menu) => (
+                  <button
+                    key={menu.href}
+                    type="button"
+                    role="option"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
+                    onClick={() => navigate(menu.href)}
+                  >
+                    <menu.icon className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {menu.label}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {menu.href}
+                      </span>
+                    </span>
+                    <Compass className="size-3.5 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </SearchGroup>
             )}
 
             {!loading && results.transactions.length > 0 && (
@@ -646,9 +730,10 @@ export function GlobalSearch() {
                 {uiText.transactions.title} →
               </button>
             )}
-          </div>
-        </>
-      )}
+            </div>
+          </>,
+          document.body,
+        )}
     </div>
   );
 }

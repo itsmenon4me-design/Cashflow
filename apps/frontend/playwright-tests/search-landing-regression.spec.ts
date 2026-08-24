@@ -101,6 +101,14 @@ test.describe('global search landing regression (all data types)', () => {
     auth = await login(request);
     const h = authHeaders(auth);
 
+    // Align the server-side currency preference with the seeded fixtures
+    // (IDR): each currency is a separate ledger, so a USD dashboard would
+    // legitimately hide the IDR fixtures.
+    await request.patch(API_BASE + '/settings', {
+      headers: h,
+      data: { currency: 'IDR' },
+    });
+
     // --- transaction dated TWO months ago (outside the current-month default filter)
     const cats = await request.get(API_BASE + '/categories', { headers: h });
     const catsBody = await cats.json();

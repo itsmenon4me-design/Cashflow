@@ -4,25 +4,7 @@ import { memo } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  BarChart3,
-  Bell,
-  ChevronDown,
-  CreditCard,
-  FileText,
-  Sparkles,
-  Folder,
-  Home,
-  PieChart,
-  ReceiptText,
-  Settings,
-  ShieldCheck,
-  Target,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -30,31 +12,18 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
+import { getAppMenuItems } from "@/lib/navigation";
 
 interface NavItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: import("lucide-react").LucideIcon;
 }
 
 function getNavItems(): NavItem[] {
-  return [
-  { label: uiText.navigation.dashboard, href: "/dashboard", icon: Home },
-    { label: uiText.navigation.accounts, href: "/accounts", icon: CreditCard },
-    { label: uiText.navigation.income, href: "/incomes", icon: ArrowDownToLine },
-    { label: uiText.navigation.expense, href: "/expenses", icon: ArrowUpFromLine },
-    { label: uiText.navigation.transactions, href: "/transactions", icon: ReceiptText },
-    { label: uiText.navigation.categories, href: "/categories", icon: Folder },
-    { label: uiText.navigation.budgets, href: "/budgets", icon: PieChart },
-    { label: uiText.navigation.goals, href: "/goals", icon: Target },
-    { label: uiText.navigation.investments, href: "/investments", icon: TrendingUp },
-    { label: uiText.navigation.forecast, href: "/forecast", icon: Sparkles },
-    { label: uiText.navigation.reports, href: "/reports", icon: FileText },
-    { label: uiText.navigation.analytics, href: "/analytics", icon: BarChart3 },
-    { label: uiText.navigation.notifications, href: "/notifications", icon: Bell },
-    { label: uiText.navigation.auditLog, href: "/audit-log", icon: ShieldCheck },
-    { label: uiText.navigation.settings, href: "/settings", icon: Settings },
-  ];
+  // Single source of truth lives in lib/navigation.ts (shared with the
+  // global search quick-nav so both always list the same pages).
+  return getAppMenuItems().map(({ label, href, icon }) => ({ label, href, icon }));
 }
 
 interface NavGroup {
