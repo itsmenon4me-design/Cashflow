@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Plus, Wallet } from "lucide-react";
 import { AccountFilters } from "@/components/accounts/AccountFilters";
 import { AccountForm, type AccountFormMode } from "@/components/accounts/AccountForm";
@@ -40,8 +39,6 @@ interface FormState {
 export function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
-  const searchParams = useSearchParams();
-  const highlightAccountId = searchParams.get("accountId");
   const dataVersion = useDataRefreshStore((state) => state.version);
   const [filters, setFilters] = useState<AccountFiltersState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -57,22 +54,8 @@ export function AccountsPage() {
 
   const fetchAccounts = useCallback(async () => {
     const data = await accountService.list(activeCurrency);
-    const items = data.map(toAccountItem);
-    // Global-search landing: keep the clicked account visible even when the
-    // active dashboard currency differs (currency stays a display concern and
-    // the selector logic is untouched).
-    if (highlightAccountId && !items.some((a) => a.id === highlightAccountId)) {
-      try {
-        const extra = await accountService.get(highlightAccountId);
-        if (extra) {
-          items.unshift(toAccountItem(extra));
-        }
-      } catch {
-        // Account may have been deleted between search and landing; ignore.
-      }
-    }
-    return items;
-  }, [activeCurrency, highlightAccountId]);
+    return data.map(toAccountItem);
+  }, [activeCurrency]);
 
   const load = useCallback(async () => {
     try {

@@ -36,6 +36,7 @@ export function NotificationsPage() {
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const dataVersion = useDataRefreshStore((state) => state.version);
+  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
   const currencyHydrated = useDashboardCurrencyStore((state) => state.hydrated);
 
   const markReadInStore = useNotificationStore((state) => state.markRead);
@@ -63,9 +64,7 @@ export function NotificationsPage() {
           page,
           limit: pageSize,
           unread: filter === "unread" ? true : undefined,
-          // Currency is a display concern (see commit 6accc0e): scoping the list
-          // by the active dashboard currency hid cross-currency notifications,
-          // including items clicked from global search results.
+          currency: activeCurrency,
         });
         if (cancelled) return;
         setItems(result.items);
@@ -92,7 +91,7 @@ export function NotificationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, dataVersion, page, pageSize, filter, currencyHydrated]);
+  }, [refreshKey, dataVersion, page, pageSize, filter, activeCurrency, currencyHydrated]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 

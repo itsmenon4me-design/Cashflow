@@ -470,11 +470,7 @@ export function GlobalSearch() {
                     type="button"
                     role="option"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() =>
-                      navigate(
-                        `/accounts?accountId=${encodeURIComponent(account.id)}`,
-                      )
-                    }
+                    onClick={() => navigate("/accounts")}
                   >
                     <Landmark className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
