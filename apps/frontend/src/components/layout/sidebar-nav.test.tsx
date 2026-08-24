@@ -88,7 +88,9 @@ describe("SidebarNav", () => {
     expect(screen.queryByRole("link", { name: locales.id.navigation.transactions })).not.toBeInTheDocument();
 
     mockPathname = "/accounts";
-    rerender(<SidebarNav />);
+    // SidebarNav is memoized; rerender with a changed prop so React actually
+    // re-renders (in the app, usePathname context updates bypass memo).
+    rerender(<SidebarNav collapsed={false} />);
 
     expect(screen.getByRole("link", { name: locales.id.navigation.accounts })).toBeInTheDocument();
   });

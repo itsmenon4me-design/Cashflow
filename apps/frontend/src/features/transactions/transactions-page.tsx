@@ -91,9 +91,15 @@ export function TransactionsPage() {
 
   // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues;
   // a ?q= from the header search pre-fills the search box (header → /transactions?q=...)
+  // and clears the default month range so results from any month stay visible.
   useEffect(() => {
-    setFilters((prev) => ({ ...defaultFilters, search: urlQuery || prev.search }));
+    if (urlQuery) {
+      setFilters({ ...EMPTY_FILTERS, search: urlQuery });
+    } else {
+      setFilters((prev) => ({ ...defaultFilters, search: prev.search }));
+    }
     setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlQuery]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -186,27 +192,31 @@ export function TransactionsPage() {
 
     let cancelled = false;
 
-    const params: TransactionListParams = {
-      page,
-      limit: pageSize,
-      sortBy: sort.key,
-      sortOrder: sort.order,
-      currency: activeCurrency,
-    };
-    if (search) params.q = search;
-    if (queryConfig.type) params.type = queryConfig.type;
-    if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
-    if (queryConfig.accountId) params.accountId = queryConfig.accountId;
-    if (queryConfig.fromDate) params.fromDate = queryConfig.fromDate;
-    if (queryConfig.toDate) params.toDate = queryConfig.toDate;
-
-    const run = async () => {
-      await Promise.resolve();
-      if (cancelled) {
-        return;
-      }
+    // Stale-while-revalidate (A3/A2): only show the table skeleton on the very
+    // first load of an empty list. On background refetches (search typing,
+    // filter changes, global refresh bump) keep previously loaded rows visible
+    // so nothing blinks while new data is in flight.
+    if (transactions.length > 0 || totalItems > 0) {
+      setError(false);
+    } else {
       setLoading(true);
       setError(false);
+    }
+
+    const run = async () => {
+      const params: TransactionListParams = {
+        page,
+        limit: pageSize,
+        sortBy: sort.key,
+        sortOrder: sort.order,
+        currency: activeCurrency,
+      };
+      if (search) params.q = search;
+      if (queryConfig.type) params.type = queryConfig.type;
+      if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
+      if (queryConfig.accountId) params.accountId = queryConfig.accountId;
+      if (queryConfig.fromDate) params.fromDate = queryConfig.fromDate;
+      if (queryConfig.toDate) params.toDate = queryConfig.toDate;
 
       try {
         const result = await transactionService.list(params);
@@ -400,18 +410,9 @@ export function TransactionsPage() {
     const target = deleting;
     setDeleting(null);
 
-    // TEMP DIAG: log delete attempt and context
-    try {
-      console.log('[DELETE FLOW] initiating delete for id=', target.id, 'activeCurrency=', activeCurrency);
-    } catch (e) {
-      // ignore logging errors
-    }
-
     try {
       await syncDeleteTransaction(target.id);
-      console.log('[DELETE FLOW] syncDeleteTransaction resolved for id=', target.id);
-    } catch (err) {
-      console.error('[DELETE FLOW] syncDeleteTransaction rejected for id=', target.id, 'error=', err);
+    } catch {
       // list tetap disinkronkan dengan state server
     }
 
@@ -466,7 +467,7 @@ export function TransactionsPage() {
         <>
           <TransactionTable
             transactions={transactions}
-            loading={loading}
+            loading={loading && transactions.length === 0}
             sortBy={sort.key}
             sortOrder={sort.order}
             onSortChange={handleSortChange}

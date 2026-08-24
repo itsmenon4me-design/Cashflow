@@ -63,6 +63,7 @@ export function CategoriesPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [actionError, setActionError] = useState(false);
   const [formState, setFormState] = useState<FormState>({
     open: false,
     mode: "create",
@@ -171,6 +172,7 @@ export function CategoriesPage() {
   };
 
   const openForm = (mode: CategoryFormMode, category: CategoryItem | null) => {
+    setActionError(false);
     setFormState((state) => ({
       open: true,
       mode,
@@ -186,8 +188,9 @@ export function CategoriesPage() {
           formState.category.id,
           toUpdateCategoryPayload(values),
         );
+        setActionError(false);
       } catch {
-        // daftar tetap disinkronkan dengan state server
+        setActionError(true);
       }
       void load();
       return;
@@ -195,8 +198,9 @@ export function CategoriesPage() {
 
     try {
       await categoryService.create(toCreateCategoryPayload(values));
+      setActionError(false);
     } catch {
-      // daftar tetap disinkronkan dengan state server
+      setActionError(true);
     }
     setIncomePage(1);
     setExpensePage(1);
@@ -211,8 +215,9 @@ export function CategoriesPage() {
     setDeleting(null);
     try {
       await categoryService.remove(target.id);
+      setActionError(false);
     } catch {
-      // daftar tetap disinkronkan dengan state server
+      setActionError(true);
     }
 
     if (target.type === "INCOME") {
@@ -241,6 +246,23 @@ export function CategoriesPage() {
           {uiText.categories.subtitle}
         </p>
       </div>
+
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <span>{uiText.categories.actionError}</span>
+          <button
+            type="button"
+            className="shrink-0 font-medium underline-offset-2 hover:underline"
+            onClick={() => setActionError(false)}
+            aria-label={uiText.common.closeAriaLabel}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <CategoryToolbar
         count={filteredCount}
@@ -398,7 +420,8 @@ function CategoryPanel({
               onEdit={onEdit}
               onDelete={onDelete}
             />
-            {children}
+            {/* Reserve pagination height during loading so data arrival never shifts layout */}
+            {loading ? <div aria-hidden className="h-[60px]" /> : children}
           </>
         )}
       </CardContent>

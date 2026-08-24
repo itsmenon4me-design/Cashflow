@@ -43,6 +43,8 @@ interface TxResult {
   id: string;
   description: string;
   category: string;
+  /** Internal (English) category name — server-side search matches this, not the label. */
+  categoryQuery: string;
   amount: string;
   date: string;
 }
@@ -206,10 +208,12 @@ export function GlobalSearch() {
       const transactions: TxResult[] = txMerged.slice(0, 5).map((dto: TransactionDTO) => {
         const account = accountById[dto.account_id];
         const currency = account?.currency ?? "IDR";
+        const internalCategoryName = categoryNames[dto.category_id] ?? "";
         return {
           id: dto.id,
           description: dto.note ?? "-",
-          category: categoryLabel(categoryNames[dto.category_id]),
+          category: categoryLabel(internalCategoryName),
+          categoryQuery: internalCategoryName,
           amount: formatCurrency(toMajorUnits(BigInt(dto.amount_cents), currency), currency),
           date: dto.transaction_date,
         };
@@ -433,11 +437,15 @@ export function GlobalSearch() {
                     type="button"
                     role="option"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() =>
+                    onClick={() => {
+                      const searchTerm =
+                        tx.description !== "-" ? tx.description : tx.categoryQuery;
                       navigate(
-                        `/transactions?q=${encodeURIComponent(tx.description !== "-" ? tx.description : tx.category)}`,
-                      )
-                    }
+                        searchTerm
+                          ? `/transactions?q=${encodeURIComponent(searchTerm)}`
+                          : "/transactions",
+                      );
+                    }}
                   >
                     <ReceiptText className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
@@ -462,7 +470,11 @@ export function GlobalSearch() {
                     type="button"
                     role="option"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() => navigate("/accounts")}
+                    onClick={() =>
+                      navigate(
+                        `/accounts?accountId=${encodeURIComponent(account.id)}`,
+                      )
+                    }
                   >
                     <Landmark className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
@@ -487,7 +499,7 @@ export function GlobalSearch() {
                     type="button"
                     role="option"
                     className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() => navigate("/analytics")}
+                    onClick={() => navigate("/analytics?period=thisYear")}
                   >
                     <Lightbulb className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <span className="line-clamp-2 text-sm text-foreground">{sentence}</span>
@@ -529,7 +541,11 @@ export function GlobalSearch() {
                     type="button"
                     role="option"
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() => navigate("/budgets")}
+                    onClick={() =>
+                      navigate(
+                        `/budgets?month=${encodeURIComponent(budget.month)}&year=${encodeURIComponent(budget.year)}`,
+                      )
+                    }
                   >
                     <PieChart className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">

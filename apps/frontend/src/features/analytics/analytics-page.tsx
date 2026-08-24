@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, PieChart, ReceiptText } from "lucide-react";
 import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
 import { InsightsCard } from "@/components/analytics/insights-card";
@@ -15,6 +16,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import {
   computeRange,
+  PERIOD_KEYS,
   pickTrendType,
   type PeriodKey,
   type ReportRange,
@@ -54,10 +56,23 @@ function formatPoints(value: number | null): { text: string; positive: boolean }
   return { text: `${sign}${Math.abs(value).toFixed(1)} pp`, positive: value >= 0 };
 }
 
+/** Validate ?period= (used by global-search landing links); "custom" is not linkable. */
+function periodFromSearchParams(params: URLSearchParams): PeriodKey | null {
+  const value = params.get("period");
+  if (!value || value === "custom") return null;
+  return (PERIOD_KEYS as string[]).includes(value) ? (value as PeriodKey) : null;
+}
+
 export function AnalyticsPage() {
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
-  const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
-  const [range, setRange] = useState<ReportRange>(() => computeRange("thisMonth"));
+  const searchParams = useSearchParams();
+  const initialPeriod = periodFromSearchParams(
+    new URLSearchParams(searchParams.toString()),
+  );
+  const [periodKey, setPeriodKey] = useState<PeriodKey>(initialPeriod ?? "thisMonth");
+  const [range, setRange] = useState<ReportRange>(() =>
+    computeRange(initialPeriod ?? "thisMonth"),
+  );
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
@@ -84,6 +99,15 @@ export function AnalyticsPage() {
       setCustomEnd(toDateInputValue(range.endDate));
     }
   };
+
+  // Keep period in sync with ?period= (e.g. landing from a global-search insight result).
+  useEffect(() => {
+    const next = periodFromSearchParams(new URLSearchParams(searchParams.toString()));
+    if (next) {
+      setPeriodKey(next);
+      setRange(computeRange(next));
+    }
+  }, [searchParams]);
 
   const applyCustom = () => {
     if (!customStart || !customEnd) return;

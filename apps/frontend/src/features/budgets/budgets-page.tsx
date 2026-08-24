@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, ReceiptText } from "lucide-react";
 import { BudgetFilters, type BudgetPeriod } from "@/components/budgets/BudgetFilters";
 import { BudgetForm, type BudgetFormMode } from "@/components/budgets/BudgetForm";
@@ -55,13 +56,25 @@ function currentPeriod(): BudgetPeriod {
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 }
 
+/** Parse ?month=&year= (used by global-search landing links) into a period. */
+function periodFromSearchParams(params: URLSearchParams): BudgetPeriod | null {
+  const month = Number(params.get("month"));
+  const year = Number(params.get("year"));
+  if (!Number.isInteger(month) || month < 1 || month > 12) return null;
+  if (!Number.isInteger(year) || year < 1970 || year > 2100) return null;
+  return { month, year };
+}
+
 export function BudgetsPage() {
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
+  const searchParams = useSearchParams();
   const [rawBudgets, setRawBudgets] = useState<BudgetResponse[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseOption[]>([]);
   const [analysis, setAnalysis] = useState<BudgetAnalysisResponse | null>(null);
   const [filters, setFilters] = useState<BudgetFiltersState>(EMPTY_FILTERS);
-  const [period, setPeriod] = useState<BudgetPeriod>(currentPeriod);
+  const [period, setPeriod] = useState<BudgetPeriod>(
+    () => periodFromSearchParams(new URLSearchParams(searchParams.toString())) ?? currentPeriod(),
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
@@ -74,6 +87,15 @@ export function BudgetsPage() {
     session: 0,
   });
   const [deleting, setDeleting] = useState<BudgetItem | null>(null);
+
+  // Keep period in sync with ?month=&year= (e.g. landing from a global-search result).
+  useEffect(() => {
+    const next = periodFromSearchParams(new URLSearchParams(searchParams.toString()));
+    if (next) {
+      setPeriod(next);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;

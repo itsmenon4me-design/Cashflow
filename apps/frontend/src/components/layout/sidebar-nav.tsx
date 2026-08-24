@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -84,7 +85,7 @@ interface SidebarNavProps {
   onNavigate?: () => void;
 }
 
-export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -209,4 +210,4 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
       })}
     </nav>
   );
-}
+});

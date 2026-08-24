@@ -44,6 +44,7 @@ export const idText = {
     openMenuAriaLabel: "Buka menu navigasi",
     primaryNavigationAriaLabel: "Navigasi utama",
     closeAriaLabel: "Tutup",
+    user: "Pengguna",
     quickAdd: "Tambah Cepat",
     premiumPlan: "Paket Premium",
     dashboardSubtitle: "Sistem keuangan pribadi",
@@ -180,12 +181,16 @@ export const idText = {
     startDate: "Tanggal Mulai",
     endDate: "Tanggal Akhir",
     resetFilters: "Reset Filter",
+    deleteAll: "Hapus Semua",
+    deleteAllConfirm:
+      "Apakah Anda yakin ingin menghapus permanen semua catatan audit log?",
     detail: "Detail",
     closeDetail: "Tutup",
     metadata: "Metadata",
     requestInfo: "Info Permintaan",
     empty: "Belum ada catatan aktivitas.",
     loadError: "Gagal memuat audit log.",
+    deleteError: "Gagal menghapus audit log. Coba lagi.",
     status: "Status",
   },
   financeBot: {
@@ -530,6 +535,7 @@ export const idText = {
     deleteTitle: "Hapus Kategori",
     deleteMessage: "Apakah Anda yakin ingin menghapus kategori ini?",
     duplicateNameError: "Nama kategori sudah digunakan untuk jenis ini.",
+    actionError: "Terjadi kesalahan. Perubahan tidak tersimpan. Silakan coba lagi.",
   },
   budgets: {
     title: "Anggaran",

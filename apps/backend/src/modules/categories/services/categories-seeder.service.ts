@@ -35,6 +35,14 @@ export class CategoriesSeederService implements OnModuleInit {
 
       const users = await this.prisma.user.findMany();
       for (const u of users) {
+        // Seed defaults only for users that have no system categories at all.
+        // The count intentionally includes soft-deleted rows: if the user renamed
+        // or deleted (soft) their system categories, re-seeding would resurrect
+        // defaults the user intentionally changed.
+        const systemCount = await this.prisma.category.count({
+          where: { user_id: u.id, is_system: true },
+        });
+        if (systemCount > 0) continue;
         for (const name of income) {
           const exists = await this.prisma.category.findFirst({
             where: { user_id: u.id, name, type: 'INCOME' },

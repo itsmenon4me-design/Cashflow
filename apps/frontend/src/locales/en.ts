@@ -44,6 +44,7 @@ export const enText = {
     openMenuAriaLabel: "Open navigation menu",
     primaryNavigationAriaLabel: "Primary navigation",
     closeAriaLabel: "Close",
+    user: "User",
     quickAdd: "Quick Add",
     premiumPlan: "Premium Plan",
     dashboardSubtitle: "Personal finance OS",
@@ -180,12 +181,16 @@ export const enText = {
     startDate: "Start Date",
     endDate: "End Date",
     resetFilters: "Reset Filters",
+    deleteAll: "Delete All",
+    deleteAllConfirm:
+      "Are you sure you want to permanently delete all audit log entries?",
     detail: "Detail",
     closeDetail: "Close",
     metadata: "Metadata",
     requestInfo: "Request Info",
     empty: "No activity records yet.",
     loadError: "Failed to load audit log.",
+    deleteError: "Failed to delete audit log. Please try again.",
     status: "Status",
   },
   financeBot: {
@@ -531,6 +536,8 @@ export const enText = {
     deleteMessage: "Are you sure you want to delete this category?",
     duplicateNameError:
       "A category with this name already exists for this type.",
+    actionError:
+      "Something went wrong. Your change was not saved. Please try again.",
   },
   budgets: {
     title: "Budgets",

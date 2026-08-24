@@ -77,8 +77,10 @@ export class CategoriesService {
     const c = await this.repo.findById(id);
     if (!c)
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Category not found');
-    if (c.user_id !== userId && !c.is_system)
-      throw ErrorService.create(ErrorCode.FORBIDDEN, 'Access denied');
+    // System categories are per-user rows (seeded on registration); since they
+    // are now fully editable/deletable, enforce ownership like any category.
+    if (c.user_id !== userId)
+      throw ErrorService.create(ErrorCode.NOT_FOUND, 'Category not found');
     return c;
   }
 
@@ -96,11 +98,6 @@ export class CategoriesService {
     updates: Partial<CategoryEntity>,
   ): Promise<CategoryEntity> {
     const c = await this.getById(userId, id);
-    if (c.is_system)
-      throw ErrorService.create(
-        ErrorCode.FORBIDDEN,
-        'System category is read-only',
-      );
 
     if (updates.name && updates.name !== c.name) {
       const other = await this.repo.findByUserAndNameAndType(
@@ -128,12 +125,7 @@ export class CategoriesService {
   }
 
   async softDelete(userId: string, id: string): Promise<void> {
-    const c = await this.getById(userId, id);
-    if (c.is_system)
-      throw ErrorService.create(
-        ErrorCode.FORBIDDEN,
-        'System categories cannot be deleted',
-      );
+    await this.getById(userId, id);
     await this.repo.softDelete(id);
     void this.audit.record({
       userId,
