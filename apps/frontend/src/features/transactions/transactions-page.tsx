@@ -485,7 +485,11 @@ export function TransactionsPage() {
             onDuplicate={(transaction) => void handleDuplicate(transaction)}
             onDelete={setDeleting}
           />
-          {!loading && (
+          {/* Keep pagination mounted during background refetches (rows stay
+              visible via stale-while-revalidate) — hiding it on every search
+              made the area below the table blink. Hide only on the initial
+              skeleton load. */}
+          {(!loading || transactions.length > 0) && (
             <TransactionPagination
               page={page}
               pageSize={pageSize}

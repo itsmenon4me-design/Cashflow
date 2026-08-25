@@ -372,9 +372,9 @@ export default function Page() {
             onDelete={setDeleting}
             hideTypeColumn
           />
-          {/* Pagination after load only: appearing below the table moves no
-              existing element, keeping CLS at zero. */}
-          {!loading && (
+          {/* Keep pagination mounted during background refetches (rows stay
+              visible) — hide only on the initial skeleton load. */}
+          {(!loading || transactions.length > 0) && (
             <TransactionPagination
               page={page}
               pageSize={pageSize}

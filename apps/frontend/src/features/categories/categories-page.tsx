@@ -23,6 +23,7 @@ import {
   type CategoryFormValues,
 } from "@/features/categories/schema";
 import { uiText } from "@/locales";
+import { categoryLabel } from "@/lib/categories";
 import {
   categoryService,
   toCategoryItem,
@@ -126,6 +127,9 @@ export function CategoriesPage() {
     const matches = (category: CategoryItem) =>
       keyword === "" ||
       category.name.toLowerCase().includes(keyword) ||
+      // the UI displays Indonesian labels — searching by what the user sees
+      // ("Gaji", "Makanan") must match, not just the internal English name
+      categoryLabel(category.name).toLowerCase().includes(keyword) ||
       (category.description?.toLowerCase().includes(keyword) ?? false);
 
     return {
