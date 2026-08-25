@@ -446,9 +446,11 @@ export function TransactionsPage() {
         </p>
       </div>
 
+      {/* Toolbar skeleton only on the initial load — during background
+          refetches the stale count stays visible so it never flickers. */}
       <TransactionToolbar
         count={totalItems}
-        loading={loading}
+        loading={loading && !hasLoadedOnce}
         showAdd={false}
       />
 

@@ -324,9 +324,11 @@ export default function Page() {
         <p className="mt-1 text-sm text-muted-foreground">{uiText.transactions.expenseSubtitle}</p>
       </div>
 
+      {/* Toolbar skeleton only on the initial load — during background
+          refetches the stale count stays visible so it never flickers. */}
       <TransactionToolbar
         count={totalItems}
-        loading={loading}
+        loading={loading && !hasLoadedOnce}
         onAdd={() => openForm("create", null)}
         showAdd={true}
       />
