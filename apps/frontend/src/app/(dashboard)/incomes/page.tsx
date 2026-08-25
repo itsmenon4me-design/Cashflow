@@ -43,6 +43,10 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Set after the first successful fetch: once the current result is known
+  // empty, keep the empty state on screen during in-flight searches instead of
+  // flashing the full-height table skeleton (container must not move).
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
 
@@ -150,6 +154,7 @@ export default function Page() {
         if (cancelled) return;
         setTransactions(res.data.map((d: any) => toTransactionItem(d, accountNames, categoryNames, accountCurrencies)));
         setTotalItems(res.pagination.totalItems);
+        setHasLoadedOnce(true);
         const totalPages = res.pagination.totalPages ?? 1;
         if (page > totalPages) setPage(Math.max(1, totalPages));
       } catch (e) {
@@ -312,7 +317,10 @@ export default function Page() {
     }
   };
 
-  const isEmpty = !loading && !error && totalItems === 0;
+  // Empty state persists through in-flight searches once the current result is
+  // known-empty — no full-height skeleton flash while typing.
+  const isEmpty =
+    !error && totalItems === 0 && transactions.length === 0 && hasLoadedOnce;
 
   return (
     <div className="space-y-6">

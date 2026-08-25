@@ -73,6 +73,10 @@ export function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Set after the first successful fetch: once we know the current result is
+  // empty, keep the empty state on screen during in-flight searches instead of
+  // flashing the full-height table skeleton (container must not move).
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
   const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
@@ -229,6 +233,7 @@ export function TransactionsPage() {
           ),
         );
         setTotalItems(result.pagination.totalItems);
+        setHasLoadedOnce(true);
         // Ensure we never set page to less than 1 — backend validates page >= 1.
         const totalPages = result.pagination.totalPages ?? 1;
         if (page > totalPages) {
@@ -424,7 +429,11 @@ export function TransactionsPage() {
     bumpRefresh();
   };
 
-  const isEmpty = !loading && !error && totalItems === 0;
+  // Empty state persists through in-flight searches once the current result is
+  // known-empty — the full table skeleton only shows on the initial load, so
+  // the results container never jumps while typing.
+  const isEmpty =
+    !error && totalItems === 0 && transactions.length === 0 && hasLoadedOnce;
 
   return (
     <div className="space-y-6">
