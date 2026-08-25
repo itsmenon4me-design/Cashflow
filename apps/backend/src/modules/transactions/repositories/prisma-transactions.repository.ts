@@ -169,11 +169,16 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
         { account: { name: { contains: query, mode: 'insensitive' } } },
         { category: { name: { contains: query, mode: 'insensitive' } } },
       ];
-      if (/^[0-9a-fA-F-]{8,}$/.test(query)) {
+      // Only treat real UUID-shaped strings as id lookups — the loose
+      // hex-ish regex used to match plain digits ("77777777") and crash
+      // Prisma/Postgres with "invalid input syntax for type uuid" (500),
+      // flipping the UI between error and empty states while typing.
+      if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(query)) {
         or.push({ id: query });
       }
       const num = Number(query);
-      if (!Number.isNaN(num)) {
+      // amount_cents is an Int64 column — never feed it values beyond its range
+      if (!Number.isNaN(num) && Number.isSafeInteger(num)) {
         try {
           or.push({ amount_cents: BigInt(Math.round(num)) });
         } catch {
@@ -251,14 +256,15 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     or.push({ account: { name: { contains: query, mode: 'insensitive' } } });
     or.push({ category: { name: { contains: query, mode: 'insensitive' } } });
 
-    // transaction id exact match
-    if (/^[0-9a-fA-F-]{8,}$/.test(query)) {
+    // transaction id exact match — real UUID shape only (a loose hex-ish
+    // regex used to match plain digits and crash with a uuid syntax error)
+    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(query)) {
       or.push({ id: query });
     }
 
-    // amount exact match if numeric
+    // amount exact match if numeric (Int64-safe values only)
     const num = Number(query);
-    if (!Number.isNaN(num)) {
+    if (!Number.isNaN(num) && Number.isSafeInteger(num)) {
       try {
         const cents = BigInt(Math.round(num));
         or.push({ amount_cents: cents });
