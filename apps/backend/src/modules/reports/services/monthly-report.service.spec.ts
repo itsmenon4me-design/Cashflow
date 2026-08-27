@@ -101,23 +101,6 @@ describe('MonthlyReportService', () => {
     expect(res.topExpenseCategories[0].name).toBe('Food');
   });
 
-  it('uses the selected dashboard currency as the aggregation scope', async () => {
-    const prisma = makePrismaMock({
-      inc: 500000,
-      exp: 100000,
-      txCount: 3,
-      expenseGroups: [],
-      incomeGroups: [],
-      categories: [],
-    });
-    const svc = new MonthlyReportService(prisma);
-    const res = await svc.getMonthlyReport('user-1', 2, 2025, undefined, 'USD');
-
-    expect(res.summary.income).toBe('500000');
-    expect(res.summary.expense).toBe('100000');
-    expect(res.summary.netCashFlow).toBe('400000');
-  });
-
   it('handles empty month (no transactions)', async () => {
     const prisma = makePrismaMock({
       inc: 0,
@@ -135,42 +118,6 @@ describe('MonthlyReportService', () => {
     expect(res.summary.transactions).toBe(0);
     expect(res.topExpenseCategories).toEqual([]);
     expect(res.topIncomeCategories).toEqual([]);
-  });
-
-  it('filters by the selected currency and ignores other-currency datasets', async () => {
-    const prisma = makePrismaMock({
-      inc: 500000,
-      exp: 200000,
-      txCount: 3,
-      expenseGroups: [],
-      incomeGroups: [],
-      categories: [],
-    });
-    const svc = new MonthlyReportService(prisma);
-
-    await svc.getMonthlyReport('user-1', 2, 2025, undefined, 'SGD');
-
-    expect(prisma.transaction.aggregate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          account: { currency: 'SGD' },
-        }),
-      }),
-    );
-    expect(prisma.transaction.aggregate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          account: { currency: 'SGD' },
-        }),
-      }),
-    );
-    expect(prisma.transaction.aggregate).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          account: { currency: 'IDR' },
-        }),
-      }),
-    );
   });
 
   it('rejects invalid month', async () => {

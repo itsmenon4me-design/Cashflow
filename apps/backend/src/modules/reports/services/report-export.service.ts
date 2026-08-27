@@ -52,9 +52,8 @@ export class ReportExportService {
     startDate?: Date;
     endDate?: Date;
     userId: string;
-    currency?: string;
   }): Promise<ExportResult> {
-    const { type, format, month, year, startDate, endDate, userId, currency } =
+    const { type, format, month, year, startDate, endDate, userId } =
       params;
     if (!['monthly', 'category', 'trend'].includes(type))
       throw new BadRequestException('Invalid type');
@@ -69,7 +68,6 @@ export class ReportExportService {
         m,
         y,
         undefined,
-        currency,
       );
       // CSV: single-row summary
       const filename = `monthly-report-${y}-${this.padMonth(m)}.csv`;
@@ -102,7 +100,6 @@ export class ReportExportService {
         m,
         y,
         undefined,
-        currency,
       );
       const filename = `category-breakdown-${y}-${this.padMonth(m)}.csv`;
       const headers = [
@@ -135,7 +132,6 @@ export class ReportExportService {
         'monthly',
         sd,
         ed,
-        currency,
       );
       const filename = `cashflow-trend.csv`;
       const headers = ['period', 'income', 'expense', 'netCashFlow'];

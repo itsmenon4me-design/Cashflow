@@ -20,6 +20,8 @@ import {
   AuditEntityType,
   AuditModule,
 } from '../../audit-logs/constants/audit.constants';
+import { AuthRequestContext } from '../types/auth-request';
+import { deriveDeviceInfo } from './device-info';
 
 @Injectable()
 export class AuthService {
@@ -60,6 +62,7 @@ export class AuthService {
   async issueSessionForUser(
     user: Awaited<ReturnType<UsersService['findByEmail']>>,
     loginMethod: 'password' | 'google' | 'apple' = 'password',
+    context: AuthRequestContext = {},
   ) {
     const jwtCfg = this.jwtConfig.config;
     const jti = crypto.randomUUID();
@@ -75,6 +78,11 @@ export class AuthService {
       id: sessionId,
       user_id: user.id,
       refresh_token_id: created.id,
+      ...deriveDeviceInfo(context.userAgent ?? null),
+      ip_address: context.ip ?? null,
+      city: context.city ?? null,
+      country: context.country ?? null,
+      user_agent: context.userAgent ?? null,
       last_activity_at: new Date(),
       expires_at: created.expires_at,
     });
@@ -114,7 +122,7 @@ export class AuthService {
     };
   }
 
-  async login(input: LoginDto) {
+  async login(input: LoginDto, context: AuthRequestContext = {}) {
     const user = await this.users.findByEmail(input.email);
 
     // derive obfuscated identifier key so both existing and non-existing emails behave the same
@@ -164,11 +172,11 @@ export class AuthService {
       // ignore — do not fail login if Redis is unavailable
     }
 
-    return this.issueSessionForUser(user, 'password');
+    return this.issueSessionForUser(user, 'password', context);
   }
 
-  async refresh(refreshToken: string) {
-    return this.refreshService.rotate(refreshToken);
+  async refresh(refreshToken: string, context: AuthRequestContext = {}) {
+    return this.refreshService.rotate(refreshToken, context);
   }
 
   /**

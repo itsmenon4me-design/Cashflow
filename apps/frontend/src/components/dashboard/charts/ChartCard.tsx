@@ -38,7 +38,11 @@ export function ChartCard({
         {actions}
       </CardHeader>
       <CardContent>
-        <div className={cn("h-72", contentClassName)}>
+        {/* overflow-hidden prevents transient SVG overshoot during
+            ResponsiveContainer mount/resize (recharts measures parent
+            asynchronously — without clip the SVG can leak outside the
+            Card border for 1–2 frames on initial render and data swaps). */}
+        <div className={cn("h-72 overflow-hidden", contentClassName)}>
           {loading ? (
             <Skeleton className="h-full w-full rounded-xl" />
           ) : showEmpty ? (

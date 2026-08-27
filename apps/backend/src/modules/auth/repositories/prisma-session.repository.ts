@@ -18,6 +18,8 @@ export class PrismaSessionRepository implements ISessionRepository {
     e.browser = rec.browser ?? null;
     e.operating_system = rec.operating_system ?? null;
     e.ip_address = rec.ip_address ?? null;
+    e.city = rec.city ?? null;
+    e.country = rec.country ?? null;
     e.user_agent = rec.user_agent ?? null;
     e.last_activity_at = rec.last_activity_at;
     e.expires_at = rec.expires_at;
@@ -36,6 +38,8 @@ export class PrismaSessionRepository implements ISessionRepository {
     browser?: string | null;
     operating_system?: string | null;
     ip_address?: string | null;
+    city?: string | null;
+    country?: string | null;
     user_agent?: string | null;
     last_activity_at: Date;
     expires_at: Date;
@@ -51,6 +55,8 @@ export class PrismaSessionRepository implements ISessionRepository {
         browser: data.browser,
         operating_system: data.operating_system,
         ip_address: data.ip_address,
+        city: data.city,
+        country: data.country,
         user_agent: data.user_agent,
         last_activity_at: data.last_activity_at,
         expires_at: data.expires_at,
@@ -68,7 +74,7 @@ export class PrismaSessionRepository implements ISessionRepository {
 
   async findActiveByUserId(userId: string): Promise<SessionEntity[]> {
     const recs = await this.prisma.session.findMany({
-      where: { user_id: userId, revoked_at: null },
+      where: { user_id: userId, revoked_at: null, expires_at: { gt: new Date() } },
       orderBy: { last_activity_at: 'desc' },
     });
     return recs.map((r: PrismaSession) => this.map(r));
@@ -96,7 +102,7 @@ export class PrismaSessionRepository implements ISessionRepository {
       });
     } else {
       await this.prisma.session.updateMany({
-        where: { user_id: userId, revoked_at: null },
+        where: { user_id: userId, revoked_at: null, expires_at: { gt: new Date() } },
         data: { revoked_at: new Date() },
       });
     }
@@ -117,6 +123,37 @@ export class PrismaSessionRepository implements ISessionRepository {
     await this.prisma.session.update({
       where: { id: sessionId },
       data: { refresh_token_id: refreshTokenId, expires_at: expiresAt },
+    });
+  }
+
+  async updateActivityContext(
+    sessionId: string,
+    data: {
+      ip_address?: string | null;
+      city?: string | null;
+      country?: string | null;
+      user_agent?: string | null;
+      device_name?: string | null;
+      device_type?: string | null;
+      browser?: string | null;
+      operating_system?: string | null;
+      last_activity_at: Date;
+    },
+  ): Promise<void> {
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        ...data,
+        ip_address: data.ip_address,
+        city: data.city,
+        country: data.country,
+        user_agent: data.user_agent,
+        device_name: data.device_name,
+        device_type: data.device_type,
+        browser: data.browser,
+        operating_system: data.operating_system,
+        last_activity_at: data.last_activity_at,
+      },
     });
   }
 }

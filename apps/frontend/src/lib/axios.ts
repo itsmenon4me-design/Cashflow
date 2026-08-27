@@ -1,4 +1,10 @@
-﻿import { getAccessToken, getRefreshToken, setAuthTokens, clearAuthTokens } from "@/lib/auth-token";
+﻿import {
+  getAccessToken,
+  getAccessTokenAgeMs,
+  getRefreshToken,
+  setAuthTokens,
+  clearAuthTokens,
+} from "@/lib/auth-token";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 
@@ -18,6 +24,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
   params?: Record<string, unknown>;
   refresh?: boolean;
+  signal?: AbortSignal;
 }
 
 let refreshPromise: Promise<boolean> | null = null;
@@ -55,7 +62,20 @@ async function doRefresh(): Promise<boolean> {
   }
 }
 
+// When a refresh genuinely fails, several concurrent requests can observe the
+// same failure and each would try to navigate to /login. Collapse that into a
+// single navigation within a short window so the UI does not flicker/remount
+// multiple times.
+const LOGIN_REDIRECT_DEBOUNCE_MS = 1500;
+let lastLoginRedirectAt = 0;
+
 function redirectToLogin(): void {
+  const now = Date.now();
+  if (now - lastLoginRedirectAt < LOGIN_REDIRECT_DEBOUNCE_MS) {
+    return;
+  }
+  lastLoginRedirectAt = now;
+
   clearAuthTokens();
   try {
     if (typeof window !== "undefined") {
@@ -75,8 +95,8 @@ function redirectToLogin(): void {
         (window as any).__app_pending_client_route = path;
       }
     }
-  } catch (e) {
-    // In restricted runtimes, navigation may be unsupported � fail silently
+  } catch {
+    // In restricted runtimes, navigation may be unsupported - fail silently
   }
 }
 
@@ -96,6 +116,29 @@ async function handleUnauthorized(): Promise<boolean> {
   return refreshed;
 }
 
+// Default staleness window: access tokens are short-lived (JWT exp), so any
+// token older than this is proactively rotated before an important batch of
+// authenticated work (e.g. flushing the offline sync queue) to avoid burning
+// the first queue items on predictable 401s.
+const DEFAULT_TOKEN_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Proactively rotate the access token when it is older than `maxAgeMs`.
+ * Returns true when a valid token is available afterwards (fresh or still
+ * young enough), false when the refresh attempt failed (session expired).
+ */
+export async function ensureFreshAccessToken(
+  maxAgeMs: number = DEFAULT_TOKEN_MAX_AGE_MS,
+): Promise<boolean> {
+  if (!getRefreshToken()) {
+    return Boolean(getAccessToken());
+  }
+  if (getAccessTokenAgeMs() <= maxAgeMs) {
+    return Boolean(getAccessToken());
+  }
+  return doRefresh();
+}
+
 function buildUrl(path: string, params?: RequestOptions["params"]): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params ?? {})) {
@@ -112,46 +155,28 @@ async function request<T>(
   options: RequestOptions = {},
   body?: unknown,
 ): Promise<T> {
-  const { headers = {}, params, refresh = true } = options;
+  const { headers = {}, params, refresh = true, signal } = options;
 
   const url = buildUrl(path, params);
 
-// Wait briefly (up to 2s) for a token to be hydrated into storage to avoid
-// firing authenticated requests before hydrateFromStorage completes.
-async function waitForToken(maxWaitMs = 2000): Promise<string | null> {
-  const start = Date.now();
-  let t = getAccessToken();
-  if (t) return t;
-  return new Promise((resolve) => {
-    const iv = setInterval(() => {
-      t = getAccessToken();
-      if (t) {
-        clearInterval(iv);
-        resolve(t);
-        return;
-      }
-      if (Date.now() - start > maxWaitMs) {
-        clearInterval(iv);
-        resolve(null);
-      }
-    }, 50);
-  });
-}
+  // Tokens live synchronously in localStorage, so no waiting is needed here.
+  // Waiting for React hydration before reading storage only delays requests and
+  // makes route transitions feel slow/blank.
+  const accessToken = getAccessToken();
 
-const accessToken = await waitForToken(2000);
+  const doFetch = (token: string | null) =>
+    fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
 
-const doFetch = (token: string | null) =>
-  fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-let response = await doFetch(accessToken);
+  let response = await doFetch(accessToken);
 
   if (response.status === 401 && refresh) {
     const refreshed = await handleUnauthorized();
@@ -185,7 +210,3 @@ export const apiClient = {
     request<T>(path, "PATCH", options, body),
   delete: <T>(path: string, options?: RequestOptions) => request<T>(path, "DELETE", options),
 };
-
-
-
-

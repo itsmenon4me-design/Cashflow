@@ -79,7 +79,6 @@ export class ReportsController {
       query.month,
       query.year,
       range,
-      query.currency,
     );
   }
 
@@ -108,7 +107,6 @@ export class ReportsController {
       query.month,
       query.year,
       range,
-      query.currency,
     );
   }
 
@@ -130,7 +128,7 @@ export class ReportsController {
   ) {
     const start = new Date(query.startDate);
     const end = new Date(query.endDate);
-    return this.cashflowTrend.getTrend(userId, query.type, start, end, query.currency);
+    return this.cashflowTrend.getTrend(userId, query.type, start, end);
   }
 
   @Get('budget-analysis')
@@ -150,7 +148,6 @@ export class ReportsController {
       userId,
       query.month,
       query.year,
-      query.currency,
     );
   }
 
@@ -181,7 +178,6 @@ export class ReportsController {
       startDate,
       endDate,
       userId,
-      currency: query.currency,
     });
 
     // For simplicity, return an object with filename and content; controllers elsewhere stream files differently.
@@ -209,7 +205,6 @@ export class ReportsController {
       userId,
       query.month,
       query.year,
-      query.currency,
     );
   }
 }

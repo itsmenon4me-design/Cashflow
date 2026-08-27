@@ -1,10 +1,9 @@
 "use client";
 
-import { memo } from "react";
-import { useState } from "react";
+import { memo, useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -12,35 +11,17 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
-import { getAppMenuItems } from "@/lib/navigation";
+import { getAppMenuItems, type AppMenuItem } from "@/lib/navigation";
+import { warmRouteData } from "@/lib/route-data-prefetch";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: import("lucide-react").LucideIcon;
-}
+const STORAGE_KEY = "cashflow:sidebar-groups";
 
-function getNavItems(): NavItem[] {
-  // Single source of truth lives in lib/navigation.ts (shared with the
-  // global search quick-nav so both always list the same pages).
-  return getAppMenuItems().map(({ label, href, icon }) => ({ label, href, icon }));
-}
+type GroupKey = "transactions" | "planning" | "reports" | "system";
 
 interface NavGroup {
-  key: string;
-  label: string;
-  items: NavItem[];
-}
-
-function getNavGroups(): NavGroup[] {
-  const items = getNavItems();
-  return [
-    { key: "utama", label: uiText.navigation.groupMain, items: items.slice(0, 1) },
-    { key: "keuangan", label: uiText.navigation.groupFinance, items: items.slice(1, 6) },
-    { key: "perencanaan", label: uiText.navigation.groupPlanning, items: items.slice(6, 9) },
-    { key: "analisis", label: uiText.navigation.groupInsight, items: items.slice(9, 12) },
-    { key: "sistem", label: uiText.navigation.groupSystem, items: items.slice(12, 15) },
-  ];
+  key?: GroupKey;
+  title?: string;
+  items: AppMenuItem[];
 }
 
 function isActivePath(href: string, pathname: string): boolean {
@@ -56,42 +37,70 @@ interface SidebarNavProps {
 
 export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Partial<Record<GroupKey, boolean>>>({});
+  const [hydrated, setHydrated] = useState(false);
+  const items = getAppMenuItems();
+  const findByHref = (href: string) => items.find((item) => item.href === href);
 
-  // Rebuilt every render so the live `uiText` binding drives the language.
-  const navItems = getNavItems();
-  const navGroups = getNavGroups();
+  const groups: NavGroup[] = [
+    { items: [findByHref("/dashboard")].filter(Boolean) as AppMenuItem[] },
+    {
+      key: "transactions",
+      title: "Transaksi",
+      items: ["/accounts", "/incomes", "/expenses", "/transactions", "/categories"]
+        .map(findByHref)
+        .filter(Boolean) as AppMenuItem[],
+    },
+    {
+      key: "planning",
+      title: "Perencanaan",
+      items: ["/budgets", "/goals", "/investments"].map(findByHref).filter(Boolean) as AppMenuItem[],
+    },
+    {
+      key: "reports",
+      title: "Laporan",
+      items: ["/reports", "/analytics", "/forecast"].map(findByHref).filter(Boolean) as AppMenuItem[],
+    },
+    {
+      key: "system",
+      title: "Sistem",
+      items: ["/notifications", "/log-aktivitas", "/profile"].map(findByHref).filter(Boolean) as AppMenuItem[],
+    },
+    { items: [findByHref("/settings")].filter(Boolean) as AppMenuItem[] },
+  ];
 
-  const activeGroupKey = navGroups.find((g) =>
-    g.items.some((item) => isActivePath(item.href, pathname))
-  )?.key;
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored) setExpanded(JSON.parse(stored));
+    } catch {}
+    setHydrated(true);
+  }, []);
 
-  const isGroupCollapsed = (key: string) =>
-    key !== activeGroupKey && collapsedGroups.has(key);
-
-  const toggleGroup = (key: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+  const toggleGroup = (key: GroupKey) => {
+    setExpanded((current) => {
+      const next = { ...current, [key]: !current[key] };
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
       return next;
     });
   };
 
-  const renderLink = (item: NavItem) => {
+  const renderLink = (item: AppMenuItem) => {
     const Icon = item.icon;
     const isActive = isActivePath(item.href, pathname);
-
     const link = (
       <Link
         key={item.href}
         href={item.href}
         onClick={onNavigate}
+        prefetch
         aria-label={item.label}
         aria-current={isActive ? "page" : undefined}
+        onMouseEnter={() => warmRouteData(item.href)}
+        onFocus={() => warmRouteData(item.href)}
+        onTouchStart={() => warmRouteData(item.href)}
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150",
           collapsed ? "justify-center px-0" : "px-3",
@@ -105,74 +114,46 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       </Link>
     );
 
-    if (collapsed) {
-      return (
-        <Tooltip key={item.href} delayDuration={0}>
-          <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right">{item.label}</TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return link;
+    return collapsed ? (
+      <Tooltip key={item.href} delayDuration={0}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{item.label}</TooltipContent>
+      </Tooltip>
+    ) : link;
   };
 
-  if (collapsed) {
-    return (
-      <nav
-        className="flex flex-col gap-1"
-        aria-label={uiText.common.openMenuAriaLabel}
-      >
-        {navItems.map(renderLink)}
-      </nav>
-    );
-  }
-
   return (
-    <nav
-      className="flex flex-col gap-4"
-      aria-label={uiText.common.openMenuAriaLabel}
-    >
-      {navGroups.map((group) => {
-        const isMain = group.key === "utama";
-        const groupCollapsed = isGroupCollapsed(group.key);
-        const contentId = `sidebar-group-${group.key}`;
-        const headingClass =
-          "flex w-full items-center justify-between gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors duration-150 hover:text-foreground";
+    <nav className={cn("flex flex-col", collapsed ? "gap-1" : "gap-3")} aria-label={uiText.common.openMenuAriaLabel}>
+      {groups.map((group, index) => {
+        const active = group.items.some((item) => isActivePath(item.href, pathname));
+        const isOpen = collapsed || !group.key || active || (hydrated && expanded[group.key]);
 
         return (
-          <div key={group.key}>
-            {isMain ? (
-              <p className={cn(headingClass, "cursor-default hover:text-muted-foreground")}>
-                {group.label}
-              </p>
-            ) : (
+          <div
+            key={group.key ?? `standalone-${index}`}
+            className={cn("flex flex-col gap-1", collapsed && index > 0 && "border-t border-sidebar-border pt-1")}
+          >
+            {group.key && !collapsed && (
               <button
                 type="button"
-                onClick={() => toggleGroup(group.key)}
-                aria-expanded={!groupCollapsed}
-                aria-controls={contentId}
-                aria-label={`${groupCollapsed ? uiText.dashboard.expandSection : uiText.dashboard.collapseSection} ${group.label}`}
-                className={cn(
-                  headingClass,
-                  "cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                )}
+                onClick={() => toggleGroup(group.key as GroupKey)}
+                aria-expanded={isOpen}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
               >
-                {group.label}
-                <ChevronDown
-                  className={cn(
-                    "size-4 shrink-0 transition-transform duration-150",
-                    groupCollapsed && "-rotate-90"
-                  )}
-                />
+                <span>{group.title}</span>
+                <ChevronRight className={cn("size-3 transition-transform duration-200", isOpen && "rotate-90")} />
               </button>
             )}
-
             <div
-              id={contentId}
-              className={cn("flex flex-col gap-1", isMain ? "" : "mt-1")}
+              aria-hidden={!isOpen}
+              className={cn(
+                "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              )}
             >
-              {!groupCollapsed && group.items.map(renderLink)}
+              <div className="min-h-0 overflow-hidden">
+                <div className="flex flex-col gap-1">{group.items.map(renderLink)}</div>
+              </div>
             </div>
           </div>
         );

@@ -34,6 +34,6 @@ export class AnalyticsController {
     if (query.startDate) s = new Date(query.startDate);
     if (query.endDate) e = new Date(query.endDate);
 
-    return this.service.getAnalytics(userId, s, e, query.currency);
+    return this.service.getAnalytics(userId, s, e);
   }
 }

@@ -1,9 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -20,7 +19,6 @@ export class DashboardController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('jwt')
   @ApiOperation({ summary: 'Get dashboard summary for authenticated user' })
-  @ApiQuery({ name: 'currency', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Dashboard summary returned',
@@ -28,8 +26,7 @@ export class DashboardController {
   })
   async getSummary(
     @CurrentUser('sub') userId: string,
-    @Query('currency') currency?: string,
   ): Promise<DashboardSummaryResponseDto> {
-    return this.service.getSummaryForUser(userId, currency);
+    return this.service.getSummaryForUser(userId);
   }
 }

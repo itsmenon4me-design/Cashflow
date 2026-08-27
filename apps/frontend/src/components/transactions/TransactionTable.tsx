@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
 import { TransactionCard, TransactionRowActions } from "@/components/transactions/TransactionCard";
-import { TransactionStatusBadge } from "@/components/transactions/TransactionStatusBadge";
+import { PendingSyncBadge } from "@/components/transactions/PendingSyncBadge";
 import { CardSkeleton } from "@/components/states/CardSkeleton";
 import { TableSkeleton } from "@/components/states/TableSkeleton";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
+import { transactionTone } from "@/lib/transaction-tone";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionListParams } from "@/services/transaction.service";
@@ -139,22 +140,24 @@ export function TransactionTable({
                     {uiText.table.amount}
                   </SortButton>
                 </TableHead>
-                <TableHead>{uiText.table.status}</TableHead>
                 <TableHead className="text-right">{uiText.common.actionLabel}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions.map((txn) => {
-                const isIncome = txn.type === "income";
+                const tone = transactionTone(txn.type);
                 return (
                   <TableRow key={txn.id} data-transaction-id={txn.id}>
                     <TableCell className="text-muted-foreground">
                       {formatTransactionDate(txn.dateTime ?? txn.date)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="rounded-lg bg-muted">
-                        {categoryLabel(txn.category)}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="secondary" className="rounded-lg bg-muted">
+                          {categoryLabel(txn.category)}
+                        </Badge>
+                        {txn.pendingSync && <PendingSyncBadge />}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden max-w-56 truncate font-medium xl:table-cell">
                       {txn.description}
@@ -171,19 +174,17 @@ export function TransactionTable({
                           <span
                             className={cn(
                               "flex size-6 shrink-0 items-center justify-center rounded-lg",
-                              isIncome
-                                ? "bg-emerald-500/10 text-emerald-500"
-                                : "bg-primary/10 text-primary"
+                              tone.chipClass
                             )}
                           >
-                            {isIncome ? (
+                            {txn.type === "income" ? (
                               <ArrowDownToLine className="size-3.5" />
                             ) : (
                               <ArrowUpFromLine className="size-3.5" />
                             )}
                           </span>
                           <span className="text-muted-foreground">
-                            {isIncome
+                            {txn.type === "income"
                               ? uiText.transactions.typeIncome
                               : uiText.transactions.typeExpense}
                           </span>
@@ -193,14 +194,11 @@ export function TransactionTable({
                     <TableCell
                       className={cn(
                         "text-right font-semibold",
-                        isIncome ? "text-emerald-500" : "text-foreground"
+                        tone.amountClass
                       )}
                     >
-                      {isIncome ? "+" : "-"}
+                      {tone.sign}
                       {formatCurrency(txn.amount)}
-                    </TableCell>
-                    <TableCell>
-                      <TransactionStatusBadge status={txn.status} />
                     </TableCell>
                     <TableCell className="text-right">
                       <TransactionRowActions

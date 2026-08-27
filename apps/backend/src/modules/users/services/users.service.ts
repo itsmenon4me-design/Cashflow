@@ -8,6 +8,7 @@ import { PasswordService } from '../../../common/security/password/password.serv
 import { PrismaRoleRepository } from '../../auth/repositories/prisma-role.repository';
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
+import { PrismaService } from '../../../database/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -18,16 +19,22 @@ export class UsersService {
     private readonly loggerService: LoggerService,
     private readonly passwordService: PasswordService,
     private readonly roleRepo: PrismaRoleRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(create: CreateUserDto): Promise<UserEntity> {
     // Hash password before storing
     const hashed = await this.passwordService.hashPassword(create.password);
 
+    let username = create.username;
+    if (!username) {
+      username = await this.generateUniqueUsername(create.email, create.full_name);
+    }
+
     // map DTO -> entity
     const u: Partial<UserEntity> = {
       email: create.email,
-      username: create.username,
+      username,
       full_name: create.full_name,
       password_hash: hashed, // DO NOT LOG THIS VALUE
       avatar_url: create.avatar_url ?? null,
@@ -72,6 +79,31 @@ export class UsersService {
       }
       // Unknown error -> internal
       throw ErrorService.create(ErrorCode.INTERNAL);
+    }
+  }
+
+  private async generateUniqueUsername(
+    email: string,
+    fullName?: string,
+  ): Promise<string> {
+    const normalized = (fullName || email.split('@')[0])
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 24);
+    const root = normalized || 'user';
+    let candidate = root;
+    let suffix = 1;
+
+    while (true) {
+      const existing = await this.prisma.user.findUnique({
+        where: { username: candidate },
+      });
+
+      if (!existing) return candidate;
+
+      candidate = `${root}${suffix}`;
+      suffix += 1;
     }
   }
 

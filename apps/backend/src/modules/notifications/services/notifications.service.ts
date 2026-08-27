@@ -40,7 +40,6 @@ export class NotificationsService {
             ? false
             : undefined,
       type: query.type,
-      currency: query.currency,
     });
 
     const totalPages = result.total === 0 ? 0 : Math.ceil(result.total / limit);

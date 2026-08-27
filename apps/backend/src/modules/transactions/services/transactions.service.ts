@@ -104,7 +104,6 @@ export class TransactionsService {
     userId: string,
     input: Partial<TransactionEntity>,
     trace?: TransactionTraceContext,
-    currency?: string,
   ): Promise<TransactionEntity> {
     if (!input.account_id)
       throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Account is required');
@@ -130,15 +129,9 @@ export class TransactionsService {
       input.reference_number &&
       typeof this.repo.findByReferenceNumber === 'function'
     ) {
-      // Scope the replay lookup to the transaction's own ledger so a
-      // reference_number can never collide across currencies.
-      const accountCurrency = await this.repo.getAccountCurrency(
-        input.account_id,
-      );
       const existing = await this.repo.findByReferenceNumber(
         userId,
         input.reference_number,
-        accountCurrency,
       );
       if (existing) {
         this.logger.log(
@@ -148,8 +141,8 @@ export class TransactionsService {
       }
     }
 
-    // Run business validation (enforce dashboard currency scope when provided)
-    await this.validator.validateForCreate(userId, normalizedInput, currency);
+    // Run business validation
+    await this.validator.validateForCreate(userId, normalizedInput);
 
     const amountAnomaly = await this.detectAmountScaleAnomaly(
       userId,
@@ -205,12 +198,9 @@ export class TransactionsService {
     try {
       const typeLabel =
         created.transaction_type === 'INCOME' ? 'pemasukan' : 'pengeluaran';
-      const currency = created.account_id
-        ? await this.repo.getAccountCurrency(created.account_id)
-        : 'IDR';
       const amount = formatMoneyFromMinorUnits(
         created.amount_cents ?? 0n,
-        currency,
+        'IDR',
       );
       await this.notifications.create(
         userId,
@@ -221,7 +211,7 @@ export class TransactionsService {
           transactionId: created.id,
           transactionType: created.transaction_type,
           amountCents: created.amount_cents?.toString(),
-          currency,
+          currency: 'IDR',
         },
       );
     } catch (error) {
@@ -247,8 +237,8 @@ export class TransactionsService {
     }
   }
 
-  async getById(userId: string, id: string, currency?: string): Promise<TransactionEntity> {
-    const t = await this.repo.findById(id, currency);
+  async getById(userId: string, id: string): Promise<TransactionEntity> {
+    const t = await this.repo.findById(id);
     if (!t)
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Transaction not found');
     if (t.user_id !== userId)
@@ -301,9 +291,8 @@ export class TransactionsService {
     id: string,
     updates: Partial<TransactionEntity>,
     trace?: TransactionTraceContext,
-    currency?: string,
   ): Promise<TransactionEntity> {
-    const t = await this.getById(userId, id, currency);
+    const t = await this.getById(userId, id);
     const normalizedUpdates = { ...updates };
     if (normalizedUpdates.amount_cents !== undefined) {
       normalizedUpdates.amount_cents = normalizeAmountCents(
@@ -335,7 +324,7 @@ export class TransactionsService {
     }
 
     // run validation for updates (reuse same validator)
-    await this.validator.validateForUpdate(userId, merged, currency);
+    await this.validator.validateForUpdate(userId, merged);
 
     const data: Record<string, unknown> = {};
     for (const key of Object.keys(normalizedUpdates)) {
@@ -373,8 +362,8 @@ export class TransactionsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string, currency?: string): Promise<void> {
-    const t = await this.getById(userId, id, currency);
+  async softDelete(userId: string, id: string): Promise<void> {
+    const t = await this.getById(userId, id);
     await this.repo.softDelete(id);
     await this.balance.recalculateAccount(t.account_id);
     void this.audit.record({
@@ -392,7 +381,6 @@ export class TransactionsService {
     userId: string,
     q: string,
     pagination?: PaginationDto,
-    currency?: string,
   ): Promise<{
     data: TransactionEntity[];
     pagination: {
@@ -407,9 +395,10 @@ export class TransactionsService {
     const page = pagination?.page ? Number(pagination.page) : 1;
     const limit = pagination?.limit ? Number(pagination.limit) : 20;
 
-    const { items, total } = currency
-      ? await this.repo.searchByUser(userId, q, { page, limit }, currency)
-      : await this.repo.searchByUser(userId, q, { page, limit });
+    const { items, total } = await this.repo.searchByUser(userId, q, {
+      page,
+      limit,
+    });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
     return {

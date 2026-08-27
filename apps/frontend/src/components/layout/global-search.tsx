@@ -209,7 +209,7 @@ export function GlobalSearch() {
         await Promise.allSettled([
           accountService.list(),
           categoryService.list(),
-          analyticsService.getInsights(insightsPeriod(), ""),
+          analyticsService.getInsights(insightsPeriod()),
           budgetService.list(),
           savingGoalService.list(),
           investmentService.list(),

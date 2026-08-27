@@ -10,6 +10,7 @@ import { UsersService } from '../../users/services/users.service';
 import { AppleOAuthProvider, type AppleProfile } from '../providers/apple/apple-oauth.provider';
 import { AuthService } from './auth.service';
 import { OAuthAccountService } from './oauth-account.service';
+import { AuthRequestContext } from '../types/auth-request';
 import * as crypto from 'crypto';
 
 type AppleTokenResponse = {
@@ -279,7 +280,11 @@ export class AppleAuthService {
     return `https://appleid.apple.com/auth/authorize?${params.toString()}`;
   }
 
-  async handleAppleCallback(input: { code?: string; state?: string }) {
+  async handleAppleCallback(input: {
+    code?: string;
+    state?: string;
+    context?: AuthRequestContext;
+  }) {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
       throw ErrorService.create(
@@ -399,7 +404,11 @@ export class AppleAuthService {
         );
       }
 
-      const session = await this.authService.issueSessionForUser(user, 'apple');
+      const session = await this.authService.issueSessionForUser(
+        user,
+        'apple',
+        input.context,
+      );
       return {
         success: true,
         redirectUrl: this.buildSuccessRedirectUrl(

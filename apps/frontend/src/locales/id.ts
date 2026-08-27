@@ -85,7 +85,7 @@ export const idText = {
     nextPage: "Berikutnya",
     allTypes: "Semua Jenis",
     allStatuses: "Semua Status",
-    searchTransactionsPlaceholder: "Cari transaksi...",
+    searchTransactionsPlaceholder: "Cari deskripsi, kategori, akun, jumlah, atau status...",
     actionLabel: "Aksi",
   },
   status: {
@@ -93,6 +93,9 @@ export const idText = {
     pending: "Pending",
     cancelled: "Dibatalkan",
     failed: "Gagal",
+  },
+  sync: {
+    dismissFailed: "Mengerti, hapus dari antrian",
   },
   notification: {
     bill: "Tagihan",
@@ -411,6 +414,10 @@ export const idText = {
     incomeExpenseSubtitle: "Perbandingan per periode.",
     categoryTitle: "Kategori Pengeluaran",
     categorySubtitle: "Distribusi pengeluaran berdasarkan kategori.",
+    expenseTrendTitle: "Komposisi Pengeluaran per Kategori",
+    expenseTrendSubtitle: "Breakdown pengeluaran dari waktu ke waktu per kategori.",
+    trendLegendOther: "Sisa kategori",
+    trendTruncated: "Menampilkan 800 transaksi pertama pada rentang ini.",
     trendTitle: "Tren Keuangan",
     trendSubtitle: "Pertumbuhan nilai keuangan Anda.",
     totalExpense: "Total Pengeluaran",
@@ -461,6 +468,9 @@ export const idText = {
     allAccounts: "Semua Akun",
     startDate: "Tanggal Awal",
     endDate: "Tanggal Akhir",
+    fromDate: "Dari tanggal",
+    toDate: "Sampai tanggal",
+    pendingSyncBadge: "Belum tersinkron",
     resetFilters: "Reset Filter",
     rowsPerPage: "Baris per halaman",
     emptyTitle: "Belum ada transaksi.",
@@ -552,6 +562,8 @@ export const idText = {
     period: "Periode",
     month: "Bulan",
     year: "Tahun",
+    previousYear: "Tahun sebelumnya",
+    nextYear: "Tahun berikutnya",
     fieldCategory: "Kategori",
     fieldAmount: "Nominal Anggaran",
     fieldMonth: "Bulan",
@@ -642,7 +654,11 @@ export const idText = {
     fieldQuantity: "Jumlah Unit",
     fieldAvgPrice: "Harga Beli Rata-rata",
     fieldCurrentPrice: "Harga Saat Ini",
+    fieldCurrentPricePlaceholder: "Kosongkan jika sama dengan harga beli",
+    fieldCurrentPriceHint:
+      "Jika dikosongkan, otomatis memakai Harga Beli Rata-rata (ROI awal = 0%).",
     fieldInvested: "Modal Awal",
+    investedAutoHint: "Otomatis: Jumlah Unit × Harga Beli Rata-rata",
     fieldPurchaseDate: "Tanggal Beli",
     fieldNotes: "Catatan",
     fieldStatus: "Status",
@@ -727,6 +743,8 @@ export const idText = {
     cashFlowTrend: "Tren Arus Kas",
     cashFlowTrendSubtitle:
       "Pemasukan, pengeluaran, dan arus kas bersih per periode.",
+    trendNotEnoughTitle: "Belum cukup data untuk menampilkan tren",
+    trendNotEnoughDesc: "Tambahkan transaksi pada minimal 3 periode agar tren terlihat.",
     incomeVsExpense: "Pemasukan vs Pengeluaran",
     incomeVsExpenseSubtitle: "Perbandingan per periode.",
     expenseByCategory: "Pengeluaran per Kategori",
@@ -778,6 +796,12 @@ export const idText = {
     offlineTitle: "Anda sedang offline.",
     offlineDescription:
       "Data mungkin tidak terbaru. Periksa koneksi internet Anda.",
+    offlinePendingCount:
+      "{count} transaksi menunggu sinkronisasi.",
+    sessionExpiredPendingSync:
+      "Sesi Anda berakhir. Silakan login kembali untuk menyinkronkan {count} transaksi tertunda.",
+    syncConflictDeleted:
+      "Perubahan offline dibatalkan: transaksi sudah dihapus dari perangkat lain.",
     offlineBadge: "Sinkronisasi offline akan tersedia",
     http403Title: "Akses Ditolak",
     http403Description: "Anda tidak memiliki izin untuk mengakses halaman ini.",

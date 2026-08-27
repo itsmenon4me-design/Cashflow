@@ -122,6 +122,8 @@ model Session {
   browser          String?
   operating_system String?
   ip_address       String?
+  city             String?
+  country          String?
   user_agent       String?
   last_activity_at DateTime
   expires_at       DateTime

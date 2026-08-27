@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import type { LanguagePreference } from "@/types/settings";
-import { setUiTextLanguage } from "@/locales";
+import { readLanguageFromCookie, setUiTextLanguage } from "@/locales";
 
 const STORAGE_KEY = "cashflow.language";
+const COOKIE_KEY = "cashflow.language";
 const DEFAULT_LANGUAGE: LanguagePreference = "id";
 
 export function hydrateLanguagePreference(): LanguagePreference {
@@ -13,6 +14,11 @@ export function hydrateLanguagePreference(): LanguagePreference {
 }
 
 function readStored(): LanguagePreference {
+  // Prefer the cookie: it is the SAME source the server used during SSR
+  // (layout.tsx), so hydrating from it avoids any post-mount language swap.
+  // localStorage remains as a fallback for legacy sessions without a cookie.
+  const cookieValue = readLanguageFromCookie();
+  if (cookieValue === "en") return "en";
   if (typeof window === "undefined") return DEFAULT_LANGUAGE;
   const value = window.localStorage.getItem(STORAGE_KEY);
   return value === "en" ? "en" : DEFAULT_LANGUAGE;
@@ -21,6 +27,12 @@ function readStored(): LanguagePreference {
 function persist(language: LanguagePreference): void {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, language);
+    // Mirror to a cookie so the SERVER can also read the active language and
+    // render the same uiText during SSR. Without this, a user who picked
+    // "en" gets server-rendered Indonesian HTML + client-rendered English,
+    // which is exactly the hydration mismatch that makes React throw away
+    // the whole tree (white flash on navigation / refresh).
+    document.cookie = `${COOKIE_KEY}=${language}; path=/; max-age=31536000; samesite=lax`;
   }
 }
 

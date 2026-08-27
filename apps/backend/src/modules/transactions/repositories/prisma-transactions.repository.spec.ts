@@ -40,8 +40,10 @@ describe('PrismaTransactionsRepository keyword (q) safety', () => {
     return { prisma, repo };
   };
 
-  const whereOf = (prisma: any, callIndex = 0) =>
-    prisma.transaction.findMany.mock.calls[callIndex][0].where;
+  const whereOf = (prisma: any, callIndex?: number) => {
+    const calls = prisma.transaction.findMany.mock.calls;
+    return calls[callIndex ?? calls.length - 1][0].where;
+  };
 
   it('plain digit queries never produce a uuid id predicate (used to 500 with "invalid input syntax for type uuid")', async () => {
     const { prisma, repo } = makeRepo();
@@ -91,5 +93,88 @@ describe('PrismaTransactionsRepository keyword (q) safety', () => {
     const or = findOr(where);
     expect(or).toBeTruthy();
     expect(or!.some((clause) => 'id' in clause)).toBe(false);
+  });
+
+  it('separator-formatted amounts ("100.000", "100,000") match amount_cents as an integer', async () => {
+    const { prisma, repo } = makeRepo();
+
+    for (const q of ['100.000', '100,000', '100000']) {
+      await repo.findByUserWithFilter('user-1', { q } as any, { page: 1, limit: 10 });
+      const or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+      expect(or).toContainEqual({ amount_cents: BigInt(100000) });
+    }
+  });
+
+  it('Indonesian category labels match canonical DB names', async () => {
+    const { prisma, repo } = makeRepo();
+
+    await repo.findByUserWithFilter('user-1', { q: 'Gaji' } as any, { page: 1, limit: 10 });
+    let or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    expect(or).toContainEqual({ category: { name: { in: ['Salary'] } } });
+
+    await repo.findByUserWithFilter('user-1', { q: 'transfer masuk' } as any, { page: 1, limit: 10 });
+    or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    expect(or).toContainEqual({ category: { name: { in: ['Transfer In'] } } });
+  });
+
+  it('status words map to match-all / match-none predicates (no status column exists)', async () => {
+    const { prisma, repo } = makeRepo();
+
+    await repo.findByUserWithFilter('user-1', { q: 'berhasil' } as any, { page: 1, limit: 10 });
+    let or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    expect(or).toContainEqual({ deleted_at: null });
+
+    await repo.findByUserWithFilter('user-1', { q: 'gagal' } as any, { page: 1, limit: 10 });
+    or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    expect(or).toContainEqual({ id: { in: [] } });
+  });
+
+  it('date keywords produce best-effort transaction_date ranges', async () => {
+    const { prisma, repo } = makeRepo();
+
+    await repo.findByUserWithFilter('user-1', { q: '25 Agu 2026' } as any, { page: 1, limit: 10 });
+    let or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    let dateClauses = or.filter((c: any) => c.transaction_date);
+    expect(dateClauses.length).toBe(1);
+    const gte: Date = dateClauses[0].transaction_date.gte;
+    const lte: Date = dateClauses[0].transaction_date.lte;
+    // Jakarta day 25 Aug 2026 = UTC window [24 Aug 17:00, 25 Aug 16:59:59.999)
+    expect(gte.toISOString()).toBe('2026-08-24T17:00:00.000Z');
+    expect(lte.toISOString()).toBe('2026-08-25T16:59:59.999Z');
+
+    await repo.findByUserWithFilter('user-1', { q: '2026/08/25' } as any, { page: 1, limit: 10 });
+    or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    dateClauses = or.filter((c: any) => c.transaction_date);
+    expect(dateClauses.length).toBe(1);
+
+    await repo.searchByUser('user-1', 'agu', { page: 1, limit: 10 }, 'IDR');
+    const findOr = (node: any): Array<Record<string, unknown>> | null => {
+      if (!node || typeof node !== 'object') return null;
+      if (Array.isArray(node.OR)) return node.OR;
+      for (const value of Object.values(node)) {
+        if (value && typeof value === 'object') {
+          const found = findOr(value);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    or = findOr(whereOf(prisma))!;
+    dateClauses = or.filter((c: any) => c.transaction_date);
+    expect(dateClauses.length).toBe(3); // current year and its neighbours
+  });
+
+  it('type words in Indonesian match transaction_type', async () => {
+    const { prisma, repo } = makeRepo();
+
+    for (const [q, expected] of [
+      ['pemasukan', 'INCOME'],
+      ['pengeluaran', 'EXPENSE'],
+      ['income', 'INCOME'],
+    ] as const) {
+      await repo.findByUserWithFilter('user-1', { q } as any, { page: 1, limit: 10 });
+      const or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+      expect(or).toContainEqual({ transaction_type: expected });
+    }
   });
 });

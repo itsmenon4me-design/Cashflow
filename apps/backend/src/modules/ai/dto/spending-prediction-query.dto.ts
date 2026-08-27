@@ -1,20 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export const DEFAULT_SPENDING_PREDICTION_HORIZON = 1;
 export const MAX_SPENDING_PREDICTION_HORIZON = 6;
 
 export class SpendingPredictionQueryDto {
-  @ApiPropertyOptional({
-    description: 'Ledger currency scope (defaults to primary account currency)',
-    enum: SUPPORTED_CURRENCIES,
-  })
-  @IsOptional()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
-
   @ApiPropertyOptional({
     description: 'Number of months to predict',
     minimum: 1,

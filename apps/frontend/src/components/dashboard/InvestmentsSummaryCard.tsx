@@ -1,7 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { TrendingUp } from "lucide-react";
-import { AllocationPieCard } from "@/components/investments/AllocationPieCard";
+// AllocationPieCard pulls in recharts; load it async so this card stays
+// chart-free in the eager bundle (fallback reserves its height, no CLS).
+const AllocationPieCard = dynamic(
+  () => import("@/components/investments/AllocationPieCard").then((m) => m.AllocationPieCard),
+  {
+    ssr: false,
+    loading: () => <div className="h-40 w-full animate-pulse rounded-xl bg-accent/50" aria-hidden="true" />,
+  },
+);
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrencyCents } from "@/lib/format";

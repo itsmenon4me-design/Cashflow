@@ -74,8 +74,7 @@ export class TransactionsController {
     @Query() query: SearchTransactionDto,
   ) {
     const pagination = { page: query.page ?? 1, limit: query.limit ?? 20 };
-    // Allow optional currency query to scope search to dashboard context
-    const result = await this.tx.search(userId, query.q, pagination, (query as any).currency);
+    const result = await this.tx.search(userId, query.q, pagination);
     return {
       success: true,
       data: result.data.map((i) => toTransactionResponse(i)),
@@ -87,8 +86,8 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Get transaction by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(@CurrentUser('sub') userId: string, @Param('id') id: string, @Query('currency') currency?: string) {
-    const t = await this.tx.getById(userId, id, currency);
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    const t = await this.tx.getById(userId, id);
     return { success: true, data: toTransactionResponse(t) };
   }
 
@@ -105,7 +104,6 @@ export class TransactionsController {
       correlationId?: string;
       requestId?: string;
     },
-    @Query('currency') currency?: string,
   ) {
     const trace = {
       correlationId:
@@ -120,7 +118,6 @@ export class TransactionsController {
         transaction_date: new Date(body.transaction_date),
       },
       trace,
-      currency,
     );
     return { success: true, data: toTransactionResponse(created) };
   }
@@ -139,7 +136,6 @@ export class TransactionsController {
       correlationId?: string;
       requestId?: string;
     },
-    @Query('currency') currency?: string,
   ) {
     const trace = {
       correlationId:
@@ -155,7 +151,7 @@ export class TransactionsController {
       prepared.amount_cents = BigInt(body.amount_cents);
     if (body.transaction_date !== undefined)
       prepared.transaction_date = new Date(body.transaction_date);
-    const updated = await this.tx.update(userId, id, prepared, trace, currency);
+    const updated = await this.tx.update(userId, id, prepared, trace);
     return { success: true, data: toTransactionResponse(updated) };
   }
 
@@ -163,8 +159,8 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Soft delete transaction' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string, @Query('currency') currency?: string) {
-    await this.tx.softDelete(userId, id, currency);
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    await this.tx.softDelete(userId, id);
     return { success: true };
   }
 }

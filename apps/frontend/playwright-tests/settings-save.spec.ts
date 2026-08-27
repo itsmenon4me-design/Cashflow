@@ -47,7 +47,7 @@ test('settings save updates profile name via API and UI', async ({ page, request
         return origSet.apply(this, arguments as any);
       };
       const origFetch = window.fetch.bind(window);
-      window.fetch = function (resource: RequestInfo, init?: RequestInit) {
+      window.fetch = function (resource: RequestInfo | URL, init?: RequestInit) {
         try {
           const url = typeof resource === 'string' ? resource : resource?.toString?.() || '';
           if (url.includes('/api/v1/settings') || url.includes('/api/v1/dashboard') || url.includes('/api/v1/search')) {

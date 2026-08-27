@@ -11,7 +11,6 @@ import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { ErrorBoundary } from "@/components/states/ErrorBoundary";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { useAuthStore } from "@/stores/auth.store";
-import { useDashboardCurrencyStore, hydrateDashboardCurrency } from "@/stores/dashboardCurrency.store";
 import { hydrateLanguagePreference } from "@/stores/language.store";
 import { hydrateThemePreference } from "@/stores/theme.store";
 
@@ -22,7 +21,7 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   const router = useRouter();
 
-  useEffect(() => {
+useEffect(() => {
     const hydrateAuth = () => {
       try {
         useAuthStore.getState().hydrateFromStorage();
@@ -33,12 +32,10 @@ export function AppProviders({ children }: AppProvidersProps) {
 
     hydrateAuth();
 
-    // Hydrate other client-only preferences (language, theme, dashboard currency)
+    // Hydrate other client-only preferences (language, theme)
     try {
-      try { hydrateLanguagePreference(); console.log('[app-providers] hydrated language preference'); } catch (e) { console.warn('[app-providers] hydrateLanguagePreference failed', e); }
-      try { hydrateThemePreference(); console.log('[app-providers] hydrated theme preference'); } catch (e) { console.warn('[app-providers] hydrateThemePreference failed', e); }
-      try { hydrateDashboardCurrency(); console.log('[app-providers] hydrated dashboard currency'); } catch (e) { console.warn('[app-providers] hydrateDashboardCurrency failed', e); }
-      try { console.trace('[app-providers] post-hydration state', { store: useDashboardCurrencyStore.getState().currency, ls: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
+      try { hydrateLanguagePreference(); } catch (e) { console.warn('[app-providers] hydrateLanguagePreference failed', e); }
+      try { hydrateThemePreference(); } catch (e) { console.warn('[app-providers] hydrateThemePreference failed', e); }
     } catch (e) {}
 
     const handleClientRoute = (event: Event) => {
@@ -57,30 +54,6 @@ export function AppProviders({ children }: AppProvidersProps) {
       window.removeEventListener("cashflow:client-route", handleClientRoute);
     };
   }, [router]);
-
-  // Global listener for server-side or cross-context settings updates. Applies dashboard currency and localStorage.
-  useEffect(() => {
-    const onSettingsUpdated = (ev: Event) => {
-      try {
-        const detail = (ev as CustomEvent<any>).detail ?? {};
-        const currency = detail.currency;
-        if (currency) {
-          try {
-            useDashboardCurrencyStore.getState().setCurrency(currency);
-            if (typeof window !== 'undefined' && window.localStorage) {
-              window.localStorage.setItem('cashflow-dashboard-currency', currency);
-          try { console.log('[app-providers] wrote localStorage from settings-updated', { written: currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
-        }
-        console.log('[app-providers] received cashflow:settings-updated (global listener)', currency);
-          } catch (e) {
-        console.warn('[app-providers] failed handling settings-updated', e);
-          }
-        }
-      } catch (e) {}
-    };
-    window.addEventListener('cashflow:settings-updated', onSettingsUpdated);
-    return () => window.removeEventListener('cashflow:settings-updated', onSettingsUpdated);
-  }, []);
 
   // Attach syncController to window for diagnostics in staging E2E (temporary)
   try {
@@ -108,7 +81,6 @@ export function AppProviders({ children }: AppProvidersProps) {
 
       if ((window as any).syncController === undefined) {
         (window as any).syncController = syncController;
-        console.log('[app-providers] attached syncController to window');
       }
     }
   } catch (e) {}

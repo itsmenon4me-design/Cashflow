@@ -23,6 +23,23 @@ interface LanguageProviderProps {
  * state (header, auth session, dashboard widgets, etc.) intact while the text
  * bundle switches over to the new locale.
  */
+/**
+ * Global language root.
+ *
+ * Sources of truth, in order:
+ * 1. localStorage (persisted choice) — applied synchronously on store
+ *    creation, so the UI renders in the persisted language on first paint.
+ * 2. backend settings (authoritative) — reconciled once for authenticated
+ *    sessions.
+ *
+ * Reactivity fix: components read labels from the shared `uiText` module
+ * binding during render, so they only show a new language when they actually
+ * RE-RENDER. Re-rendering this provider alone is not enough — `{children}`'s
+ * element identity never changes, so React bails out and nothing below
+ * updates. Keying the subtree by the active language forces a remount of
+ * everything below whenever the preference changes, making every label
+ * (sidebar, page titles, tables, ...) reactive globally.
+ */
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const language = useLanguageStore((state) => state.language);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -47,5 +64,9 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     };
   }, [isAuthenticated, setLanguage]);
 
-  return <div data-language={language} className="contents">{children}</div>;
+  return (
+    <div key={language} data-language={language} className="contents">
+      {children}
+    </div>
+  );
 }

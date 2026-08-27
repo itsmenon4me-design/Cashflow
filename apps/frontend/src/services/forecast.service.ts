@@ -12,17 +12,19 @@ export interface SpendingPredictionParams {
 }
 
 export const forecastService = {
-  getForecast: (params?: ForecastParams): Promise<ForecastResponse> =>
+  getForecast: (params?: ForecastParams, signal?: AbortSignal): Promise<ForecastResponse> =>
     apiClient
       .get<{ success: boolean; data: ForecastResponse }>('/ai/forecast', {
         params: params as Record<string, unknown> | undefined,
+        signal,
       })
       .then((res) => res.data),
 
-  getSpendingPrediction: (params?: SpendingPredictionParams): Promise<SpendingPredictionResponse> =>
+  getSpendingPrediction: (params?: SpendingPredictionParams, signal?: AbortSignal): Promise<SpendingPredictionResponse> =>
     apiClient
       .get<{ success: boolean; data: SpendingPredictionResponse }>('/ai/spending-prediction', {
         params: params as Record<string, unknown> | undefined,
+        signal,
       })
       .then((res) => res.data),
 };

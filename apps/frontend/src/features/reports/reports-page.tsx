@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Download, Loader2, ReceiptText } from "lucide-react";
-import {
-  CategoryBreakdownCard,
-  type CategorySlice,
-} from "@/components/reports/category-breakdown-card";
-import { CashflowTrendChart } from "@/components/reports/cashflow-trend-chart";
+import { type CategorySlice } from "@/components/reports/category-breakdown-card";
+// recharts-based charts load via async chunks after first paint (low-CPU friendly)
+import { LazyCategoryBreakdownCard as CategoryBreakdownCard } from "@/components/charts/lazy-charts";
+import { LazyCashflowTrendChart as CashflowTrendChart } from "@/components/charts/lazy-charts";
 import { ReportPeriodFilter } from "@/components/reports/report-period-filter";
 import { SummaryCard } from "@/components/reports/summary-card";
 import { TopCategoriesCard } from "@/components/reports/top-categories-card";
@@ -14,13 +13,12 @@ import { TransactionSummaryCard } from "@/components/reports/transaction-summary
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { IncomeExpenseChartCard } from "@/components/dashboard/income-expense-chart-card";
+import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
 import { computeRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ExportFormat, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
@@ -49,7 +47,6 @@ function pctChange(
 
 export function ReportsPage() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [range, setRange] = useState<ReportRange>(() => computeRange("thisMonth"));
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -66,8 +63,6 @@ export function ReportsPage() {
   const [expenseBreakdown, setExpenseBreakdown] = useState<CategoryBreakdownResult | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
-  // Non-hook access to current display currency for formatting (matches analytics pattern)
-  const displayCurrency = useDashboardCurrencyStore.getState().currency;
 
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
@@ -102,28 +97,26 @@ export function ReportsPage() {
         const trendType = pickTrendType(range);
         const prev = previousRange(range);
 
-        const activeCurrency = useDashboardCurrencyStore.getState().currency;
         const [summaryRes, incomeRes, expenseRes, trendRes, txRes, accounts, categories] =
           await Promise.all([
-            reportService.getSummary(range, activeCurrency),
-            reportService.getCategoryBreakdown("income", range, activeCurrency),
-            reportService.getCategoryBreakdown("expense", range, activeCurrency),
-            reportService.getCashflowTrend(trendType, range, activeCurrency),
+            reportService.getSummary(range),
+            reportService.getCategoryBreakdown("income", range),
+            reportService.getCategoryBreakdown("expense", range),
+            reportService.getCashflowTrend(trendType, range),
             transactionService.list({
               fromDate: range.startDate,
               toDate: range.endDate,
               limit: 8,
               sortBy: "date",
               sortOrder: "desc",
-              currency: activeCurrency,
             }),
-            accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+            accountService.list().catch(() => [] as AccountResponse[]),
             categoryService.list().catch(() => [] as CategoryResponse[]),
           ]);
 
         let prevSummaryRes: ReportSummary | null = null;
         try {
-          prevSummaryRes = await reportService.getSummary(prev, activeCurrency);
+          prevSummaryRes = await reportService.getSummary(prev);
         } catch {
           prevSummaryRes = null;
         }
@@ -151,19 +144,19 @@ export function ReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range, activeCurrency]);
+  }, [refreshKey, range]);
 
   const hasAnyData = (summary?.summary.transactions ?? 0) > 0 || trend.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;
 
-  const income = summary ? fromCents(summary.summary.income, displayCurrency) : 0;
-  const expense = summary ? fromCents(summary.summary.expense, displayCurrency) : 0;
-  const net = summary ? fromCents(summary.summary.netCashFlow, displayCurrency) : 0;
+  const income = summary ? fromCents(summary.summary.income) : 0;
+  const expense = summary ? fromCents(summary.summary.expense) : 0;
+  const net = summary ? fromCents(summary.summary.netCashFlow) : 0;
   const txCount = summary ? summary.summary.transactions : 0;
 
-  const incomeChange = pctChange(income, prevSummary ? fromCents(prevSummary.summary.income, displayCurrency) : null);
-  const expenseChange = pctChange(expense, prevSummary ? fromCents(prevSummary.summary.expense, displayCurrency) : null);
-  const netChange = pctChange(net, prevSummary ? fromCents(prevSummary.summary.netCashFlow, displayCurrency) : null);
+  const incomeChange = pctChange(income, prevSummary ? fromCents(prevSummary.summary.income) : null);
+  const expenseChange = pctChange(expense, prevSummary ? fromCents(prevSummary.summary.expense) : null);
+  const netChange = pctChange(net, prevSummary ? fromCents(prevSummary.summary.netCashFlow) : null);
   const txChange = pctChange(txCount, prevSummary ? prevSummary.summary.transactions : null);
 
   const cashFlow = useMemo<FlowPoint[]>(
@@ -181,7 +174,7 @@ export function ReportsPage() {
       (incomeBreakdown?.categories ?? []).map((c) => ({
         name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
-        amount: fromCents(c.totalAmount, displayCurrency),
+        amount: fromCents(c.totalAmount),
       })),
     [incomeBreakdown]
   );
@@ -191,7 +184,7 @@ export function ReportsPage() {
       (expenseBreakdown?.categories ?? []).map((c) => ({
         name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
-        amount: fromCents(c.totalAmount, displayCurrency),
+        amount: fromCents(c.totalAmount),
       })),
     [expenseBreakdown]
   );
@@ -204,7 +197,7 @@ export function ReportsPage() {
       const categoryTotal = BigInt(c.total);
       return {
         name: c.name ?? "-",
-        amount: fromCents(categoryTotal, displayCurrency),
+        amount: fromCents(categoryTotal),
         percentage: expenseTotal > zero ? (Number(categoryTotal) / Number(expenseTotal)) * 100 : 0,
         transactionCount: 0,
       };
@@ -223,7 +216,6 @@ export function ReportsPage() {
         format,
         month: start.getMonth() + 1,
         year: start.getFullYear(),
-        currency: activeCurrency,
       });
       downloadExport(res);
     } catch {
@@ -292,7 +284,7 @@ export function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               label={uiText.reports.totalIncome}
               value={formatMoney(income)}
@@ -331,10 +323,10 @@ export function ReportsPage() {
             />
           </div>
 
-          <CashflowTrendChart data={trend} loading={loading} currency={activeCurrency} />
+          <CashflowTrendChart data={trend} loading={loading} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <IncomeExpenseChartCard data={cashFlow} currency={activeCurrency} />
+            <IncomeExpenseChartCard data={cashFlow} />
             <CategoryBreakdownCard
               title={uiText.reports.expenseByCategory}
               subtitle={uiText.reports.expenseByCategorySubtitle}

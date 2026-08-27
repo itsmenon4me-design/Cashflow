@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
@@ -29,9 +29,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { formatFullDate } from "@/lib/format";
 import { uiText } from "@/locales";
 import { authService } from "@/services/auth.service";
-import { settingsService } from "@/services/settings.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { useSidebarStore } from "@/stores/sidebar.store";
@@ -40,12 +40,6 @@ import { useDataRefreshStore } from "@/stores/refresh.store";
 import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { formatRelativeTime } from "@/features/notifications/relative-time";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  hydrateDashboardCurrency,
-  useDashboardCurrencyStore,
-} from "@/stores/dashboardCurrency.store";
-import { DASHBOARD_CURRENCIES } from "@/lib/dashboard-currency";
 import {
   getFinanceBotPriorityLabel,
   getFinanceBotPriorityVariant,
@@ -82,12 +76,6 @@ export function HeaderBar() {
   }, []);
 
   useEffect(() => {
-    hydrateDashboardCurrency();
-    try { console.log('[header] mounted -> store currency', { currency: useDashboardCurrencyStore.getState().currency, ls: (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('cashflow-dashboard-currency') : null, ts: Date.now() }); } catch (e) {}
-    try { console.trace('[header] computed today after mount', { today: (typeof window !== 'undefined' ? new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()) : 'server'), ts: Date.now() }); } catch (e) {}
-  }, []);
-
-  useEffect(() => {
     if (!initialized) {
       void fetch();
     }
@@ -117,69 +105,6 @@ export function HeaderBar() {
     };
   }, [dataVersion, fetch]);
 
-  // Ensure dashboard settings (currency) are in sync when the window regains focus or visibility,
-  // particularly to pick up server-side changes that may have been applied via server actions.
-  useEffect(() => {
-    let mounted = true;
-    const syncSettings = async () => {
-      try {
-        const s = await settingsService.getSettings();
-        if (!mounted) return;
-        if (s && s.currency) {
-          try {
-            useDashboardCurrencyStore.getState().setCurrency(s.currency);
-            if (typeof window !== 'undefined' && window.localStorage) {
-              window.localStorage.setItem('cashflow-dashboard-currency', s.currency);
-          try { console.log('[header] syncSettings -> wrote localStorage', { written: s.currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
-        }
-          } catch (e) {
-        console.warn('[header] syncSettings apply failed', e);
-          }
-        }
-      } catch (e) {
-        // ignore network errors here; not critical
-      }
-    };
-
-    const onFocus = () => void syncSettings();
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void syncSettings();
-    };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    // also run once on mount so navigating back to dashboard sees latest server state
-    void syncSettings();
-
-    return () => {
-      mounted = false;
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
-
-  // When route changes, ensure dashboard view fetches latest settings from server (covers server-action update paths)
-  const pathname = usePathname();
-  useEffect(() => {
-    if (pathname === '/dashboard') {
-      void (async () => {
-        try {
-          const s = await settingsService.getSettings();
-          if (s && s.currency) {
-            useDashboardCurrencyStore.getState().setCurrency(s.currency);
-            if (typeof window !== 'undefined' && window.localStorage) {
-              window.localStorage.setItem('cashflow-dashboard-currency', s.currency);
-            try { console.log('[header] pathname /dashboard sync wrote localStorage', { written: s.currency, now: window.localStorage.getItem('cashflow-dashboard-currency'), ts: Date.now() }); } catch (e) {}
-          }
-          console.log('[header] pathname /dashboard sync applied', s.currency);
-          }
-        } catch (e) {
-          // ignore
-        }
-      })();
-    }
-  }, [pathname]);
-
   const handleLogout = () => {
     void authService.logout().catch(() => undefined);
     logout();
@@ -195,22 +120,11 @@ export function HeaderBar() {
     }
   };
 
-  const today = mounted
-    ? new Intl.DateTimeFormat("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(new Date())
-    : "";
-
-  // Dashboard currency selector hooks (top-level hooks only)
-  const currency = useDashboardCurrencyStore((s) => s.currency);
-  const setCurrency = useDashboardCurrencyStore((s) => s.setCurrency);
+  const today = mounted ? formatFullDate() : "";
 
   return (
     <header className="sticky top-0 z-30 overflow-hidden border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="flex h-16 min-w-0 items-center gap-3 overflow-hidden px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 min-w-0 items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
           className="size-11 shrink-0 rounded-xl md:hidden"
@@ -241,8 +155,8 @@ export function HeaderBar() {
           </Button>
 
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground xl:flex">
-            <CalendarDays className="size-4 text-primary" />
-            <span>{today}</span>
+            <CalendarDays className="size-4 shrink-0 text-primary" />
+            <span className="min-w-[10.5rem] whitespace-nowrap text-center tabular-nums">{today}</span>
           </div>
 
           <SyncStatusIndicator showLabel={false} className="sm:hidden" />
@@ -345,22 +259,6 @@ export function HeaderBar() {
             {safeMode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          {/* Header slot: dashboard currency selector everywhere (Quick Add is not in the header per design) */}
-          <div className="flex items-center">
-            <Select value={currency} onValueChange={(v) => setCurrency(v)}>
-              <SelectTrigger className="h-9 w-28 rounded-xl border border-border bg-card px-3 text-sm">
-               <SelectValue placeholder={currency} />
-              </SelectTrigger>
-              <SelectContent>
-               {DASHBOARD_CURRENCIES.map((c) => (
-                 <SelectItem key={c} value={c}>
-                   {c}
-                 </SelectItem>
-               ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -374,9 +272,9 @@ export function HeaderBar() {
                     {getInitials(safeUser?.name ?? "U")}
                   </AvatarFallback>
                 </Avatar>
-                <div className="hidden text-left md:block">
-                  <p className="text-sm font-medium leading-tight text-foreground">{safeUser?.name}</p>
-                  <p className="text-xs leading-tight text-muted-foreground">{safeUser?.email}</p>
+                <div className="hidden w-40 text-left md:block">
+                  <p className="truncate text-sm font-medium leading-tight text-foreground">{safeUser?.name}</p>
+                  <p className="truncate text-xs leading-tight text-muted-foreground">{safeUser?.email}</p>
                 </div>
               </button>
             </DropdownMenuTrigger>

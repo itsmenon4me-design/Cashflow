@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 const requiredMessage = "Wajib diisi";
 
@@ -22,7 +20,12 @@ export const investmentFormSchema = z.object({
   symbol: z.string().optional(),
   quantity: z.number({ error: "Harus berupa angka" }).min(0, "Tidak boleh negatif"),
   averageBuyPrice: z.number({ error: "Harus berupa angka" }).min(0, "Tidak boleh negatif"),
-  currentPrice: z.number({ error: "Harus berupa angka" }).min(0, "Tidak boleh negatif"),
+  // Optional: when left empty the current price defaults to the average buy
+  // price (initial ROI = 0%) — see toCreateInvestmentPayload.
+  currentPrice: z
+    .number({ error: "Harus berupa angka" })
+    .min(0, "Tidak boleh negatif")
+    .nullish(),
   invested: z.number({ error: "Harus berupa angka" }).min(0, "Tidak boleh negatif"),
   purchaseDate: z.string().min(1, requiredMessage),
   notes: z.string().optional(),
@@ -31,37 +34,27 @@ export const investmentFormSchema = z.object({
 
 export type InvestmentFormValues = z.infer<typeof investmentFormSchema>;
 
-export function toCreateInvestmentPayload(
-  values: InvestmentFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
-) {
+export function toCreateInvestmentPayload(values: InvestmentFormValues) {
   return {
     account_id: values.accountId || undefined,
-    currency,
     investment_type: values.investmentType,
     platform: values.platform.trim(),
     name: values.name.trim(),
     symbol: values.symbol?.trim() || undefined,
     quantity: values.quantity,
     average_buy_price: values.averageBuyPrice,
-    current_price: values.currentPrice,
-    invested_amount_cents: toMinorUnits(values.invested, currency),
+    // Empty current price -> assume bought at average price (ROI awal = 0%).
+    current_price: values.currentPrice ?? values.averageBuyPrice,
+    invested_amount_cents: toMinorUnits(values.invested, "IDR"),
     notes: values.notes?.trim() || undefined,
     purchase_date: values.purchaseDate,
     status: values.status,
   };
 }
 
-export function toUpdateInvestmentPayload(
-  values: InvestmentFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
-) {
+export function toUpdateInvestmentPayload(values: InvestmentFormValues) {
   return {
-    ...toCreateInvestmentPayload(values, currency),
+    ...toCreateInvestmentPayload(values),
     account_id: values.accountId || null,
     symbol: values.symbol?.trim() || null,
     notes: values.notes?.trim() || null,

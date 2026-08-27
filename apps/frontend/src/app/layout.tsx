@@ -1,21 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
-import Script from 'next/script';
+import { cookies } from "next/headers";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
+import { setUiTextLanguage } from "@/locales";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Single font family: Inter covers the whole UI (latin subset, display swap
+// by default via next/font). The previously loaded Geist Sans/Mono families
+// were unused (--font-geist-sans had no consumers and nothing renders
+// font-mono) and only added font downloads for low-end/mobile devices.
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "CashFlow Enterprise",
@@ -36,35 +31,45 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
   themeColor: "#020202",
   colorScheme: "dark light",
+  viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  try {
-    if (typeof window === 'undefined') {
-      // eslint-disable-next-line no-console
-      console.log('[ssr] RootLayout server render', { ts: Date.now(), pid: process ? process.pid : null });
-    }
-  } catch (e) {}
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Render the server HTML in the SAME language the client will hydrate with.
+  // The active language is mirrored to a `cashflow.language` cookie by
+  // language.store; reading it here makes SSR output match the client's first
+  // render and eliminates the hydration mismatch (white flash / tree rebuild)
+  // that occurred whenever the persisted language was not the default "id".
+  const cookieLanguage = (await cookies()).get("cashflow.language")?.value;
+  setUiTextLanguage(cookieLanguage);
+
   return (
-    <html
-      lang="id"
-      suppressHydrationWarning
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
-    >
+      <html
+        lang="id"
+        suppressHydrationWarning
+        className={cn("h-full", "antialiased", "font-sans", inter.variable)}
+      >
       <head>
-        <Script id="app-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{
-          __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
-        }} />
-        <Script id="theme-init" strategy="afterInteractive" dangerouslySetInnerHTML={{
-          __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);var dark=t==='dark';document.documentElement.classList.toggle('dark',dark);document.documentElement.style.colorScheme=dark?'dark':'light';}catch(e){document.documentElement.classList.add('dark')}})();`,
-        }} />
-        <Script id="fetch-intercept" strategy="afterInteractive" dangerouslySetInnerHTML={{
-          __html: `(function(){try{var _fetch=window.fetch;window.fetch=async function(input, init){var res=await _fetch(input, init);try{var url=typeof input==='string'?input:input?.url;if(url && url.indexOf('/api/v1/settings')!==-1){try{res.clone().json().then(function(body){try{var currency=(body && body.data && body.data.currency) || null; if(currency){ try{ localStorage.setItem('cashflow-dashboard-currency', currency); }catch(e){} try{ console.log('[fetch-intercept] wrote localStorage from /api/v1/settings', { written: currency, now: (typeof localStorage!=='undefined'?localStorage.getItem('cashflow-dashboard-currency'):null), ts: Date.now() }); }catch(e){} try{ window.dispatchEvent(new CustomEvent('cashflow:settings-updated',{detail:{currency}})); }catch(e){} } }catch(e){}});}catch(e){}}}catch(e){}return res;};}catch(e){}})();`,
-        }} />
+        {/* Plain <script> tags in the server-rendered head. next/script with
+            beforeInteractive/afterInteractive inside the React tree gets
+            re-processed on client navigation ("Encountered a script tag while
+            rendering React component") and pollutes hydration. These only need
+            to run once at document load; they are not part of any route tree. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);var dark=t==='dark';document.documentElement.classList.toggle('dark',dark);}catch(e){document.documentElement.classList.add('dark')}})();`,
+          }}
+        />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

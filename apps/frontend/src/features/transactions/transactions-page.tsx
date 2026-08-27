@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Plus, ReceiptText } from "lucide-react";
-import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
-import {
-  TransactionForm,
-  type TransactionFormMode,
-} from "@/components/transactions/TransactionForm";
+import type { TransactionFormMode } from "@/components/transactions/TransactionForm";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazyTransactionForm = dynamic(
+  () => import("@/components/transactions/TransactionForm").then((m) => m.TransactionForm),
+  { ssr: false },
+);
+const LazyDeleteTransactionDialog = dynamic(
+  () =>
+    import("@/components/transactions/DeleteTransactionDialog").then(
+      (m) => m.DeleteTransactionDialog,
+    ),
+  { ssr: false },
+);
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { TransactionToolbar } from "@/components/transactions/TransactionToolbar";
@@ -24,13 +35,13 @@ import type { TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
 import { isoToLocalTime } from "@/lib/date";
 import type { CategoryGroup } from "@/lib/categories";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import {
   syncCreateTransaction,
   syncDeleteTransaction,
   syncUpdateTransaction,
 } from "@/lib/offline/sync-client";
+import { usePendingTransactions } from "@/hooks/use-pending-transactions";
 import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import {
@@ -79,7 +90,6 @@ export function TransactionsPage() {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
 
   const defaultFilters = (() => {
     const now = new Date();
@@ -135,7 +145,7 @@ export function TransactionsPage() {
 
     void (async () => {
       const [accounts, categories] = await Promise.all([
-          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+          accountService.list().catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]);
 
@@ -155,13 +165,7 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeCurrency]);
-
-  // Reset pagination and trigger a refresh when dashboard currency changes to avoid stale/cross-currency data
-  useEffect(() => {
-    setPage(1);
-    setRefreshKey((k) => k + 1);
-  }, [activeCurrency]);
+  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
@@ -213,7 +217,6 @@ export function TransactionsPage() {
         limit: pageSize,
         sortBy: sort.key,
         sortOrder: sort.order,
-        currency: activeCurrency,
       };
       if (search) params.q = search;
       if (queryConfig.type) params.type = queryConfig.type;
@@ -267,7 +270,6 @@ export function TransactionsPage() {
     queryConfig,
     accountNames,
     categoryNames,
-    activeCurrency,
   ]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
@@ -435,6 +437,20 @@ export function TransactionsPage() {
   const isEmpty =
     !error && totalItems === 0 && transactions.length === 0 && hasLoadedOnce;
 
+  // Optimistic UI: offline-created transactions appear immediately with a
+  // "not synced" badge; queued edits/deletes flag the affected server rows.
+  const { items: pendingItems, pendingIds } = usePendingTransactions(
+    accountNames,
+    categoryNames,
+    accountCurrencies,
+  );
+  const visibleTransactions = useMemo(() => {
+    const flagged = transactions.map((txn) =>
+      pendingIds.has(txn.id) ? { ...txn, pendingSync: true } : txn,
+    );
+    return [...pendingItems, ...flagged];
+  }, [transactions, pendingItems, pendingIds]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -477,7 +493,7 @@ export function TransactionsPage() {
       ) : (
         <>
           <TransactionTable
-            transactions={transactions}
+            transactions={visibleTransactions}
             loading={loading && transactions.length === 0}
             sortBy={sort.key}
             sortOrder={sort.order}
@@ -503,28 +519,30 @@ export function TransactionsPage() {
         </>
       )}
 
-      <TransactionForm
-        key={formState.session}
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        transaction={formState.transaction}
-        categories={categoryOptions}
-        categoryTypes={categoryTypes}
-        accounts={accountOptions}
-        accountCurrencyByName={accountCurrencyByName}
-        onSubmit={(values) => void handleFormSubmit(values)}
-      />
+      <LoadOnOpen active={formState.open || deleting !== null}>
+        <LazyTransactionForm
+          key={formState.session}
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          transaction={formState.transaction}
+          categories={categoryOptions}
+          categoryTypes={categoryTypes}
+          accounts={accountOptions}
+          accountCurrencyByName={accountCurrencyByName}
+          onSubmit={(values) => void handleFormSubmit(values)}
+        />
 
-      <DeleteTransactionDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+        <LazyDeleteTransactionDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

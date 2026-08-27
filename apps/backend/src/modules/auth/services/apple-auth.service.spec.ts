@@ -142,6 +142,7 @@ describe('AppleAuthService', () => {
     expect(authService.issueSessionForUser).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'user-1' }),
       'apple',
+      undefined,
     );
   });
 

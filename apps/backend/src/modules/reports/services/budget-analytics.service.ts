@@ -2,7 +2,6 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { Prisma, TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
-import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 export interface BudgetCategoryItem {
   categoryId: string;
@@ -61,11 +60,8 @@ export class BudgetAnalyticsService {
     userId: string,
     month: number,
     year: number,
-    currency?: string,
+    currency: string,
   ): Promise<BudgetRow[]> {
-    // Strict ledger isolation: legacy budgets without a currency are treated as
-    // unmapped data and are excluded from analysis. They must be backfilled or
-    // migrated to a real currency before they can participate in a ledger scope.
     const currencyFilter = currency
       ? Prisma.sql`AND b.currency = ${currency}`
       : Prisma.empty;
@@ -89,7 +85,6 @@ export class BudgetAnalyticsService {
     userId: string,
     month: number,
     year: number,
-    currency?: string,
   ): Promise<BudgetAnalysisResult> {
     const m = Number(month);
     const y = Number(year);
@@ -98,19 +93,16 @@ export class BudgetAnalyticsService {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0, 23, 59, 59, 999);
 
-    // Resolve the active dashboard currency to prevent cross-currency summation.
-    const selectedCurrency = normalizeDashboardCurrency(currency);
+    // Resolve the active ledger currency.
     const accounts = await this.prisma.account.findMany({
       where: {
         user_id: userId,
         deleted_at: null,
-        ...(selectedCurrency ? { currency: selectedCurrency } : {}),
       },
       select: { currency: true, is_default: true },
     });
     const defaultAcc = accounts.find((a) => a.is_default);
-    const targetCurrency =
-      selectedCurrency ?? defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
+    const targetCurrency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
 
     // budgets (explicit scope only: legacy NULL budgets match any scope)
     const budgets = await this.fetchBudgets(userId, m, y, targetCurrency);

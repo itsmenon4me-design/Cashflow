@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNotificationStore } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { HeaderBar } from '@/components/layout/header-bar';
 import { uiText } from '@/locales';
-import { useDashboardCurrencyStore } from '@/stores/dashboardCurrency.store';
 
 const mockPush = vi.fn();
 const mockPathname = vi.fn(() => "/");
@@ -146,54 +145,10 @@ describe('HeaderBar', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/notifications');
   });
 
-  it('shows currency selector on non-dashboard routes and persists the selected currency across refreshes', async () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    mockPathname.mockReturnValue('/accounts');
-
-    act(() => {
-      useDashboardCurrencyStore.setState({ currency: "USD" });
-    });
-
-    render(<HeaderBar />);
-
-    expect(screen.getByText("USD")).toBeInTheDocument();
-
-    act(() => {
-      useDashboardCurrencyStore.getState().setCurrency("EUR");
-    });
-
-    expect(screen.getByText("EUR")).toBeInTheDocument();
-    expect(localStorage.getItem("cashflow-dashboard-currency")).toBe("EUR");
-    expect(sessionStorage.getItem("cashflow-dashboard-currency")).toBeNull();
-  });
-
-  it('shows currency selector on dashboard routes and does not show Quick Add in header', () => {
+  it('does not show Quick Add in the header', () => {
     mockPathname.mockReturnValue('/');
     render(<HeaderBar />);
-    // ensure the store has a deterministic value for the assertion
-    act(() => {
-      useDashboardCurrencyStore.setState({ currency: 'IDR' });
-    });
-
-    // Quick Add should no longer be present in the header
     expect(screen.queryByLabelText(uiText.common.quickAdd)).not.toBeInTheDocument();
-    // Currency selector should be active (store reflects selected currency)
-    expect(useDashboardCurrencyStore.getState().currency).toBe('IDR');
-  });
-
-  it('does not show Quick Add on non-dashboard routes either, only the currency selector', () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    act(() => {
-      useDashboardCurrencyStore.setState({ currency: "USD" });
-    });
-    mockPathname.mockReturnValue('/accounts');
-    render(<HeaderBar />);
-
-    // Quick Add must not be present in the header on any route
-    expect(screen.queryByLabelText(uiText.common.quickAdd)).not.toBeInTheDocument();
-    expect(screen.getByText('USD')).toBeInTheDocument();
   });
 
   it('uses a non-scrollable header container to prevent horizontal overflow', () => {
@@ -202,14 +157,5 @@ describe('HeaderBar', () => {
     const header = document.querySelector('header');
     expect(header).not.toBeNull();
     expect(header).toHaveClass('overflow-hidden');
-  });
-
-  it('defaults to USD when no saved dashboard currency exists', () => {
-    localStorage.clear();
-    sessionStorage.clear();
-
-    useDashboardCurrencyStore.setState({ currency: "USD" });
-
-    expect(useDashboardCurrencyStore.getState().currency).toBe("USD");
   });
 });

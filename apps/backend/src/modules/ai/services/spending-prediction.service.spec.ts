@@ -697,21 +697,6 @@ describe('SpendingPredictionService', () => {
     expect(res.otherCents).toBe('700');
   });
 
-  it('AA. rejects unsupported currencies instead of emitting ambiguous money', async () => {
-    const { service } = makeService({
-      account: {
-        findMany: makeFindAccounts([{ currency: 'KRW', is_default: true }]),
-      },
-      transaction: {
-        findMany: makeFindMany([makeTx('2026-04', 'EXPENSE', 1000, CAT.food)]),
-      },
-    });
-
-    await expect(service.predict('u1', { horizon: 1 })).rejects.toThrow(
-      /does not support currency/,
-    );
-  });
-
   it('AB. exposes the resolved currency in normal and insufficient responses', async () => {
     const normal = makeService({
       transaction: {

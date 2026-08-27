@@ -12,6 +12,7 @@ import {
 } from '../providers/google/google-oauth.provider';
 import { AuthService } from './auth.service';
 import { OAuthAccountService } from './oauth-account.service';
+import { AuthRequestContext } from '../types/auth-request';
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -175,7 +176,11 @@ export class GoogleAuthService {
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
-  async handleGoogleCallback(input: { code?: string; state?: string }) {
+  async handleGoogleCallback(input: {
+    code?: string;
+    state?: string;
+    context?: AuthRequestContext;
+  }) {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
       throw ErrorService.create(
@@ -332,7 +337,11 @@ export class GoogleAuthService {
         );
       }
 
-      const session = await this.authService.issueSessionForUser(user, 'google');
+      const session = await this.authService.issueSessionForUser(
+        user,
+        'google',
+        input.context,
+      );
       return {
         success: true,
         redirectUrl: this.buildSuccessRedirectUrl(

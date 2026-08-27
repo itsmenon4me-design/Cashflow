@@ -15,8 +15,6 @@ export interface ForecastOptions {
   horizon?: number;
   startDate?: string;
   endDate?: string;
-  /** Ledger currency scope. When omitted the primary account currency is used. */
-  currency?: string;
 }
 
 @Injectable()
@@ -50,7 +48,6 @@ export class ForecastService {
     });
     const defaultAcc = accounts.find((a) => a.is_default);
     const targetCurrency =
-      options?.currency ??
       defaultAcc?.currency ??
       accounts[0]?.currency ??
       'IDR';

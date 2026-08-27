@@ -88,20 +88,14 @@ export function CategoryTable({
                       {category.description ?? "-"}
                     </TableCell>
                     <TableCell>
-                      {category.isSystem ? (
-                        <Badge variant="info" className="rounded-lg">
-                          {uiText.categories.system}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant={category.isActive ? "success" : "neutral"}
-                          className={cn("rounded-lg")}
-                        >
-                          {category.isActive
-                            ? uiText.categories.active
-                            : uiText.categories.inactive}
-                        </Badge>
-                      )}
+                      <Badge
+                        variant={category.isActive ? "success" : "neutral"}
+                        className={cn("rounded-lg")}
+                      >
+                        {category.isActive
+                          ? uiText.categories.active
+                          : uiText.categories.inactive}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <CategoryRowActions

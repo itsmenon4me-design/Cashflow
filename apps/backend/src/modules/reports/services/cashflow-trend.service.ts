@@ -1,7 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { toMinorUnitsExact } from '../../../common/types/money';
-import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 export type TrendType = 'daily' | 'weekly' | 'monthly';
 
@@ -22,17 +21,7 @@ export interface TrendResult {
 export class CashflowTrendService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Resolve primary account currency so income/expense/net aggregates never
-  // mix different currencies (Phase C multi-currency rule).
-  private async resolveTargetCurrency(
-    userId: string,
-    currency?: string,
-  ): Promise<string> {
-    const normalized = normalizeDashboardCurrency(currency);
-    if (normalized) {
-      return normalized;
-    }
-
+  private async resolveTargetCurrency(userId: string): Promise<string> {
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },
@@ -75,13 +64,12 @@ export class CashflowTrendService {
     type: TrendType,
     startDate: Date,
     endDate: Date,
-    currency?: string,
   ): Promise<TrendResult> {
     if (type !== 'daily' && type !== 'weekly' && type !== 'monthly')
       throw new BadRequestException('Invalid type');
     this.validateDates(startDate, endDate);
 
-    const targetCurrency = await this.resolveTargetCurrency(userId, currency);
+    const targetCurrency = await this.resolveTargetCurrency(userId);
 
     // fetch transactions in range (single currency only)
     const recs = await this.prisma.transaction.findMany({

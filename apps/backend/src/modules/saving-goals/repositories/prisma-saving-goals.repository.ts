@@ -65,31 +65,18 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string, currency?: string): Promise<SavingGoalEntity | null> {
-    // Each currency is its own ledger; legacy rows without currency stay
-    // visible in every ledger until the backfill assigns them one.
-    const where: Prisma.SavingGoalWhereInput = { id };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
-    const rec = await this.prisma.savingGoal.findFirst({ where });
+  async findById(id: string): Promise<SavingGoalEntity | null> {
+    const rec = await this.prisma.savingGoal.findFirst({ where: { id } });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(
-    userId: string,
-    currency?: string,
-  ): Promise<SavingGoalEntity[]> {
-    const where: Prisma.SavingGoalWhereInput = {
-      user_id: userId,
-      deleted_at: null,
-    };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
+  async findAllByUser(userId: string): Promise<SavingGoalEntity[]> {
     const recs = await this.prisma.savingGoal.findMany({
-      where,
+      where: {
+        user_id: userId,
+        deleted_at: null,
+      },
       orderBy: { created_at: 'desc' },
     });
     return (recs as unknown as GoalRec[]).map((rec) => this.map(rec));

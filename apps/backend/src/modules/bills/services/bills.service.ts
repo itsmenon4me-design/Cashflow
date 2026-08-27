@@ -6,6 +6,7 @@ import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { CreateBillDto } from '../dto/create-bill.dto';
 import { UpdateBillDto } from '../dto/update-bill.dto';
+import { FIXED_CURRENCY } from '../../../common/currencies';
 
 const DEFAULT_UPCOMING_WINDOW_DAYS = 90;
 
@@ -26,7 +27,6 @@ export class BillsService {
     userId: string,
     accountId?: string | null,
     categoryId?: string | null,
-    currency?: string,
   ) {
     if (accountId) {
       const account = await this.prisma.account.findUnique({
@@ -39,12 +39,6 @@ export class BillsService {
         throw ErrorService.create(
           ErrorCode.INVALID_INPUT,
           'Account is not active',
-        );
-      }
-      if (currency && account.currency !== currency) {
-        throw ErrorService.create(
-          ErrorCode.INVALID_INPUT,
-          'Account does not match active dashboard currency',
         );
       }
     }
@@ -77,15 +71,14 @@ export class BillsService {
     }
   }
 
-  async list(userId: string, currency?: string): Promise<BillEntity[]> {
-    return this.repo.findAllByUser(userId, currency);
+  async list(userId: string): Promise<BillEntity[]> {
+    return this.repo.findAllByUser(userId);
   }
 
   async upcoming(
     userId: string,
     from?: string,
     to?: string,
-    currency?: string,
   ): Promise<BillEntity[]> {
     const now = new Date();
     const startRaw = from ? new Date(from) : new Date(NaN);
@@ -108,11 +101,11 @@ export class BillsService {
         'End date must be after start date',
       );
     }
-    return currency ? this.repo.findUpcomingByUser(userId, start, end, currency) : this.repo.findUpcomingByUser(userId, start, end);
+    return this.repo.findUpcomingByUser(userId, start, end);
   }
 
-  async getById(userId: string, id: string, currency?: string): Promise<BillEntity> {
-    const bill = currency ? await this.repo.findByIdOwned(id, userId, currency) : await this.repo.findByIdOwned(id, userId);
+  async getById(userId: string, id: string): Promise<BillEntity> {
+    const bill = await this.repo.findByIdOwned(id, userId);
     if (!bill) {
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Bill not found');
     }
@@ -122,20 +115,12 @@ export class BillsService {
   async create(
     userId: string,
     dto: CreateBillDto,
-    currency?: string,
   ): Promise<BillEntity> {
-    const billCurrency = dto.currency ?? currency;
-    if (!billCurrency) {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        'Bill currency is required',
-      );
-    }
+    const billCurrency = dto.currency ?? FIXED_CURRENCY;
     await this.validateReferences(
       userId,
       dto.account_id,
       dto.category_id,
-      currency,
     );
     await this.assertBillCurrencyMatchesAccount(billCurrency, dto.account_id);
 
@@ -167,9 +152,8 @@ export class BillsService {
     userId: string,
     id: string,
     dto: UpdateBillDto,
-    currency?: string,
   ): Promise<BillEntity> {
-    const current = await this.getById(userId, id, currency);
+    const current = await this.getById(userId, id);
 
     const nextAccountId =
       dto.account_id !== undefined ? dto.account_id : current.account_id;
@@ -179,7 +163,6 @@ export class BillsService {
       userId,
       nextAccountId,
       nextCategoryId,
-      currency,
     );
 
     const nextCurrency = dto.currency ?? current.currency;
@@ -221,8 +204,8 @@ export class BillsService {
     return updated;
   }
 
-  async softDelete(userId: string, id: string, currency?: string): Promise<void> {
-    await this.getById(userId, id, currency);
+  async softDelete(userId: string, id: string): Promise<void> {
+    await this.getById(userId, id);
     const deleted = await this.repo.softDeleteOwned(id, userId);
     if (!deleted) {
       throw ErrorService.create(ErrorCode.NOT_FOUND, 'Bill not found');

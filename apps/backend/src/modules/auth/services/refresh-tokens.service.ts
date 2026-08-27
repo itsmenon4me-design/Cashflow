@@ -15,6 +15,7 @@ import {
   AuditEntityType,
   AuditModule,
 } from '../../audit-logs/constants/audit.constants';
+import { AuthRequestContext } from '../types/auth-request';
 
 @Injectable()
 export class RefreshTokensService {
@@ -82,7 +83,7 @@ export class RefreshTokensService {
     return { id: newJti, token: newRefreshToken, expires_at: expiresAt };
   }
 
-  async rotate(refreshTokenRaw: string) {
+  async rotate(refreshTokenRaw: string, context: AuthRequestContext = {}) {
     // Verify token signature and extract payload
     const cfg = this.jwtConfig.config;
     let payload: Record<string, unknown> | null = null;
@@ -209,7 +210,16 @@ export class RefreshTokensService {
     // Update session last activity and refresh_token reference if sessionId present
     if (sessionId) {
       try {
-        await this.sessionService.updateLastActivity(sessionId);
+        if (
+          context.ip ||
+          context.userAgent ||
+          context.city ||
+          context.country
+        ) {
+          await this.sessionService.updateRefreshActivity(sessionId, context);
+        } else {
+          await this.sessionService.updateLastActivity(sessionId);
+        }
         await this.sessionService.updateRefreshToken(
           sessionId,
           newJti,

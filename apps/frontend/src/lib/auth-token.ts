@@ -1,8 +1,10 @@
 const ACCESS_TOKEN_KEY = "cashflow.accessToken";
 const REFRESH_TOKEN_KEY = "cashflow.refreshToken";
+const TOKEN_AT_KEY = "cashflow.tokenAt";
 const USER_KEY = "cashflow.user";
 
 export interface StoredUser {
+  id?: string | null;
   name?: string | null;
   email?: string | null;
 }
@@ -20,6 +22,21 @@ export function getAccessToken(): string | null {
 
 export function getRefreshToken(): string | null {
   return getStorage()?.getItem(REFRESH_TOKEN_KEY) ?? null;
+}
+
+/** Epoch ms when the current access token was stored (0 if unknown). */
+export function getAccessTokenStoredAt(): number {
+  const raw = getStorage()?.getItem(TOKEN_AT_KEY);
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function getAccessTokenAgeMs(): number {
+  const storedAt = getAccessTokenStoredAt();
+  if (!storedAt) {
+    return Infinity;
+  }
+  return Date.now() - storedAt;
 }
 
 export function getStoredUser(): StoredUser | null {
@@ -41,6 +58,7 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
   }
   storage.setItem(ACCESS_TOKEN_KEY, accessToken);
   storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  storage.setItem(TOKEN_AT_KEY, String(Date.now()));
 }
 
 export function setStoredUser(user: StoredUser | null): void {
@@ -62,5 +80,6 @@ export function clearAuthTokens(): void {
   }
   storage.removeItem(ACCESS_TOKEN_KEY);
   storage.removeItem(REFRESH_TOKEN_KEY);
+  storage.removeItem(TOKEN_AT_KEY);
   storage.removeItem(USER_KEY);
 }

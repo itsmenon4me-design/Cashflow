@@ -1,0 +1,2033 @@
+diff --git a/apps/frontend/src/app/(dashboard)/expenses/page.tsx b/apps/frontend/src/app/(dashboard)/expenses/page.tsx
+index 1adb04d8..b2d97529 100644
+--- a/apps/frontend/src/app/(dashboard)/expenses/page.tsx
++++ b/apps/frontend/src/app/(dashboard)/expenses/page.tsx
+@@ -109,6 +109,17 @@ export default function Page() {
+   useEffect(() => {
+     if (!lookupsReady) return;
+     let cancelled = false;
++
++    // Stale-while-revalidate: only show the table skeleton on the very first
++    // load. On background refetches (search, filter, global refresh) keep the
++    // previously loaded rows visible so typing/searching doesn't blink.
++    if (transactions.length > 0) {
++      setError(false);
++    } else {
++      setLoading(true);
++      setError(false);
++    }
++
+     const params: TransactionListParams = {
+       page,
+       limit: pageSize,
+@@ -124,8 +135,15 @@ export default function Page() {
+     if (queryConfig.toDate) params.toDate = queryConfig.toDate;
+ 
+     const run = async () => {
+-      setLoading(true);
+-      setError(false);
++      // Stale-while-revalidate (A3): keep previously loaded rows visible while
++      // a background refetch runs — no skeleton flash on search typing.
++      if (transactions.length > 0 || totalItems > 0) {
++        setError(false);
++      } else {
++        setLoading(true);
++        setError(false);
++      }
++
+       try {
+         const res = await transactionService.list(params as any);
+         if (cancelled) return;
+@@ -331,7 +349,7 @@ export default function Page() {
+         <>
+           <TransactionTable
+             transactions={transactions}
+-            loading={loading}
++            loading={loading && transactions.length === 0}
+             sortBy={sort.key}
+             sortOrder={sort.order}
+             onSortChange={handleSortChange}
+diff --git a/apps/frontend/src/app/(dashboard)/incomes/page.tsx b/apps/frontend/src/app/(dashboard)/incomes/page.tsx
+index bad0c4e3..e804a704 100644
+--- a/apps/frontend/src/app/(dashboard)/incomes/page.tsx
++++ b/apps/frontend/src/app/(dashboard)/incomes/page.tsx
+@@ -110,6 +110,17 @@ export default function Page() {
+   useEffect(() => {
+     if (!lookupsReady) return;
+     let cancelled = false;
++
++    // Stale-while-revalidate: only show the table skeleton on the very first
++    // load. On background refetches (search, filter, global refresh) keep the
++    // previously loaded rows visible so typing/searching doesn't blink.
++    if (transactions.length > 0) {
++      setError(false);
++    } else {
++      setLoading(true);
++      setError(false);
++    }
++
+     const params: TransactionListParams = {
+     page,
+     limit: pageSize,
+@@ -125,8 +136,15 @@ export default function Page() {
+     if (queryConfig.toDate) params.toDate = queryConfig.toDate;
+ 
+     const run = async () => {
+-      setLoading(true);
+-      setError(false);
++      // Stale-while-revalidate (A3): keep previously loaded rows visible while
++      // a background refetch runs — no skeleton flash on search typing.
++      if (transactions.length > 0 || totalItems > 0) {
++        setError(false);
++      } else {
++        setLoading(true);
++        setError(false);
++      }
++
+       try {
+         const res = await transactionService.list(params as any);
+         if (cancelled) return;
+@@ -336,7 +354,7 @@ export default function Page() {
+         <>
+           <TransactionTable
+             transactions={transactions}
+-            loading={loading}
++            loading={loading && transactions.length === 0}
+             sortBy={sort.key}
+             sortOrder={sort.order}
+             onSortChange={handleSortChange}
+diff --git a/apps/frontend/src/components/layout/dashboard-layout.tsx b/apps/frontend/src/components/layout/dashboard-layout.tsx
+index 5a91122e..1a04b0ef 100644
+--- a/apps/frontend/src/components/layout/dashboard-layout.tsx
++++ b/apps/frontend/src/components/layout/dashboard-layout.tsx
+@@ -1,78 +1,82 @@
+-"use client";
+-
+-import { useEffect, type ReactNode } from "react";
+-import { RequireAuth } from "@/components/auth/require-auth";
+-import { HeaderBar } from "@/components/layout/header-bar";
+-import { MobileDrawer } from "@/components/layout/mobile-drawer";
+-import { MobileNav } from "@/components/layout/mobile-nav";
+-import { Sidebar } from "@/components/layout/sidebar";
+-import { TooltipProvider } from "@/components/ui/tooltip";
+-import { useSidebarStore } from "@/stores/sidebar.store";
+-import { useAuthStore } from "@/stores/auth.store";
+-import { useDataRefreshStore } from "@/stores/refresh.store";
+-
+-const AUTO_REFRESH_MS = 30000;
+-
+-// Near-realtime global data refresh: bumps the shared refresh store periodically
+-// and on window focus so every page subscribed to dataVersion stays up to date
+-// without a manual page reload.
+-function useGlobalAutoRefresh() {
+-  useEffect(() => {
+-    const isAuthed = () => useAuthStore.getState().isAuthenticated;
+-    const refresh = () => {
+-      if (isAuthed()) {
+-        useDataRefreshStore.getState().bump();
+-      }
+-    };
+-
+-    // Perform an initial refresh and refresh when the window becomes visible or focused.
+-    void refresh();
+-    const onFocus = () => refresh();
+-    const onVisibility = () => {
+-      if (document.visibilityState === "visible") refresh();
+-    };
+-    window.addEventListener("focus", onFocus);
+-    document.addEventListener("visibilitychange", onVisibility);
+-    return () => {
+-      window.removeEventListener("focus", onFocus);
+-      document.removeEventListener("visibilitychange", onVisibility);
+-    };
+-  }, []);
+-}
+-
+-interface DashboardLayoutProps {
+-  children: ReactNode;
+-}
+-
+-export function DashboardLayout({ children }: DashboardLayoutProps) {
+-  const { mobileOpen, setMobileOpen } = useSidebarStore();
+-
+-  useGlobalAutoRefresh();
+-
+-  useEffect(() => {
+-    return () => {};
+-  }, []);
+-
+-
+-  return (
+-    <TooltipProvider delayDuration={200}>
+-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] bg-background text-foreground">
+-        <Sidebar />
+-        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} />
+-
+-        <div className="flex min-w-0 flex-1 flex-col">
+-          <HeaderBar />
+-          <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-10 md:pt-8 lg:px-8">
+-            <div className="grid gap-6">
+-              <div className="min-w-0 space-y-6">
+-                <RequireAuth>{children}</RequireAuth>
+-              </div>
+-            </div>
+-          </main>
+-        </div>
+-
+-        <MobileNav />
+-      </div>
+-    </TooltipProvider>
+-  );
+-}
++"use client";
++
++import { useEffect, type ReactNode } from "react";
++import { RequireAuth } from "@/components/auth/require-auth";
++import { HeaderBar } from "@/components/layout/header-bar";
++import { MobileDrawer } from "@/components/layout/mobile-drawer";
++import { MobileNav } from "@/components/layout/mobile-nav";
++import { Sidebar } from "@/components/layout/sidebar";
++import { TooltipProvider } from "@/components/ui/tooltip";
++import { useSidebarStore } from "@/stores/sidebar.store";
++import { useAuthStore } from "@/stores/auth.store";
++import { useDataRefreshStore } from "@/stores/refresh.store";
++
++// Near-realtime global data refresh: bumps the shared refresh store on window
++// focus/visibility so every page subscribed to dataVersion stays up to date
++// without a manual page reload.
++//
++// A2: Throttle focus-triggered refreshes to once per 60s so rapid tab
++// switching doesn't cause repeated refetches that visually look like a
++// reload. The refetch itself is silent (stale-while-revalidate guards in
++// each page keep old data on screen — see A3), but throttling reduces
++// unnecessary network noise.
++function useGlobalAutoRefresh() {
++  useEffect(() => {
++    const isAuthed = () => useAuthStore.getState().isAuthenticated;
++    const MIN_INTERVAL_MS = 60_000; // 60 seconds
++    let lastRefresh = 0;
++
++    const refresh = () => {
++      if (!isAuthed()) return;
++      const now = Date.now();
++      if (now - lastRefresh < MIN_INTERVAL_MS) return;
++      lastRefresh = now;
++      useDataRefreshStore.getState().bump();
++    };
++
++    // Perform an initial refresh and refresh when the window becomes visible or focused.
++    void refresh();
++    const onFocus = () => refresh();
++    const onVisibility = () => {
++      if (document.visibilityState === "visible") refresh();
++    };
++    window.addEventListener("focus", onFocus);
++    document.addEventListener("visibilitychange", onVisibility);
++    return () => {
++      window.removeEventListener("focus", onFocus);
++      document.removeEventListener("visibilitychange", onVisibility);
++    };
++  }, []);
++}
++
++interface DashboardLayoutProps {
++  children: ReactNode;
++}
++
++export function DashboardLayout({ children }: DashboardLayoutProps) {
++  const { mobileOpen, setMobileOpen } = useSidebarStore();
++
++  useGlobalAutoRefresh();
++
++  return (
++    <TooltipProvider delayDuration={200}>
++      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] bg-background text-foreground">
++        <Sidebar />
++        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} />
++
++        <div className="flex min-w-0 flex-1 flex-col">
++          <HeaderBar />
++          <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-10 md:pt-8 lg:px-8">
++            <div className="grid gap-6">
++              <div className="min-w-0 space-y-6">
++                <RequireAuth>{children}</RequireAuth>
++              </div>
++            </div>
++          </main>
++        </div>
++
++        <MobileNav />
++      </div>
++    </TooltipProvider>
++  );
++}
+diff --git a/apps/frontend/src/components/layout/sidebar-nav.tsx b/apps/frontend/src/components/layout/sidebar-nav.tsx
+index e2c71d40..410e2051 100644
+--- a/apps/frontend/src/components/layout/sidebar-nav.tsx
++++ b/apps/frontend/src/components/layout/sidebar-nav.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { memo } from "react";
+ import { useState } from "react";
+ import Link from "next/link";
+ import { usePathname } from "next/navigation";
+@@ -84,7 +85,7 @@ interface SidebarNavProps {
+   onNavigate?: () => void;
+ }
+ 
+-export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
++export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+   const pathname = usePathname();
+   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+ 
+@@ -209,4 +210,4 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+       })}
+     </nav>
+   );
+-}
++});
+diff --git a/apps/frontend/src/components/layout/sidebar.tsx b/apps/frontend/src/components/layout/sidebar.tsx
+index b5ef8280..28dc2cc9 100644
+--- a/apps/frontend/src/components/layout/sidebar.tsx
++++ b/apps/frontend/src/components/layout/sidebar.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { memo } from "react";
+ import { PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import { ScrollArea } from "@/components/ui/scroll-area";
+@@ -8,7 +9,7 @@ import { cn } from "@/lib/utils";
+ import { uiText } from "@/locales";
+ import { useSidebarStore } from "@/stores/sidebar.store";
+ 
+-export function Sidebar() {
++export const Sidebar = memo(function Sidebar() {
+   const { collapsed, toggleCollapsed } = useSidebarStore();
+ 
+   return (
+@@ -53,4 +54,4 @@ export function Sidebar() {
+       </div>
+     </aside>
+   );
+-}
++});
+diff --git a/apps/frontend/src/features/dashboard/dashboard-page.tsx b/apps/frontend/src/features/dashboard/dashboard-page.tsx
+index 5fc5ebba..b06fd888 100644
+--- a/apps/frontend/src/features/dashboard/dashboard-page.tsx
++++ b/apps/frontend/src/features/dashboard/dashboard-page.tsx
+@@ -1,346 +1,342 @@
+-"use client";
+-
+-import { useEffect, useState } from "react";
+-import { AIInsightCard } from "@/components/dashboard/ai-insight-card";
+-import { BalanceCard } from "@/components/dashboard/BalanceCard";
+-import { SavingGoalsStatusCard } from "@/components/dashboard/SavingGoalsStatusCard";
+-import { InvestmentsSummaryCard } from "@/components/dashboard/InvestmentsSummaryCard";
+-import { CashFlowCard } from "@/components/dashboard/CashFlowCard";
+-import { CashflowChartCard } from "@/components/dashboard/cashflow-chart-card";
+-import { CategoryDistributionCard } from "@/components/dashboard/category-distribution-card";
+-import { ExpenseCard } from "@/components/dashboard/ExpenseCard";
+-import { IncomeCard } from "@/components/dashboard/IncomeCard";
+-import { IncomeExpenseChartCard } from "@/components/dashboard/income-expense-chart-card";
+-import { RecentTransactionsCard } from "@/components/dashboard/recent-transactions-card";
+-import { RecentActivityCard } from "@/components/dashboard/recent-activity-card";
+-import { MonthlyTargetCard } from "@/components/dashboard/MonthlyTargetCard";
+-import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
+-import { dashboardKpis } from "@/lib/mock-data";
+-import { formatCurrencyCents } from "@/lib/format";
+-import { normalizeDashboardCurrency, type DashboardCurrency } from "@/lib/dashboard-currency";
+-import { categoryLabel } from "@/lib/categories";
+-import {
+-  hydrateDashboardCurrency,
+-  useDashboardCurrencyStore,
+-} from "@/stores/dashboardCurrency.store";
+-import { uiText } from "@/locales";
+-import { analyticsService, type AnalyticsHealth } from "@/services/analytics.service";
+-import { dashboardService } from "@/services/dashboard.service";
+-import { savingGoalService } from "@/services/saving-goal.service";
+-import { investmentService } from "@/services/investment.service";
+-import { settingsService } from "@/services/settings.service";
+-import { budgetService } from "@/services/budget.service";
+-import { computeRange } from "@/features/reports/period";
+-import { useAuthStore } from "@/stores/auth.store";
+-import { useDataRefreshStore } from "@/stores/refresh.store";
+-import { ErrorState } from "@/components/states/ErrorState";
+-import type {
+-  CashFlowPoint,
+-  DashboardKpi,
+-  DistributionPoint,
+-  FlowPoint,
+-  MonthlyTargetItem,
+-  TransactionItem,
+-} from "@/types/dashboard";
+-import type { BudgetWidget } from "@/services/dashboard.service";
+-import type { SavingGoalOverview } from "@/services/saving-goal.service";
+-import type { InvestmentOverview } from "@/services/investment.service";
+-
+-interface KpiState {
+-  balance: DashboardKpi;
+-  income: DashboardKpi;
+-  expense: DashboardKpi;
+-  cashflow: DashboardKpi;
+-}
+-
+-const EMPTY_FLOW: FlowPoint[] = [];
+-const EMPTY_CASHFLOW: CashFlowPoint[] = [];
+-const EMPTY_CATEGORIES: DistributionPoint[] = [];
+-const EMPTY_TRANSACTIONS: TransactionItem[] = [];
+-
+-function buildAiInsightsForCurrency(currency: DashboardCurrency): string[] {
+-  // Use localized strings from uiText so AI insights follow the app language.
+-  const localeInsights = (uiText.dashboard as any).aiInsightsByCurrency as
+-    | Record<string, string[]>
+-    | undefined;
+-
+-  if (localeInsights && localeInsights[currency]) {
+-    return localeInsights[currency];
+-  }
+-
+-  // Fallback to any available locale bucket or empty list (localized empty state
+-  // will be shown by the card when no items).
+-  if (localeInsights) {
+-    const firstKey = Object.keys(localeInsights)[0];
+-    return firstKey ? localeInsights[firstKey] ?? [] : [];
+-  }
+-  return [];
+-}
+-
+-export function DashboardPage() {
+-  const user = useAuthStore((state) => state.user);
+-  const dataVersion = useDataRefreshStore((state) => state.version);
+-  const bump = useDataRefreshStore((state) => state.bump);
+-  const [kpis, setKpis] = useState<KpiState>({
+-    balance: dashboardKpis.balance,
+-    income: dashboardKpis.income,
+-    expense: dashboardKpis.expense,
+-    cashflow: dashboardKpis.cashflow,
+-  });
+-  const [flowSeries, setFlowSeries] = useState<{ cashFlow: CashFlowPoint[]; flow: FlowPoint[] }>({
+-    cashFlow: EMPTY_CASHFLOW,
+-    flow: EMPTY_FLOW,
+-  });
+-  const [categories, setCategories] = useState<DistributionPoint[]>(EMPTY_CATEGORIES);
+-  const [recentTxs, setRecentTxs] = useState<TransactionItem[]>(EMPTY_TRANSACTIONS);
+-  const [savingGoals, setSavingGoals] = useState<SavingGoalOverview | null>(null);
+-  const [investments, setInvestments] = useState<InvestmentOverview | null>(null);
+-  const [health, setHealth] = useState<AnalyticsHealth | null>(null);
+-  const [monthlyTargets, setMonthlyTargets] = useState<MonthlyTargetItem[]>([]);
+-  const [healthError, setHealthError] = useState(false);
+-  const [dataLoaded, setDataLoaded] = useState(false);
+-  // Use shared dashboard currency store so header selector and dashboard page stay in sync
+-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
+-  const setActiveCurrency = useDashboardCurrencyStore((s) => s.setCurrency);
+-
+-  useEffect(() => {
+-    hydrateDashboardCurrency();
+-  }, []);
+-
+-  useEffect(() => {
+-    let cancelled = false;
+-
+-    const loadSettings = async () => {
+-      if (typeof window === "undefined") {
+-        return;
+-      }
+-
+-      const hasStoredCurrency =
+-        Boolean(window.localStorage.getItem("cashflow-dashboard-currency")) ||
+-        Boolean(window.sessionStorage.getItem("cashflow-dashboard-currency"));
+-
+-      if (hasStoredCurrency) {
+-        return;
+-      }
+-
+-      try {
+-        const settings = await settingsService.getSettings();
+-        if (!cancelled) {
+-          const nextCurrency = normalizeDashboardCurrency(settings.currency) ?? "USD";
+-          setActiveCurrency(nextCurrency);
+-        }
+-      } catch {
+-        if (!cancelled) {
+-          setActiveCurrency("USD");
+-        }
+-      }
+-    };
+-
+-    void loadSettings();
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [setActiveCurrency]);
+-
+-  useEffect(() => {
+-    let cancelled = false;
+-
+-    const load = async () => {
+-      setHealth(null);
+-      setHealthError(false);
+-      // Keep current page content visible while new data loads to avoid a full-page blank flash.
+-      // We will set dataLoaded=true when the fetches complete.
+-
+-      const now = new Date();
+-
+-      await Promise.all([
+-        dashboardService
+-          .getSummary(activeCurrency)
+-          .then((summary) => {
+-            if (cancelled) {
+-              return;
+-            }
+-            setKpis((prev) => ({
+-              balance: {
+-                ...prev.balance,
+-                value: formatCurrencyCents(summary.total_assets_cents, activeCurrency),
+-              },
+-              income: {
+-                ...prev.income,
+-                value: formatCurrencyCents(summary.total_income_cents, activeCurrency),
+-              },
+-              expense: {
+-                ...prev.expense,
+-                value: formatCurrencyCents(summary.total_expense_cents, activeCurrency),
+-              },
+-              cashflow: {
+-                ...prev.cashflow,
+-                value: formatCurrencyCents(summary.net_cash_flow_cents, activeCurrency),
+-              },
+-            }));
+-          })
+-          .catch(() => {}),
+-        dashboardService
+-          .getFlowSeries(activeCurrency)
+-          .then((series) => {
+-            if (!cancelled) {
+-              setFlowSeries(series);
+-            }
+-          })
+-          .catch(() => {}),
+-        dashboardService
+-          .getCategoryDistribution(activeCurrency)
+-          .then((items) => {
+-            if (!cancelled) {
+-              setCategories(items);
+-            }
+-          })
+-          .catch(() => {}),
+-        dashboardService
+-          .getRecentTransactions(5, activeCurrency)
+-          .then((items) => {
+-            if (!cancelled) {
+-              setRecentTxs(items);
+-            }
+-          })
+-          .catch(() => {}),
+-        budgetService
+-          .analysis(now.getMonth() + 1, now.getFullYear(), activeCurrency)
+-          .then((analysis) => {
+-            if (!cancelled) {
+-              setMonthlyTargets(
+-                (analysis.categories ?? []).map((item) => ({
+-                  id: item.categoryId,
+-                  name: categoryLabel(item.categoryName || "Lainnya"),
+-                  target: item.budgetAmount,
+-                  realized: item.spentAmount,
+-                })),
+-              );
+-            }
+-          })
+-          .catch(() => {
+-            if (!cancelled) {
+-              setMonthlyTargets([]);
+-            }
+-          }),
+-        savingGoalService
+-          .overview(activeCurrency)
+-          .then((value) => {
+-            if (!cancelled) {
+-              setSavingGoals(value);
+-            }
+-          })
+-          .catch(() => {}),
+-        investmentService
+-          .overview(activeCurrency)
+-          .then((value) => {
+-            if (!cancelled) {
+-              setInvestments(value);
+-            }
+-          })
+-          .catch(() => {}),
+-        analyticsService
+-          .getFinancialHealth(computeRange("thisMonth"), activeCurrency)
+-          .then((value) => {
+-            if (cancelled) {
+-              return;
+-            }
+-            setHealth(value);
+-            setHealthError(false);
+-          })
+-          .catch(() => {
+-            if (!cancelled) {
+-              setHealthError(true);
+-            }
+-          }),
+-      ]).finally(() => {
+-        if (!cancelled) {
+-          try { console.log('[DashboardPage] load finished, setting dataLoaded=true'); } catch (e) {}
+-          setDataLoaded(true);
+-        }
+-      });
+-    };
+-
+-    void load();
+-
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [activeCurrency, dataVersion]);
+-
+-  const firstName = user?.name?.split(" ")[0] ?? (uiText.common.quickAdd === "Quick Add" ? "User" : "Pengguna");
+-  const aiInsights = buildAiInsightsForCurrency(activeCurrency);
+-
+-  // Time-aware localized greeting. Compute on mount to remain hydration-safe
+-  const [greeting, setGreeting] = useState<string>(uiText.dashboard.welcomeBack.replace("{name}", firstName));
+-
+-  useEffect(() => {
+-    const compute = () => {
+-      const hour = new Date().getHours();
+-      let key = "greetingMorning";
+-      if (hour >= 4 && hour < 11) key = "greetingMorning";
+-      else if (hour >= 11 && hour < 15) key = "greetingAfternoon";
+-      else if (hour >= 15 && hour < 18) key = "greetingEvening";
+-      else key = "greetingNight";
+-      const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
+-      setGreeting(template.replace("{name}", firstName));
+-    };
+-
+-    // Compute immediately on mount
+-    compute();
+-    // Optionally update periodically if the user keeps the app open across hour boundaries
+-    const timer = setInterval(compute, 60 * 1000);
+-    return () => clearInterval(timer);
+-  }, [firstName]);
+-
+-  return (
+-    <div className="space-y-4">
+-      <div>
+-        <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{greeting}</h1>
+-        <p className="mt-1 text-sm text-muted-foreground">{uiText.dashboard.summarySubtitle}</p>
+-      </div>
+-
+-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+-        <BalanceCard kpi={kpis.balance} loading={!dataLoaded} />
+-        <IncomeCard kpi={kpis.income} loading={!dataLoaded} />
+-        <ExpenseCard kpi={kpis.expense} loading={!dataLoaded} />
+-        <CashFlowCard kpi={kpis.cashflow} loading={!dataLoaded} />
+-      </section>
+-
+-      {/* Reduced clutter: place cashflow chart and category distribution together; CashFlowCard moved below to reduce KPI competition */}
+-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+-        <CashflowChartCard data={flowSeries.cashFlow} currency={activeCurrency} />
+-        <CategoryDistributionCard data={categories} currency={activeCurrency} />
+-      </section>
+-
+-      {/* Target & secondary cards: place Monthly Target into main flow and keep saving goals & investments compact */}
+-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+-        <MonthlyTargetCard items={monthlyTargets} />
+-        <div className="grid grid-cols-1 gap-4">
+-          <SavingGoalsStatusCard data={savingGoals} loading={!dataLoaded} />
+-          <InvestmentsSummaryCard data={investments} loading={!dataLoaded} />
+-        </div>
+-      </section>
+-
+-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+-        <IncomeExpenseChartCard data={flowSeries.flow} currency={activeCurrency} />
+-        {healthError ? (
+-          <ErrorState
+-            title={uiText.states.errorTitle}
+-            description={uiText.states.errorDescription}
+-            onRetry={bump}
+-          />
+-        ) : (
+-          <FinancialHealthCard health={health} loading={!dataLoaded} />
+-        )}
+-      </section>
+-
+-      <RecentTransactionsCard items={recentTxs} />
+-
+-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+-        <RecentActivityCard />
+-        <AIInsightCard items={aiInsights} />
+-      </section>
+-    </div>
+-  );
+-}
++"use client";
++
++import { useEffect, useState } from "react";
++import { AIInsightCard } from "@/components/dashboard/ai-insight-card";
++import { BalanceCard } from "@/components/dashboard/BalanceCard";
++import { SavingGoalsStatusCard } from "@/components/dashboard/SavingGoalsStatusCard";
++import { InvestmentsSummaryCard } from "@/components/dashboard/InvestmentsSummaryCard";
++import { CashFlowCard } from "@/components/dashboard/CashFlowCard";
++import { CashflowChartCard } from "@/components/dashboard/cashflow-chart-card";
++import { CategoryDistributionCard } from "@/components/dashboard/category-distribution-card";
++import { ExpenseCard } from "@/components/dashboard/ExpenseCard";
++import { IncomeCard } from "@/components/dashboard/IncomeCard";
++import { IncomeExpenseChartCard } from "@/components/dashboard/income-expense-chart-card";
++import { RecentTransactionsCard } from "@/components/dashboard/recent-transactions-card";
++import { RecentActivityCard } from "@/components/dashboard/recent-activity-card";
++import { MonthlyTargetCard } from "@/components/dashboard/MonthlyTargetCard";
++import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
++import { dashboardKpis } from "@/lib/mock-data";
++import { formatCurrencyCents } from "@/lib/format";
++import { normalizeDashboardCurrency, type DashboardCurrency } from "@/lib/dashboard-currency";
++import { categoryLabel } from "@/lib/categories";
++import {
++  hydrateDashboardCurrency,
++  useDashboardCurrencyStore,
++} from "@/stores/dashboardCurrency.store";
++import { uiText } from "@/locales";
++import { analyticsService, type AnalyticsHealth } from "@/services/analytics.service";
++import { dashboardService } from "@/services/dashboard.service";
++import { savingGoalService } from "@/services/saving-goal.service";
++import { investmentService } from "@/services/investment.service";
++import { settingsService } from "@/services/settings.service";
++import { budgetService } from "@/services/budget.service";
++import { computeRange } from "@/features/reports/period";
++import { useAuthStore } from "@/stores/auth.store";
++import { useDataRefreshStore } from "@/stores/refresh.store";
++import { ErrorState } from "@/components/states/ErrorState";
++import type {
++  CashFlowPoint,
++  DashboardKpi,
++  DistributionPoint,
++  FlowPoint,
++  MonthlyTargetItem,
++  TransactionItem,
++} from "@/types/dashboard";
++import type { BudgetWidget } from "@/services/dashboard.service";
++import type { SavingGoalOverview } from "@/services/saving-goal.service";
++import type { InvestmentOverview } from "@/services/investment.service";
++
++interface KpiState {
++  balance: DashboardKpi;
++  income: DashboardKpi;
++  expense: DashboardKpi;
++  cashflow: DashboardKpi;
++}
++
++const EMPTY_FLOW: FlowPoint[] = [];
++const EMPTY_CASHFLOW: CashFlowPoint[] = [];
++const EMPTY_CATEGORIES: DistributionPoint[] = [];
++const EMPTY_TRANSACTIONS: TransactionItem[] = [];
++
++function buildAiInsightsForCurrency(currency: DashboardCurrency): string[] {
++  // Use localized strings from uiText so AI insights follow the app language.
++  const localeInsights = (uiText.dashboard as any).aiInsightsByCurrency as
++    | Record<string, string[]>
++    | undefined;
++
++  if (localeInsights && localeInsights[currency]) {
++    return localeInsights[currency];
++  }
++
++  // Fallback to any available locale bucket or empty list (localized empty state
++  // will be shown by the card when no items).
++  if (localeInsights) {
++    const firstKey = Object.keys(localeInsights)[0];
++    return firstKey ? localeInsights[firstKey] ?? [] : [];
++  }
++  return [];
++}
++
++export function DashboardPage() {
++  const user = useAuthStore((state) => state.user);
++  const dataVersion = useDataRefreshStore((state) => state.version);
++  const bump = useDataRefreshStore((state) => state.bump);
++  const [kpis, setKpis] = useState<KpiState>({
++    balance: dashboardKpis.balance,
++    income: dashboardKpis.income,
++    expense: dashboardKpis.expense,
++    cashflow: dashboardKpis.cashflow,
++  });
++  const [flowSeries, setFlowSeries] = useState<{ cashFlow: CashFlowPoint[]; flow: FlowPoint[] }>({
++    cashFlow: EMPTY_CASHFLOW,
++    flow: EMPTY_FLOW,
++  });
++  const [categories, setCategories] = useState<DistributionPoint[]>(EMPTY_CATEGORIES);
++  const [recentTxs, setRecentTxs] = useState<TransactionItem[]>(EMPTY_TRANSACTIONS);
++  const [savingGoals, setSavingGoals] = useState<SavingGoalOverview | null>(null);
++  const [investments, setInvestments] = useState<InvestmentOverview | null>(null);
++  const [health, setHealth] = useState<AnalyticsHealth | null>(null);
++  const [monthlyTargets, setMonthlyTargets] = useState<MonthlyTargetItem[]>([]);
++  const [healthError, setHealthError] = useState(false);
++  const [dataLoaded, setDataLoaded] = useState(false);
++  // Use shared dashboard currency store so header selector and dashboard page stay in sync
++  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
++  const setActiveCurrency = useDashboardCurrencyStore((s) => s.setCurrency);
++
++  useEffect(() => {
++    hydrateDashboardCurrency();
++  }, []);
++
++  useEffect(() => {
++    let cancelled = false;
++
++    const loadSettings = async () => {
++      if (typeof window === "undefined") {
++        return;
++      }
++
++      const hasStoredCurrency =
++        Boolean(window.localStorage.getItem("cashflow-dashboard-currency")) ||
++        Boolean(window.sessionStorage.getItem("cashflow-dashboard-currency"));
++
++      if (hasStoredCurrency) {
++        return;
++      }
++
++      try {
++        const settings = await settingsService.getSettings();
++        if (!cancelled) {
++          const nextCurrency = normalizeDashboardCurrency(settings.currency) ?? "USD";
++          setActiveCurrency(nextCurrency);
++        }
++      } catch {
++        if (!cancelled) {
++          setActiveCurrency("USD");
++        }
++      }
++    };
++
++    void loadSettings();
++    return () => {
++      cancelled = true;
++    };
++  }, [setActiveCurrency]);
++
++  useEffect(() => {
++    let cancelled = false;
++
++    const load = async () => {
++      // Keep previously loaded health data on screen while a background refresh
++      // runs (stale-while-revalidate). Dropping it here made the Financial
++      // Health card disappear and reappear ("blink") on every refetch.
++      // Only reset the error flag; the new value replaces the old one in-place.
++      setHealthError(false);
++
++      const now = new Date();
++
++      await Promise.all([
++        dashboardService
++          .getSummary(activeCurrency)
++          .then((summary) => {
++            if (cancelled) {
++              return;
++            }
++            setKpis((prev) => ({
++              balance: {
++                ...prev.balance,
++                value: formatCurrencyCents(summary.total_assets_cents, activeCurrency),
++              },
++              income: {
++                ...prev.income,
++                value: formatCurrencyCents(summary.total_income_cents, activeCurrency),
++              },
++              expense: {
++                ...prev.expense,
++                value: formatCurrencyCents(summary.total_expense_cents, activeCurrency),
++              },
++              cashflow: {
++                ...prev.cashflow,
++                value: formatCurrencyCents(summary.net_cash_flow_cents, activeCurrency),
++              },
++            }));
++          })
++          .catch(() => {}),
++        dashboardService
++          .getFlowSeries(activeCurrency)
++          .then((series) => {
++            if (!cancelled) {
++              setFlowSeries(series);
++            }
++          })
++          .catch(() => {}),
++        dashboardService
++          .getCategoryDistribution(activeCurrency)
++          .then((items) => {
++            if (!cancelled) {
++              setCategories(items);
++            }
++          })
++          .catch(() => {}),
++        dashboardService
++          .getRecentTransactions(5, activeCurrency)
++          .then((items) => {
++            if (!cancelled) {
++              setRecentTxs(items);
++            }
++          })
++          .catch(() => {}),
++        budgetService
++          .analysis(now.getMonth() + 1, now.getFullYear(), activeCurrency)
++          .then((analysis) => {
++            if (!cancelled) {
++              setMonthlyTargets(
++                (analysis.categories ?? []).map((item) => ({
++                  id: item.categoryId,
++                  name: categoryLabel(item.categoryName || "Lainnya"),
++                  target: item.budgetAmount,
++                  realized: item.spentAmount,
++                })),
++              );
++            }
++          })
++          .catch(() => {
++            if (!cancelled) {
++              setMonthlyTargets([]);
++            }
++          }),
++        savingGoalService
++          .overview(activeCurrency)
++          .then((value) => {
++            if (!cancelled) {
++              setSavingGoals(value);
++            }
++          })
++          .catch(() => {}),
++        investmentService
++          .overview(activeCurrency)
++          .then((value) => {
++            if (!cancelled) {
++              setInvestments(value);
++            }
++          })
++          .catch(() => {}),
++        analyticsService
++          .getFinancialHealth(computeRange("thisMonth"), activeCurrency)
++          .then((value) => {
++            if (cancelled) {
++              return;
++            }
++            setHealth(value);
++            setHealthError(false);
++          })
++          .catch(() => {
++            if (!cancelled) {
++              setHealthError(true);
++            }
++          }),
++      ]).finally(() => {
++        if (!cancelled) {
++          setDataLoaded(true);
++        }
++      });
++    };
++
++    void load();
++
++    return () => {
++      cancelled = true;
++    };
++  }, [activeCurrency, dataVersion]);
++
++  // Use the locale-provided guest label instead of a fragile string-comparison
++  // check on uiText.common.quickAdd, which broke language fallback and could
++  // mismatch between server and client renders.
++  const firstName = user?.name?.split(" ")[0] ?? uiText.common.user;
++  const aiInsights = buildAiInsightsForCurrency(activeCurrency);
++
++  // B4: greeting must react to language changes — read uiText directly in
++  // render (uiText is a live-binding ES module export that updates when
++  // setUiTextLanguage is called), NOT cached in useState which only captures
++  // the initial value.
++  const computedGreeting = (() => {
++    const hour = new Date().getHours();
++    let key: "greetingMorning" | "greetingAfternoon" | "greetingEvening" | "greetingNight";
++    if (hour >= 4 && hour < 11) key = "greetingMorning";
++    else if (hour >= 11 && hour < 15) key = "greetingAfternoon";
++    else if (hour >= 15 && hour < 18) key = "greetingEvening";
++    else key = "greetingNight";
++    const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
++    return template.replace("{name}", firstName);
++  })();
++
++  return (
++    <div className="space-y-4">
++      <div>
++        <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{computedGreeting}</h1>
++        <p className="mt-1 text-sm text-muted-foreground">{uiText.dashboard.summarySubtitle}</p>
++      </div>
++
++      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
++        <BalanceCard kpi={kpis.balance} loading={!dataLoaded} />
++        <IncomeCard kpi={kpis.income} loading={!dataLoaded} />
++        <ExpenseCard kpi={kpis.expense} loading={!dataLoaded} />
++        <CashFlowCard kpi={kpis.cashflow} loading={!dataLoaded} />
++      </section>
++
++      {/* Reduced clutter: place cashflow chart and category distribution together; CashFlowCard moved below to reduce KPI competition */}
++      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
++        <CashflowChartCard data={flowSeries.cashFlow} currency={activeCurrency} />
++        <CategoryDistributionCard data={categories} currency={activeCurrency} />
++      </section>
++
++      {/* Target & secondary cards: place Monthly Target into main flow and keep saving goals & investments compact */}
++      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
++        <MonthlyTargetCard items={monthlyTargets} />
++        <div className="grid grid-cols-1 gap-4">
++          <SavingGoalsStatusCard data={savingGoals} loading={!dataLoaded} />
++          <InvestmentsSummaryCard data={investments} loading={!dataLoaded} />
++        </div>
++      </section>
++
++      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
++        <IncomeExpenseChartCard data={flowSeries.flow} currency={activeCurrency} />
++        {healthError ? (
++          <ErrorState
++            title={uiText.states.errorTitle}
++            description={uiText.states.errorDescription}
++            onRetry={bump}
++          />
++        ) : (
++          <FinancialHealthCard health={health} loading={!dataLoaded} />
++        )}
++      </section>
++
++      <RecentTransactionsCard items={recentTxs} />
++
++      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
++        <RecentActivityCard />
++        <AIInsightCard items={aiInsights} />
++      </section>
++    </div>
++  );
++}
+diff --git a/apps/frontend/src/features/transactions/transactions-page.tsx b/apps/frontend/src/features/transactions/transactions-page.tsx
+index 7ba3f091..ed98981e 100644
+--- a/apps/frontend/src/features/transactions/transactions-page.tsx
++++ b/apps/frontend/src/features/transactions/transactions-page.tsx
+@@ -1,512 +1,508 @@
+-"use client";
+-
+-import { useEffect, useMemo, useState } from "react";
+-import { useSearchParams } from "next/navigation";
+-import { Plus, ReceiptText } from "lucide-react";
+-import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog";
+-import { TransactionFilters } from "@/components/transactions/TransactionFilters";
+-import {
+-  TransactionForm,
+-  type TransactionFormMode,
+-} from "@/components/transactions/TransactionForm";
+-import { TransactionPagination } from "@/components/transactions/TransactionPagination";
+-import { TransactionTable } from "@/components/transactions/TransactionTable";
+-import { TransactionToolbar } from "@/components/transactions/TransactionToolbar";
+-import { EmptyState } from "@/components/states/EmptyState";
+-import { ErrorState } from "@/components/states/ErrorState";
+-import { Button } from "@/components/ui/button";
+-import {
+-  DEFAULT_PAGE_SIZE,
+-  EMPTY_FILTERS,
+-} from "@/features/transactions/constants";
+-import type { TransactionFiltersState } from "@/features/transactions/types";
+-import type { TransactionFormValues } from "@/features/transactions/schema";
+-import { uiText } from "@/locales";
+-import { isoToLocalTime } from "@/lib/date";
+-import type { CategoryGroup } from "@/lib/categories";
+-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
+-import { useDataRefreshStore } from "@/stores/refresh.store";
+-import {
+-  syncCreateTransaction,
+-  syncDeleteTransaction,
+-  syncUpdateTransaction,
+-} from "@/lib/offline/sync-client";
+-import { accountService } from "@/services/account.service";
+-import { categoryService } from "@/services/category.service";
+-import {
+-  findIdByName,
+-  toCreateTransactionPayload,
+-  toTransactionItem,
+-  toUpdateTransactionPayload,
+-  transactionService,
+-  type TransactionListParams,
+-} from "@/services/transaction.service";
+-import type { AccountResponse, CategoryResponse } from "@/types/backend";
+-import type { TransactionItem } from "@/types/dashboard";
+-
+-const SEARCH_DEBOUNCE_MS = 300;
+-
+-type SortKey = NonNullable<TransactionListParams["sortBy"]>;
+-type SortOrder = NonNullable<TransactionListParams["sortOrder"]>;
+-
+-interface FormState {
+-  open: boolean;
+-  mode: TransactionFormMode;
+-  transaction: TransactionItem | null;
+-  session: number;
+-}
+-
+-type NameLookup = Record<string, string>;
+-type CategoryTypeLookup = Record<string, ("INCOME" | "EXPENSE")[]>;
+-
+-function buildCategoryTypes(categories: CategoryResponse[]): CategoryTypeLookup {
+-  const lookup: CategoryTypeLookup = {};
+-  for (const category of categories) {
+-    (lookup[category.name] ??= []).push(category.type);
+-  }
+-  return lookup;
+-}
+-
+-export function TransactionsPage() {
+-  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+-  const [totalItems, setTotalItems] = useState(0);
+-  const [loading, setLoading] = useState(true);
+-  const [error, setError] = useState(false);
+-  const [refreshKey, setRefreshKey] = useState(0);
+-  const dataVersion = useDataRefreshStore((state) => state.version);
+-  const bumpRefresh = useDataRefreshStore((state) => state.bump);
+-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
+-
+-  const defaultFilters = (() => {
+-    const now = new Date();
+-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+-    const toInput = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+-    return { ...EMPTY_FILTERS, startDate: toInput(start), endDate: toInput(end) } as TransactionFiltersState;
+-  })();
+-
+-  const [filters, setFilters] = useState<TransactionFiltersState>(defaultFilters);
+-
+-  const urlQuery = useSearchParams().get("q") ?? "";
+-
+-  // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues;
+-  // a ?q= from the header search pre-fills the search box (header → /transactions?q=...)
+-  useEffect(() => {
+-    setFilters((prev) => ({ ...defaultFilters, search: urlQuery || prev.search }));
+-    setPage(1);
+-  }, [urlQuery]);
+-  const [search, setSearch] = useState("");
+-  const [page, setPage] = useState(1);
+-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+-  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
+-    key: "date",
+-    order: "desc",
+-  });
+-
+-  const [lookupsReady, setLookupsReady] = useState(false);
+-  const [accountNames, setAccountNames] = useState<NameLookup>({});
+-  const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
+-  const [categoryNames, setCategoryNames] = useState<NameLookup>({});
+-  const [categoryTypes, setCategoryTypes] = useState<CategoryTypeLookup>({});
+-
+-  const [formState, setFormState] = useState<FormState>({
+-    open: false,
+-    mode: "create",
+-    transaction: null,
+-    session: 0,
+-  });
+-  const [deleting, setDeleting] = useState<TransactionItem | null>(null);
+-
+-  useEffect(() => {
+-    let cancelled = false;
+-
+-    // Mark lookups as not ready while reloading for the new currency
+-    setLookupsReady(false);
+-
+-    void (async () => {
+-      const [accounts, categories] = await Promise.all([
+-          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+-          categoryService.list().catch(() => [] as CategoryResponse[]),
+-        ]);
+-
+-      if (cancelled) {
+-        return;
+-      }
+-
+-      setAccountNames(Object.fromEntries(accounts.map((a) => [a.id, a.name])));
+-      setAccountCurrencies(Object.fromEntries(accounts.map((a) => [a.id, a.currency])));
+-      setCategoryNames(
+-        Object.fromEntries(categories.map((c) => [c.id, c.name])),
+-      );
+-      setCategoryTypes(buildCategoryTypes(categories));
+-      setLookupsReady(true);
+-    })();
+-
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [activeCurrency]);
+-
+-  // Reset pagination and trigger a refresh when dashboard currency changes to avoid stale/cross-currency data
+-  useEffect(() => {
+-    setPage(1);
+-    setRefreshKey((k) => k + 1);
+-  }, [activeCurrency]);
+-
+-  useEffect(() => {
+-    const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
+-    return () => clearTimeout(id);
+-  }, [filters.search]);
+-
+-  const queryConfig = useMemo(() => {
+-    return {
+-      categoryId:
+-        filters.category === "all"
+-          ? undefined
+-          : findIdByName(categoryNames, filters.category),
+-      accountId:
+-        filters.account === "all"
+-          ? undefined
+-          : findIdByName(accountNames, filters.account),
+-      type:
+-        filters.type === "all"
+-          ? undefined
+-          : filters.type === "income"
+-            ? ("INCOME" as const)
+-            : ("EXPENSE" as const),
+-      fromDate: filters.startDate || undefined,
+-      toDate: filters.endDate || undefined,
+-    };
+-  }, [filters, accountNames, categoryNames]);
+-
+-  useEffect(() => {
+-    if (!lookupsReady) {
+-      return;
+-    }
+-
+-    let cancelled = false;
+-
+-    const params: TransactionListParams = {
+-      page,
+-      limit: pageSize,
+-      sortBy: sort.key,
+-      sortOrder: sort.order,
+-      currency: activeCurrency,
+-    };
+-    if (search) params.q = search;
+-    if (queryConfig.type) params.type = queryConfig.type;
+-    if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
+-    if (queryConfig.accountId) params.accountId = queryConfig.accountId;
+-    if (queryConfig.fromDate) params.fromDate = queryConfig.fromDate;
+-    if (queryConfig.toDate) params.toDate = queryConfig.toDate;
+-
+-    const run = async () => {
+-      await Promise.resolve();
+-      if (cancelled) {
+-        return;
+-      }
+-      setLoading(true);
+-      setError(false);
+-
+-      try {
+-        const result = await transactionService.list(params);
+-        if (cancelled) {
+-          return;
+-        }
+-        setTransactions(
+-          result.data.map((dto) =>
+-            toTransactionItem(dto, accountNames, categoryNames, accountCurrencies),
+-          ),
+-        );
+-        setTotalItems(result.pagination.totalItems);
+-        // Ensure we never set page to less than 1 — backend validates page >= 1.
+-        const totalPages = result.pagination.totalPages ?? 1;
+-        if (page > totalPages) {
+-          setPage(Math.max(1, totalPages));
+-        }
+-      } catch {
+-        if (!cancelled) {
+-          setError(true);
+-        }
+-      } finally {
+-        if (!cancelled) {
+-          setLoading(false);
+-        }
+-      }
+-    };
+-
+-    void run();
+-
+-    return () => {
+-      cancelled = true;
+-    };
+-  }, [
+-    lookupsReady,
+-    refreshKey,
+-    dataVersion,
+-    page,
+-    pageSize,
+-    sort.key,
+-    sort.order,
+-    search,
+-    queryConfig,
+-    accountNames,
+-    categoryNames,
+-    activeCurrency,
+-  ]);
+-
+-  const refresh = () => setRefreshKey((key) => key + 1);
+-
+-  const categoryOptions = useMemo(
+-    () => [...new Set(Object.values(categoryNames))].sort(),
+-    [categoryNames],
+-  );
+-  const categoryGroups = useMemo<CategoryGroup[]>(() => {
+-    const income: string[] = [];
+-    const expense: string[] = [];
+-    for (const [name, types] of Object.entries(categoryTypes)) {
+-      const bucket = types.includes("INCOME") ? income : expense;
+-      if (!bucket.includes(name)) {
+-        bucket.push(name);
+-      }
+-    }
+-    income.sort();
+-    expense.sort();
+-    return [
+-      ...(income.length ? [{ label: uiText.transactions.typeIncome, items: income }] : []),
+-      ...(expense.length ? [{ label: uiText.transactions.typeExpense, items: expense }] : []),
+-    ];
+-  }, [categoryTypes]);
+-  const accountOptions = useMemo(
+-    () => [...new Set(Object.values(accountNames))].sort(),
+-    [accountNames],
+-  );
+-  const accountCurrencyByName = useMemo(() => {
+-    const map: Record<string, string> = {};
+-    for (const [id, currency] of Object.entries(accountCurrencies)) {
+-      const name = accountNames[id];
+-      if (name !== undefined) map[name] = currency;
+-    }
+-    return map;
+-  }, [accountNames, accountCurrencies]);
+-
+-  const handleFiltersChange = (nextFilters: TransactionFiltersState) => {
+-    setFilters(nextFilters);
+-    setPage(1);
+-  };
+-
+-  const handleResetFilters = () => {
+-    // Reset to the default initial period (current month) rather than clearing date filters.
+-    setFilters(defaultFilters);
+-    setPage(1);
+-  };
+-
+-  const handlePageSizeChange = (nextPageSize: number) => {
+-    setPageSize(nextPageSize);
+-    setPage(1);
+-  };
+-
+-  const handleSortChange = (key: SortKey) => {
+-    setSort((prev) =>
+-      prev.key === key
+-        ? { key, order: prev.order === "asc" ? "desc" : "asc" }
+-        : { key, order: "desc" },
+-    );
+-    setPage(1);
+-  };
+-
+-  const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => {
+-    setFormState((state) => ({
+-      open: true,
+-      mode,
+-      transaction,
+-      session: state.session + 1,
+-    }));
+-  };
+-
+-  const handleFormSubmit = async (values: TransactionFormValues) => {
+-    if (formState.mode === "edit" && formState.transaction) {
+-      const payload = toUpdateTransactionPayload(
+-        values,
+-        accountNames,
+-        categoryNames,
+-        accountCurrencies,
+-      );
+-      if (payload) {
+-        try {
+-          await syncUpdateTransaction(formState.transaction.id, payload);
+-        } catch {
+-          // list tetap disinkronkan dengan state server
+-        }
+-        refresh();
+-        bumpRefresh();
+-      }
+-      return;
+-    }
+-
+-    const payload = toCreateTransactionPayload(
+-      values,
+-      accountNames,
+-      categoryNames,
+-      accountCurrencies,
+-    );
+-    if (payload) {
+-      try {
+-        await syncCreateTransaction(payload);
+-      } catch {
+-        // list tetap disinkronkan dengan state server
+-      }
+-      setPage(1);
+-      refresh();
+-      bumpRefresh();
+-    }
+-  };
+-
+-  const handleDuplicate = async (transaction: TransactionItem) => {
+-    const values: TransactionFormValues = {
+-      date: transaction.date,
+-      time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
+-      type: transaction.type,
+-      category: transaction.category,
+-      account: transaction.account,
+-      amount: transaction.amount,
+-      description: transaction.description,
+-      notes: "",
+-    };
+-
+-    const payload = toCreateTransactionPayload(
+-      values,
+-      accountNames,
+-      categoryNames,
+-      accountCurrencies,
+-    );
+-    if (payload) {
+-      try {
+-        await syncCreateTransaction(payload);
+-      } catch {
+-        // list tetap disinkronkan dengan state server
+-      }
+-      setPage(1);
+-      refresh();
+-      bumpRefresh();
+-    }
+-  };
+-
+-  const handleConfirmDelete = async () => {
+-    if (!deleting) {
+-      return;
+-    }
+-
+-    const target = deleting;
+-    setDeleting(null);
+-
+-    // TEMP DIAG: log delete attempt and context
+-    try {
+-      console.log('[DELETE FLOW] initiating delete for id=', target.id, 'activeCurrency=', activeCurrency);
+-    } catch (e) {
+-      // ignore logging errors
+-    }
+-
+-    try {
+-      await syncDeleteTransaction(target.id);
+-      console.log('[DELETE FLOW] syncDeleteTransaction resolved for id=', target.id);
+-    } catch (err) {
+-      console.error('[DELETE FLOW] syncDeleteTransaction rejected for id=', target.id, 'error=', err);
+-      // list tetap disinkronkan dengan state server
+-    }
+-
+-    if (transactions.length === 1 && page > 1) {
+-      setPage((value) => value - 1);
+-    } else {
+-      refresh();
+-    }
+-    bumpRefresh();
+-  };
+-
+-  const isEmpty = !loading && !error && totalItems === 0;
+-
+-  return (
+-    <div className="space-y-6">
+-      <div>
+-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+-          {uiText.transactions.title}
+-        </h1>
+-        <p className="mt-1 text-sm text-muted-foreground">
+-          {uiText.transactions.subtitle}
+-        </p>
+-      </div>
+-
+-      <TransactionToolbar
+-        count={totalItems}
+-        loading={loading}
+-        showAdd={false}
+-      />
+-
+-      <TransactionFilters
+-        filters={filters}
+-        categoryGroups={categoryGroups}
+-        accounts={accountOptions}
+-        onChange={handleFiltersChange}
+-        onReset={handleResetFilters}
+-      />
+-
+-      {error ? (
+-        <ErrorState
+-          title={uiText.states.errorTitle}
+-          description={uiText.states.errorDescription}
+-          onRetry={refresh}
+-        />
+-      ) : isEmpty ? (
+-      <EmptyState
+-        title={uiText.transactions.emptyTitle}
+-        description={uiText.transactions.emptySubtitle}
+-        icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />}
+-      />
+-      ) : (
+-        <>
+-          <TransactionTable
+-            transactions={transactions}
+-            loading={loading}
+-            sortBy={sort.key}
+-            sortOrder={sort.order}
+-            onSortChange={handleSortChange}
+-            onView={(transaction) => openForm("view", transaction)}
+-            onEdit={(transaction) => openForm("edit", transaction)}
+-            onDuplicate={(transaction) => void handleDuplicate(transaction)}
+-            onDelete={setDeleting}
+-          />
+-          <TransactionPagination
+-            page={page}
+-            pageSize={pageSize}
+-            totalItems={totalItems}
+-            onPageChange={setPage}
+-            onPageSizeChange={handlePageSizeChange}
+-          />
+-        </>
+-      )}
+-
+-      <TransactionForm
+-        key={formState.session}
+-        open={formState.open}
+-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+-        mode={formState.mode}
+-        transaction={formState.transaction}
+-        categories={categoryOptions}
+-        categoryTypes={categoryTypes}
+-        accounts={accountOptions}
+-        accountCurrencyByName={accountCurrencyByName}
+-        onSubmit={(values) => void handleFormSubmit(values)}
+-      />
+-
+-      <DeleteTransactionDialog
+-        open={deleting !== null}
+-        onOpenChange={(open) => {
+-          if (!open) {
+-            setDeleting(null);
+-          }
+-        }}
+-        onConfirm={() => void handleConfirmDelete()}
+-      />
+-    </div>
+-  );
+-}
++"use client";
++
++import { useEffect, useMemo, useState } from "react";
++import { useSearchParams } from "next/navigation";
++import { Plus, ReceiptText } from "lucide-react";
++import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog";
++import { TransactionFilters } from "@/components/transactions/TransactionFilters";
++import {
++  TransactionForm,
++  type TransactionFormMode,
++} from "@/components/transactions/TransactionForm";
++import { TransactionPagination } from "@/components/transactions/TransactionPagination";
++import { TransactionTable } from "@/components/transactions/TransactionTable";
++import { TransactionToolbar } from "@/components/transactions/TransactionToolbar";
++import { EmptyState } from "@/components/states/EmptyState";
++import { ErrorState } from "@/components/states/ErrorState";
++import { Button } from "@/components/ui/button";
++import {
++  DEFAULT_PAGE_SIZE,
++  EMPTY_FILTERS,
++} from "@/features/transactions/constants";
++import type { TransactionFiltersState } from "@/features/transactions/types";
++import type { TransactionFormValues } from "@/features/transactions/schema";
++import { uiText } from "@/locales";
++import { isoToLocalTime } from "@/lib/date";
++import type { CategoryGroup } from "@/lib/categories";
++import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
++import { useDataRefreshStore } from "@/stores/refresh.store";
++import {
++  syncCreateTransaction,
++  syncDeleteTransaction,
++  syncUpdateTransaction,
++} from "@/lib/offline/sync-client";
++import { accountService } from "@/services/account.service";
++import { categoryService } from "@/services/category.service";
++import {
++  findIdByName,
++  toCreateTransactionPayload,
++  toTransactionItem,
++  toUpdateTransactionPayload,
++  transactionService,
++  type TransactionListParams,
++} from "@/services/transaction.service";
++import type { AccountResponse, CategoryResponse } from "@/types/backend";
++import type { TransactionItem } from "@/types/dashboard";
++
++const SEARCH_DEBOUNCE_MS = 300;
++
++type SortKey = NonNullable<TransactionListParams["sortBy"]>;
++type SortOrder = NonNullable<TransactionListParams["sortOrder"]>;
++
++interface FormState {
++  open: boolean;
++  mode: TransactionFormMode;
++  transaction: TransactionItem | null;
++  session: number;
++}
++
++type NameLookup = Record<string, string>;
++type CategoryTypeLookup = Record<string, ("INCOME" | "EXPENSE")[]>;
++
++function buildCategoryTypes(categories: CategoryResponse[]): CategoryTypeLookup {
++  const lookup: CategoryTypeLookup = {};
++  for (const category of categories) {
++    (lookup[category.name] ??= []).push(category.type);
++  }
++  return lookup;
++}
++
++export function TransactionsPage() {
++  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
++  const [totalItems, setTotalItems] = useState(0);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState(false);
++  const [refreshKey, setRefreshKey] = useState(0);
++  const dataVersion = useDataRefreshStore((state) => state.version);
++  const bumpRefresh = useDataRefreshStore((state) => state.bump);
++  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
++
++  const defaultFilters = (() => {
++    const now = new Date();
++    const start = new Date(now.getFullYear(), now.getMonth(), 1);
++    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
++    const toInput = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
++    return { ...EMPTY_FILTERS, startDate: toInput(start), endDate: toInput(end) } as TransactionFiltersState;
++  })();
++
++  const [filters, setFilters] = useState<TransactionFiltersState>(defaultFilters);
++
++  const urlQuery = useSearchParams().get("q") ?? "";
++
++  // Ensure defaultFilters are applied after mount to avoid hydration/initialization timing issues;
++  // a ?q= from the header search pre-fills the search box (header → /transactions?q=...)
++  useEffect(() => {
++    setFilters((prev) => ({ ...defaultFilters, search: urlQuery || prev.search }));
++    setPage(1);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [urlQuery]);
++  const [search, setSearch] = useState("");
++  const [page, setPage] = useState(1);
++  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
++  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
++    key: "date",
++    order: "desc",
++  });
++
++  const [lookupsReady, setLookupsReady] = useState(false);
++  const [accountNames, setAccountNames] = useState<NameLookup>({});
++  const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
++  const [categoryNames, setCategoryNames] = useState<NameLookup>({});
++  const [categoryTypes, setCategoryTypes] = useState<CategoryTypeLookup>({});
++
++  const [formState, setFormState] = useState<FormState>({
++    open: false,
++    mode: "create",
++    transaction: null,
++    session: 0,
++  });
++  const [deleting, setDeleting] = useState<TransactionItem | null>(null);
++
++  useEffect(() => {
++    let cancelled = false;
++
++    // Mark lookups as not ready while reloading for the new currency
++    setLookupsReady(false);
++
++    void (async () => {
++      const [accounts, categories] = await Promise.all([
++          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
++          categoryService.list().catch(() => [] as CategoryResponse[]),
++        ]);
++
++      if (cancelled) {
++        return;
++      }
++
++      setAccountNames(Object.fromEntries(accounts.map((a) => [a.id, a.name])));
++      setAccountCurrencies(Object.fromEntries(accounts.map((a) => [a.id, a.currency])));
++      setCategoryNames(
++        Object.fromEntries(categories.map((c) => [c.id, c.name])),
++      );
++      setCategoryTypes(buildCategoryTypes(categories));
++      setLookupsReady(true);
++    })();
++
++    return () => {
++      cancelled = true;
++    };
++  }, [activeCurrency]);
++
++  // Reset pagination and trigger a refresh when dashboard currency changes to avoid stale/cross-currency data
++  useEffect(() => {
++    setPage(1);
++    setRefreshKey((k) => k + 1);
++  }, [activeCurrency]);
++
++  useEffect(() => {
++    const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
++    return () => clearTimeout(id);
++  }, [filters.search]);
++
++  const queryConfig = useMemo(() => {
++    return {
++      categoryId:
++        filters.category === "all"
++          ? undefined
++          : findIdByName(categoryNames, filters.category),
++      accountId:
++        filters.account === "all"
++          ? undefined
++          : findIdByName(accountNames, filters.account),
++      type:
++        filters.type === "all"
++          ? undefined
++          : filters.type === "income"
++            ? ("INCOME" as const)
++            : ("EXPENSE" as const),
++      fromDate: filters.startDate || undefined,
++      toDate: filters.endDate || undefined,
++    };
++  }, [filters, accountNames, categoryNames]);
++
++  useEffect(() => {
++    if (!lookupsReady) {
++      return;
++    }
++
++    let cancelled = false;
++
++    // Stale-while-revalidate (A3/A2): only show the table skeleton on the very
++    // first load of an empty list. On background refetches (search typing,
++    // filter changes, global refresh bump) keep previously loaded rows visible
++    // so nothing blinks while new data is in flight.
++    if (transactions.length > 0 || totalItems > 0) {
++      setError(false);
++    } else {
++      setLoading(true);
++      setError(false);
++    }
++
++    const run = async () => {
++      const params: TransactionListParams = {
++        page,
++        limit: pageSize,
++        sortBy: sort.key,
++        sortOrder: sort.order,
++        currency: activeCurrency,
++      };
++      if (search) params.q = search;
++      if (queryConfig.type) params.type = queryConfig.type;
++      if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
++      if (queryConfig.accountId) params.accountId = queryConfig.accountId;
++      if (queryConfig.fromDate) params.fromDate = queryConfig.fromDate;
++      if (queryConfig.toDate) params.toDate = queryConfig.toDate;
++
++      try {
++        const result = await transactionService.list(params);
++        if (cancelled) {
++          return;
++        }
++        setTransactions(
++          result.data.map((dto) =>
++            toTransactionItem(dto, accountNames, categoryNames, accountCurrencies),
++          ),
++        );
++        setTotalItems(result.pagination.totalItems);
++        // Ensure we never set page to less than 1 — backend validates page >= 1.
++        const totalPages = result.pagination.totalPages ?? 1;
++        if (page > totalPages) {
++          setPage(Math.max(1, totalPages));
++        }
++      } catch {
++        if (!cancelled) {
++          setError(true);
++        }
++      } finally {
++        if (!cancelled) {
++          setLoading(false);
++        }
++      }
++    };
++
++    void run();
++
++    return () => {
++      cancelled = true;
++    };
++  }, [
++    lookupsReady,
++    refreshKey,
++    dataVersion,
++    page,
++    pageSize,
++    sort.key,
++    sort.order,
++    search,
++    queryConfig,
++    accountNames,
++    categoryNames,
++    activeCurrency,
++  ]);
++
++  const refresh = () => setRefreshKey((key) => key + 1);
++
++  const categoryOptions = useMemo(
++    () => [...new Set(Object.values(categoryNames))].sort(),
++    [categoryNames],
++  );
++  const categoryGroups = useMemo<CategoryGroup[]>(() => {
++    const income: string[] = [];
++    const expense: string[] = [];
++    for (const [name, types] of Object.entries(categoryTypes)) {
++      const bucket = types.includes("INCOME") ? income : expense;
++      if (!bucket.includes(name)) {
++        bucket.push(name);
++      }
++    }
++    income.sort();
++    expense.sort();
++    return [
++      ...(income.length ? [{ label: uiText.transactions.typeIncome, items: income }] : []),
++      ...(expense.length ? [{ label: uiText.transactions.typeExpense, items: expense }] : []),
++    ];
++  }, [categoryTypes]);
++  const accountOptions = useMemo(
++    () => [...new Set(Object.values(accountNames))].sort(),
++    [accountNames],
++  );
++  const accountCurrencyByName = useMemo(() => {
++    const map: Record<string, string> = {};
++    for (const [id, currency] of Object.entries(accountCurrencies)) {
++      const name = accountNames[id];
++      if (name !== undefined) map[name] = currency;
++    }
++    return map;
++  }, [accountNames, accountCurrencies]);
++
++  const handleFiltersChange = (nextFilters: TransactionFiltersState) => {
++    setFilters(nextFilters);
++    setPage(1);
++  };
++
++  const handleResetFilters = () => {
++    // Reset to the default initial period (current month) rather than clearing date filters.
++    setFilters(defaultFilters);
++    setPage(1);
++  };
++
++  const handlePageSizeChange = (nextPageSize: number) => {
++    setPageSize(nextPageSize);
++    setPage(1);
++  };
++
++  const handleSortChange = (key: SortKey) => {
++    setSort((prev) =>
++      prev.key === key
++        ? { key, order: prev.order === "asc" ? "desc" : "asc" }
++        : { key, order: "desc" },
++    );
++    setPage(1);
++  };
++
++  const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => {
++    setFormState((state) => ({
++      open: true,
++      mode,
++      transaction,
++      session: state.session + 1,
++    }));
++  };
++
++  const handleFormSubmit = async (values: TransactionFormValues) => {
++    if (formState.mode === "edit" && formState.transaction) {
++      const payload = toUpdateTransactionPayload(
++        values,
++        accountNames,
++        categoryNames,
++        accountCurrencies,
++      );
++      if (payload) {
++        try {
++          await syncUpdateTransaction(formState.transaction.id, payload);
++        } catch {
++          // list tetap disinkronkan dengan state server
++        }
++        refresh();
++        bumpRefresh();
++      }
++      return;
++    }
++
++    const payload = toCreateTransactionPayload(
++      values,
++      accountNames,
++      categoryNames,
++      accountCurrencies,
++    );
++    if (payload) {
++      try {
++        await syncCreateTransaction(payload);
++      } catch {
++        // list tetap disinkronkan dengan state server
++      }
++      setPage(1);
++      refresh();
++      bumpRefresh();
++    }
++  };
++
++  const handleDuplicate = async (transaction: TransactionItem) => {
++    const values: TransactionFormValues = {
++      date: transaction.date,
++      time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
++      type: transaction.type,
++      category: transaction.category,
++      account: transaction.account,
++      amount: transaction.amount,
++      description: transaction.description,
++      notes: "",
++    };
++
++    const payload = toCreateTransactionPayload(
++      values,
++      accountNames,
++      categoryNames,
++      accountCurrencies,
++    );
++    if (payload) {
++      try {
++        await syncCreateTransaction(payload);
++      } catch {
++        // list tetap disinkronkan dengan state server
++      }
++      setPage(1);
++      refresh();
++      bumpRefresh();
++    }
++  };
++
++  const handleConfirmDelete = async () => {
++    if (!deleting) {
++      return;
++    }
++
++    const target = deleting;
++    setDeleting(null);
++
++    try {
++      await syncDeleteTransaction(target.id);
++    } catch {
++      // list tetap disinkronkan dengan state server
++    }
++
++    if (transactions.length === 1 && page > 1) {
++      setPage((value) => value - 1);
++    } else {
++      refresh();
++    }
++    bumpRefresh();
++  };
++
++  const isEmpty = !loading && !error && totalItems === 0;
++
++  return (
++    <div className="space-y-6">
++      <div>
++        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
++          {uiText.transactions.title}
++        </h1>
++        <p className="mt-1 text-sm text-muted-foreground">
++          {uiText.transactions.subtitle}
++        </p>
++      </div>
++
++      <TransactionToolbar
++        count={totalItems}
++        loading={loading}
++        showAdd={false}
++      />
++
++      <TransactionFilters
++        filters={filters}
++        categoryGroups={categoryGroups}
++        accounts={accountOptions}
++        onChange={handleFiltersChange}
++        onReset={handleResetFilters}
++      />
++
++      {error ? (
++        <ErrorState
++          title={uiText.states.errorTitle}
++          description={uiText.states.errorDescription}
++          onRetry={refresh}
++        />
++      ) : isEmpty ? (
++      <EmptyState
++        title={uiText.transactions.emptyTitle}
++        description={uiText.transactions.emptySubtitle}
++        icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />}
++      />
++      ) : (
++        <>
++          <TransactionTable
++            transactions={transactions}
++            loading={loading && transactions.length === 0}
++            sortBy={sort.key}
++            sortOrder={sort.order}
++            onSortChange={handleSortChange}
++            onView={(transaction) => openForm("view", transaction)}
++            onEdit={(transaction) => openForm("edit", transaction)}
++            onDuplicate={(transaction) => void handleDuplicate(transaction)}
++            onDelete={setDeleting}
++          />
++          <TransactionPagination
++            page={page}
++            pageSize={pageSize}
++            totalItems={totalItems}
++            onPageChange={setPage}
++            onPageSizeChange={handlePageSizeChange}
++          />
++        </>
++      )}
++
++      <TransactionForm
++        key={formState.session}
++        open={formState.open}
++        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
++        mode={formState.mode}
++        transaction={formState.transaction}
++        categories={categoryOptions}
++        categoryTypes={categoryTypes}
++        accounts={accountOptions}
++        accountCurrencyByName={accountCurrencyByName}
++        onSubmit={(values) => void handleFormSubmit(values)}
++      />
++
++      <DeleteTransactionDialog
++        open={deleting !== null}
++        onOpenChange={(open) => {
++          if (!open) {
++            setDeleting(null);
++          }
++        }}
++        onConfirm={() => void handleConfirmDelete()}
++      />
++    </div>
++  );
++}

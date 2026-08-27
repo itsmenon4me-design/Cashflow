@@ -10,6 +10,8 @@ export interface ISessionRepository {
     browser?: string | null;
     operating_system?: string | null;
     ip_address?: string | null;
+    city?: string | null;
+    country?: string | null;
     user_agent?: string | null;
     last_activity_at: Date;
     expires_at: Date;
@@ -26,5 +28,19 @@ export interface ISessionRepository {
     sessionId: string,
     refreshTokenId: string,
     expiresAt: Date,
+  ): Promise<void>;
+  updateActivityContext(
+    sessionId: string,
+    data: {
+      ip_address?: string | null;
+      city?: string | null;
+      country?: string | null;
+      user_agent?: string | null;
+      device_name?: string | null;
+      device_type?: string | null;
+      browser?: string | null;
+      operating_system?: string | null;
+      last_activity_at: Date;
+    },
   ): Promise<void>;
 }

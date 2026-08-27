@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { BarChart3, Bell, Home, ReceiptText, UserRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
+import { warmRouteData } from "@/lib/route-data-prefetch";
 
 interface MobileNavItem {
   label: string;
@@ -40,7 +41,11 @@ export function MobileNav() {
             <Link
               key={item.label}
               href={item.href}
+              prefetch
               aria-current={isActive ? "page" : undefined}
+              onMouseEnter={() => warmRouteData(item.href)}
+              onFocus={() => warmRouteData(item.href)}
+              onTouchStart={() => warmRouteData(item.href)}
               className={cn(
                 "flex min-h-14 flex-col items-center justify-center gap-1 transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"

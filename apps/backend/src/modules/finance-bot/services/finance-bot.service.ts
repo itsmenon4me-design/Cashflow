@@ -81,21 +81,10 @@ export class FinanceBotService {
         const month = txDate.getUTCMonth() + 1;
         const year = txDate.getUTCFullYear();
 
-        // Resolve the transaction's ledger currency so budget evaluation stays
-        // within the same currency (no cross-currency percentage comparison).
-        const txAccount = transaction.account_id
-          ? await this.prisma.account.findUnique({
-              where: { id: transaction.account_id },
-              select: { currency: true },
-            })
-          : null;
-        const txCurrency = txAccount?.currency;
-
         const analysis = await this.budgetAnalytics.analyzeMonth(
           userId,
           month,
           year,
-          txCurrency,
         );
 
         const categoryId = transaction.category_id;

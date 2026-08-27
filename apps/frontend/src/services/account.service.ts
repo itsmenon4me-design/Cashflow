@@ -47,47 +47,30 @@ export function toAccountItem(account: AccountResponse): AccountItem {
 }
 
 export const accountService = {
-  list: async (currency?: string): Promise<AccountResponse[]> => {
-    // keep backward-compatible call signature; server may support currency param
-    const key = currency ? `list:currency:${currency}` : "list";
-    const res = await withOfflineCache("accounts", key, () =>
-      apiClient.get<{ success: boolean; data: AccountResponse[] }>("/accounts", {
-        params: currency ? { currency } : {},
-      }),
+  list: async (): Promise<AccountResponse[]> => {
+    const res = await withOfflineCache("accounts", "list", () =>
+      apiClient.get<{ success: boolean; data: AccountResponse[] }>("/accounts"),
     );
-    const items = res.data ?? [];
-    // If server doesn't filter by currency, perform client-side filtering when currency provided
-    if (currency) {
-      return items.filter((a) => a.currency === currency);
-    }
-    return items;
+    return res.data ?? [];
   },
 
-  get: (id: string, currency?: string): Promise<AccountResponse> =>
+  get: (id: string): Promise<AccountResponse> =>
     apiClient
-      .get<{ success: boolean; data: AccountResponse }>(`/accounts/${id}`, { params: currency ? { currency } : {} })
+      .get<{ success: boolean; data: AccountResponse }>(`/accounts/${id}`)
       .then((res) => res.data),
 
-  create: (payload: CreateAccountPayload, currency?: string): Promise<AccountResponse> =>
+  create: (payload: CreateAccountPayload): Promise<AccountResponse> =>
     apiClient
-      .post<{ success: boolean; data: AccountResponse }>(
-        currency ? `/accounts?currency=${encodeURIComponent(currency)}` : "/accounts",
-        payload,
-      )
+      .post<{ success: boolean; data: AccountResponse }>("/accounts", payload)
       .then((res) => res.data),
 
-  update: (id: string, payload: UpdateAccountPayload, currency?: string): Promise<AccountResponse> =>
+  update: (id: string, payload: UpdateAccountPayload): Promise<AccountResponse> =>
     apiClient
-      .patch<{ success: boolean; data: AccountResponse }>(
-        currency ? `/accounts/${id}?currency=${encodeURIComponent(currency)}` : `/accounts/${id}`,
-        payload,
-      )
+      .patch<{ success: boolean; data: AccountResponse }>(`/accounts/${id}`, payload)
       .then((res) => res.data),
 
-  remove: (id: string, currency?: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(
-      currency ? `/accounts/${id}?currency=${encodeURIComponent(currency)}` : `/accounts/${id}`,
-    ),
+  remove: (id: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/accounts/${id}`),
 
   setDefault: (id: string): Promise<{ success: boolean }> =>
     apiClient.patch<{ success: boolean }>(`/accounts/${id}/default`),

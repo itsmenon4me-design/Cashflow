@@ -40,7 +40,6 @@ export class SpendingPredictionController {
   ): Promise<{ success: true; data: SpendingPredictionResponseDto }> {
     const result = await this.spendingPredictionService.predict(userId, {
       horizon: query.horizon,
-      currency: query.currency,
     });
     return { success: true, data: result };
   }

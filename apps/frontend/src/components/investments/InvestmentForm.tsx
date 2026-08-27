@@ -109,6 +109,28 @@ export function InvestmentForm({
   const watchedAccountId = form.watch("accountId");
   const amountCurrency = accountCurrencies?.[watchedAccountId ?? ""] ?? "IDR";
 
+  // NEW entries only: Modal Awal is auto-calculated as
+  // Jumlah Unit × Harga Beli Rata-rata and shown read-only. Existing
+  // investments keep their stored value untouched (no historical recalc).
+  const isCreate = mode === "create";
+  const watchedQuantity = form.watch("quantity");
+  const watchedAvgPrice = form.watch("averageBuyPrice");
+  const calculatedInvested =
+    (Number(watchedQuantity) || 0) * (Number(watchedAvgPrice) || 0);
+
+  useEffect(() => {
+    if (!isCreate || !open) {
+      return;
+    }
+    const current = form.getValues("invested");
+    if (current !== calculatedInvested) {
+      form.setValue("invested", calculatedInvested, {
+        shouldValidate: false,
+        shouldDirty: true,
+      });
+    }
+  }, [isCreate, open, calculatedInvested, form]);
+
   const handleSubmit = (values: InvestmentFormValues) => {
     onSubmit(values);
     onOpenChange(false);
@@ -282,34 +304,58 @@ export function InvestmentForm({
                   render={({ field }) => (
                     <DecimalInput
                       id="inv-current"
-                      value={field.value}
+                      value={field.value ?? null}
                       onValueChange={field.onChange}
                       disabled={isView}
+                      placeholder={uiText.investments.fieldCurrentPricePlaceholder}
                       className="h-11 sm:h-9"
                       aria-invalid={!!errors.currentPrice}
                     />
                   )}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {uiText.investments.fieldCurrentPriceHint}
+                </p>
                 <FormError message={errors.currentPrice?.message} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="inv-invested">{uiText.investments.fieldInvested}</Label>
-                <Controller
-                  control={form.control}
-                  name="invested"
-                  render={({ field }) => (
-                    <MoneyInput
-                      id="inv-invested"
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      currency={amountCurrency}
-                      disabled={isView}
-                      className="h-11 sm:h-9"
-                      aria-invalid={!!errors.invested}
-                    />
-                  )}
-                />
+                {mode === "create" ? (
+                  // New entries: read-only calculation result box.
+                  <div
+                    aria-live="polite"
+                    className="flex h-11 items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-3 sm:h-9"
+                  >
+                    <span className="text-sm font-semibold tabular-nums text-foreground">
+                      {formatMoney(calculatedInvested)}
+                    </span>
+                    <span className="ml-2 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {amountCurrency}
+                    </span>
+                  </div>
+                ) : (
+                  <Controller
+                    control={form.control}
+                    name="invested"
+                    render={({ field }) => (
+                      <MoneyInput
+                        id="inv-invested"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        currency={amountCurrency}
+                        disabled={isView}
+                        className="h-11 sm:h-9"
+                        aria-invalid={!!errors.invested}
+                      />
+                    )}
+                  />
+                )}
+                {mode === "create" && (
+                  <p className="text-xs text-muted-foreground">
+                    {uiText.investments.investedAutoHint}
+                  </p>
+                )}
                 <FormError message={errors.invested?.message} />
               </div>
 

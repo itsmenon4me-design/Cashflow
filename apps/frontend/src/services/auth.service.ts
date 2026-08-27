@@ -8,7 +8,7 @@ export interface LoginPayload {
 
 export interface RegisterPayload {
   email: string;
-  username: string;
+  username?: string;
   full_name: string;
   password: string;
   avatar_url?: string | null;
@@ -55,16 +55,24 @@ export const authService = {
       const res = await apiClient.patch<{ success: boolean; data?: any }>("/auth/profile", payload);
       return res;
     } catch (err) {
-      // If the endpoint doesn't exist in the backend (404), try a fallback to /settings
+      // If the endpoint doesn't exist in the backend (404), try a fallback to /users/:id
       if (err instanceof ApiError && err.status === 404) {
-        // Try PATCH /users/:id if we can infer the current user id from stored user payload
         try {
           const stored = getStoredUser() as any;
-          const maybeId = stored?.id ?? stored?.user_id ?? stored?.sub ?? stored?.uuid ?? null;
+          let maybeId = stored?.id ?? stored?.user_id ?? stored?.sub ?? stored?.uuid ?? null;
+          if (!maybeId) {
+            // Stored user may lack an id (login response ships no user object) — resolve via /auth/me.
+            const me = await apiClient.get<{ success: boolean; data?: any }>("/auth/me");
+            maybeId = me?.data?.id ?? null;
+          }
           if (maybeId) {
             const userPatch: Record<string, unknown> = {};
             if (payload.full_name) userPatch['full_name'] = payload.full_name;
             const r = await apiClient.patch<{ success: boolean; data?: any }>(`/users/${maybeId}`, userPatch);
+            // PATCH /users/:id balik raw user object tanpa wrapper {success} — normalize
+            if (r && typeof r === 'object' && 'id' in r) {
+              return { success: true, data: r };
+            }
             return r;
           }
         } catch (e) {

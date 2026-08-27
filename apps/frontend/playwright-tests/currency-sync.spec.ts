@@ -39,8 +39,8 @@ test('currency change in settings syncs to dashboard (localStorage + API)', asyn
       const origSet = Storage.prototype.setItem;
       Storage.prototype.setItem = function (k: string, v: string) {
         try {
-          try { window.__cf_events = window.__cf_events || []; } catch (e) {}
-          try { window.__cf_events.push({ type: 'setItem', key: k, value: v, ts: Date.now(), stack: (new Error()).stack }); } catch (e) {}
+          try { (window as any).__cf_events = (window as any).__cf_events || []; } catch (e) {}
+          try { (window as any).__cf_events.push({ type: 'setItem', key: k, value: v, ts: Date.now(), stack: (new Error()).stack }); } catch (e) {}
           if (k === 'cashflow.accessToken' || k === 'cashflow.refreshToken') {
             const t = v ?? '';
             const masked = t ? `${t.slice(0, 8)}...len=${t.length}` : 'null';
@@ -60,7 +60,7 @@ test('currency change in settings syncs to dashboard (localStorage + API)', asyn
         };
       } catch (e) {}
       const origFetch = window.fetch.bind(window);
-      window.fetch = function (resource: RequestInfo, init?: RequestInit) {
+      window.fetch = function (resource: RequestInfo | URL, init?: RequestInit) {
         try {
           const url = typeof resource === 'string' ? resource : resource?.toString?.() || '';
           if (url.includes('/api/v1/settings') || url.includes('/api/v1/dashboard') || url.includes('/api/v1/search')) {
@@ -147,7 +147,7 @@ test('currency change in settings syncs to dashboard (localStorage + API)', asyn
       try { window.addEventListener('unhandledrejection', (ev) => { try { (window as any).__cf_events.push({ type: 'unhandledrejection', ts: Date.now(), reason: String((ev as any).reason) }); } catch (e) {} }); } catch (e) {}
 
       const origFetch = window.fetch.bind(window);
-      window.fetch = function (resource: RequestInfo, init?: RequestInit) {
+      window.fetch = function (resource: RequestInfo | URL, init?: RequestInit) {
         try {
           const url = typeof resource === 'string' ? resource : resource?.toString() || '';
           if (url.includes('/api/v1/settings') || url.includes('/api/v1/dashboard') || url.includes('/api/v1/search')) {

@@ -7,7 +7,9 @@
     "apps/frontend"
   ],
   "dependencies": {
-    "@prisma/client": "^7.9.1"
+    "@prisma/client": "^7.9.1",
+    "esbuild": "^0.28.2",
+    "lightningcss": "^1.33.0"
   },
   "devDependencies": {
     "dotenv": "^17.4.2",

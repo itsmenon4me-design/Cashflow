@@ -105,7 +105,7 @@ export function AccountTable({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {formatMoney(account.balance, activeCurrency)}
+                      {formatMoney(account.balance, account.currency)}
                     </TableCell>
                     <TableCell>
                       <Badge

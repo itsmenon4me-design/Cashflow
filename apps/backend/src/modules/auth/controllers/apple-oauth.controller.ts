@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { ErrorService } from '../../../common/errors/error.service';
 import { AppleAuthService } from '../services/apple-auth.service';
+import { extractAuthRequestContext } from '../services/device-info';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -39,6 +40,7 @@ export class AppleOauthController {
       const result = await this.appleAuthService.handleAppleCallback({
         code,
         state,
+        context: extractAuthRequestContext(req),
       });
 
       return res.redirect(result.redirectUrl);

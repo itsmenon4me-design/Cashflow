@@ -99,7 +99,7 @@ function ProfitLossValue({ item }: { item: InvestmentItem }) {
   return (
     <span className={cn("tabular-nums font-medium", positive ? "text-emerald-500" : "text-red-500")}>
       {positive ? "+" : "-"}
-      {formatMoney(Math.abs(item.profitLoss))}
+      {formatMoney(Math.abs(item.profitLoss), item.currency)}
       <span className="ml-1 text-xs opacity-80">
         ({item.profitLossPct.toFixed(1)}%)
       </span>
@@ -202,8 +202,8 @@ function InvestmentRow({
         </span>
       </TableCell>
       <TableCell className="text-muted-foreground">{item.platform}</TableCell>
-      <TableCell className="text-right">{formatMoney(item.invested)}</TableCell>
-      <TableCell className="text-right font-medium">{formatMoney(item.currentValue)}</TableCell>
+      <TableCell className="text-right">{formatMoney(item.invested, item.currency)}</TableCell>
+      <TableCell className="text-right font-medium">{formatMoney(item.currentValue, item.currency)}</TableCell>
       <TableCell className="text-right">
         <ProfitLossValue item={item} />
       </TableCell>
@@ -263,7 +263,7 @@ function InvestmentCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[11px] text-muted-foreground">{uiText.investments.currentValue}</p>
-          <p className="text-lg font-semibold tracking-tight">{formatMoney(item.currentValue)}</p>
+          <p className="text-lg font-semibold tracking-tight">{formatMoney(item.currentValue, item.currency)}</p>
         </div>
         <ProfitLossValue item={item} />
       </div>
@@ -271,7 +271,7 @@ function InvestmentCard({
       <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div>
           <p className="text-[11px]">{uiText.investments.totalInvested}</p>
-          <p className="font-medium text-foreground">{formatMoney(item.invested)}</p>
+          <p className="font-medium text-foreground">{formatMoney(item.invested, item.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.investments.fieldPurchaseDate}</p>

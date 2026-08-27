@@ -27,6 +27,8 @@ export class SessionsController {
       browser: s.browser ?? null,
       operating_system: s.operating_system ?? null,
       ip_address: s.ip_address ?? null,
+      city: s.city ?? null,
+      country: s.country ?? null,
       user_agent: s.user_agent ?? null,
       last_activity_at: s.last_activity_at,
       expires_at: s.expires_at,

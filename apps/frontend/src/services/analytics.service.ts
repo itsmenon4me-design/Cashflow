@@ -1,7 +1,6 @@
 import { apiClient } from "@/lib/axios";
 import type { ReportRange } from "@/features/reports/period";
 import type { CategoryBreakdownItem, TrendType, TrendPoint } from "@/services/report.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 export interface AnalyticsComparison {
   income: number | null;
@@ -68,43 +67,41 @@ export interface AnalyticsHealth {
   spendingConcentration: number;
 }
 
-function params(period: ReportRange, granularity?: TrendType, currency?: string): Record<string, unknown> {
-  const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
+function params(period: ReportRange, granularity?: TrendType): Record<string, unknown> {
   return {
     startDate: period.startDate,
     endDate: period.endDate,
     ...(granularity ? { granularity } : {}),
-    ...(activeCurrency ? { currency: activeCurrency } : {}),
   };
 }
 
 export const analyticsService = {
-  getOverview: (period: ReportRange, currency?: string): Promise<AnalyticsOverview> =>
-    apiClient.get<AnalyticsOverview>("/analytics/overview", { params: params(period, undefined, currency) }),
+  getOverview: (period: ReportRange): Promise<AnalyticsOverview> =>
+    apiClient.get<AnalyticsOverview>("/analytics/overview", { params: params(period) }),
 
-  getIncome: (period: ReportRange, granularity: TrendType, currency?: string): Promise<AnalyticsTypeResult> =>
+  getIncome: (period: ReportRange, granularity: TrendType): Promise<AnalyticsTypeResult> =>
     apiClient.get<AnalyticsTypeResult>("/analytics/income", {
-      params: params(period, granularity, currency),
+      params: params(period, granularity),
     }),
 
-  getExpenses: (period: ReportRange, granularity: TrendType, currency?: string): Promise<AnalyticsTypeResult> =>
+  getExpenses: (period: ReportRange, granularity: TrendType): Promise<AnalyticsTypeResult> =>
     apiClient.get<AnalyticsTypeResult>("/analytics/expenses", {
-      params: params(period, granularity, currency),
+      params: params(period, granularity),
     }),
 
-  getCashflow: (period: ReportRange, granularity: TrendType, currency?: string): Promise<AnalyticsCashflow> =>
+  getCashflow: (period: ReportRange, granularity: TrendType): Promise<AnalyticsCashflow> =>
     apiClient.get<AnalyticsCashflow>("/analytics/cashflow", {
-      params: params(period, granularity, currency),
+      params: params(period, granularity),
     }),
 
-  getSpending: (period: ReportRange, currency?: string): Promise<AnalyticsSpending> =>
-    apiClient.get<AnalyticsSpending>("/analytics/spending", { params: params(period, undefined, currency) }),
+  getSpending: (period: ReportRange): Promise<AnalyticsSpending> =>
+    apiClient.get<AnalyticsSpending>("/analytics/spending", { params: params(period) }),
 
-  getFinancialHealth: (period: ReportRange, currency?: string): Promise<AnalyticsHealth> =>
+  getFinancialHealth: (period: ReportRange): Promise<AnalyticsHealth> =>
     apiClient.get<AnalyticsHealth>("/analytics/financial-health", {
-      params: params(period, undefined, currency),
+      params: params(period),
     }),
 
-  getInsights: (period: ReportRange, currency?: string): Promise<string[]> =>
-    apiClient.get<string[]>("/analytics/insights", { params: params(period, undefined, currency) }),
+  getInsights: (period: ReportRange): Promise<string[]> =>
+    apiClient.get<string[]>("/analytics/insights", { params: params(period) }),
 };

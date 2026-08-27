@@ -6,6 +6,7 @@ import { PasswordService } from '../../common/security/password/password.service
 import { PrismaRoleRepository } from '../auth/repositories/prisma-role.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ErrorCode } from '../../common/errors/error-codes';
+import { PrismaService } from '../../database/prisma.service';
 
 describe('UsersService (create)', () => {
   let service: UsersService;
@@ -16,11 +17,15 @@ describe('UsersService (create)', () => {
   const mockLoggerService = { log: jest.fn() };
   const mockPasswordService = { hashPassword: jest.fn() };
   const mockRoleRepo = { ensureSuperAdmin: jest.fn() };
+  const mockPrisma = {
+    user: { findUnique: jest.fn() },
+  };
 
   beforeEach(async () => {
     mockRepo.count.mockReset();
     mockRepo.create.mockReset();
     mockPasswordService.hashPassword.mockReset();
+    mockPrisma.user.findUnique.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +34,7 @@ describe('UsersService (create)', () => {
         { provide: LoggerService, useValue: mockLoggerService },
         { provide: PasswordService, useValue: mockPasswordService },
         { provide: PrismaRoleRepository, useValue: mockRoleRepo },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -38,17 +44,17 @@ describe('UsersService (create)', () => {
   it('hashes password and creates user', async () => {
     const dto: CreateUserDto = {
       email: 'new@example.com',
-      username: 'newuser',
       full_name: 'New User',
       password: 'Secur3P@ssw0rd!',
     };
 
     mockPasswordService.hashPassword.mockResolvedValue('hashed-val');
     mockRepo.count.mockResolvedValue(1);
+    mockPrisma.user.findUnique.mockResolvedValue(null);
     const created = {
       id: 'u1',
       email: dto.email,
-      username: dto.username,
+      username: 'newuser',
       full_name: dto.full_name,
       password_hash: 'hashed-val',
       created_at: new Date(),
@@ -60,10 +66,10 @@ describe('UsersService (create)', () => {
     const res = await service.create(dto);
 
     expect(mockPasswordService.hashPassword).toHaveBeenCalledWith(dto.password);
-    expect(mockRepo.create).toHaveBeenCalledWith(
+expect(mockRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         email: dto.email,
-        username: dto.username,
+        username: 'newuser',
         full_name: dto.full_name,
         password_hash: 'hashed-val',
       }),
@@ -75,13 +81,13 @@ describe('UsersService (create)', () => {
   it('maps unique constraint to conflict error', async () => {
     const dto: CreateUserDto = {
       email: 'dup@example.com',
-      username: 'dupuser',
       full_name: 'Dup User',
       password: 'Secur3P@ssw0rd!',
     };
 
     mockPasswordService.hashPassword.mockResolvedValue('hashed-val');
     mockRepo.count.mockResolvedValue(1);
+    mockPrisma.user.findUnique.mockResolvedValue(null);
     mockRepo.create.mockRejectedValue({ code: 'P2002' });
 
     await expect(service.create(dto)).rejects.toMatchObject({

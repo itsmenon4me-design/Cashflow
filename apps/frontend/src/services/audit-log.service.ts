@@ -86,4 +86,12 @@ export const auditLogService = {
     );
     return toAuditLogItem(body.data);
   },
+
+  deleteAllOwn: async (): Promise<number> => {
+    const body = await apiClient.delete<{
+      success: boolean;
+      data: { deletedCount: number };
+    }>("/audit-logs/me");
+    return body.data.deletedCount;
+  },
 };

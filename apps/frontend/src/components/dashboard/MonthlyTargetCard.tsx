@@ -65,9 +65,11 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
                   <span className="font-semibold text-primary">{percentage}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  {/* transform (bukan width) supaya animasi berjalan di GPU
+                      tanpa memicu reflow per frame */}
                   <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-300"
-                    style={{ width: `${percentage}%` }}
+                    className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
+                    style={{ transform: `scaleX(${percentage / 100})` }}
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-xs">
@@ -95,8 +97,8 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-primary transition-[width] duration-300"
-                style={{ width: `${overallPercentage}%` }}
+                className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
+                style={{ transform: `scaleX(${overallPercentage / 100})` }}
               />
             </div>
             <div className="flex items-center justify-between text-xs">

@@ -2,7 +2,6 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { Transaction, Category } from '../../../generated/prisma/client';
 import { TransactionType } from '../../../generated/prisma/client';
-import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
 
 export interface FinancialStatistics {
@@ -44,16 +43,7 @@ export class FinancialInsightsService {
     return formatMoneyFromMinorUnits(Math.round(amount), currency);
   }
 
-  // Resolve the active financial dataset scope so insights never mix currencies.
-  private async resolveTargetCurrency(
-    userId: string,
-    currency?: string,
-  ): Promise<string> {
-    const normalized = normalizeDashboardCurrency(currency);
-    if (normalized) {
-      return normalized;
-    }
-
+  private async resolveTargetCurrency(userId: string): Promise<string> {
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },
@@ -62,7 +52,7 @@ export class FinancialInsightsService {
     return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
-  async getInsights(userId: string, month?: number, year?: number, currency?: string) {
+  async getInsights(userId: string, month?: number, year?: number) {
     if (
       month !== undefined &&
       (!Number.isInteger(Number(month)) ||
@@ -90,7 +80,7 @@ export class FinancialInsightsService {
     const prevEnd = new Date(start.getTime() - 1);
     const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), 1);
 
-    const targetCurrency = await this.resolveTargetCurrency(userId, currency);
+    const targetCurrency = await this.resolveTargetCurrency(userId);
 
     const insights: string[] = [];
     const stats: FinancialStatistics = {

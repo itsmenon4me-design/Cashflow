@@ -33,7 +33,7 @@ describe('Register page', () => {
   it('renders form fields', () => {
     render(<Page />);
     expect(screen.getByLabelText(/Full name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Username/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
     const passwordLabels = screen.getAllByLabelText(/Password/i);
     expect(passwordLabels.length).toBeGreaterThanOrEqual(1);
@@ -43,7 +43,6 @@ describe('Register page', () => {
   it('shows validation error when passwords do not match', async () => {
     render(<Page />);
     fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'User' } });
-    fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'user1' } });
     fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'u@e.com' } });
     const pwdInputs = screen.getAllByLabelText(/Password/i);
     fireEvent.change(pwdInputs[0], { target: { value: 'passwordpassword' } });

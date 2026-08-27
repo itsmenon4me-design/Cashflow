@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Filter, MoreHorizontal, Search } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, MoreHorizontal, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
+import { transactionTone } from "@/lib/transaction-tone";
 import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
@@ -87,6 +89,12 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
             <p className="mt-1 text-xs text-muted-foreground">{uiText.common.updatedJustNow}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="rounded-xl text-primary hover:text-primary hover:bg-primary/10">
+              <Link href="/transactions" className="flex items-center gap-1">
+                <span>{uiText.common.viewAll}</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
             <div className="relative hidden sm:block">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -157,11 +165,11 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>{uiText.table.date}</TableHead>
+                <TableHead className="hidden sm:table-cell">{uiText.table.date}</TableHead>
                 <TableHead>{uiText.table.category}</TableHead>
-                <TableHead>{uiText.table.description}</TableHead>
+                <TableHead className="hidden md:table-cell">{uiText.table.description}</TableHead>
                 <TableHead className="text-right">{uiText.table.amount}</TableHead>
-                <TableHead>{uiText.table.status}</TableHead>
+                <TableHead className="hidden lg:table-cell">{uiText.table.status}</TableHead>
                 <TableHead className="text-right">{uiText.common.actionLabel}</TableHead>
               </TableRow>
             </TableHeader>
@@ -170,7 +178,7 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                 const status = statusConfig[txn.status];
                 return (
                   <TableRow key={txn.id}>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {formatTransactionDate(txn.dateTime ?? txn.date)}
                     </TableCell>
                     <TableCell>
@@ -178,17 +186,17 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                         {categoryLabel(txn.category)}
                       </Badge>
                     </TableCell>
-                    <TableCell title={txn.description} className="font-medium min-w-0 truncate">{txn.description}</TableCell>
+                    <TableCell title={txn.description} className="hidden md:table-cell font-medium min-w-0 truncate">{txn.description}</TableCell>
                     <TableCell
                       className={cn(
                         "text-right font-semibold",
-                        txn.type === "income" ? "text-emerald-500" : "text-foreground"
+                        transactionTone(txn.type).amountClass
                       )}
                     >
-                      {txn.type === "income" ? "+" : "-"}
+                      {transactionTone(txn.type).sign}
                       {formatCurrency(txn.amount)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <Badge variant="outline" className={cn("rounded-lg", status.className)}>
                         {status.label}
                       </Badge>

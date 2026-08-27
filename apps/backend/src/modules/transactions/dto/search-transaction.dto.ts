@@ -1,7 +1,5 @@
 import {
   IsString,
-  MinLength,
-  MaxLength,
   IsOptional,
   IsInt,
   Min,
@@ -11,10 +9,8 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SearchTransactionDto {
-  @ApiProperty({ description: 'Search keyword', minLength: 2, maxLength: 100 })
+  @ApiProperty({ description: 'Search keyword' })
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
   q!: string;
 
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
@@ -23,7 +19,7 @@ export class SearchTransactionDto {
   @IsInt()
   @Min(1)
   page?: number = 1;
- 
+
   @ApiPropertyOptional({ description: 'Items per page', default: 20 })
   @IsOptional()
   @Type(() => Number)
@@ -31,9 +27,4 @@ export class SearchTransactionDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
-
- @ApiPropertyOptional({ description: 'Currency code to scope search (optional)' })
- @IsOptional()
- @IsString()
- currency?: string;
 }

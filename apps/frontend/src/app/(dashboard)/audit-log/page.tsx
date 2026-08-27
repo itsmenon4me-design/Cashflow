@@ -1,5 +1,5 @@
-import { AuditLogPage } from "@/features/audit-log/audit-log-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AuditLogPage />;
+  redirect("/log-aktivitas");
 }

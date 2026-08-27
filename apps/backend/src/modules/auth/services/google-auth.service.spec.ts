@@ -90,6 +90,7 @@ describe('GoogleAuthService', () => {
     expect(authService.issueSessionForUser).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'user-1' }),
       'google',
+      undefined,
     );
   });
 

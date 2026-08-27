@@ -13,7 +13,6 @@ import {
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { TransactionValidationService } from '../../transactions/services/validation/transaction-validation.service';
-import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -36,7 +35,6 @@ export class TransfersService {
       transaction_date?: Date;
       note?: string | null;
     },
-    currency?: string,
   ) {
     const {
       source_account_id,
@@ -79,16 +77,6 @@ export class TransfersService {
         'Invalid or inaccessible destination account',
       );
 
-    // If a dashboard currency is provided, enforce both accounts match it
-    const normalized = normalizeDashboardCurrency(currency);
-    if (normalized) {
-      if (src.currency !== normalized || dst.currency !== normalized) {
-        throw ErrorService.create(
-          ErrorCode.INVALID_INPUT,
-          'Accounts do not match active dashboard currency',
-        );
-      }
-    }
     if (src.user_id !== userId || dst.user_id !== userId)
       throw ErrorService.create(ErrorCode.FORBIDDEN, 'Unauthorized account');
     if (!src.is_active)
@@ -224,13 +212,12 @@ export class TransfersService {
     }
   }
 
-  async list(userId: string, currency?: string) {
+  async list(userId: string) {
     const where: any = {
       user_id: userId,
       transfer_group_id: { not: null },
       deleted_at: null,
     };
-    if (currency) where.account = { currency };
 
     const recs: Transaction[] = await this.prisma.transaction.findMany({
       where,
@@ -263,13 +250,12 @@ export class TransfersService {
     return out;
   }
 
-  async findById(userId: string, id: string, currency?: string) {
+  async findById(userId: string, id: string) {
     const where: any = {
       user_id: userId,
       transfer_group_id: id,
       deleted_at: null,
     };
-    if (currency) where.account = { currency };
     const recs: Transaction[] = await this.prisma.transaction.findMany({
       where,
     });

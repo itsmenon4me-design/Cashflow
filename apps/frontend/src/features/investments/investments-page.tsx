@@ -1,11 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Plus, TrendingUp } from "lucide-react";
-import { AllocationPieCard } from "@/components/investments/AllocationPieCard";
-import { DeleteInvestmentDialog } from "@/components/investments/DeleteInvestmentDialog";
+// recharts-based card loads via async chunk after first paint (low-CPU friendly)
+import { LazyAllocationPieCard as AllocationPieCard } from "@/components/charts/lazy-charts";
+import type { InvestmentFormMode } from "@/components/investments/InvestmentForm";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazyInvestmentForm = dynamic(
+  () => import("@/components/investments/InvestmentForm").then((m) => m.InvestmentForm),
+  { ssr: false },
+);
+const LazyDeleteInvestmentDialog = dynamic(
+  () =>
+    import("@/components/investments/DeleteInvestmentDialog").then(
+      (m) => m.DeleteInvestmentDialog,
+    ),
+  { ssr: false },
+);
 import { InvestmentFilters } from "@/components/investments/InvestmentFilters";
-import { InvestmentForm, type InvestmentFormMode } from "@/components/investments/InvestmentForm";
 import { InvestmentTable } from "@/components/investments/InvestmentTable";
 import { InvestmentToolbar } from "@/components/investments/InvestmentToolbar";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -16,23 +31,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { DEFAULT_PAGE_SIZE, EMPTY_FILTERS } from "@/features/investments/constants";
 import type { InvestmentFiltersState } from "@/features/investments/types";
-import {
-  toCreateInvestmentPayload,
-  toUpdateInvestmentPayload,
-  type InvestmentFormValues,
-} from "@/features/investments/schema";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import type { InvestmentFormValues } from "@/features/investments/schema";
 import { cn } from "@/lib/utils";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import {
   investmentService,
   toInvestmentItem,
   type InvestmentItem,
   type InvestmentOverview,
-  type SupportedEntityCurrency,
 } from "@/services/investment.service";
 import type { AccountResponse } from "@/types/backend";
 
@@ -48,7 +56,6 @@ type NameLookup = Record<string, string>;
 export function InvestmentsPage() {
   const [items, setItems] = useState<InvestmentItem[]>([]);
   const [overview, setOverview] = useState<InvestmentOverview | null>(null);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [filters, setFilters] = useState<InvestmentFiltersState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -77,9 +84,9 @@ export function InvestmentsPage() {
       setError(false);
       try {
         const [list, overviewResult, accounts] = await Promise.all([
-          investmentService.list(activeCurrency),
-          investmentService.overview(activeCurrency),
-          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+          investmentService.list(),
+          investmentService.overview(),
+          accountService.list().catch(() => [] as AccountResponse[]),
         ]);
         if (cancelled) {
           return;
@@ -177,20 +184,18 @@ export function InvestmentsPage() {
     setFormState((state) => ({ open: true, mode, item, session: state.session + 1 }));
   };
 
-  const itemCurrency = (
-    values: InvestmentFormValues,
-  ): SupportedEntityCurrency =>
-    normalizeDashboardCurrency(
-      values.accountId ? accountCurrencies[values.accountId] : undefined,
-    ) ?? "USD";
-
   const handleFormSubmit = async (values: InvestmentFormValues) => {
+    // Payload builders live in the zod schema module; import it lazily inside
+    // the submit path so zod stays out of the initial page bundle.
+    const { toCreateInvestmentPayload, toUpdateInvestmentPayload } = await import(
+      "@/features/investments/schema"
+    );
+
     if (formState.mode === "edit" && formState.item) {
       try {
         await investmentService.update(
           formState.item.id,
-          toUpdateInvestmentPayload(values, itemCurrency(values)),
-          activeCurrency,
+          toUpdateInvestmentPayload(values),
         );
       } catch {
         // daftar tetap disinkronkan dengan state server
@@ -201,7 +206,7 @@ export function InvestmentsPage() {
 
     try {
       await investmentService.create(
-        toCreateInvestmentPayload(values, itemCurrency(values)),
+        toCreateInvestmentPayload(values),
       );
     } catch {
       // daftar tetap disinkronkan dengan state server
@@ -217,7 +222,7 @@ export function InvestmentsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await investmentService.remove(target.id, activeCurrency);
+      await investmentService.remove(target.id);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -280,9 +285,7 @@ export function InvestmentsPage() {
         />
       </section>
 
-      {/* ponytail: reserve skeleton height so loading->data/empty/error swaps never shift layout; revisit if rows routinely exceed 6 */}
-      <div className="min-h-[593px]">
-        {error ? (
+      {error ? (
           <ErrorState
             title={uiText.states.errorTitle}
             description={uiText.states.errorDescription}
@@ -320,30 +323,31 @@ export function InvestmentsPage() {
             )}
           </>
         )}
-      </div>
 
       <AllocationPieCard allocation={overview?.allocation ?? []} />
 
-      <InvestmentForm
-        key={formState.session}
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        item={formState.item}
-        accounts={accountOptions}
-        accountCurrencies={accountCurrencies}
-        onSubmit={(values) => void handleFormSubmit(values)}
-      />
+      <LoadOnOpen active={formState.open || deleting !== null}>
+        <LazyInvestmentForm
+          key={formState.session}
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          item={formState.item}
+          accounts={accountOptions}
+          accountCurrencies={accountCurrencies}
+          onSubmit={(values) => void handleFormSubmit(values)}
+        />
 
-      <DeleteInvestmentDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+        <LazyDeleteInvestmentDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

@@ -70,6 +70,7 @@ export interface SavingGoalItem {
   current: number;
   remaining: number;
   percentage: number;
+  currency: string;
   startDate: string;
   targetDate: string;
   status: SavingGoalStatus;
@@ -83,7 +84,7 @@ export function toSavingGoalItem(
 ): SavingGoalItem {
   const currency =
     goal.currency ??
-    (goal.account_id ? accountCurrencies[goal.account_id] ?? "USD" : "USD");
+    (goal.account_id ? accountCurrencies[goal.account_id] ?? "IDR" : "IDR");
   const target = toMajorUnits(BigInt(goal.target_amount_cents), currency);
   const current = toMajorUnits(BigInt(goal.current_amount_cents), currency);
   const percentage =
@@ -100,6 +101,7 @@ export function toSavingGoalItem(
     current,
     remaining: Math.max(0, target - current),
     percentage,
+    currency,
     startDate: goal.start_date.slice(0, 10),
     targetDate: goal.target_date.slice(0, 10),
     status: goal.status,
@@ -107,25 +109,16 @@ export function toSavingGoalItem(
 }
 
 export const savingGoalService = {
-  list: async (currency?: string): Promise<SavingGoalResponse[]> => {
-    const res = await withOfflineCache(
-      "saving-goals",
-      `list:${currency ?? "all"}`,
-      () =>
-        apiClient.get<{ success: boolean; data: SavingGoalResponse[] }>(
-          "/saving-goals",
-          { params: currency ? { currency } : {} },
-        ),
+  list: async (): Promise<SavingGoalResponse[]> => {
+    const res = await withOfflineCache("saving-goals", "list", () =>
+      apiClient.get<{ success: boolean; data: SavingGoalResponse[] }>("/saving-goals"),
     );
     return res.data ?? [];
   },
 
-  get: (id: string, currency?: string): Promise<SavingGoalResponse> =>
+  get: (id: string): Promise<SavingGoalResponse> =>
     apiClient
-      .get<{ success: boolean; data: SavingGoalResponse }>(
-        `/saving-goals/${id}`,
-        { params: currency ? { currency } : {} },
-      )
+      .get<{ success: boolean; data: SavingGoalResponse }>(`/saving-goals/${id}`)
       .then((res) => res.data),
 
   create: (payload: CreateSavingGoalPayload): Promise<SavingGoalResponse> =>
@@ -136,26 +129,19 @@ export const savingGoalService = {
   update: (
     id: string,
     payload: UpdateSavingGoalPayload,
-    currency?: string,
   ): Promise<SavingGoalResponse> =>
     apiClient
       .patch<{ success: boolean; data: SavingGoalResponse }>(
         `/saving-goals/${id}`,
         payload,
-        { params: currency ? { currency } : {} },
       )
       .then((res) => res.data),
 
-  remove: (id: string, currency?: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/saving-goals/${id}`, {
-      params: currency ? { currency } : {},
-    }),
+  remove: (id: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/saving-goals/${id}`),
 
-  overview: async (currency?: string): Promise<SavingGoalOverview | null> => {
-    const res = await apiClient.get<{ success: boolean; data: SavingGoalOverview }>(
-      "/saving-goals/overview",
-      { params: currency ? { currency } : {} },
-    );
+  overview: async (): Promise<SavingGoalOverview | null> => {
+    const res = await apiClient.get<{ success: boolean; data: SavingGoalOverview }>("/saving-goals/overview");
     return res.data ?? null;
   },
 

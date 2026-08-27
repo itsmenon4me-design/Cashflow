@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Delete, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Delete,
+  UseGuards,
+  Patch,
+  Request,
+} from '@nestjs/common';
 import { AuthRateLimitGuard } from '../auth-rate-limit.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
@@ -22,6 +30,7 @@ import { Get } from '@nestjs/common';
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { extractAuthRequestContext } from '../services/device-info';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -36,8 +45,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, type: LoginResponseDto })
   @UseGuards(AuthRateLimitGuard)
-  async login(@Body() body: LoginDto): Promise<LoginResponseDto> {
-    return this.auth.login(body);
+  async login(
+    @Body() body: LoginDto,
+    @Request() req: { headers: Record<string, string | string[] | undefined> },
+  ): Promise<LoginResponseDto> {
+    return this.auth.login(body, extractAuthRequestContext(req));
   }
 
   @Post('register')
@@ -68,6 +80,22 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  async updateProfile(
+    @CurrentUser('sub') userId: string,
+    @Body() body: { full_name?: string },
+  ) {
+    const u = await this.users.update(userId, { full_name: body.full_name });
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      data: toUserResponse(u),
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiResponse({ status: 200, type: UserResponseDto })
@@ -92,8 +120,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Rotate refresh token and issue new tokens' })
   @ApiResponse({ status: 200, type: RefreshResponseDto })
   @UseGuards(AuthRateLimitGuard)
-  async refresh(@Body() body: RefreshRequestDto): Promise<RefreshResponseDto> {
-    return this.auth.refresh(body.refreshToken);
+  async refresh(
+    @Body() body: RefreshRequestDto,
+    @Request() req: { headers: Record<string, string | string[] | undefined> },
+  ): Promise<RefreshResponseDto> {
+    return this.auth.refresh(body.refreshToken, extractAuthRequestContext(req));
   }
 
   @Post('reset-password')

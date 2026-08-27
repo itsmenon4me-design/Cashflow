@@ -47,10 +47,14 @@ export class AuditLogsService {
   }
 
   async findOwnById(userId: string, id: string): Promise<AuditLogEntity> {
-    const entry = await this.repo.findByIdOwned(id, userId);
-    if (!entry) {
-      throw ErrorService.create(ErrorCode.NOT_FOUND, 'Audit log not found');
+      const entry = await this.repo.findByIdOwned(id, userId);
+      if (!entry) {
+        throw ErrorService.create(ErrorCode.NOT_FOUND, 'Audit log not found');
+      }
+      return entry;
     }
-    return entry;
+
+    async deleteAllByUser(userId: string): Promise<number> {
+      return this.repo.deleteAllByUser(userId);
+    }
   }
-}

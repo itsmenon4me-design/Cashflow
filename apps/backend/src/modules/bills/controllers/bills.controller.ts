@@ -28,8 +28,8 @@ export class BillsController {
 
   @Get()
   @ApiOperation({ summary: 'List bills for current user' })
-  async list(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
-    const items = currency ? await this.bills.list(userId, currency) : await this.bills.list(userId);
+  async list(@CurrentUser('sub') userId: string) {
+    const items = await this.bills.list(userId);
     return { success: true, data: items.map((i) => toBillResponse(i)) };
   }
 
@@ -38,9 +38,8 @@ export class BillsController {
   async upcoming(
     @CurrentUser('sub') userId: string,
     @Query() query: UpcomingBillsQueryDto,
-    @Query('currency') currency?: string,
   ) {
-    const items = currency ? await this.bills.upcoming(userId, query.from, query.to, currency) : await this.bills.upcoming(userId, query.from, query.to);
+    const items = await this.bills.upcoming(userId, query.from, query.to);
     return { success: true, data: items.map((i) => toBillResponse(i)) };
   }
 
@@ -49,11 +48,10 @@ export class BillsController {
   async get(
     @CurrentUser('sub') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('currency') currency?: string,
   ) {
     return {
       success: true,
-      data: toBillResponse(currency ? await this.bills.getById(userId, id, currency) : await this.bills.getById(userId, id)),
+      data: toBillResponse(await this.bills.getById(userId, id)),
     };
   }
 
@@ -62,11 +60,10 @@ export class BillsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateBillDto,
-    @Query('currency') currency?: string,
   ) {
     return {
       success: true,
-      data: toBillResponse(await this.bills.create(userId, body, currency)),
+      data: toBillResponse(await this.bills.create(userId, body)),
     };
   }
 
@@ -76,11 +73,10 @@ export class BillsController {
     @CurrentUser('sub') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateBillDto,
-    @Query('currency') currency?: string,
   ) {
     return {
       success: true,
-      data: toBillResponse(await this.bills.update(userId, id, body, currency)),
+      data: toBillResponse(await this.bills.update(userId, id, body)),
     };
   }
 
@@ -89,9 +85,8 @@ export class BillsController {
   async delete(
     @CurrentUser('sub') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('currency') currency?: string,
   ) {
-    await this.bills.softDelete(userId, id, currency);
+    await this.bills.softDelete(userId, id);
     return { success: true };
   }
 }

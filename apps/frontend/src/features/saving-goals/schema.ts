@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type {
   CreateSavingGoalPayload,
   UpdateSavingGoalPayload,
@@ -29,18 +27,14 @@ export type SavingGoalFormValues = z.infer<typeof savingGoalFormSchema>;
 
 export function toCreateSavingGoalPayload(
   values: SavingGoalFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
 ): CreateSavingGoalPayload {
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
     account_id: values.accountId || undefined,
     category_id: values.categoryId || undefined,
-    currency,
-    target_amount_cents: toMinorUnits(values.target, currency),
-    current_amount_cents: toMinorUnits(values.current, currency),
+    target_amount_cents: toMinorUnits(values.target, "IDR"),
+    current_amount_cents: toMinorUnits(values.current, "IDR"),
     start_date: values.startDate,
     target_date: values.targetDate,
     status: values.status,
@@ -49,18 +43,14 @@ export function toCreateSavingGoalPayload(
 
 export function toUpdateSavingGoalPayload(
   values: SavingGoalFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
 ): UpdateSavingGoalPayload {
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
     account_id: values.accountId || null,
     category_id: values.categoryId || null,
-    currency,
-    target_amount_cents: toMinorUnits(values.target, currency),
-    current_amount_cents: toMinorUnits(values.current, currency),
+    target_amount_cents: toMinorUnits(values.target, "IDR"),
+    current_amount_cents: toMinorUnits(values.current, "IDR"),
     start_date: values.startDate,
     target_date: values.targetDate,
     status: values.status,

@@ -6,32 +6,17 @@ import {
   Moon,
   Palette,
   Sun,
-  UserRound,
-  Wallet,
 } from "lucide-react";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { uiText } from "@/locales";
 import { settingsService } from "@/services/settings.service";
-import { authService } from "@/services/auth.service";
-import { useAuthStore } from "@/stores/auth.store";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { useLanguageStore } from "@/stores/language.store";
 import { useThemeStore } from "@/stores/theme.store";
-import { CURRENCY_OPTIONS } from "@/types/settings";
 import type {
   LanguagePreference,
   NotificationPreferences,
@@ -93,49 +78,16 @@ function SettingsGroup({
 
 export function SettingsPage() {
   const { theme, setTheme } = useThemeStore();
-  const user = useAuthStore((state) => state.user);
   const setUiLanguage = useLanguageStore((state) => state.setLanguage);
   const currentLanguage = useLanguageStore((state) => state.language);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [userName, setUserName] = useState(user?.name ?? "");
-  const [savingName, setSavingName] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [persistError, setPersistError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUserName(user?.name ?? "");
-  }, [user?.name]);
-
-  const saveName = async () => {
-    if (!userName) return;
-    setSaveError(null);
-    setSavingName(true);
-    try {
-      const res = await authService.updateProfile({ full_name: userName });
-      // If the service returns a success flag, update local store accordingly.
-      if (res && (res as any).success) {
-        const currentUser = useAuthStore.getState().user;
-        useAuthStore.getState().setUser({ name: userName, email: currentUser?.email ?? "" });
-      } else {
-        const msg = (res as any)?.message ?? 'Failed to update profile';
-        console.warn('[settings] saveName -> updateProfile returned no success flag', res);
-        setSaveError(String(msg));
-      }
-    } catch (e) {
-      console.error('[settings] saveName -> caught error updating profile', e);
-      setSaveError(String(e));
-    } finally {
-      setSavingName(false);
-    }
-  };
 
   // Use the global language store as the single source of truth. Avoid local drafts
   // that can get out-of-sync with the shared language binding.
   const language = currentLanguage;
-  const [currency, setCurrencyDraft] = useState("IDR");
   const [preferences, setPreferences] =
     useState<NotificationPreferences>(DEFAULT_PREFS);
 
@@ -168,8 +120,6 @@ export function SettingsPage() {
         if (cancelled) return;
         // Apply language immediately to the shared store so UI updates optimistically.
         setUiLanguage(settings.language);
-        setCurrencyDraft(settings.currency);
-        try { useDashboardCurrencyStore.setState({ currency: settings.currency, hydrated: true }); } catch {}
         setPreferences(settings.notificationPreferences);
         document.documentElement.lang = settings.language;
       } catch {
@@ -192,17 +142,13 @@ export function SettingsPage() {
       const updated = await settingsService.updateSettings(patch);
       // Re-fetch authoritative settings from server to ensure client reflects server state
       try {
-        const fresh = await settingsService.getSettings();
-        setPersistError(null);
-        return fresh;
+        return await settingsService.getSettings();
       } catch (e) {
         console.warn('[settings] persist -> re-fetch failed, falling back to update result', e);
-        setPersistError(null);
         return updated;
       }
     } catch (err) {
       console.error('[settings] persist -> updateSettings error', err);
-      setPersistError(String(err));
       return null;
     }
   };
@@ -216,67 +162,6 @@ export function SettingsPage() {
     // Update shared store immediately (optimistic) and persist in background.
     setUiLanguage(value);
     persist({ language: value });
-  };
-
-  const handleCurrencyChange = async (value: string) => {
-    setPersistError(null);
-    setCurrencyDraft(value);
-
-    // Optimistically apply client-side store + localStorage updates so UI reflects change immediately
-    try {
-      const setter = useDashboardCurrencyStore.getState().setCurrency;
-      if (typeof setter === 'function') {
-        setter(value);
-        useDashboardCurrencyStore.setState({ currency: value, hydrated: true });
-      }
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('cashflow-dashboard-currency', value);
-      }
-    } catch (e) {
-      console.error('[settings] handleCurrencyChange -> optimistic apply failed', e);
-    }
-
-    // Call the client-side settingsService.updateSettings directly to ensure the client path executes.
-    try {
-      const updated = await settingsService.updateSettings({ currency: value });
-
-      // Apply authoritative server result immediately to store/localStorage and notify listeners.
-      try {
-        const setter2 = useDashboardCurrencyStore.getState().setCurrency;
-        if (typeof setter2 === 'function') setter2(updated.currency);
-        if (typeof window !== 'undefined' && window.localStorage) {
-          // write multiple times with short delays to survive possible hydrations/overwrites
-          for (let i = 0; i < 4; i++) {
-            try { window.localStorage.setItem('cashflow-dashboard-currency', updated.currency); } catch (e) {}
-            try { if (typeof setter2 === 'function') setter2(updated.currency); } catch (e) {}
-            await new Promise((r) => setTimeout(r, 40));
-          }
-        }
-        try { window.dispatchEvent(new CustomEvent('cashflow:settings-updated', { detail: { currency: updated.currency } })); } catch (e) {}
-      } catch (e) {
-        console.error('[settings] handleCurrencyChange -> apply client update error', e);
-      }
-
-      // Guard: if server-side reported a different currency (unexpected), re-fetch authoritative settings.
-      if (updated.currency !== value) {
-        console.warn('[settings] handleCurrencyChange -> server updated currency differs from requested, re-fetching', { requested: value, server: updated.currency });
-        try {
-          const fresh = await settingsService.getSettings();
-          const setter3 = useDashboardCurrencyStore.getState().setCurrency;
-          if (typeof setter3 === 'function') setter3(fresh.currency);
-          if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('cashflow-dashboard-currency', fresh.currency);
-          }
-          try { window.dispatchEvent(new CustomEvent('cashflow:settings-updated', { detail: { currency: fresh.currency } })); } catch (e) {}
-        } catch (e) {
-          console.warn('[settings] handleCurrencyChange -> re-fetch after mismatch failed', e);
-        }
-      }
-    } catch (err) {
-      console.error('[settings] handleCurrencyChange -> updateSettings failed', err);
-      setPersistError(String(err));
-      // Optionally rollback to previous value could be handled here, but keep optimistic for now.
-    }
   };
 
   const handlePreferenceChange = (key: keyof NotificationPreferences, value: boolean) => {
@@ -303,7 +188,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {uiText.settingsPage.title}
@@ -358,65 +243,24 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <SectionHeading icon={Wallet} title={uiText.settingsPage.regional} subtitle={uiText.settingsPage.regionalSubtitle} />
-            </CardHeader>
-            <CardContent>
-            {loading ? (
-              <Skeleton className="h-24 w-full rounded-xl" />
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="settings-currency" className="text-xs text-muted-foreground">
-                  {uiText.settingsPage.currency}
-                </Label>
-                <Select value={currency} onValueChange={(v) => void handleCurrencyChange(v)}>
-                  <SelectTrigger id="settings-currency" className="w-full sm:w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {persistError && <p className="text-sm text-destructive mt-1">{persistError}</p>}
-              </div>
-            )}
-            </CardContent>
-          </Card>
         </div>
       </SettingsGroup>
 
       <SettingsGroup title={uiText.settingsPage.groupAccount}>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <SectionHeading icon={UserRound} title={uiText.settingsPage.account} subtitle={uiText.settingsPage.accountSubtitle} />
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 items-end">
-                <div>
-                  <Label htmlFor="profile-name" className="text-xs text-muted-foreground">{uiText.settingsPage.name}</Label>
-                  <Input
-                    id="profile-name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    className="mt-1 sm:w-72"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="primary" onClick={saveName} loading={savingName}>{uiText.common.save}</Button>
-                </div>
-                {saveError && <p className="text-sm text-destructive mt-1">{saveError}</p>}
-              </div>
-              <div>
-                <Label htmlFor="profile-email" className="text-xs text-muted-foreground">{uiText.settingsPage.email}</Label>
-                <Input id="profile-email" value={user?.email ?? "—"} disabled className="mt-1 sm:w-72" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Name & email editing lives exclusively on the dedicated /profile
+            page (sidebar menu "Profil"). The duplicated inline profile card
+            was removed to keep a single source of truth for identity edits. */}
+        <Card className="shadow-sm">
+          <CardContent className="flex items-center justify-between gap-3 py-4 text-sm">
+            <span className="text-muted-foreground">{uiText.settingsPage.accountSubtitle}</span>
+            <a
+              href="/profile"
+              className="shrink-0 text-sm font-medium text-primary hover:underline"
+            >
+              {uiText.navigation.profile}
+            </a>
+          </CardContent>
+        </Card>
       </SettingsGroup>
 
       <SettingsGroup title={uiText.financeBot.title} subtitle={uiText.financeBot.subtitle}>

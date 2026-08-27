@@ -13,7 +13,6 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
 import { accountService } from "@/services/account.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { formatCurrency } from "@/lib/format";
 import { toInputDate, isoToLocalTime } from "@/lib/date";
 import { categoryService } from "@/services/category.service";
@@ -26,6 +25,7 @@ import {
   type TransactionListParams,
 } from "@/services/transaction.service";
 import { syncCreateTransaction, syncUpdateTransaction, syncDeleteTransaction } from "@/lib/offline/sync-client";
+import { usePendingTransactions } from "@/hooks/use-pending-transactions";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import type { AccountResponse, CategoryResponse } from "@/types/backend";
 import type { TransactionFormValues } from "@/features/transactions/schema";
@@ -48,7 +48,6 @@ export default function Page() {
   // flashing the full-height table skeleton (container must not move).
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
 
   const [filters, setFilters] = useState<TransactionFiltersState>({ search: "", category: "all", account: "all", type: "income" as any, status: "all", startDate: "", endDate: "" });
   const [search, setSearch] = useState("");
@@ -72,7 +71,7 @@ export default function Page() {
     let cancelled = false;
     void (async () => {
       const [accounts, categories] = await Promise.all([
-        accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+        accountService.list().catch(() => [] as AccountResponse[]),
         categoryService.list().catch(() => [] as CategoryResponse[]),
       ]);
       if (cancelled) return;
@@ -89,7 +88,7 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [activeCurrency]);
+  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS);
@@ -131,7 +130,6 @@ export default function Page() {
     sortBy: sort.key,
     sortOrder: sort.order,
     type: "INCOME",
-    currency: activeCurrency,
     };
     if (search) params.q = search;
     if (queryConfig.categoryId) params.categoryId = queryConfig.categoryId;
@@ -168,13 +166,7 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [lookupsReady, refreshKey, dataVersion, page, pageSize, sort.key, sort.order, search, queryConfig, accountNames, categoryNames, activeCurrency]);
-
-  // Reset paging and refresh data when activeCurrency changes
-  useEffect(() => {
-    setPage(1);
-    setRefreshKey((k) => k + 1);
-  }, [activeCurrency]);
+  }, [lookupsReady, refreshKey, dataVersion, page, pageSize, sort.key, sort.order, search, queryConfig, accountNames, categoryNames]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -265,7 +257,7 @@ export default function Page() {
 
     // TEMP DIAG: log delete attempt and context
     try {
-      console.log('[DELETE FLOW] initiating delete for id=', target.id, 'activeCurrency=', activeCurrency);
+      console.log('[DELETE FLOW] initiating delete for id=', target.id);
     } catch (e) {
       // ignore logging errors
     }
@@ -322,10 +314,25 @@ export default function Page() {
   const isEmpty =
     !error && totalItems === 0 && transactions.length === 0 && hasLoadedOnce;
 
+  // Optimistic UI: offline-created income transactions appear immediately with
+  // a "not synced" badge; queued edits/deletes flag the affected server rows.
+  const { items: pendingItems, pendingIds } = usePendingTransactions(
+    accountNames,
+    categoryNames,
+    accountCurrencies,
+  );
+  const visibleTransactions = useMemo(() => {
+    const flagged = transactions.map((txn) =>
+      pendingIds.has(txn.id) ? { ...txn, pendingSync: true } : txn,
+    );
+    const pendingIncome = pendingItems.filter((txn) => txn.type === "income");
+    return [...pendingIncome, ...flagged];
+  }, [transactions, pendingItems, pendingIds]);
+
   return (
     <div className="space-y-6">
         <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">{uiText.navigation.income}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{uiText.navigation.income}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{uiText.transactions.incomeSubtitle}</p>
       </div>
 
@@ -344,6 +351,7 @@ export default function Page() {
         accounts={accountOptions}
         onChange={handleFiltersChange}
         onReset={handleResetFilters}
+        showTypeFilter={false}
       />
 
       {error ? (
@@ -363,7 +371,7 @@ export default function Page() {
       ) : (
         <>
           <TransactionTable
-            transactions={transactions}
+            transactions={visibleTransactions}
             loading={loading && transactions.length === 0}
             sortBy={sort.key}
             sortOrder={sort.order}

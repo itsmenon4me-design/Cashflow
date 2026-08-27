@@ -39,7 +39,7 @@ describe('HistoricalDataAuditService', () => {
     expect(report.balance_discrepancies).toEqual([]);
   });
 
-  it('accepts valid IDR and decimal-currency references without false positives', () => {
+  it('accepts valid IDR references without false positives', () => {
     const service = new HistoricalDataAuditService();
     const report = service.auditFinancialDataset({
       accounts: [
@@ -53,7 +53,7 @@ describe('HistoricalDataAuditService', () => {
         {
           id: 'acc-usd',
           user_id: 'u1',
-          currency: 'USD',
+          currency: 'IDR',
           opening_balance_cents: 10000,
           current_balance_cents: 10023,
         },
@@ -117,7 +117,7 @@ describe('HistoricalDataAuditService', () => {
           id: 'tid-7',
           user_id: 'u1',
           account_id: 'acc-usd',
-          currency: 'USD',
+          currency: 'IDR',
           amount_cents: 123,
           transaction_type: 'INCOME',
           transaction_date: '2026-02-07',
@@ -126,7 +126,7 @@ describe('HistoricalDataAuditService', () => {
           id: 'tid-8',
           user_id: 'u1',
           account_id: 'acc-usd',
-          currency: 'USD',
+          currency: 'IDR',
           amount_cents: 100,
           transaction_type: 'EXPENSE',
           transaction_date: '2026-02-08',

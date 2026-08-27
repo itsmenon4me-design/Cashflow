@@ -149,29 +149,6 @@ describe('DashboardWidgetsService', () => {
     expect(res.budget).toBeDefined();
   });
 
-  it('passes the selected currency through to the monthly report scope', async () => {
-    const mocks = makeMocks();
-
-    const svc = new DashboardWidgetsService(
-      mocks.summarySvc,
-      mocks.cashflowSvc,
-      mocks.monthlySvc,
-      mocks.categorySvc,
-      mocks.trendSvc,
-      mocks.budgetSvc,
-    );
-
-    await svc.getWidgets('user-1', 8, 2026, 'USD');
-
-    expect(mocks.monthlySvc.getMonthlyReport).toHaveBeenCalledWith(
-      'user-1',
-      8,
-      2026,
-      undefined,
-      'USD',
-    );
-  });
-
   it('wraps trend as { type, data } to match the frontend contract', async () => {
     const mocks = makeMocks();
 

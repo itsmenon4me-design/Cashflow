@@ -1,12 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Plus, Wallet } from "lucide-react";
 import { AccountFilters } from "@/components/accounts/AccountFilters";
-import { AccountForm, type AccountFormMode } from "@/components/accounts/AccountForm";
+import type { AccountFormMode } from "@/components/accounts/AccountForm";
 import { AccountTable } from "@/components/accounts/AccountTable";
 import { AccountToolbar } from "@/components/accounts/AccountToolbar";
-import { DeleteAccountDialog } from "@/components/accounts/DeleteAccountDialog";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazyAccountForm = dynamic(
+  () => import("@/components/accounts/AccountForm").then((m) => m.AccountForm),
+  { ssr: false },
+);
+const LazyDeleteAccountDialog = dynamic(
+  () => import("@/components/accounts/DeleteAccountDialog").then((m) => m.DeleteAccountDialog),
+  { ssr: false },
+);
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -16,19 +27,14 @@ import {
   EMPTY_FILTERS,
 } from "@/features/accounts/constants";
 import type { AccountFiltersState } from "@/features/accounts/types";
-import {
-  toCreateAccountPayload,
-  toUpdateAccountPayload,
-} from "@/features/accounts/schema";
+import type { AccountFormValues } from "@/features/accounts/schema";
 import { uiText } from "@/locales";
 import {
   accountService,
   toAccountItem,
   type AccountItem,
 } from "@/services/account.service";
-import type { AccountFormValues } from "@/features/accounts/schema";
 import { useDataRefreshStore } from "@/stores/refresh.store";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface FormState {
   open: boolean;
@@ -38,7 +44,6 @@ interface FormState {
 
 export function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const [filters, setFilters] = useState<AccountFiltersState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -53,9 +58,9 @@ export function AccountsPage() {
   const [deleting, setDeleting] = useState<AccountItem | null>(null);
 
   const fetchAccounts = useCallback(async () => {
-    const data = await accountService.list(activeCurrency);
+    const data = await accountService.list();
     return data.map(toAccountItem);
-  }, [activeCurrency]);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -157,19 +162,21 @@ export function AccountsPage() {
   };
 
   const handleFormSubmit = async (values: AccountFormValues) => {
+    // Payload builders live in the zod schema module; import it lazily inside
+    // the submit path so zod stays out of the initial page bundle.
+    const { toCreateAccountPayload, toUpdateAccountPayload } = await import(
+      "@/features/accounts/schema"
+    );
+
     if (formState.mode === "edit" && formState.account) {
       // propagate errors to the caller so the form can display them
-      await accountService.update(
-        formState.account.id,
-        toUpdateAccountPayload(values),
-        activeCurrency,
-      );
+      await accountService.update(formState.account.id, toUpdateAccountPayload(values));
       void load();
       return true;
     }
 
     // create flow - let errors bubble to caller for UI handling
-    await accountService.create(toCreateAccountPayload(values), activeCurrency);
+    await accountService.create(toCreateAccountPayload(values));
     setPage(1);
     void load();
     return true;
@@ -194,7 +201,7 @@ export function AccountsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await accountService.remove(target.id, activeCurrency);
+      await accountService.remove(target.id);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -272,23 +279,27 @@ export function AccountsPage() {
         </>
       )}
 
-      <AccountForm
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        account={formState.account}
-        onSubmit={handleFormSubmit}
-      />
+      <LoadOnOpen active={formState.open}>
+        <LazyAccountForm
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          account={formState.account}
+          onSubmit={handleFormSubmit}
+        />
+      </LoadOnOpen>
 
-      <DeleteAccountDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+      <LoadOnOpen active={deleting !== null}>
+        <LazyDeleteAccountDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

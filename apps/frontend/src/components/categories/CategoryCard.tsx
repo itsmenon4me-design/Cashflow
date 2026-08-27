@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Lock, Pencil, Trash2, type LucideIcon } from "lucide-react";
+import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,19 +34,13 @@ export function CategoryRowActions({
 }: CategoryRowActionsProps) {
   const actions: RowAction[] = [
     { label: uiText.common.view, icon: Eye, onClick: () => onView(category) },
-    ...(category.isSystem
-      ? ([
-          { label: uiText.categories.system, icon: Lock, onClick: () => undefined },
-        ] as RowAction[])
-      : ([
-          { label: uiText.common.edit, icon: Pencil, onClick: () => onEdit(category) },
-          {
-            label: uiText.common.delete,
-            icon: Trash2,
-            onClick: () => onDelete(category),
-            destructive: true,
-          },
-        ] as RowAction[])),
+    { label: uiText.common.edit, icon: Pencil, onClick: () => onEdit(category) },
+    {
+      label: uiText.common.delete,
+      icon: Trash2,
+      onClick: () => onDelete(category),
+      destructive: true,
+    },
   ];
 
   return (
@@ -112,7 +106,11 @@ export function CategoryCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-foreground">{categoryLabel(category.name)}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {category.isSystem ? uiText.categories.system : uiText.categories.active}
+              {category.isSystem && category.isActive
+                ? uiText.categories.system
+                : category.isActive
+                  ? uiText.categories.active
+                  : uiText.categories.inactive}
             </p>
           </div>
         </div>

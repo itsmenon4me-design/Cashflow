@@ -2,18 +2,8 @@ import { IsInt, IsOptional, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { NOTIFICATION_TYPES } from '../constants/notification.constants';
-import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class NotificationQueryDto {
-  @ApiPropertyOptional({
-    description:
-      'Ledger currency scope: only notifications carrying this currency in their metadata',
-    enum: SUPPORTED_CURRENCIES,
-  })
-  @IsOptional()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
-
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
   @IsOptional()
   @Type(() => Number)

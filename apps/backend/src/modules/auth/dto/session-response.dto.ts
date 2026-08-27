@@ -23,6 +23,12 @@ export class SessionResponseDto {
   ip_address?: string | null;
 
   @ApiProperty({ nullable: true })
+  city?: string | null;
+
+  @ApiProperty({ nullable: true })
+  country?: string | null;
+
+  @ApiProperty({ nullable: true })
   user_agent?: string | null;
 
   @ApiProperty()

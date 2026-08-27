@@ -3,7 +3,6 @@ import { SavingGoalsService } from './saving-goals.service';
 import { PrismaSavingGoalsRepository } from '../repositories/prisma-saving-goals.repository';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { PrismaService } from '../../../database/prisma.service';
-import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { SavingGoalEntity } from '../entities/saving-goal.entity';
 
 const dummyGoal = (
@@ -58,10 +57,6 @@ describe('SavingGoalsService', () => {
         { provide: PrismaSavingGoalsRepository, useValue: repoMock },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
-        {
-          provide: UserSettingsService,
-          useValue: { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) },
-        },
       ],
     }).compile();
 
@@ -71,7 +66,7 @@ describe('SavingGoalsService', () => {
   it('lists goals for user', async () => {
     const items = await service.listAll('u1');
     expect(items).toHaveLength(2);
-    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1', undefined);
+    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1');
   });
 
   it('denies access to a goal owned by another user', async () => {
@@ -106,23 +101,6 @@ describe('SavingGoalsService', () => {
     expect(repoMock.create).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Goal' }),
     );
-  });
-
-  it('accepts and stores a goal currency', async () => {
-    repoMock.create.mockResolvedValue(dummyGoal('g1', { currency: 'EUR' }));
-    const created = await service.create('u1', {
-      name: 'Goal',
-      currency: 'EUR',
-      target_amount_cents: 100000,
-      current_amount_cents: 0,
-      start_date: '2026-01-01',
-      target_date: '2026-12-31',
-      status: 'ACTIVE',
-    });
-    expect(repoMock.create).toHaveBeenCalledWith(
-      expect.objectContaining({ currency: 'EUR' }),
-    );
-    expect(created.currency).toBe('EUR');
   });
 
   it('computes overview totals', async () => {

@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -33,8 +32,8 @@ export class AccountsController {
   @ApiOperation({ summary: 'List accounts for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async list(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
-    const items = await this.accounts.listAll(userId, currency);
+  async list(@CurrentUser('sub') userId: string) {
+    const items = await this.accounts.listAll(userId);
     return { success: true, data: items.map((i) => toAccountResponse(i)) };
   }
 
@@ -42,8 +41,8 @@ export class AccountsController {
   @ApiOperation({ summary: 'Get account by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(@CurrentUser('sub') userId: string, @Param('id') id: string, @Query('currency') currency?: string) {
-    const acc = await this.accounts.getById(userId, id, currency);
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    const acc = await this.accounts.getById(userId, id);
     return { success: true, data: toAccountResponse(acc) };
   }
 
@@ -54,10 +53,7 @@ export class AccountsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateAccountDto,
-    @Query('currency') currency?: string,
   ) {
-    // Enforce active dashboard currency: override body.currency if currency query is provided
-    if (currency) (body as any).currency = currency;
     const created = await this.accounts.create(userId, body);
     return { success: true, data: toAccountResponse(created) };
   }
@@ -70,9 +66,8 @@ export class AccountsController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateAccountDto,
-    @Query('currency') currency?: string,
   ) {
-    const updated = await this.accounts.update(userId, id, body, currency);
+    const updated = await this.accounts.update(userId, id, body);
     return { success: true, data: toAccountResponse(updated) };
   }
 
@@ -80,8 +75,8 @@ export class AccountsController {
   @ApiOperation({ summary: 'Soft delete account' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string, @Query('currency') currency?: string) {
-    await this.accounts.softDelete(userId, id, currency);
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    await this.accounts.softDelete(userId, id);
     return { success: true };
   }
 
@@ -92,9 +87,8 @@ export class AccountsController {
   async setDefault(
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
-    @Query('currency') currency?: string,
   ) {
-    await this.accounts.setDefault(userId, id, currency);
+    await this.accounts.setDefault(userId, id);
     return { success: true };
   }
 

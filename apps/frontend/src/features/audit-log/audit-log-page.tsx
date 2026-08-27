@@ -1,424 +1,99 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { History, RotateCcw, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Laptop, LogOut, MapPin, RefreshCw, ShieldCheck } from "lucide-react";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatTransactionDate } from "@/lib/format";
-import { uiText } from "@/locales";
-import { auditLogService } from "@/services/audit-log.service";
-import { useDataRefreshStore } from "@/stores/refresh.store";
-import type { AuditLogItem } from "@/types/audit-log";
-import { cn } from "@/lib/utils";
+import { getAccessToken } from "@/lib/auth-token";
+import { sessionService } from "@/services/session.service";
+import type { SessionItem } from "@/types/session";
 
-const MODULE_OPTIONS = [
-  "auth",
-  "user",
-  "role",
-  "permission",
-  "account",
-  "category",
-  "transaction",
-  "budget",
-  "saving_goal",
-  "investment",
-];
-
-const ACTION_OPTIONS = [
-  "AUTH_LOGIN",
-  "AUTH_LOGOUT",
-  "AUTH_REFRESH_TOKEN",
-  "AUTH_PASSWORD_CHANGED",
-  "USER_CREATED",
-  "USER_UPDATED",
-  "USER_DELETED",
-  "ROLE_CHANGED",
-  "PERMISSION_CHANGED",
-  "ACCOUNT_CREATED",
-  "ACCOUNT_UPDATED",
-  "ACCOUNT_DELETED",
-  "DEFAULT_ACCOUNT_CHANGED",
-  "CATEGORY_CREATED",
-  "CATEGORY_UPDATED",
-  "CATEGORY_DELETED",
-  "TRANSACTION_CREATED",
-  "TRANSACTION_UPDATED",
-  "TRANSACTION_DELETED",
-  "TRANSFER_CREATED",
-  "TRANSFER_FAILED",
-  "BUDGET_CREATED",
-  "BUDGET_UPDATED",
-  "BUDGET_DELETED",
-  "SAVING_GOAL_CREATED",
-  "SAVING_GOAL_UPDATED",
-  "SAVING_GOAL_DELETED",
-  "INVESTMENT_CREATED",
-  "INVESTMENT_UPDATED",
-  "INVESTMENT_DELETED",
-];
-
-function formatActionLabel(action: string) {
-  // Map backend audit action constants to localized, human-friendly strings (uiText.activity)
-  const normalized = action.toUpperCase();
-  const map: Record<string, string> = {
-    AUTH_LOGIN: uiText.activity.login,
-    AUTH_LOGOUT: uiText.activity.logout,
-    AUTH_REFRESH_TOKEN: uiText.activity.refreshToken,
-    AUTH_PASSWORD_CHANGED: uiText.activity.passwordChanged,
-    AUDIT_VIEW: uiText.activity.auditViewed,
-    USER_CREATED: uiText.activity.userCreated,
-    USER_UPDATED: uiText.activity.userUpdated,
-    USER_DELETED: uiText.activity.userDeleted,
-    ROLE_CHANGED: uiText.activity.roleChanged,
-    PERMISSION_CHANGED: uiText.activity.permissionChanged,
-    ACCOUNT_CREATED: uiText.activity.accountCreated,
-    ACCOUNT_UPDATED: uiText.activity.accountUpdated,
-    ACCOUNT_DELETED: uiText.activity.accountDeleted,
-    DEFAULT_ACCOUNT_CHANGED: uiText.activity.defaultAccountChanged,
-    CATEGORY_CREATED: uiText.activity.categoryCreated,
-    CATEGORY_UPDATED: uiText.activity.categoryUpdated,
-    CATEGORY_DELETED: uiText.activity.categoryDeleted,
-    TRANSACTION_CREATED: uiText.activity.transactionCreated,
-    TRANSACTION_UPDATED: uiText.activity.transactionUpdated,
-    TRANSACTION_DELETED: uiText.activity.transactionDeleted,
-    TRANSFER_CREATED: uiText.activity.transferCreated,
-    TRANSFER_FAILED: uiText.activity.transferFailed,
-    BUDGET_CREATED: uiText.activity.budgetCreated,
-    BUDGET_UPDATED: uiText.activity.budgetUpdated,
-    BUDGET_DELETED: uiText.activity.budgetDeleted,
-    SAVING_GOAL_CREATED: uiText.activity.savingGoalCreated,
-    SAVING_GOAL_UPDATED: uiText.activity.savingGoalUpdated,
-    SAVING_GOAL_DELETED: uiText.activity.savingGoalDeleted,
-    INVESTMENT_CREATED: uiText.activity.investmentCreated,
-    INVESTMENT_UPDATED: uiText.activity.investmentUpdated,
-    INVESTMENT_DELETED: uiText.activity.investmentDeleted,
-  };
-  return map[normalized] ?? prettify(normalized);
+function currentSessionId(): string | null {
+  const token = getAccessToken();
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))?.sessionId ?? null;
+  } catch {
+    return null;
+  }
 }
 
-function prettify(key: string) {
-  // Replace underscores and camel/pascal cases into readable labels
-  return key
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/(^|\s)\S/g, (t) => t.toUpperCase());
+function location(session: SessionItem) {
+  return [session.city, session.country].filter(Boolean).join(", ") || "Lokasi tidak diketahui";
 }
-
-function formatModuleLabel(module: string) {
-  // Prefer localized module labels, then uiText.navigation, then prettify
-  const activity = (uiText.activity as any) || {};
-  if (activity.moduleLabels?.[module]) return activity.moduleLabels[module];
-  const nav = (uiText.navigation as any) || {};
-  if (nav[module]) return nav[module];
-  // Convert snake-case modules like saving_goal -> Saving Goal
-  return prettify(module);
-}
-
-const DEFAULT_PAGE_SIZE = 10;
 
 export function AuditLogPage() {
-  const [module, setModule] = useState("all");
-  const [action, setAction] = useState("all");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-
-  const [items, setItems] = useState<AuditLogItem[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [items, setItems] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const dataVersion = useDataRefreshStore((state) => state.version);
+  const currentId = currentSessionId();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const sessions = await sessionService.list();
+      setItems(sessions.sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId)));
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentId]);
 
   useEffect(() => {
-    let cancelled = false;
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
-    const run = async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-      setLoading(true);
-      setError(false);
-
-      const from = fromDate ? `${fromDate}T00:00:00.000Z` : undefined;
-      const to = toDate ? `${toDate}T23:59:59.999Z` : undefined;
-
-      try {
-        const result = await auditLogService.listOwn({
-          page,
-          limit: pageSize,
-          module: module === "all" ? undefined : module,
-          action: action === "all" ? undefined : action,
-          fromDate: from,
-          toDate: to,
-        });
-        if (cancelled) return;
-        setItems(result.items);
-        setTotalItems(result.pagination.total);
-        if (page > Math.max(1, result.pagination.totalPages)) {
-          setPage(1);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey, dataVersion, page, pageSize, module, action, fromDate, toDate]);
-
-  const refresh = () => setRefreshKey((key) => key + 1);
-
-  const handleReset = () => {
-    setModule("all");
-    setAction("all");
-    setFromDate("");
-    setToDate("");
-    setPage(1);
-    refresh();
+  const revoke = async (id: string) => {
+    if (!window.confirm("Logout perangkat ini?")) return;
+    await sessionService.revoke(id);
+    await load();
   };
 
-  const isEmpty = !loading && !error && totalItems === 0;
+  const revokeOthers = async () => {
+    if (!window.confirm("Logout semua perangkat lain?")) return;
+    await sessionService.revokeOthers();
+    await load();
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {uiText.auditLogPage.title}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {uiText.auditLogPage.subtitle}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-2">
-        <Select
-          value={module}
-          onValueChange={(value) => {
-            setModule(value);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger
-            className="w-full sm:w-44"
-            aria-label={uiText.auditLogPage.module}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {uiText.auditLogPage.allModules}
-            </SelectItem>
-            {MODULE_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {formatModuleLabel(option)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={action}
-          onValueChange={(value) => {
-            setAction(value);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger
-            className="w-full sm:w-56"
-            aria-label={uiText.auditLogPage.action}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {uiText.auditLogPage.allActions}
-            </SelectItem>
-            {ACTION_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {formatActionLabel(option)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="space-y-1">
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setPage(1);
-            }}
-            aria-label={uiText.auditLogPage.startDate}
-            className="h-9"
-          />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Log Aktivitas</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Sesi aktif pada setiap perangkat.</p>
         </div>
-        <div className="space-y-1">
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setPage(1);
-            }}
-            aria-label={uiText.auditLogPage.endDate}
-            className="h-9"
-          />
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-xl"
-          onClick={handleReset}
-        >
-          <RotateCcw />
-          {uiText.auditLogPage.resetFilters}
+        <Button type="button" variant="outline" className="rounded-xl" onClick={() => void revokeOthers()} disabled={loading || items.filter((item) => item.id !== currentId).length === 0}>
+          <LogOut /> Logout Perangkat Lain
         </Button>
       </div>
-
-      {error ? (
-        <ErrorState
-          title={uiText.states.errorTitle}
-          description={uiText.auditLogPage.loadError}
-          onRetry={refresh}
-        />
-      ) : isEmpty ? (
-        <EmptyState
-          title={uiText.auditLogPage.empty}
-          icon={
-            <History
-              className="size-8 text-muted-foreground"
-              aria-hidden="true"
-            />
-          }
-        />
-      ) : loading ? (
-        <ul className="space-y-3" aria-hidden="true">
-          {Array.from({ length: Math.min(pageSize, 5) }).map((_, index) => (
-            <li key={index} className="rounded-xl border border-border p-4">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="mt-2 h-3 w-2/3" />
-              <Skeleton className="mt-2 h-3 w-24" />
-            </li>
-          ))}
+      {error ? <ErrorState title="Sesi tidak dapat dimuat" onRetry={() => void load()} /> : loading ? (
+        <div className="space-y-3">{Array.from({ length: 3 }).map((_, index) => <div key={index} className="rounded-xl border border-border p-4"><Skeleton className="h-5 w-48" /><Skeleton className="mt-3 h-4 w-64" /></div>)}</div>
+      ) : items.length === 0 ? <EmptyState title="Tidak ada sesi aktif" icon={<ShieldCheck className="size-8 text-muted-foreground" />} /> : (
+        <ul className="space-y-3">
+          {items.map((session) => {
+            const current = session.id === currentId;
+            return <li key={session.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2"><Laptop className="size-4 text-muted-foreground" /><p className="font-medium text-foreground">{session.device_name || session.browser || "Perangkat tidak diketahui"}</p>{current && <Badge>Perangkat ini</Badge>}</div>
+                  <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-3.5" />{location(session)}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><RefreshCw className="size-3" />Aktivitas terakhir {formatTransactionDate(session.last_activity_at)}</p>
+                </div>
+                {!current && <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => void revoke(session.id)}><LogOut />Logout</Button>}
+              </div>
+            </li>;
+          })}
         </ul>
-      ) : (
-        <>
-          <ul className="space-y-3">
-            {items.map((item) => (
-              <AuditLogRow key={item.id} item={item} />
-            ))}
-          </ul>
-
-          <TransactionPagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
-        </>
       )}
     </div>
-  );
-}
-
-function AuditLogRow({ item }: { item: AuditLogItem }) {
-  const hasDetail =
-    item.metadata !== null ||
-    item.requestPath !== null ||
-    item.ipAddress !== null ||
-    item.userAgent !== null;
-
-  const status = item.responseStatus ?? 200;
-  const statusOk = status >= 200 && status < 300;
-
-  return (
-    <li className="rounded-xl border border-border bg-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="shrink-0">
-              {formatModuleLabel(item.module)}
-            </Badge>
-            <Badge variant="secondary" className="shrink-0">
-              {formatActionLabel(item.action)}
-            </Badge>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                statusOk
-                  ? "bg-success/10 text-success"
-                  : "bg-danger/10 text-danger",
-              )}
-            >
-              {item.responseStatus === null
-                ? uiText.auditLogPage.status
-                : `HTTP ${item.responseStatus}`}
-            </span>
-          </div>
-          <p className="mt-2 text-sm font-medium text-foreground">
-            {item.description
-              ? prettify(item.description)
-              : formatActionLabel(item.action)}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-            <ShieldCheck className="size-3" aria-hidden="true" />
-            {formatTransactionDate(item.createdAt)}
-          </p>
-        </div>
-      </div>
-
-      {hasDetail && (
-        <details className="mt-3 group">
-          <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">
-            {uiText.auditLogPage.detail}
-          </summary>
-          <div className="mt-2 space-y-2 rounded-xl bg-muted p-3 text-xs text-muted-foreground">
-            {item.requestPath && (
-              <p>
-                <span className="font-medium text-foreground">
-                  {uiText.auditLogPage.requestInfo}:
-                </span>{" "}
-                {item.requestMethod ?? ""} {item.requestPath}
-              </p>
-            )}
-            {item.ipAddress && <p>IP: {item.ipAddress}</p>}
-            {item.userAgent && <p className="truncate">UA: {item.userAgent}</p>}
-            {item.metadata !== null && (
-              <div>
-                <p className="font-medium text-foreground">
-                  {uiText.auditLogPage.metadata}:
-                </p>
-                <pre className="mt-1 max-h-48 overflow-auto rounded-lg bg-background p-2 text-[11px]">
-                  {JSON.stringify(item.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        </details>
-      )}
-    </li>
   );
 }

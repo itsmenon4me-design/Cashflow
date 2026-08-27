@@ -25,17 +25,25 @@ export function SummaryCard({
 }: SummaryCardProps) {
   const showChange = !loading && change !== undefined;
 
+  function getKpiValueClass(val: string) {
+    const len = (val ?? "").trim().length;
+    if (len <= 8) return "text-2xl sm:text-3xl font-semibold tracking-tight";
+    if (len <= 12) return "text-xl sm:text-2xl font-semibold tracking-tight";
+    if (len <= 16) return "text-lg sm:text-xl font-semibold tracking-tight";
+    return "text-base sm:text-lg font-semibold tracking-tight";
+  }
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {label}
           </p>
           {loading ? (
             <Skeleton className="mt-2 h-8 w-32" />
           ) : (
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+            <p className={cn("mt-2 text-foreground whitespace-nowrap tabular-nums overflow-visible", getKpiValueClass(value))}>
               {value}
             </p>
           )}

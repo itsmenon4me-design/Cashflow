@@ -1,12 +1,9 @@
-﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
-import {
+﻿import {
   IsInt,
   Min,
   Max,
   IsOptional,
   IsISO8601,
-  IsIn,
-  IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -38,13 +35,4 @@ export class MonthlyReportQueryDto {
   @IsOptional()
   @IsISO8601()
   endDate?: string;
-
-  @ApiPropertyOptional({
-    description: 'Financial dataset currency scope for report aggregation.',
-    enum: SUPPORTED_CURRENCIES,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
 }

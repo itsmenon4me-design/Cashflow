@@ -3,7 +3,6 @@ import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import type { Category } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
-import { normalizeDashboardCurrency } from '../../dashboard/dashboard-currency';
 
 interface CategoryGroup {
   category_id?: string | null;
@@ -34,18 +33,7 @@ export interface MonthlyReportResult {
 export class MonthlyReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Resolve the active financial dataset scope so income/expense/net aggregates
-  // never mix different currencies. If the caller passes an explicit dashboard
-  // currency, that becomes the authoritative scope.
-  private async resolveTargetCurrency(
-    userId: string,
-    currency?: string,
-  ): Promise<string> {
-    const normalized = normalizeDashboardCurrency(currency);
-    if (normalized) {
-      return normalized;
-    }
-
+  private async resolveTargetCurrency(userId: string): Promise<string> {
     const accounts = await this.prisma.account.findMany({
       where: { user_id: userId, deleted_at: null },
       select: { currency: true, is_default: true },
@@ -81,7 +69,6 @@ export class MonthlyReportService {
     month?: number | string,
     year?: number | string,
     range?: { start?: Date; end?: Date },
-    currency?: string,
   ): Promise<MonthlyReportResult> {
     let start: Date;
     let end: Date;
@@ -102,7 +89,7 @@ export class MonthlyReportService {
       end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
     }
 
-    const targetCurrency = await this.resolveTargetCurrency(userId, currency);
+    const targetCurrency = await this.resolveTargetCurrency(userId);
 
     // aggregates income and expense (single currency only)
     const [incAgg, expAgg, txCount] = await Promise.all([

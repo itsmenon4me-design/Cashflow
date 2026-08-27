@@ -4,101 +4,24 @@ import {
   getCurrencySpec,
   toMajorUnits,
 } from "@/lib/money";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
-import { DEFAULT_CURRENCY, useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
-function resolveDisplayCurrency(currency?: string): string {
-  const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-  return normalizeDashboardCurrency(activeCurrency) ?? DEFAULT_CURRENCY;
+const IDR = 'IDR';
+
+export function formatCurrency(amount: number, _currency?: string): string {
+  return formatMajorCurrency(amount, IDR);
 }
 
-/**
- * Single display formatter for monetary values expressed in major units
- * (dollars, rupiah, yen, etc.).
- *
- * Locale and decimal precision are derived from the currency spec, so IDR/JPY
- * render with 0 decimals and USD/SGD/EUR/GBP/AUD/MYR/THB/PHP/CNY/HKD render
- * with 2 decimals - never hardcoded per UI file.
- */
-export function formatCurrency(amount: number, currency?: string): string {
-  const resolved = resolveDisplayCurrency(currency);
-  const spec = getCurrencySpec(resolved);
-  // Avoid calling Intl on the server to prevent SSR/CSR mismatches. Return a deterministic string.
-  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
-    try {
-      // eslint-disable-next-line no-console
-      console.trace('[format] formatCurrency running on server (fallback)', { resolved, ts: Date.now() });
-    } catch (e) {}
-    try {
-      return `${amount.toFixed(spec.minorUnits)} ${spec.code}`;
-    } catch (e) {
-      return `${amount} ${spec.code}`;
-    }
-  }
-  return formatMajorCurrency(amount, resolved);
+export function formatCurrencyCents(amount: string | number | bigint, _currency?: string): string {
+  return formatMoneyFromMinorUnits(amount, IDR);
 }
 
-/** Format persisted minor units with currency-specific precision and locale. */
-export function formatCurrencyCents(amount: string | number | bigint, currency?: string): string {
-  const resolved = resolveDisplayCurrency(currency);
-  const spec = getCurrencySpec(resolved);
-  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
-    try {
-      // eslint-disable-next-line no-console
-      console.trace('[format] formatCurrencyCents running on server (fallback)', { resolved, ts: Date.now() });
-    } catch (e) {}
-    try {
-      const major = Number(toMajorUnits(Number.isFinite(Number(amount)) ? Number(amount) : 0, resolved));
-      return `${major.toFixed(spec.minorUnits)} ${spec.code}`;
-    } catch (e) {
-      return `${String(amount)} ${spec.code}`;
-    }
-  }
-  return formatMoneyFromMinorUnits(amount, resolved);
+export function formatMoney(amount: number, _currency?: string): string {
+  return formatCurrency(amount, IDR);
 }
 
-export function formatMoney(amount: number, currency?: string): string {
-  return formatCurrency(amount, currency);
-}
-
-/**
- * Compact, currency-aware number for chart axis ticks.
- *
- * Expects a value in minor units (the canonical storage form) and converts to
- * major units before applying the currency locale/notation so the scale label
- * matches the currency (e.g. "Rp1,5jt" for IDR, "$15K" for USD) instead of a
- * hardcoded Indonesian "…jt" suffix or locale.
- */
-export function formatCompactCurrency(value: number, currency?: string): string {
-  const resolved = resolveDisplayCurrency(currency);
-  const spec = getCurrencySpec(resolved);
-  const majorUnits = toMajorUnits(Number.isFinite(value) ? value : 0, resolved);
-  try {
-    // Log where this formatter runs (server vs client) for hydration diagnostics only.
-    if (typeof window === 'undefined') {
-      // eslint-disable-next-line no-console
-      console.trace('[format] formatCompactCurrency running on server', { resolved, locale: spec.primaryLocale, ts: Date.now() });
-      try {
-        // eslint-disable-next-line no-console
-        console.log('[format] server stack', (new Error()).stack);
-      } catch (e) {}
-    } else {
-      // eslint-disable-next-line no-console
-      console.trace('[format] formatCompactCurrency running on client', { resolved, locale: spec.primaryLocale, ts: Date.now() });
-    }
-  } catch (e) {}
-  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
-    // Server-side: return a deterministic compact fallback to avoid SSR/CSR mismatches.
-    // Example: "1.5K USD" — use basic magnitude-based compacting to keep the server output stable.
-    try {
-      const abs = Math.abs(majorUnits);
-      if (abs >= 1_000_000) return `${(majorUnits / 1_000_000).toFixed(1)}M ${spec.code}`;
-      if (abs >= 1_000) return `${(majorUnits / 1_000).toFixed(1)}K ${spec.code}`;
-      return `${majorUnits.toFixed(0)} ${spec.code}`;
-    } catch (e) {
-      return `${majorUnits} ${spec.code}`;
-    }
-  }
+export function formatCompactCurrency(value: number, _currency?: string): string {
+  const spec = getCurrencySpec(IDR);
+  const majorUnits = toMajorUnits(Number.isFinite(value) ? value : 0, IDR);
 
   return new Intl.NumberFormat(spec.primaryLocale, {
     style: "currency",
@@ -108,39 +31,52 @@ export function formatCompactCurrency(value: number, currency?: string): string 
   }).format(majorUnits);
 }
 
+// Single source of truth for app-wide date/time rendering.
+// Fixed locale + timezone so SSR and CSR produce identical output.
+export const APP_LOCALE = "id-ID";
+export const APP_TIME_ZONE = "Asia/Jakarta";
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const dateFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: APP_TIME_ZONE,
+});
+
+const timeFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: APP_TIME_ZONE,
+});
+
+const fullDateFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: APP_TIME_ZONE,
+});
+
+/** "Senin, 24 Agustus 2026" — top bar / headings. */
+export function formatFullDate(date: Date = new Date()): string {
+  return fullDateFormatter.format(date);
+}
+
+/**
+ * "24 Agu 2026" or "24 Agu 2026 • 19.02".
+ * Date-only inputs (YYYY-MM-DD) render without a time part.
+ */
 export function formatTransactionDate(date: string): string {
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) {
     return date;
   }
 
-  // Use user's locale and timezone (browser environment). If unavailable, fall back to id-ID and system timezone.
-  const locale = typeof navigator !== "undefined" && navigator.language ? navigator.language : "id-ID";
-  const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
-
-  if (typeof window === 'undefined' || typeof Intl === 'undefined') {
-    // Server-side deterministic fallback: use a stable ISO-like date to avoid differences
-    // between server and client locale/timezone rendering.
-    try {
-      return parsed.toISOString();
-    } catch (e) {
-      return date;
-    }
+  if (DATE_ONLY_RE.test(date)) {
+    return dateFormatter.format(parsed);
   }
-
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: tz,
-  });
-
-  const timeFormatter = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: tz,
-  });
-
   return `${dateFormatter.format(parsed)} • ${timeFormatter.format(parsed)}`;
 }

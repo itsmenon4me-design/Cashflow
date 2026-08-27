@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { YearStepper } from "@/components/ui/year-stepper";
 import {
   BUDGET_SORT_OPTIONS,
   MONTH_OPTIONS,
@@ -25,7 +26,8 @@ export interface BudgetPeriod {
 
 interface BudgetFiltersProps {
   filters: BudgetFiltersState;
-  years: number[];
+  /** Hard floor for the year stepper (year the account was created). */
+  minYear?: number;
   period: BudgetPeriod;
   onChange: (filters: BudgetFiltersState) => void;
   onPeriodChange: (period: BudgetPeriod) => void;
@@ -34,7 +36,7 @@ interface BudgetFiltersProps {
 
 export function BudgetFilters({
   filters,
-  years,
+  minYear,
   period,
   onChange,
   onPeriodChange,
@@ -90,23 +92,14 @@ export function BudgetFilters({
           </SelectContent>
         </Select>
 
-        <Select
-          value={String(period.year)}
-          onValueChange={(year) => onPeriodChange({ ...period, year: Number(year) })}
-        >
-          <SelectTrigger className="w-full rounded-xl" aria-label={uiText.budgets.year}>
-            <SelectValue placeholder={uiText.budgets.year} />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <YearStepper
+          value={period.year}
+          minYear={minYear}
+          onChange={(year) => onPeriodChange({ ...period, year })}
+          ariaLabel={uiText.budgets.year}
+        />
 
-        <Button type="button" variant="outline" className="rounded-xl" onClick={onReset}>
+        <Button type="button" variant="outline" className="rounded-xl self-end" onClick={onReset}>
           <RotateCcw />
           {uiText.transactions.resetFilters}
         </Button>

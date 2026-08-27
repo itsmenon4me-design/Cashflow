@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import { useSidebarStore } from "@/stores/sidebar.store";
 
-export function Sidebar() {
+export const Sidebar = memo(function Sidebar() {
   const { collapsed, toggleCollapsed } = useSidebarStore();
 
   return (
@@ -53,4 +54,4 @@ export function Sidebar() {
       </div>
     </aside>
   );
-}
+});

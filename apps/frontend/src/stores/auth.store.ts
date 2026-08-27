@@ -10,6 +10,12 @@ import {
 import { clearOfflineUserData } from "@/lib/offline/storage";
 import { useSyncStore } from "@/stores/sync.store";
 
+declare global {
+  interface Window {
+    __authHydrated?: boolean;
+  }
+}
+
 export interface AuthUser {
   name: string;
   email: string;
@@ -18,6 +24,7 @@ export interface AuthUser {
 interface AuthState {
   isAuthenticated: boolean;
   user: AuthUser | null;
+  hydrated: boolean;
   setUser: (user: AuthUser | null) => void;
   hydrateFromStorage: () => void;
   loginSession: (params: { accessToken: string; refreshToken: string; user?: StoredUser | null }) => void;
@@ -25,8 +32,9 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: typeof window !== "undefined" && getAccessToken() !== null,
-  user: getStoredUser() as AuthUser | null,
+  isAuthenticated: false,
+  user: null,
+  hydrated: false,
   setUser: (user) => {
     setStoredUser(user);
     set({ user });
@@ -37,7 +45,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       isAuthenticated: token !== null,
       user: storedUser,
+      hydrated: true,
     });
+    if (typeof window !== "undefined") {
+      window.__authHydrated = true;
+    }
   },
   loginSession: ({ accessToken, refreshToken, user }) => {
     setAuthTokens(accessToken, refreshToken);

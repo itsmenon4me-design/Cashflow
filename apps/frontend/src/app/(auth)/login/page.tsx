@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Apple, Eye, EyeOff, Globe, Wallet } from "lucide-react";
+import { Eye, EyeOff, Wallet } from "lucide-react";
+import { GoogleIcon, AppleIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uiText } from "@/locales";
 import { ApiError } from "@/lib/axios";
+import { apiClient } from "@/lib/axios";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -97,9 +99,19 @@ export default function Page() {
         return;
       }
 
-      const user = response.user
-        ? { name: response.user.full_name || email.split("@")[0], email: response.user.email }
-        : { name: email.split("@")[0], email: email.trim() };
+      // Login response ships no user object — resolve real name/email/id via /auth/me
+      let user: { id?: string; name: string; email: string };
+      try {
+        const me = await apiClient.get<{ success: boolean; data?: { id?: string; full_name?: string; name?: string; email?: string } }>("/auth/me");
+        const d = me.data;
+        user = {
+          id: d?.id,
+          name: d?.full_name || d?.name || email.split("@")[0],
+          email: d?.email || email.trim(),
+        };
+      } catch {
+        user = { name: email.split("@")[0], email: email.trim() };
+      }
 
       loginSession({
         accessToken: response.data.accessToken,
@@ -215,7 +227,7 @@ export default function Page() {
                 loading={googleSubmitting}
                 onClick={handleGoogleClick}
               >
-                <Globe className="mr-2 size-4" />
+                <GoogleIcon className="mr-2 size-4" />
                 {googleSubmitting ? t.preparing : t.continueGoogle}
               </Button>
 
@@ -226,7 +238,7 @@ export default function Page() {
                 loading={appleSubmitting}
                 onClick={handleAppleClick}
               >
-                <Apple className="mr-2 size-4" />
+                <AppleIcon className="mr-2 size-4" />
                 {appleSubmitting ? t.preparing : t.continueApple}
               </Button>
 

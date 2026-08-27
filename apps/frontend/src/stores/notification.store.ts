@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { notificationService } from "@/services/notification.service";
 import { useAuthStore } from "@/stores/auth.store";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { NotificationItem } from "@/types/notification";
 
 interface NotificationState {
@@ -25,25 +24,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   error: false,
 
   fetch: async () => {
-    const currencyState = useDashboardCurrencyStore.getState();
-
-    // Prevent protected notification API calls before the dashboard currency has
-    // been hydrated from storage during client-side navigation.
-    if (!currencyState.hydrated) {
-      let unsub: () => void = () => {};
-      unsub = useDashboardCurrencyStore.subscribe((s) => {
-        if (s.hydrated) {
-          try {
-            unsub();
-          } catch {
-            // ignore
-          }
-          void get().fetch();
-        }
-      });
-      return;
-    }
-
     // Prevent protected notification API calls when user is not authenticated.
     const isAuth = useAuthStore.getState().isAuthenticated;
     if (!isAuth) {
@@ -68,11 +48,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     try {
       const [unreadCount, list] = await Promise.all([
         notificationService.unreadCount(),
-        notificationService.list({
-          page: 1,
-          limit: 5,
-          currency: useDashboardCurrencyStore.getState().currency,
-        }),
+        notificationService.list({ page: 1, limit: 5 }),
       ]);
       set({ unreadCount, recent: list.items, initialized: true, loading: false, error: false });
     } catch {

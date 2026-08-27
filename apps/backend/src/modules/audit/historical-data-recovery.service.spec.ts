@@ -271,10 +271,10 @@ describe('HistoricalDataRecoveryService', () => {
       ...findingBase,
       entity_type: 'transfer',
       entity_id: 'group-1',
-      currency: 'USD',
+      currency: 'IDR',
       stored_value: '123',
       suspected_value: '124',
-      reason: 'Transfer legs within the same group carry different amounts.',
+      reason: 'Transfer mismatch requires explicit side selection before recovery.',
       evidence: ['source and destination currency differ'],
     };
 
@@ -284,7 +284,7 @@ describe('HistoricalDataRecoveryService', () => {
         actorId: 'u1',
         currentRecordOwnerId: 'u1',
         currentValue: '123',
-        currentCurrency: 'USD',
+        currentCurrency: 'IDR',
         approvedValue: '124',
       }),
     ).toThrow('Transfer mismatch requires explicit side selection');

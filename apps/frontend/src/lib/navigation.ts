@@ -112,8 +112,8 @@ export function getAppMenuItems(): AppMenuItem[] {
       aliases: ["notification", "notifikasi", "pemberitahuan"],
     },
     {
-      label: uiText.navigation.auditLog,
-      href: "/audit-log",
+      label: "Log Aktivitas",
+      href: "/log-aktivitas",
       icon: ShieldCheck,
       aliases: ["audit", "audit log", "log", "riwayat aktivitas"],
     },

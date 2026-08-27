@@ -34,7 +34,7 @@ describe("dashboard.service", () => {
 
     const series = await dashboardService.getFlowSeries();
 
-    expect(apiClient.get).toHaveBeenCalledWith("/dashboard/widgets", { params: { currency: "USD" } });
+    expect(apiClient.get).toHaveBeenCalledWith("/dashboard/widgets");
     expect(series.cashFlow).toEqual([
       { month: "Mar", balance: "50000" },
       { month: "Apr", balance: "120000" },

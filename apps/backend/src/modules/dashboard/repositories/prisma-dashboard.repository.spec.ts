@@ -44,92 +44,6 @@ describe('PrismaDashboardRepository.getSummary', () => {
     expect(res.total_accounts).toBe(2);
   });
 
-  it('aggregates a single ledger only and never mixes USD and IDR', async () => {
-    const prismaMock = {
-      account: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'a1',
-            currency: 'IDR',
-            current_balance_cents: 100000n,
-            is_default: true,
-            updated_at: new Date(),
-          },
-          {
-            id: 'a2',
-            currency: 'USD',
-            current_balance_cents: 10000n,
-            is_default: false,
-            updated_at: new Date(),
-          },
-        ]),
-      },
-      transaction: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
-      },
-      category: { count: jest.fn().mockResolvedValue(0) },
-    };
-
-    const repo = new PrismaDashboardRepository(
-      prismaMock as unknown as PrismaService,
-    );
-    const res = await repo.getSummary(
-      'u1',
-      new Date('2026-08-01'),
-      new Date('2026-08-31'),
-    );
-    // primary currency = default account currency (IDR)
-    expect(res.currency).toBe('IDR');
-    // USD must never appear in the active ledger
-    expect(res.by_currency!.find((b) => b.currency === 'USD')).toBeUndefined();
-    expect(res.by_currency!.map((b) => b.currency)).toEqual(['IDR']);
-    expect(res.total_assets_cents).toBe('100000');
-    expect(res.total_accounts).toBe(1);
-  });
-
-  it('respects an explicit currency scope and ignores other ledgers', async () => {
-    const prismaMock = {
-      account: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'a1',
-            currency: 'IDR',
-            current_balance_cents: 100000n,
-            is_default: true,
-            updated_at: new Date(),
-          },
-          {
-            id: 'a2',
-            currency: 'USD',
-            current_balance_cents: 10000n,
-            is_default: false,
-            updated_at: new Date(),
-          },
-        ]),
-      },
-      transaction: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
-      },
-      category: { count: jest.fn().mockResolvedValue(0) },
-    };
-
-    const repo = new PrismaDashboardRepository(
-      prismaMock as unknown as PrismaService,
-    );
-    const res = await repo.getSummary(
-      'u1',
-      new Date('2026-08-01'),
-      new Date('2026-08-31'),
-      'USD',
-    );
-    expect(res.currency).toBe('USD');
-    expect(res.total_assets_cents).toBe('10000');
-    expect(res.total_accounts).toBe(1);
-    expect(res.by_currency!.map((b) => b.currency)).toEqual(['USD']);
-  });
-
   it('excludes deleted accounts and queries with deleted_at = null', async () => {
     const accountFind = jest.fn().mockResolvedValue([
       // simulate that prisma returns only non-deleted accounts because query filters deleted_at: null
@@ -269,80 +183,6 @@ describe('PrismaDashboardRepository.getSummary', () => {
     expect(BigInt(idrEntry!.total_assets_cents)).toBe(big);
   });
 
-  it('selects primary currency deterministically (default account preference then insertion order)', async () => {
-    // Case 1: default account exists
-    const prismaMockDefault = {
-      account: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'a1',
-            currency: 'USD',
-            current_balance_cents: 10000n,
-            is_default: true,
-            updated_at: new Date(),
-          },
-          {
-            id: 'a2',
-            currency: 'IDR',
-            current_balance_cents: 100000n,
-            is_default: false,
-            updated_at: new Date(),
-          },
-        ]),
-      },
-      transaction: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
-      },
-      category: { count: jest.fn().mockResolvedValue(0) },
-    };
-    const repoDefault = new PrismaDashboardRepository(
-      prismaMockDefault as unknown as PrismaService,
-    );
-    const resDefault = await repoDefault.getSummary(
-      'u6',
-      new Date('2026-08-01'),
-      new Date('2026-08-31'),
-    );
-    expect(resDefault.currency).toBe('USD');
-
-    // Case 2: no default, insertion order determines primary
-    const prismaMockOrder = {
-      account: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'a1',
-            currency: 'USD',
-            current_balance_cents: 10000n,
-            is_default: false,
-            updated_at: new Date(),
-          },
-          {
-            id: 'a2',
-            currency: 'IDR',
-            current_balance_cents: 100000n,
-            is_default: false,
-            updated_at: new Date(),
-          },
-        ]),
-      },
-      transaction: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
-      },
-      category: { count: jest.fn().mockResolvedValue(0) },
-    };
-    const repoOrder = new PrismaDashboardRepository(
-      prismaMockOrder as unknown as PrismaService,
-    );
-    const resOrder = await repoOrder.getSummary(
-      'u7',
-      new Date('2026-08-01'),
-      new Date('2026-08-31'),
-    );
-    expect(resOrder.currency).toBe('USD');
-  });
-
   it('ensures values are not double-scaled during aggregation', async () => {
     const prismaMock = {
       account: {
@@ -356,7 +196,7 @@ describe('PrismaDashboardRepository.getSummary', () => {
           },
           {
             id: 'a2',
-            currency: 'USD',
+            currency: 'IDR',
             current_balance_cents: 10000n,
             is_default: false,
             updated_at: new Date(),
@@ -379,9 +219,9 @@ describe('PrismaDashboardRepository.getSummary', () => {
       new Date('2026-08-31'),
     );
 
-    // IDR remains 100000 minor units in the active (default) ledger
+    // balances stay in minor units, never scaled by 100
     expect(res.by_currency![0].currency).toBe('IDR');
-    expect(res.by_currency![0].total_assets_cents).toBe('100000');
-    expect(res.total_assets_cents).toBe('100000');
+    expect(res.by_currency![0].total_assets_cents).toBe('110000');
+    expect(res.total_assets_cents).toBe('110000');
   });
 });

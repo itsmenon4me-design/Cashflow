@@ -141,7 +141,6 @@ describe("LanguageProvider reconciliation", () => {
       userId: "user-1",
       theme: patch.theme ?? "dark",
       language: patch.language ?? "id",
-      currency: patch.currency ?? "IDR",
       timezone: null,
       notificationPreferences: {
         transactions: patch.notificationPreferences?.transactions ?? true,
@@ -174,7 +173,6 @@ describe("LanguageProvider reconciliation", () => {
 
     fireEvent.click(screen.getByText("Terang"));
     fireEvent.click(screen.getByText("Transaksi"));
-    fireEvent.click(document.getElementById("settings-currency") as HTMLElement);
 
     expect(mountCount).toBe(initialMountCount);
     expect(getSettingsSpy).toHaveBeenCalledTimes(initialCalls);

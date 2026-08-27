@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaSessionRepository } from '../repositories/prisma-session.repository';
 import { PrismaRefreshTokenRepository } from '../repositories/prisma-refresh-token.repository';
 import { SessionEntity } from '../entities/session.entity';
+import { AuthRequestContext } from '../types/auth-request';
+import { deriveDeviceInfo } from './device-info';
 
 @Injectable()
 export class SessionService {
@@ -21,6 +23,8 @@ export class SessionService {
     browser?: string | null;
     operating_system?: string | null;
     ip_address?: string | null;
+    city?: string | null;
+    country?: string | null;
     user_agent?: string | null;
     last_activity_at: Date;
     expires_at: Date;
@@ -34,6 +38,8 @@ export class SessionService {
       browser: data.browser,
       operating_system: data.operating_system,
       ip_address: data.ip_address,
+      city: data.city,
+      country: data.country,
       user_agent: data.user_agent,
       last_activity_at: data.last_activity_at,
       expires_at: data.expires_at,
@@ -78,6 +84,21 @@ export class SessionService {
   async logoutCurrent(sessionId: string, userId: string): Promise<void> {
     await this.revoke(sessionId, userId);
     this.logger.log(`Logout user=${userId} session=${sessionId}`);
+  }
+
+  async updateRefreshActivity(
+    sessionId: string,
+    context: AuthRequestContext,
+  ): Promise<void> {
+    const info = deriveDeviceInfo(context.userAgent ?? null);
+    await this.repo.updateActivityContext(sessionId, {
+      ip_address: context.ip ?? null,
+      city: context.city ?? null,
+      country: context.country ?? null,
+      user_agent: context.userAgent ?? null,
+      ...info,
+      last_activity_at: new Date(),
+    });
   }
 
   async updateLastActivity(sessionId: string): Promise<void> {

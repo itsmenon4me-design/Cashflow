@@ -1,6 +1,4 @@
-﻿export type CurrencyAmount = string;
-
-export type KpiKey = "balance" | "income" | "expense" | "cashflow";
+﻿export type KpiKey = "balance" | "income" | "expense" | "cashflow";
 
 export type TransactionStatus = "completed" | "pending" | "cancelled";
 
@@ -9,7 +7,7 @@ export type TransactionType = "income" | "expense";
 export type NotificationType = "bill" | "goal" | "income";
 
 export interface DashboardKpi {
-  value: CurrencyAmount;
+  value: string;
   change: string;
   trend: number[];
 }
@@ -70,6 +68,8 @@ export interface TransactionItem {
   type: TransactionType;
   status: TransactionStatus;
   note?: string;
+  /** Optimistic UI: row exists locally in the offline queue, not yet synced. */
+  pendingSync?: boolean;
 }
 
 export interface MonthlyTargetItem {

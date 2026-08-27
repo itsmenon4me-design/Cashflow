@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -24,7 +24,6 @@ export class TransfersController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateTransferDto,
-    @Query('currency') currency?: string,
   ) {
     if (!userId) throw new Error('Unauthorized');
     const result = await this.service.create(
@@ -39,7 +38,6 @@ export class TransfersController {
           : undefined,
         note: body.note ?? null,
       },
-      currency,
     );
     return result;
   }
@@ -47,20 +45,16 @@ export class TransfersController {
   @Get()
   @ApiOperation({ summary: 'List transfers for current user' })
   @ApiResponse({ status: 200, type: [TransferResponseDto] })
-  async list(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
+  async list(@CurrentUser('sub') userId: string) {
     if (!userId) throw new Error('Unauthorized');
-    return this.service.list(userId, currency);
+    return this.service.list(userId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get transfer by id (transfer_group_id)' })
   @ApiResponse({ status: 200, type: TransferResponseDto })
-  async findById(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-    @Query('currency') currency?: string,
-  ) {
+  async findById(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     if (!userId) throw new Error('Unauthorized');
-    return this.service.findById(userId, id, currency);
+    return this.service.findById(userId, id);
   }
 }

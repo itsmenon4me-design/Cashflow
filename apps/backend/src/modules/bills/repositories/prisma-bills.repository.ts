@@ -147,11 +147,10 @@ export class PrismaBillsRepository implements IBillsRepository {
     return this.map(rec as unknown as BillRecord);
   }
 
-  async findByIdOwned(id: string, userId: string, currency?: string) {
-    const where: any = { id, user_id: userId, deleted_at: null };
-    if (currency) where.currency = currency;
-
-    const rec = await this.prisma.bill.findFirst({ where });
+  async findByIdOwned(id: string, userId: string) {
+    const rec = await this.prisma.bill.findFirst({
+      where: { id, user_id: userId, deleted_at: null },
+    });
 
     if (!rec) {
       return null;
@@ -160,15 +159,12 @@ export class PrismaBillsRepository implements IBillsRepository {
     return this.map(rec as unknown as BillRecord);
   }
 
-  async findAllByUser(userId: string, currency?: string) {
-    const where: any = {
-      user_id: userId,
-      deleted_at: null,
-    };
-    if (currency) where.currency = currency;
-
+  async findAllByUser(userId: string) {
     const recs = await this.prisma.bill.findMany({
-      where,
+      where: {
+        user_id: userId,
+        deleted_at: null,
+      },
       orderBy: {
         due_date: 'asc',
       },
@@ -177,19 +173,16 @@ export class PrismaBillsRepository implements IBillsRepository {
     return (recs as unknown as BillRecord[]).map((rec) => this.map(rec));
   }
 
-  async findUpcomingByUser(userId: string, from: Date, to: Date, currency?: string) {
-    const where: any = {
-      user_id: userId,
-      deleted_at: null,
-      due_date: {
-        gte: from,
-        lte: to,
-      },
-    };
-    if (currency) where.currency = currency;
-
+  async findUpcomingByUser(userId: string, from: Date, to: Date) {
     const recs = await this.prisma.bill.findMany({
-      where,
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        due_date: {
+          gte: from,
+          lte: to,
+        },
+      },
       orderBy: {
         due_date: 'asc',
       },

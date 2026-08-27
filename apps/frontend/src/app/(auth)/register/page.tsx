@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Apple, Eye, EyeOff, Globe, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { GoogleIcon, AppleIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,6 @@ export default function Page() {
   const t = uiText.auth;
 
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -45,8 +45,6 @@ export default function Page() {
   const validate = (): string | null => {
     if (!fullName.trim()) return t.fullNameRequired;
     if (fullName.trim().length < 2) return t.fullNameShort;
-    if (!username.trim()) return t.usernameRequired;
-    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(username)) return t.usernameInvalid;
     if (!email.trim()) return t.emailRequired;
     if (!password) return t.passwordRequired;
     if (password.length < 12) return t.passwordMinLength;
@@ -107,7 +105,6 @@ export default function Page() {
     try {
       const payload = {
         email: email.trim().toLowerCase(),
-        username: username.trim(),
         full_name: fullName.trim(),
         password,
       };
@@ -172,16 +169,7 @@ export default function Page() {
                />
              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="username">{t.username}</Label>
-                <Input
-                  id="username"
-                  placeholder={t.username}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
@@ -268,7 +256,7 @@ export default function Page() {
                 loading={googleSubmitting}
                 onClick={handleGoogleClick}
               >
-                <Globe className="mr-2 size-4" />
+                <GoogleIcon className="mr-2 size-4" />
                 {googleSubmitting ? t.preparing : t.continueGoogle}
               </Button>
 
@@ -279,7 +267,7 @@ export default function Page() {
                 loading={appleSubmitting}
                 onClick={handleAppleClick}
               >
-                <Apple className="mr-2 size-4" />
+                <AppleIcon className="mr-2 size-4" />
                 {appleSubmitting ? t.preparing : t.continueApple}
               </Button>
 

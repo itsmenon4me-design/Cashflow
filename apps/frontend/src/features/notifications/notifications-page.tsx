@@ -19,7 +19,6 @@ import { uiText } from "@/locales";
 import { notificationService } from "@/services/notification.service";
 import { useNotificationStore } from "@/stores/notification.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { NotificationItem } from "@/types/notification";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -33,11 +32,10 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const dataVersion = useDataRefreshStore((state) => state.version);
-  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
-  const currencyHydrated = useDashboardCurrencyStore((state) => state.hydrated);
 
   const markReadInStore = useNotificationStore((state) => state.markRead);
   const markAllReadInStore = useNotificationStore((state) => state.markAllRead);
@@ -45,12 +43,6 @@ export function NotificationsPage() {
   const removeAllInStore = useNotificationStore((state) => state.removeAll);
 
   useEffect(() => {
-    if (!useDashboardCurrencyStore.getState().hydrated) {
-      setLoading(false);
-      setError(false);
-      return;
-    }
-
     let cancelled = false;
 
     const run = async () => {
@@ -64,11 +56,11 @@ export function NotificationsPage() {
           page,
           limit: pageSize,
           unread: filter === "unread" ? true : undefined,
-          currency: activeCurrency,
         });
         if (cancelled) return;
         setItems(result.items);
         setTotalItems(result.pagination.totalItems);
+        setHasLoadedOnce(true);
         // Ensure we never set page to less than 1 — backend validates page >= 1.
         const totalPages = result.pagination.totalPages ?? 1;
         if (page > totalPages) {
@@ -91,7 +83,7 @@ export function NotificationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, dataVersion, page, pageSize, filter, activeCurrency, currencyHydrated]);
+  }, [refreshKey, dataVersion, page, pageSize, filter]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 
@@ -225,7 +217,7 @@ export function NotificationsPage() {
           description={uiText.notificationsPage.emptyDescription}
           icon={<BellRing className="size-8 text-muted-foreground" aria-hidden="true" />}
         />
-      ) : loading ? (
+      ) : loading && !hasLoadedOnce ? (
         <NotificationListSkeleton rows={Math.min(pageSize, 6)} />
       ) : (
         <>
@@ -240,7 +232,7 @@ export function NotificationsPage() {
             ))}
           </ul>
 
-          {!loading && (
+          {hasLoadedOnce && (
             <TransactionPagination
               page={page}
               pageSize={pageSize}

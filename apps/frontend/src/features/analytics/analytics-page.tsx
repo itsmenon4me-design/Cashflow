@@ -6,12 +6,14 @@ import { ArrowDownRight, ArrowUpRight, PieChart, ReceiptText } from "lucide-reac
 import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
 import { InsightsCard } from "@/components/analytics/insights-card";
 import { SpendingAnalysisCard } from "@/components/analytics/spending-analysis-card";
-import { CashflowTrendChart } from "@/components/reports/cashflow-trend-chart";
-import { CategoryBreakdownCard, type CategorySlice } from "@/components/reports/category-breakdown-card";
+// recharts-based charts load via async chunks after first paint (low-CPU friendly)
+import { type CategorySlice } from "@/components/reports/category-breakdown-card";
+import { LazyCategoryBreakdownCard as CategoryBreakdownCard } from "@/components/charts/lazy-charts";
+import { LazyExpenseCategoryTrendCard as ExpenseCategoryTrendCard } from "@/components/charts/lazy-charts";
 import { ReportPeriodFilter } from "@/components/reports/report-period-filter";
 import { SummaryCard } from "@/components/reports/summary-card";
 import { TopCategoriesCard, type TopCategoryItem } from "@/components/reports/top-categories-card";
-import { IncomeExpenseChartCard } from "@/components/dashboard/income-expense-chart-card";
+import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import {
@@ -34,7 +36,6 @@ import {
 } from "@/services/analytics.service";
 import { fromCents } from "@/services/report.service";
 import type { FlowPoint } from "@/types/dashboard";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 function toDateInputValue(iso: string): string {
   const date = new Date(iso);
@@ -64,7 +65,6 @@ function periodFromSearchParams(params: URLSearchParams): PeriodKey | null {
 }
 
 export function AnalyticsPage() {
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const searchParams = useSearchParams();
   const initialPeriod = periodFromSearchParams(
     new URLSearchParams(searchParams.toString()),
@@ -87,8 +87,6 @@ export function AnalyticsPage() {
   const [spending, setSpending] = useState<AnalyticsSpending | null>(null);
   const [health, setHealth] = useState<AnalyticsHealth | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
-  // Use non-hook store access for display currency (keeps parity with async run pattern)
-  const displayCurrency = useDashboardCurrencyStore.getState().currency;
 
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
@@ -132,13 +130,13 @@ export function AnalyticsPage() {
         const granularity = pickTrendType(range);
         const [overviewRes, incomeRes, expensesRes, cashflowRes, spendingRes, healthRes, insightsRes] =
           await Promise.all([
-            analyticsService.getOverview(range, activeCurrency),
-            analyticsService.getIncome(range, granularity, activeCurrency),
-            analyticsService.getExpenses(range, granularity, activeCurrency),
-            analyticsService.getCashflow(range, granularity, activeCurrency),
-            analyticsService.getSpending(range, activeCurrency),
-            analyticsService.getFinancialHealth(range, activeCurrency),
-            analyticsService.getInsights(range, activeCurrency),
+            analyticsService.getOverview(range),
+            analyticsService.getIncome(range, granularity),
+            analyticsService.getExpenses(range, granularity),
+            analyticsService.getCashflow(range, granularity),
+            analyticsService.getSpending(range),
+            analyticsService.getFinancialHealth(range),
+            analyticsService.getInsights(range),
           ]);
         if (cancelled) return;
 
@@ -160,7 +158,7 @@ export function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range, activeCurrency]);
+  }, [refreshKey, range]);
 
   const hasAnyData =
     (overview?.transactions ?? 0) > 0 ||
@@ -168,9 +166,9 @@ export function AnalyticsPage() {
     insights.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;
 
-  const incomeValue = overview ? fromCents(overview.income, displayCurrency) : 0;
-  const expenseValue = overview ? fromCents(overview.expense, displayCurrency) : 0;
-  const netValue = overview ? fromCents(overview.netCashFlow, displayCurrency) : 0;
+  const incomeValue = overview ? fromCents(overview.income) : 0;
+  const expenseValue = overview ? fromCents(overview.expense) : 0;
+  const netValue = overview ? fromCents(overview.netCashFlow) : 0;
   const savingRate = overview?.savingRate ?? 0;
   const txCount = overview?.transactions ?? 0;
 
@@ -194,7 +192,7 @@ export function AnalyticsPage() {
       (expenses?.categories ?? []).map((c) => ({
         name: categoryLabel(c.categoryName ?? "-"),
         value: c.percentage,
-      amount: fromCents(c.totalAmount, displayCurrency),
+      amount: fromCents(c.totalAmount),
       })),
     [expenses]
   );
@@ -203,7 +201,7 @@ export function AnalyticsPage() {
     () =>
       (expenses?.top ?? []).map((t) => ({
         name: t.name ?? "-",
-      amount: fromCents(t.total, displayCurrency),
+      amount: fromCents(t.total),
         percentage: t.percentage,
         transactionCount: 0,
       })),
@@ -214,7 +212,7 @@ export function AnalyticsPage() {
     () =>
       (income?.top ?? []).map((t) => ({
         name: t.name ?? "-",
-      amount: fromCents(t.total, displayCurrency),
+      amount: fromCents(t.total),
         percentage: t.percentage,
         transactionCount: 0,
       })),
@@ -304,10 +302,14 @@ export function AnalyticsPage() {
             />
           </div>
 
-          <CashflowTrendChart data={cashflow?.trend ?? []} loading={loading} currency={activeCurrency} />
+          {/* Analytics = interpretation & patterns. The factual "Cashflow
+              Trend" lives exclusively on Reports; this card shows the
+              expense MIX evolving over time instead — no duplicated charts
+              between the two pages. */}
+          <ExpenseCategoryTrendCard range={range} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <IncomeExpenseChartCard data={cashFlowData} currency={activeCurrency} />
+            <IncomeExpenseChartCard data={cashFlowData} />
             <CategoryBreakdownCard
               title={uiText.analytics.categoryTitle}
               subtitle={uiText.analytics.categorySubtitle}

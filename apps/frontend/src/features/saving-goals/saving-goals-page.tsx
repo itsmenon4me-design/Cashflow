@@ -1,10 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Plus, Target } from "lucide-react";
-import { DeleteSavingGoalDialog } from "@/components/saving-goals/DeleteSavingGoalDialog";
+import type { SavingGoalFormMode } from "@/components/saving-goals/SavingGoalForm";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazySavingGoalForm = dynamic(
+  () => import("@/components/saving-goals/SavingGoalForm").then((m) => m.SavingGoalForm),
+  { ssr: false },
+);
+const LazyDeleteSavingGoalDialog = dynamic(
+  () =>
+    import("@/components/saving-goals/DeleteSavingGoalDialog").then(
+      (m) => m.DeleteSavingGoalDialog,
+    ),
+  { ssr: false },
+);
 import { SavingGoalFilters } from "@/components/saving-goals/SavingGoalFilters";
-import { SavingGoalForm, type SavingGoalFormMode } from "@/components/saving-goals/SavingGoalForm";
 import { SavingGoalTable } from "@/components/saving-goals/SavingGoalTable";
 import { SavingGoalToolbar } from "@/components/saving-goals/SavingGoalToolbar";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -13,21 +27,14 @@ import { Button } from "@/components/ui/button";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { DEFAULT_PAGE_SIZE, EMPTY_FILTERS } from "@/features/saving-goals/constants";
 import type { SavingGoalFiltersState } from "@/features/saving-goals/types";
-import {
-  toCreateSavingGoalPayload,
-  toUpdateSavingGoalPayload,
-  type SavingGoalFormValues,
-} from "@/features/saving-goals/schema";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
+import type { SavingGoalFormValues } from "@/features/saving-goals/schema";
 import { uiText } from "@/locales";
 import { accountService } from "@/services/account.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import {
   savingGoalService,
   toSavingGoalItem,
   type SavingGoalItem,
-  type SupportedEntityCurrency,
 } from "@/services/saving-goal.service";
 import type { AccountResponse, CategoryResponse } from "@/types/backend";
 
@@ -43,7 +50,6 @@ type NameLookup = Record<string, string>;
 export function SavingGoalsPage() {
   const [goals, setGoals] = useState<SavingGoalItem[]>([]);
   const [filters, setFilters] = useState<SavingGoalFiltersState>(EMPTY_FILTERS);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
@@ -72,8 +78,8 @@ export function SavingGoalsPage() {
       setError(false);
       try {
         const [items, accounts, categories] = await Promise.all([
-          savingGoalService.list(activeCurrency),
-          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+          savingGoalService.list(),
+          accountService.list().catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]);
         if (cancelled) {
@@ -103,7 +109,7 @@ export function SavingGoalsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, activeCurrency]);
+  }, [refreshKey]);
 
   const visible = useMemo(() => {
     const keyword = filters.search.trim().toLowerCase();
@@ -174,21 +180,16 @@ export function SavingGoalsPage() {
     setFormState((state) => ({ open: true, mode, goal, session: state.session + 1 }));
   };
 
-  const goalCurrency = (
-    values: SavingGoalFormValues,
-  ): SupportedEntityCurrency =>
-    normalizeDashboardCurrency(
-      values.accountId ? accountCurrencies[values.accountId] : undefined,
-    ) ?? "USD";
-
   const handleFormSubmit = async (values: SavingGoalFormValues) => {
+    // Payload builders live in the zod schema module; import it lazily inside
+    // the submit path so zod stays out of the initial page bundle.
+    const { toCreateSavingGoalPayload, toUpdateSavingGoalPayload } = await import(
+      "@/features/saving-goals/schema"
+    );
+
     if (formState.mode === "edit" && formState.goal) {
       try {
-        await savingGoalService.update(
-          formState.goal.id,
-          toUpdateSavingGoalPayload(values, goalCurrency(values)),
-          activeCurrency,
-        );
+        await savingGoalService.update(formState.goal.id, toUpdateSavingGoalPayload(values));
       } catch {
         // daftar tetap disinkronkan dengan state server
       }
@@ -198,7 +199,7 @@ export function SavingGoalsPage() {
 
     try {
       await savingGoalService.create(
-        toCreateSavingGoalPayload(values, goalCurrency(values)),
+        toCreateSavingGoalPayload(values),
       );
     } catch {
       // daftar tetap disinkronkan dengan state server
@@ -214,7 +215,7 @@ export function SavingGoalsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await savingGoalService.remove(target.id, activeCurrency);
+      await savingGoalService.remove(target.id);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -289,27 +290,29 @@ export function SavingGoalsPage() {
         </>
       )}
 
-      <SavingGoalForm
-        key={formState.session}
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        goal={formState.goal}
-        accounts={accountOptions}
-        accountCurrencies={accountCurrencies}
-        categories={categoryOptions}
-        onSubmit={(values) => void handleFormSubmit(values)}
-      />
+      <LoadOnOpen active={formState.open || deleting !== null}>
+        <LazySavingGoalForm
+          key={formState.session}
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          goal={formState.goal}
+          accounts={accountOptions}
+          accountCurrencies={accountCurrencies}
+          categories={categoryOptions}
+          onSubmit={(values) => void handleFormSubmit(values)}
+        />
 
-      <DeleteSavingGoalDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+        <LazyDeleteSavingGoalDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

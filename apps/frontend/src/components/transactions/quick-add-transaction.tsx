@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname } from 'next/navigation';
 import { CirclePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { uiText } from "@/locales";
 import { syncCreateTransaction } from "@/lib/offline/sync-client";
 import { accountService } from "@/services/account.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import { categoryService } from "@/services/category.service";
 import {
   toCreateTransactionPayload,
@@ -41,7 +40,6 @@ export function QuickAddTransaction() {
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [lookupsReady, setLookupsReady] = useState(false);
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
 
   const initialValues = useMemo<Partial<TransactionFormValues>>(() => {
@@ -56,7 +54,7 @@ export function QuickAddTransaction() {
       setOpen(nextOpen);
       if (nextOpen && !lookupsReady) {
         void Promise.all([
-          accountService.list(activeCurrency).catch(() => [] as AccountResponse[]),
+          accountService.list().catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]).then(([accs, cats]) => {
           setAccounts(accs);
@@ -65,17 +63,8 @@ export function QuickAddTransaction() {
         });
       }
     },
-    [lookupsReady, activeCurrency],
+    [lookupsReady],
   );
-
-  // If the active dashboard currency changes, invalidate previous lookups so the
-  // Quick Add will fetch accounts/categories for the new currency on next open.
-  // Avoids showing stale cross-currency accounts after switching dashboards.
-  useEffect(() => {
-    setLookupsReady(false);
-    setAccounts([]);
-    setCategories([]);
-  }, [activeCurrency]);
 
   const accountNames = useMemo<NameLookup>(
     () => Object.fromEntries(accounts.map((account) => [account.id, account.name])),

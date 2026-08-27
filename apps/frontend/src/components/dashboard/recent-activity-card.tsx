@@ -155,7 +155,7 @@ export function RecentActivityCard() {
             </p>
             {items.length > 0 && (
               <Link
-                href="/audit-log"
+                href="/log-aktivitas"
                 className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               >
                 {uiText.activity.viewAll}
@@ -228,7 +228,7 @@ export function RecentActivityCard() {
 
         {!loading && !error && items.length > 0 && (
           <Link
-            href="/audit-log"
+            href="/log-aktivitas"
             className="mt-4 flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
             {uiText.activity.viewAll}

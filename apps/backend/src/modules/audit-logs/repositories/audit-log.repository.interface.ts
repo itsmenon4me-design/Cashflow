@@ -23,4 +23,5 @@ export interface IAuditLogRepository {
     filter: Omit<AuditLogFilter, 'userId'>,
   ): Promise<number>;
   findByIdOwned(id: string, userId: string): Promise<AuditLogEntity | null>;
+  deleteAllByUser(userId: string): Promise<number>;
 }

@@ -5,8 +5,9 @@ import { TransactionEntity } from '../entities/transaction.entity';
 import type { Transaction, Prisma } from '../../../generated/prisma/client';
 import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
+import { buildKeywordOr } from '../utils/search-keyword.utils';
 
-type TxRec = Transaction & { account?: { currency?: string } };
+type TxRec = Transaction & { account?: unknown };
 
 @Injectable()
 export class PrismaTransactionsRepository implements ITransactionsRepository {
@@ -60,54 +61,31 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string, currency?: string): Promise<TransactionEntity | null> {
-    // If currency is provided, use findFirst with a relation filter so the
-    // database enforces account.currency === currency. Otherwise fall back to
-    // findUnique and do the deleted_at check in-app.
-    let rec: TxRec | null = null;
-    if (currency) {
-      rec = await this.prisma.transaction.findFirst({
-        where: { id, deleted_at: null, account: { currency } },
-        include: { account: true },
-      });
-    } else {
-      rec = await this.prisma.transaction.findUnique({
-        where: { id },
-        include: { account: true },
-      });
-      if (rec && rec.deleted_at) rec = null;
-    }
-
-    if (!rec) return null;
-    return this.map(rec);
-  }
-
-  async getAccountCurrency(accountId: string): Promise<string> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      select: { currency: true },
+  async findById(id: string): Promise<TransactionEntity | null> {
+    const rec = await this.prisma.transaction.findUnique({
+      where: { id },
+      include: { account: true },
     });
-    return account?.currency ?? 'IDR';
+    if (!rec || rec.deleted_at) return null;
+    return this.map(rec);
   }
 
   async findByReferenceNumber(
     userId: string,
     referenceNumber: string,
-    currency?: string,
   ): Promise<TransactionEntity | null> {
-    const where: Prisma.TransactionWhereInput = {
-      user_id: userId,
-      reference_number: referenceNumber,
-      deleted_at: null,
-    };
-    if (currency) where.account = { currency };
-    const rec = await this.prisma.transaction.findFirst({ where });
+    const rec = await this.prisma.transaction.findFirst({
+      where: {
+        user_id: userId,
+        reference_number: referenceNumber,
+        deleted_at: null,
+      },
+    });
     if (!rec) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string, currency?: string): Promise<TransactionEntity[]> {
-    void currency;
+  async findAllByUser(userId: string): Promise<TransactionEntity[]> {
     const where: Prisma.TransactionWhereInput = { user_id: userId, deleted_at: null };
     const recs: TxRec[] = await this.prisma.transaction.findMany({
       where,
@@ -160,37 +138,9 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     }
 
     // Search keyword (combines with filters via AND)
-    let qWhere: Prisma.TransactionWhereInput | undefined;
-    if (filter?.q) {
-      const query = filter.q.trim();
-      const or: Prisma.TransactionWhereInput[] = [
-        { note: { contains: query, mode: 'insensitive' } },
-        { reference_number: { contains: query, mode: 'insensitive' } },
-        { account: { name: { contains: query, mode: 'insensitive' } } },
-        { category: { name: { contains: query, mode: 'insensitive' } } },
-      ];
-      // Only treat real UUID-shaped strings as id lookups — the loose
-      // hex-ish regex used to match plain digits ("77777777") and crash
-      // Prisma/Postgres with "invalid input syntax for type uuid" (500),
-      // flipping the UI between error and empty states while typing.
-      if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(query)) {
-        or.push({ id: query });
-      }
-      const num = Number(query);
-      // amount_cents is an Int64 column — never feed it values beyond its range
-      if (!Number.isNaN(num) && Number.isSafeInteger(num)) {
-        try {
-          or.push({ amount_cents: BigInt(Math.round(num)) });
-        } catch {
-          // ignore non-numeric
-        }
-      }
-      const up = query.toUpperCase();
-      if (up === 'INCOME' || up === 'EXPENSE') {
-        or.push({ transaction_type: up });
-      }
-      qWhere = { OR: or };
-    }
+    const qWhere: Prisma.TransactionWhereInput | undefined = filter?.q
+      ? { OR: buildKeywordOr(filter.q) }
+      : undefined;
 
     // Sorting
     let orderBy: Prisma.TransactionOrderByWithRelationInput = {
@@ -213,16 +163,9 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       ? { AND: [where, qWhere] }
       : where;
 
-    // Build prisma query
-    // ponytail reverted: each currency is its own ledger — when the dashboard
-    // currency is provided, only rows whose account belongs to that ledger.
-    const whereWithCurrency = filter?.currency
-      ? ({ AND: [baseWhere, { account: { currency: filter.currency } }] } as Prisma.TransactionWhereInput)
-      : baseWhere;
-
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
-        where: whereWithCurrency,
+        where: baseWhere,
         orderBy,
         skip,
         take,
@@ -230,52 +173,20 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
           account: true,
         },
       }),
-      this.prisma.transaction.count({ where: whereWithCurrency }),
+      this.prisma.transaction.count({ where: baseWhere }),
     ]);
 
     return { items: items.map((r: TxRec) => this.map(r)), total };
   }
 
-  async searchByUser(userId: string, q: string, pagination: PaginationDto, currency?: string) {
+  async searchByUser(userId: string, q: string, pagination: PaginationDto) {
     const where: Prisma.TransactionWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     const query = q.trim();
-    const or: Prisma.TransactionWhereInput[] = [];
-
-    // note, reference_number
-    or.push({
-      note: { contains: query, mode: 'insensitive' },
-    });
-    or.push({
-      reference_number: { contains: query, mode: 'insensitive' },
-    });
-    // account.name, category.name
-    or.push({ account: { name: { contains: query, mode: 'insensitive' } } });
-    or.push({ category: { name: { contains: query, mode: 'insensitive' } } });
-
-    // transaction id exact match — real UUID shape only (a loose hex-ish
-    // regex used to match plain digits and crash with a uuid syntax error)
-    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(query)) {
-      or.push({ id: query });
-    }
-
-    // amount exact match if numeric (Int64-safe values only)
-    const num = Number(query);
-    if (!Number.isNaN(num) && Number.isSafeInteger(num)) {
-      try {
-        const cents = BigInt(Math.round(num));
-        or.push({ amount_cents: cents });
-      } catch {
-        // ignore
-      }
-    }
-
-    // transaction type
-    const up = query.toUpperCase();
-    if (up === 'INCOME' || up === 'EXPENSE') or.push({ transaction_type: up });
+    const or: Prisma.TransactionWhereInput[] = buildKeywordOr(query);
 
     // Account name and Category name using relations
     const page = pagination.page ?? 1;
@@ -285,20 +196,16 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const take = limit;
 
     const baseWhere = { AND: [where, { OR: or }] } as Prisma.TransactionWhereInput;
-    // Ledger scoping: when a currency hint is provided, restrict to that ledger.
-    const whereWithCurrency = currency
-      ? ({ AND: [baseWhere, { account: { currency } }] } as Prisma.TransactionWhereInput)
-      : baseWhere;
 
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
-        where: whereWithCurrency,
+        where: baseWhere,
         include: { account: true, category: true },
         orderBy: { transaction_date: 'desc' },
         skip,
         take,
       }),
-      this.prisma.transaction.count({ where: whereWithCurrency }),
+      this.prisma.transaction.count({ where: baseWhere }),
     ]);
 
     return { items: (items as TxRec[]).map((r: TxRec) => this.map(r)), total };

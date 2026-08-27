@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { toMinorUnits } from "@/lib/money";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { UpdateBudgetPayload } from "@/services/budget.service";
 
 const requiredMessage = "Wajib diisi";
@@ -17,26 +15,15 @@ export const budgetFormSchema = z.object({
 
 export type BudgetFormValues = z.infer<typeof budgetFormSchema>;
 
-export function toCreateBudgetPayload(
-  values: BudgetFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
-) {
+export function toCreateBudgetPayload(values: BudgetFormValues) {
   return {
     category_id: values.categoryId,
-    currency,
-    budget_amount_cents: toMinorUnits(values.amount, currency),
+    budget_amount_cents: toMinorUnits(values.amount, "IDR"),
     month: values.month,
     year: values.year,
   };
 }
 
-export function toUpdateBudgetPayload(
-  values: BudgetFormValues,
-  currency = normalizeDashboardCurrency(
-    useDashboardCurrencyStore.getState().currency,
-  ) ?? 'USD',
-): UpdateBudgetPayload {
-  return toCreateBudgetPayload(values, currency);
+export function toUpdateBudgetPayload(values: BudgetFormValues): UpdateBudgetPayload {
+  return toCreateBudgetPayload(values);
 }

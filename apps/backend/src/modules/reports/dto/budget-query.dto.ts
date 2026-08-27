@@ -1,14 +1,10 @@
-﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
-import {
+﻿import {
   IsInt,
   Min,
   Max,
-  IsIn,
-  IsOptional,
-  IsString,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import type { TransformFnParams } from 'class-transformer';
 
 export class BudgetQueryDto {
@@ -24,13 +20,4 @@ export class BudgetQueryDto {
   @IsInt()
   @Min(2000)
   year: number;
-
-  @ApiPropertyOptional({
-    description: 'Financial dataset currency scope for budget analysis.',
-    enum: SUPPORTED_CURRENCIES,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
 }

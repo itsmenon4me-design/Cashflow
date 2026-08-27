@@ -25,7 +25,6 @@ export interface UserSettings {
   userId: string;
   theme: ThemePreference;
   language: LanguagePreference;
-  currency: string;
   timezone: string | null;
   notificationPreferences: NotificationPreferences;
   financeBotSettings?: FinanceBotSettings | null;
@@ -36,12 +35,7 @@ export interface UserSettings {
 export interface UserSettingsPatch {
   theme?: ThemePreference;
   language?: LanguagePreference;
-  currency?: string;
   timezone?: string | null;
   notificationPreferences?: Partial<NotificationPreferences>;
   financeBotSettings?: Partial<FinanceBotSettings> | null;
 }
-
-import { SUPPORTED_CURRENCIES } from "@/lib/money";
-
-export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES;

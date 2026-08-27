@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { RequireAuth } from "@/components/auth/require-auth";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { PageTransition } from "@/components/layout/page-transition";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar.store";
@@ -55,6 +56,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { mobileOpen, setMobileOpen } = useSidebarStore();
+  const mainRef = useRef<HTMLElement>(null);
 
   useGlobalAutoRefresh();
 
@@ -67,14 +69,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex min-w-0 flex-1 flex-col">
           <HeaderBar />
           {/* min-height konsisten (viewport - header h-16) supaya halaman
-              berkonten pendek tidak menyusutkan/menggeser main content (CLS fix) */}
+              berkonten pendek tidak menyusutkan/menggeser main content (CLS fix):
+              main flex-col + anak flex-1 memberi floor tinggi yang sama di semua menu */}
           {/* scrollbar-gutter: main adalah scroll container (bukan html) — tanpa
               gutter stabil, scrollbar yang muncul/hilang (mis. hasil filter
               kosong -> halaman memendek) mengubah lebar semua konten di dalamnya */}
-          <main className="flex-1 overflow-y-auto px-4 pb-24 pt-6 [scrollbar-gutter:stable] sm:px-6 md:pb-10 md:pt-8 lg:px-8">
-            <div className="grid gap-6">
+          <main ref={mainRef} className="flex flex-1 flex-col overflow-y-auto px-4 pb-24 pt-6 [scrollbar-gutter:stable] sm:px-6 md:pb-10 md:pt-8 lg:px-8">
+            <div className="grid flex-1 gap-6">
               <div className="min-w-0 space-y-6">
-                <RequireAuth>{children}</RequireAuth>
+                {/* Fade transition per route: the old page fades out in place
+                    (at its current scroll position), scroll resets while the
+                    slot is empty, then the new page fades in. Sidebar/header/
+                    mobile nav are rendered outside this wrapper so they stay
+                    mounted as stable visual anchors during navigation. */}
+                <PageTransition onExited={() => mainRef.current?.scrollTo({ top: 0 })}>
+                  <RequireAuth>{children}</RequireAuth>
+                </PageTransition>
               </div>
             </div>
           </main>

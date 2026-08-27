@@ -1,9 +1,7 @@
 ﻿import { apiClient } from "@/lib/axios";
-import { normalizeDashboardCurrency } from "@/lib/dashboard-currency";
 import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import { transactionService, toTransactionItem } from "@/services/transaction.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { DashboardSummaryResponse } from "@/types/backend";
 import type {
   CashFlowPoint,
@@ -136,25 +134,15 @@ function monthLabel(period: string): string {
 }
 
 export const dashboardService = {
-  getSummary: (currency?: string): Promise<DashboardSummaryResponse> => {
-    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-    const normalized = normalizeDashboardCurrency(activeCurrency) ?? useDashboardCurrencyStore.getState().currency;
-    return apiClient.get<DashboardSummaryResponse>("/dashboard/summary", {
-      params: { currency: normalized },
-    });
-  },
+  getSummary: (): Promise<DashboardSummaryResponse> =>
+    apiClient.get<DashboardSummaryResponse>("/dashboard/summary"),
 
-  getWidgets: (currency?: string): Promise<DashboardWidgetsResponse> => {
-    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-    const normalized = normalizeDashboardCurrency(activeCurrency) ?? useDashboardCurrencyStore.getState().currency;
-    return apiClient.get<DashboardWidgetsResponse>("/dashboard/widgets", {
-      params: { currency: normalized },
-    });
-  },
+  getWidgets: (): Promise<DashboardWidgetsResponse> =>
+    apiClient.get<DashboardWidgetsResponse>("/dashboard/widgets"),
 
 
-  getFlowSeries: async (currency?: string): Promise<FlowSeries> => {
-    const widgets = await dashboardService.getWidgets(currency);
+  getFlowSeries: async (): Promise<FlowSeries> => {
+    const widgets = await dashboardService.getWidgets();
     const points = widgets.trend?.data ?? [];
     return {
       cashFlow: points.map((p) => ({ month: monthLabel(p.period), balance: p.netCashFlow })),
@@ -162,8 +150,8 @@ export const dashboardService = {
     };
   },
 
-  getCategoryDistribution: async (currency?: string): Promise<DistributionPoint[]> => {
-    const widgets = await dashboardService.getWidgets(currency);
+  getCategoryDistribution: async (): Promise<DistributionPoint[]> => {
+    const widgets = await dashboardService.getWidgets();
     return (widgets.categoryBreakdown ?? []).map((c) => ({
       name: c.categoryName || "Lainnya",
       value: Math.round((c.percentage ?? 0) * 100) / 100,
@@ -172,11 +160,10 @@ export const dashboardService = {
   },
 
 
-  getRecentTransactions: async (limit = 5, currency?: string): Promise<TransactionItem[]> => {
-    // Ask transactions with a currency hint. Backend may filter, else we filter accounts client-side.
+  getRecentTransactions: async (limit = 5): Promise<TransactionItem[]> => {
     const [page, accounts, categories] = await Promise.all([
-      transactionService.list({ page: 1, limit, currency }),
-      accountService.list(currency).catch(() => []),
+      transactionService.list({ page: 1, limit }),
+      accountService.list().catch(() => []),
       categoryService.list().catch(() => []),
     ]);
     const accountNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
@@ -189,8 +176,8 @@ export const dashboardService = {
     );
   },
 
-  getBudgetStatus: async (currency?: string): Promise<BudgetWidget | null> => {
-    const widgets = await dashboardService.getWidgets(currency);
+  getBudgetStatus: async (): Promise<BudgetWidget | null> => {
+    const widgets = await dashboardService.getWidgets();
     return toBudgetWidget(widgets.budget ?? null);
   },
 };

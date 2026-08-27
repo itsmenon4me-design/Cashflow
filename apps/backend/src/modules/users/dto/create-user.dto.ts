@@ -12,10 +12,10 @@ export class CreateUserDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ description: 'Unique username', example: 'jdoe' })
-  @IsNotEmpty()
+  @ApiProperty({ description: 'Unique username', example: 'jdoe', required: false })
+  @IsOptional()
   @Matches(/^[a-zA-Z0-9_.-]{3,30}$/)
-  username!: string;
+  username?: string;
 
   @ApiProperty({ description: 'Full name', example: 'John Doe' })
   @IsNotEmpty()

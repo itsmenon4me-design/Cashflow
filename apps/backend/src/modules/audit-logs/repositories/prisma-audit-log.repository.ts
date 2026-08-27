@@ -113,18 +113,25 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
   }
 
   async countByUser(
-    userId: string,
-    filter: Omit<AuditLogFilter, 'userId'>,
-  ): Promise<number> {
-    return this.prisma.auditLog.count({
-      where: {
-        ...this.buildWhere(filter),
-        user_id: userId,
-      },
-    });
-  }
+      userId: string,
+      filter: Omit<AuditLogFilter, 'userId'>,
+    ): Promise<number> {
+      return this.prisma.auditLog.count({
+        where: {
+          ...this.buildWhere(filter),
+          user_id: userId,
+        },
+      });
+    }
 
-  async findByIdOwned(
+    async deleteAllByUser(userId: string): Promise<number> {
+      const result = await this.prisma.auditLog.deleteMany({
+        where: { user_id: userId },
+      });
+      return result.count;
+    }
+
+    async findByIdOwned(
     id: string,
     userId: string,
   ): Promise<AuditLogEntity | null> {

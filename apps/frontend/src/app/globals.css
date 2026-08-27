@@ -7,7 +7,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -67,6 +67,13 @@
   --transition-base: 200ms;
   --transition-slow: 300ms;
   --transition-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.8s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 :root {
@@ -163,7 +170,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground;
   }
   html {
     @apply font-sans;
@@ -180,6 +187,12 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
+}
+
+/* Reserve the scrollbar gutter so pages with/without vertical scroll do not
+   shift the whole layout (sidebar/header jump) when navigating. */
+html {
+  scrollbar-gutter: stable;
 }
 
 /* Global custom scrollbar styles (Chromium/Safari + Firefox) */
@@ -227,3 +240,13 @@ input[type="number"] {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+
+/* Header/dropdown CLS fix: Radix (react-remove-scroll) adds inline
+   padding-right compensation on body when a dropdown locks the scroll,
+   which shifts header elements sideways. html already reserves the
+   gutter via scrollbar-gutter: stable, so cancel the compensation. */
+html[data-scroll-locked] body,
+body[data-scroll-locked] {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}

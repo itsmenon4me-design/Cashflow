@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InvestmentsService } from './investments.service';
 import { PrismaInvestmentsRepository } from '../repositories/prisma-investments.repository';
-import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { InvestmentEntity } from '../entities/investment.entity';
@@ -61,10 +60,6 @@ describe('InvestmentsService', () => {
         { provide: PrismaInvestmentsRepository, useValue: repoMock },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
-        {
-          provide: UserSettingsService,
-          useValue: { getSettings: jest.fn().mockResolvedValue({ currency: 'IDR' }) },
-        },
       ],
     }).compile();
 
@@ -74,7 +69,7 @@ describe('InvestmentsService', () => {
   it('lists investments', async () => {
     const items = await service.listAll('u1');
     expect(items).toHaveLength(2);
-    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1', undefined);
+    expect(repoMock.findAllByUser).toHaveBeenCalledWith('u1');
   });
 
   it('denies access to another user investment', async () => {
@@ -101,50 +96,6 @@ describe('InvestmentsService', () => {
         current_value_cents: BigInt(6000000),
         profit_loss_cents: BigInt(1000000),
       }),
-    );
-  });
-
-  it('computes derived values on create (USD account, x100)', async () => {
-    prismaMock.account.findUnique.mockResolvedValue({
-      id: 'a1',
-      currency: 'USD',
-      user_id: 'u1',
-    });
-    await service.create('u1', {
-      account_id: 'a1',
-      name: 'AAPL',
-      platform: 'NASDAQ',
-      investment_type: 'Stock',
-      quantity: 10,
-      average_buy_price: 137.59,
-      current_price: 150.25,
-      purchase_date: '2026-01-01',
-      status: 'ACTIVE',
-    });
-    expect(repoMock.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        invested_amount_cents: BigInt(137590),
-        current_value_cents: BigInt(150250),
-        profit_loss_cents: BigInt(12660),
-      }),
-    );
-  });
-
-  it('accepts and stores investment currency', async () => {
-    repoMock.create.mockResolvedValue(dummy('i1', { currency: 'SGD' }));
-    await service.create('u1', {
-      name: 'AAPL',
-      platform: 'NASDAQ',
-      investment_type: 'Stock',
-      quantity: 10,
-      average_buy_price: 137.59,
-      current_price: 150.25,
-      currency: 'SGD',
-      purchase_date: '2026-01-01',
-      status: 'ACTIVE',
-    });
-    expect(repoMock.create).toHaveBeenCalledWith(
-      expect.objectContaining({ currency: 'SGD' }),
     );
   });
 

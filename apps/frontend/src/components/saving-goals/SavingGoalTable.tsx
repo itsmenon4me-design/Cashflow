@@ -187,10 +187,10 @@ function SavingGoalRow({
           )}
         </span>
       </TableCell>
-      <TableCell className="text-right font-medium">{formatMoney(goal.target)}</TableCell>
-      <TableCell className="text-right">{formatMoney(goal.current)}</TableCell>
+      <TableCell className="text-right font-medium">{formatMoney(goal.target, goal.currency)}</TableCell>
+      <TableCell className="text-right">{formatMoney(goal.current, goal.currency)}</TableCell>
       <TableCell className="text-right text-muted-foreground">
-        {formatMoney(goal.remaining)}
+        {formatMoney(goal.remaining, goal.currency)}
       </TableCell>
       <TableCell>
         <SavingGoalProgress percentage={goal.percentage} />
@@ -245,15 +245,15 @@ function SavingGoalCard({
       <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
         <div>
           <p className="text-[11px]">{uiText.savingGoals.target}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.target)}</p>
+          <p className="font-medium text-foreground">{formatMoney(goal.target, goal.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.savingGoals.collected}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.current)}</p>
+          <p className="font-medium text-foreground">{formatMoney(goal.current, goal.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.savingGoals.remaining}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.remaining)}</p>
+          <p className="font-medium text-foreground">{formatMoney(goal.remaining, goal.currency)}</p>
         </div>
       </div>
 

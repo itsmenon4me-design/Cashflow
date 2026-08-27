@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -26,8 +25,8 @@ export class InvestmentsController {
   @ApiOperation({ summary: 'List investments for current user' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async list(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
-    const items = await this.investments.listAll(userId, currency);
+  async list(@CurrentUser('sub') userId: string) {
+    const items = await this.investments.listAll(userId);
     return { success: true, data: items.map((i) => toInvestmentResponse(i)) };
   }
 
@@ -37,20 +36,16 @@ export class InvestmentsController {
   })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async overview(@CurrentUser('sub') userId: string, @Query('currency') currency?: string) {
-    return { success: true, data: await this.investments.overview(userId, currency) };
+  async overview(@CurrentUser('sub') userId: string) {
+    return { success: true, data: await this.investments.overview(userId) };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get investment by id' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async get(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-    @Query('currency') currency?: string,
-  ) {
-    const item = await this.investments.getById(userId, id, currency);
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    const item = await this.investments.getById(userId, id);
     return { success: true, data: toInvestmentResponse(item) };
   }
 
@@ -61,9 +56,8 @@ export class InvestmentsController {
   async create(
     @CurrentUser('sub') userId: string,
     @Body() body: CreateInvestmentDto,
-    @Query('currency') currency?: string,
   ) {
-    const created = await this.investments.create(userId, body, currency);
+    const created = await this.investments.create(userId, body);
     return { success: true, data: toInvestmentResponse(created) };
   }
 
@@ -75,9 +69,8 @@ export class InvestmentsController {
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
     @Body() body: UpdateInvestmentDto,
-    @Query('currency') currency?: string,
   ) {
-    const updated = await this.investments.update(userId, id, body, currency);
+    const updated = await this.investments.update(userId, id, body);
     return { success: true, data: toInvestmentResponse(updated) };
   }
 
@@ -85,12 +78,8 @@ export class InvestmentsController {
   @ApiOperation({ summary: 'Soft delete investment' })
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async delete(
-    @CurrentUser('sub') userId: string,
-    @Param('id') id: string,
-    @Query('currency') currency?: string,
-  ) {
-    await this.investments.softDelete(userId, id, currency);
+  async delete(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    await this.investments.softDelete(userId, id);
     return { success: true };
   }
 }

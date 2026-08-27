@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { YearStepper } from "@/components/ui/year-stepper";
 import { getEmptyFormValues, MONTH_OPTIONS } from "@/features/budgets/constants";
 import { categoryLabel } from "@/lib/categories";
 import {
@@ -44,7 +45,8 @@ interface BudgetFormProps {
   budget: BudgetItem | null;
   categories: BudgetCategoryOption[];
   budgets: BudgetItem[];
-  years: number[];
+  /** Hard floor for the year stepper (year the account was created). */
+  minYear?: number;
   onSubmit: (values: BudgetFormValues) => void;
 }
 
@@ -71,7 +73,7 @@ export function BudgetForm({
   budget,
   categories,
   budgets,
-  years,
+  minYear,
   onSubmit,
 }: BudgetFormProps) {
   const isView = mode === "view";
@@ -216,25 +218,14 @@ export function BudgetForm({
                   control={form.control}
                   name="year"
                   render={({ field }) => (
-                    <Select
-                      value={String(field.value)}
-                      onValueChange={(value) => field.onChange(Number(value))}
+                    <YearStepper
+                      value={field.value}
+                      minYear={minYear}
                       disabled={isView}
-                    >
-                      <SelectTrigger
-                        className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                        aria-label={uiText.budgets.fieldYear}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={String(year)}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={field.onChange}
+                      ariaLabel={uiText.budgets.fieldYear}
+                      className="h-11 sm:h-9"
+                    />
                   )}
                 />
               </div>

@@ -8,7 +8,7 @@ import {
 } from "@/components/budgets/BudgetForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getYearOptions } from "@/features/budgets/constants";
+import { useAccountMinYear } from "@/hooks/use-account-min-year";
 import {
   toCreateBudgetPayload,
   type BudgetFormValues,
@@ -20,6 +20,7 @@ import { useDataRefreshStore } from "@/stores/refresh.store";
 
 export function BudgetSuggestCard() {
   const bump = useDataRefreshStore((state) => state.bump);
+  const minYear = useAccountMinYear();
   const [open, setOpen] = useState(false);
   const [categories, setCategories] = useState<BudgetCategoryOption[] | null>(null);
   const [loadingCats, setLoadingCats] = useState(false);
@@ -89,7 +90,7 @@ export function BudgetSuggestCard() {
         budget={null}
         categories={categories ?? []}
         budgets={[]}
-        years={getYearOptions()}
+        minYear={minYear}
         onSubmit={(values) => void handleSubmit(values)}
       />
     </Card>

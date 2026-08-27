@@ -332,10 +332,10 @@ describe("SpendingPredictionCard", () => {
       />,
     );
 
-    expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes("$0.00")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes("-$17.47")).length).toBeGreaterThan(0);
-    // No standalone positive "$17.47" element: the negative sign is never dropped.
-    expect(screen.queryAllByText((_, element) => (element?.textContent ?? "").trim() === "$17.47").length).toBe(0);
+    expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes("Rp0")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes("-Rp1.747")).length).toBeGreaterThan(0);
+    // No standalone positive "Rp1.747" element: the negative sign is never dropped.
+    expect(screen.queryAllByText((_, element) => (element?.textContent ?? "").trim() === "Rp1.747").length).toBe(0);
     expect(screen.queryByText(/NaN|Infinity/)).not.toBeInTheDocument();
   });
 });

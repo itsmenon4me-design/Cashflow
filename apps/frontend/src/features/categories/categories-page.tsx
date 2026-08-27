@@ -1,12 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Plus, Tags } from "lucide-react";
 import { CategoryFilters } from "@/components/categories/CategoryFilters";
-import { CategoryForm, type CategoryFormMode } from "@/components/categories/CategoryForm";
+import type { CategoryFormMode } from "@/components/categories/CategoryForm";
 import { CategoryTable } from "@/components/categories/CategoryTable";
 import { CategoryToolbar } from "@/components/categories/CategoryToolbar";
-import { DeleteCategoryDialog } from "@/components/categories/DeleteCategoryDialog";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazyCategoryForm = dynamic(
+  () => import("@/components/categories/CategoryForm").then((m) => m.CategoryForm),
+  { ssr: false },
+);
+const LazyDeleteCategoryDialog = dynamic(
+  () => import("@/components/categories/DeleteCategoryDialog").then((m) => m.DeleteCategoryDialog),
+  { ssr: false },
+);
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -17,11 +28,7 @@ import {
   EMPTY_FILTERS,
 } from "@/features/categories/constants";
 import type { CategoryFiltersState } from "@/features/categories/types";
-import {
-  toCreateCategoryPayload,
-  toUpdateCategoryPayload,
-  type CategoryFormValues,
-} from "@/features/categories/schema";
+import type { CategoryFormValues } from "@/features/categories/schema";
 import { uiText } from "@/locales";
 import { categoryLabel } from "@/lib/categories";
 import {
@@ -186,6 +193,12 @@ export function CategoriesPage() {
   };
 
   const handleFormSubmit = async (values: CategoryFormValues) => {
+    // Payload builders live in the zod schema module; import it lazily inside
+    // the submit path so zod stays out of the initial page bundle.
+    const { toCreateCategoryPayload, toUpdateCategoryPayload } = await import(
+      "@/features/categories/schema"
+    );
+
     if (formState.mode === "edit" && formState.category) {
       try {
         await categoryService.update(
@@ -342,25 +355,27 @@ export function CategoriesPage() {
         </section>
       )}
 
-      <CategoryForm
-        key={formState.session}
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        category={formState.category}
-        categories={categories}
-        onSubmit={(values) => void handleFormSubmit(values)}
-      />
+      <LoadOnOpen active={formState.open || deleting !== null}>
+        <LazyCategoryForm
+          key={formState.session}
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          category={formState.category}
+          categories={categories}
+          onSubmit={(values) => void handleFormSubmit(values)}
+        />
 
-      <DeleteCategoryDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+        <LazyDeleteCategoryDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

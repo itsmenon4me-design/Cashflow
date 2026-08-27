@@ -64,7 +64,7 @@ export function toBudgetItem(
   budget: BudgetResponse,
   spentByCategory: Record<string, number>,
 ): BudgetItem {
-  const currency = budget.currency ?? "USD";
+  const currency = budget.currency ?? "IDR";
   const amount = toMajorUnits(BigInt(budget.budget_amount_cents), currency);
   const spent = toMajorUnits(BigInt(spentByCategory[budget.category_id] ?? 0), currency);
   const percentage =
@@ -83,20 +83,16 @@ export function toBudgetItem(
 }
 
 export const budgetService = {
-  list: async (currency?: string): Promise<BudgetResponse[]> => {
-    const res = await withOfflineCache("budgets", `list:${currency ?? "all"}`, () =>
-      apiClient.get<{ success: boolean; data: BudgetResponse[] }>("/budgets", {
-        params: currency ? { currency } : {},
-      }),
+  list: async (): Promise<BudgetResponse[]> => {
+    const res = await withOfflineCache("budgets", "list", () =>
+      apiClient.get<{ success: boolean; data: BudgetResponse[] }>("/budgets"),
     );
     return res.data ?? [];
   },
 
-  get: (id: string, currency?: string): Promise<BudgetResponse> =>
+  get: (id: string): Promise<BudgetResponse> =>
     apiClient
-      .get<{ success: boolean; data: BudgetResponse }>(`/budgets/${id}`, {
-        params: currency ? { currency } : {},
-      })
+      .get<{ success: boolean; data: BudgetResponse }>(`/budgets/${id}`)
       .then((res) => res.data),
 
   create: (payload: CreateBudgetPayload): Promise<BudgetResponse> =>
@@ -107,25 +103,16 @@ export const budgetService = {
   update: (
     id: string,
     payload: UpdateBudgetPayload,
-    currency?: string,
   ): Promise<BudgetResponse> =>
     apiClient
-      .patch<{ success: boolean; data: BudgetResponse }>(`/budgets/${id}`, payload, {
-        params: currency ? { currency } : {},
-      })
+      .patch<{ success: boolean; data: BudgetResponse }>(`/budgets/${id}`, payload)
       .then((res) => res.data),
 
-  remove: (id: string, currency?: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/budgets/${id}`, {
-      params: currency ? { currency } : {},
-    }),
+  remove: (id: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/budgets/${id}`),
 
-  analysis: (
-    month: number,
-    year: number,
-    currency?: string,
-  ): Promise<BudgetAnalysisResponse> =>
+  analysis: (month: number, year: number): Promise<BudgetAnalysisResponse> =>
     apiClient.get<BudgetAnalysisResponse>("/reports/budget-analysis", {
-      params: { month, year, ...(currency ? { currency } : {}) },
+      params: { month, year },
     }),
 };

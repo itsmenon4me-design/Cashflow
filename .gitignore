@@ -46,3 +46,22 @@ apps/backend/src/generated/
 # Generated recovery evidence
 apps/backend/recovery_reports/evidence/recovery/staging/
 apps/recovery_reports/evidence/recovery/staging/
+
+# Playwright private session
+**/storageState.json
+
+# Playwright generated artifacts
+**/playwright-report/
+**/playwright-results/
+**/test-results/
+**/playwright-traces/
+
+# Playwright / test artifacts
+**/playwright-report/
+**/playwright-results/
+**/playwright-results-small/
+**/test-results/
+playwright-traces/
+
+# Local debug / temporary scripts
+*.pid

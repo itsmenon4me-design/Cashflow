@@ -7,6 +7,8 @@ export class SessionEntity {
   browser?: string | null;
   operating_system?: string | null;
   ip_address?: string | null;
+  city?: string | null;
+  country?: string | null;
   user_agent?: string | null;
   last_activity_at!: Date;
   expires_at!: Date;

@@ -297,21 +297,6 @@ describe('ForecastService', () => {
     expect(txQuery.where.account).toEqual({ currency: 'USD' });
   });
 
-  it('rejects an unsupported target currency instead of forecasting', async () => {
-    const { service } = makeService({
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'KRW', is_default: true }]),
-        aggregate: makeBalanceAgg(100000n),
-      },
-    });
-
-    await expect(service.forecast('u1', { horizon: 2 })).rejects.toThrow(
-      /does not support currency/,
-    );
-  });
-
   it('keeps 1,000,000 IDR as 1,000,000 (never scales by 100)', async () => {
     const { service } = makeService({
       transaction: { findMany: makeFindMany(seedStable(1000000, 1000000)) },

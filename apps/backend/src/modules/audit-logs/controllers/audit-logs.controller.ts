@@ -1,6 +1,9 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Query,
@@ -107,6 +110,39 @@ export class AuditLogsController {
       success: true,
       message: 'Success',
       data: toAuditLogResponse(entry),
+    };
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Delete all own audit logs (authenticated user only)',
+    description:
+      'Permanently deletes every audit log entry owned by the authenticated user. Irreversible.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Number of deleted audit log entries',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: {
+          type: 'object',
+          properties: { deletedCount: { type: 'number' } },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deleteAllMine(@CurrentUser('sub') userId: string) {
+    const deleted = await this.auditLogs.deleteAllByUser(userId);
+    return {
+      success: true,
+      message: 'All audit logs deleted',
+      data: { deletedCount: deleted },
     };
   }
 

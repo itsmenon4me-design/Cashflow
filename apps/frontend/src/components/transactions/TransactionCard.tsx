@@ -10,12 +10,13 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react";
-import { TransactionStatusBadge } from "@/components/transactions/TransactionStatusBadge";
+import { PendingSyncBadge } from "@/components/transactions/PendingSyncBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
+import { transactionTone } from "@/lib/transaction-tone";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionItem } from "@/types/dashboard";
@@ -101,7 +102,7 @@ export function TransactionCard({
   onDuplicate,
   onDelete,
 }: TransactionCardProps) {
-  const isIncome = transaction.type === "income";
+  const tone = transactionTone(transaction.type);
 
   return (
     <Card size="sm" className="shadow-sm" data-transaction-id={transaction.id}>
@@ -111,10 +112,10 @@ export function TransactionCard({
             <div
               className={cn(
                 "flex size-9 shrink-0 items-center justify-center rounded-xl",
-                isIncome ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+                tone.chipClass
               )}
             >
-              {isIncome ? (
+              {transaction.type === "income" ? (
                 <ArrowDownToLine className="size-4" />
               ) : (
                 <ArrowUpFromLine className="size-4" />
@@ -127,7 +128,9 @@ export function TransactionCard({
               <p className="truncate text-xs text-muted-foreground">{categoryLabel(transaction.category)}</p>
             </div>
           </div>
-          <TransactionStatusBadge status={transaction.status} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            {transaction.pendingSync && <PendingSyncBadge />}
+          </div>
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -141,10 +144,10 @@ export function TransactionCard({
         <p
           className={cn(
             "text-lg font-semibold tracking-tight",
-            isIncome ? "text-emerald-500" : "text-foreground"
+            tone.amountClass
           )}
         >
-          {isIncome ? "+" : "-"}
+          {tone.sign}
           {formatCurrency(transaction.amount)}
         </p>
 

@@ -19,8 +19,6 @@ export interface TransactionListParams {
   toDate?: string;
   sortBy?: "date" | "amount" | "createdAt";
   sortOrder?: "asc" | "desc";
-  // Optional currency hint for server-side filtering or client-side selection
-  currency?: string;
 }
 
 export interface CreateTransactionPayload {
@@ -150,46 +148,31 @@ export function toUpdateTransactionPayload(
   };
 }
 
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
-
 export const transactionService = {
-  list: (params: TransactionListParams = {}): Promise<PaginatedTransactionResponse> => {
-    // Ensure currency hint is present - default to active dashboard currency to avoid cross-currency leakage
-    const currency = params.currency ?? useDashboardCurrencyStore.getState().currency;
-    const merged = { ...params, currency } as TransactionListParams;
-    return withOfflineCache(
+  list: (params: TransactionListParams = {}): Promise<PaginatedTransactionResponse> =>
+    withOfflineCache(
       "transactions",
-      `list:${JSON.stringify(merged)}`,
-      () => apiClient.get<PaginatedTransactionResponse>("/transactions", { params: { ...merged } }),
-    );
-  },
+      `list:${JSON.stringify(params)}`,
+      () => apiClient.get<PaginatedTransactionResponse>("/transactions", { params: { ...params } }),
+    ),
 
-  search: (q: string, currency?: string): Promise<PaginatedTransactionResponse> => {
-    // Global search must span all currencies; only scope when explicitly requested.
-    return apiClient.get<PaginatedTransactionResponse>("/transactions/search", {
-      params: { q, limit: 5, ...(currency ? { currency } : {}) },
-    });
-  },
+  search: (q: string): Promise<PaginatedTransactionResponse> =>
+    apiClient.get<PaginatedTransactionResponse>("/transactions/search", {
+      params: { q, limit: 5 },
+    }),
 
-  create: (payload: CreateTransactionPayload, currency?: string): Promise<TransactionDTO> => {
-    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-    const url = activeCurrency ? `/transactions?currency=${encodeURIComponent(activeCurrency)}` : "/transactions";
-    return apiClient
-      .post<{ success: boolean; data: TransactionDTO }>(url, payload)
-      .then((res) => res.data);
-  },
+  create: (payload: CreateTransactionPayload): Promise<TransactionDTO> =>
+    apiClient
+      .post<{ success: boolean; data: TransactionDTO }>("/transactions", payload)
+      .then((res) => res.data),
 
-  update: (id: string, payload: UpdateTransactionPayload, currency?: string): Promise<TransactionDTO> => {
-    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-    const url = activeCurrency ? `/transactions/${id}?currency=${encodeURIComponent(activeCurrency)}` : `/transactions/${id}`;
-    return apiClient
-      .patch<{ success: boolean; data: TransactionDTO }>(url, payload)
-      .then((res) => res.data);
-  },
+  update: (id: string, payload: UpdateTransactionPayload): Promise<TransactionDTO> =>
+    apiClient
+      .patch<{ success: boolean; data: TransactionDTO }>(`/transactions/${id}`, payload)
+      .then((res) => res.data),
 
-  remove: (id: string, currency?: string): Promise<{ success: boolean }> => {
-    const activeCurrency = currency ?? useDashboardCurrencyStore.getState().currency;
-    const url = activeCurrency ? `/transactions/${id}?currency=${encodeURIComponent(activeCurrency)}` : `/transactions/${id}`;
+  remove: (id: string): Promise<{ success: boolean }> => {
+    const url = `/transactions/${id}`;
     try {
       console.log('[DELETE FLOW] transaction.service.remove calling DELETE URL=', url);
     } catch (e) {}

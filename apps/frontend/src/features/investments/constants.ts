@@ -75,7 +75,9 @@ export const EMPTY_FORM_VALUES: InvestmentFormValues = {
   symbol: "",
   quantity: 0,
   averageBuyPrice: 0,
-  currentPrice: 0,
+  // Empty by default for NEW entries: falls back to the average buy price on
+  // submit (ROI awal = 0%). Old investments are never recalculated.
+  currentPrice: null,
   invested: 0,
   purchaseDate: "",
   notes: "",

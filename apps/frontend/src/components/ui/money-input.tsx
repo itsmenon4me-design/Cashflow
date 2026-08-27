@@ -3,99 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { getCurrencySpec } from "@/lib/money";
 
-interface Separators {
-  group: string;
-  decimal: string;
-}
-
-// Locale formatting for the field. IDR has no decimals; USD/SGD use
-// comma grouping + dot decimal; EUR uses dot grouping + comma decimal.
-const CURRENCY_SEPARATORS: Record<string, Separators> = {
-  IDR: { group: ".", decimal: "" },
-  USD: { group: ",", decimal: "." },
-  SGD: { group: ",", decimal: "." },
-  EUR: { group: ".", decimal: "," },
-};
-
-function separatorsFor(currency: string): Separators {
-  return (
-    CURRENCY_SEPARATORS[currency] ?? { group: ",", decimal: "." }
-  );
-}
-
-function safeSpec(currency?: string) {
-  try {
-    return getCurrencySpec(currency);
-  } catch {
-    return getCurrencySpec("IDR");
-  }
-}
-
-function countChar(value: string, char: string): number {
-  let count = 0;
-  for (const ch of value) {
-    if (ch === char) count++;
-  }
-  return count;
-}
-
-/**
- * Normalize raw field text into a canonical value string:
- * digits only for IDR, or `int.frac` (frac capped at the currency's
- * minor units) for decimal currencies. Separators follow the locale.
- */
-function toNormalized(
-  raw: string,
-  spec: { code: string; minorUnits: number },
-): string {
-  const decimals = spec.minorUnits;
-  if (decimals === 0) {
-    return raw.replace(/[^\d]/g, "");
-  }
-  const seps = separatorsFor(spec.code);
-  const primary = seps.decimal;
-  const alt = primary === "." ? "," : ".";
-  let decIndex = raw.indexOf(primary);
-  if (decIndex === -1 && countChar(raw, alt) === 1) {
-    decIndex = raw.indexOf(alt);
-  }
-  const int = (decIndex === -1 ? raw : raw.slice(0, decIndex)).replace(
-    /[^\d]/g,
-    "",
-  );
-  if (decIndex === -1) {
-    return int;
-  }
-  const frac = raw
-    .slice(decIndex + 1)
-    .replace(/[^\d]/g, "")
-    .slice(0, decimals);
-  return frac === "" ? int : `${int}.${frac}`;
-}
-
-function toDisplay(normalized: string, seps: Separators): string {
-  const dot = normalized.indexOf(".");
-  const int = dot === -1 ? normalized : normalized.slice(0, dot);
-  const frac = dot === -1 ? "" : normalized.slice(dot + 1);
-  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, seps.group);
-  return frac === "" ? grouped : `${grouped}${seps.decimal}${frac}`;
-}
-
-function valueToNormalized(value: number | null, decimals: number): string {
-  if (value === null) return "";
-  if (decimals === 0) return String(Math.trunc(value));
-  return value.toFixed(decimals);
-}
-
-function toDisplayValue(
-  value: number | null,
-  decimals: number,
-  seps: Separators,
-): string {
-  if (value === null || value === 0) return "";
-  return toDisplay(valueToNormalized(value, decimals), seps);
+function groupDigits(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function readCursor(input: HTMLInputElement): number {
@@ -118,7 +28,6 @@ interface MoneyInputProps
 export function MoneyInput({
   value,
   onValueChange,
-  currency,
   className,
   placeholder,
   disabled,
@@ -128,57 +37,49 @@ export function MoneyInput({
   id,
   ...props
 }: MoneyInputProps) {
-  const spec = safeSpec(currency);
-  const seps = separatorsFor(spec.code);
-  const decimals = spec.minorUnits;
   const ref = useRef<HTMLInputElement>(null);
-  const caretRef = useRef<{ digits: number; afterDec: boolean }>({
-    digits: 0,
-    afterDec: false,
-  });
+  const caretDigitsRef = useRef(0);
 
-  const [text, setText] = useState<string>(() =>
-    toDisplayValue(value, decimals, seps),
-  );
+  const toDisplay = (val: number | null): string => {
+    if (val === null || val === 0) return "";
+    return groupDigits(String(Math.trunc(val)));
+  };
+
+  const [text, setText] = useState<string>(() => toDisplay(value));
 
   useEffect(() => {
     if (document.activeElement === ref.current) return;
-    setText(toDisplayValue(value, decimals, seps));
-  }, [value, currency, decimals, seps]);
+    setText(toDisplay(value));
+  }, [value]);
 
-  const computeCaret = (input: HTMLInputElement) => {
-    const caret = readCursor(input);
-    const raw = input.value;
-    let digits = 0;
-    for (let i = 0; i < caret; i++) {
-      if (/\d/.test(raw[i])) digits++;
+  const processInput = (raw: string) => {
+    const digits = raw.replace(/[^\d]/g, "");
+    if (digits === "") {
+      onValueChange(null);
+      setText("");
+      return;
     }
-    const decIndex = raw.lastIndexOf(seps.decimal);
-    caretRef.current = {
-      digits,
-      afterDec: decIndex !== -1 && caret > decIndex,
-    };
+    onValueChange(parseInt(digits, 10));
+    setText(groupDigits(digits));
   };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.target;
-    const normalized = toNormalized(input.value, spec);
-    computeCaret(input);
-    onValueChange(normalized === "" ? null : parseFloat(normalized));
-    setText(toDisplay(normalized, seps));
+    const caret = readCursor(input);
+    const rawDigitsBefore = input.value.slice(0, caret).replace(/[^\d]/g, "").length;
+    caretDigitsRef.current = rawDigitsBefore;
+    processInput(input.value);
   };
 
   useLayoutEffect(() => {
-    if (document.activeElement !== ref.current) return;
     const input = ref.current;
-    if (!input) return;
+    if (!input || document.activeElement !== input) return;
 
     let position = 0;
     let seen = 0;
-    const target = caretRef.current.digits;
-    const value = input.value;
-    for (let i = 0; i < value.length; i++) {
-      if (/\d/.test(value[i])) {
+    const target = caretDigitsRef.current;
+    for (let i = 0; i < input.value.length; i++) {
+      if (/\d/.test(input.value[i])) {
         seen++;
         if (seen === target) {
           position = i + 1;
@@ -186,14 +87,8 @@ export function MoneyInput({
         }
       }
     }
-
-    const decIndex = value.lastIndexOf(seps.decimal);
-    if (caretRef.current.afterDec && decIndex !== -1 && position <= decIndex) {
-      position = decIndex + 1;
-    }
-
     input.setSelectionRange(position, position);
-  }, [text, seps]);
+  }, [text]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     props.onKeyDown?.(event);
@@ -201,48 +96,47 @@ export function MoneyInput({
 
   const handleClick = (event: React.MouseEvent<HTMLInputElement>) => {
     if (ref.current) {
-      computeCaret(ref.current);
+      const caret = readCursor(ref.current);
+      caretDigitsRef.current = ref.current.value.slice(0, caret).replace(/[^\d]/g, "").length;
     }
     props.onClick?.(event);
   };
 
   const handleSelect = (event: React.SyntheticEvent<HTMLInputElement>) => {
     if (ref.current) {
-      computeCaret(ref.current);
+      const caret = readCursor(ref.current);
+      caretDigitsRef.current = ref.current.value.slice(0, caret).replace(/[^\d]/g, "").length;
     }
     props.onSelect?.(event);
   };
 
-  const handleCompositionStart = () => {
-    // keep IME composition intact
-  };
-
   const handleCompositionEnd = (event: React.CompositionEvent<HTMLInputElement>) => {
-    handleChange(event as unknown as React.ChangeEvent<HTMLInputElement>);
+    processInput(event.currentTarget.value);
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault();
-    const pastedText = event.clipboardData.getData("text");
-    const normalized = toNormalized(pastedText, spec);
-    onValueChange(normalized === "" ? null : parseFloat(normalized));
-    caretRef.current = {
-      digits: normalized.replace(/[^\d]/g, "").length,
-      afterDec: normalized.includes("."),
-    };
-    setText(toDisplay(normalized, seps));
+    const pasted = event.clipboardData.getData("text");
+    const digits = pasted.replace(/[^\d]/g, "");
+    caretDigitsRef.current = digits.length;
+    if (digits === "") {
+      onValueChange(null);
+      setText("");
+    } else {
+      onValueChange(parseInt(digits, 10));
+      setText(groupDigits(digits));
+    }
   };
 
   return (
     <Input
       ref={ref}
       type="text"
-      inputMode={decimals > 0 ? "decimal" : "numeric"}
+      inputMode="numeric"
       autoComplete="off"
       placeholder={placeholder ?? "0"}
       value={text}
       onChange={handleChange}
-      onCompositionStart={handleCompositionStart}
       onCompositionEnd={handleCompositionEnd}
       onKeyDown={handleKeyDown}
       onClick={handleClick}

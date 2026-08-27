@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/charts/ChartCard";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatTransactionDate } from "@/lib/format";
+import { transactionTone } from "@/lib/transaction-tone";
 import { uiText } from "@/locales";
 import type { TransactionItem } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
@@ -53,10 +54,10 @@ export function TransactionSummaryCard({ data, loading = false }: TransactionSum
               <p
                 className={cn(
                   "text-sm font-semibold",
-                  tx.type === "income" ? "text-emerald-500" : "text-foreground"
+                  transactionTone(tx.type).amountClass
                 )}
               >
-                {tx.type === "income" ? "+" : "−"}
+                {transactionTone(tx.type).sign}
                 {formatMoney(tx.amount)}
               </p>
               <p className="text-xs text-muted-foreground">{formatTransactionDate(tx.dateTime ?? tx.date)}</p>

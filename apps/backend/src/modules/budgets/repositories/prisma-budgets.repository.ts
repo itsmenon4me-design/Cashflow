@@ -60,34 +60,21 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string, currency?: string): Promise<BudgetEntity | null> {
-    // Each currency is its own ledger; legacy rows without currency stay
-    // visible in every ledger until the backfill assigns them one.
-    const where: Prisma.BudgetWhereInput = { id };
-    if (currency) {
-      where.OR = [{ currency }, { currency: null }];
-    }
+  async findById(id: string): Promise<BudgetEntity | null> {
     const rec = await this.prisma.budget.findFirst({
-      where,
+      where: { id },
       include: { category: { select: { name: true } } },
     });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(
-    userId: string,
-    currency?: string,
-  ): Promise<BudgetEntity[]> {
-    const where: Prisma.BudgetWhereInput = {
-      user_id: userId,
-      deleted_at: null,
-    };
-    if (currency) {
-      where.OR = [{ currency }, { currency: null }];
-    }
+  async findAllByUser(userId: string): Promise<BudgetEntity[]> {
     const recs = await this.prisma.budget.findMany({
-      where,
+      where: {
+        user_id: userId,
+        deleted_at: null,
+      },
       include: { category: { select: { name: true } } },
       orderBy: { created_at: 'desc' },
     });
@@ -99,20 +86,15 @@ export class PrismaBudgetsRepository implements IBudgetsRepository {
     categoryId: string,
     month: number,
     year: number,
-    currency?: string,
   ): Promise<BudgetEntity | null> {
-    const where: Prisma.BudgetWhereInput = {
-      user_id: userId,
-      category_id: categoryId,
-      month,
-      year,
-      deleted_at: null,
-    };
-    if (currency) {
-      where.OR = [{ currency }, { currency: null }];
-    }
     const rec = await this.prisma.budget.findFirst({
-      where,
+      where: {
+        user_id: userId,
+        category_id: categoryId,
+        month,
+        year,
+        deleted_at: null,
+      },
     });
     return rec ? this.map(rec) : null;
   }

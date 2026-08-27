@@ -23,7 +23,6 @@ const baseUserSettings: UserSettings = {
   userId: "user-1",
   theme: "dark",
   language: "id",
-  currency: "IDR",
   timezone: "Asia/Jakarta",
   notificationPreferences: {
     transactions: true,

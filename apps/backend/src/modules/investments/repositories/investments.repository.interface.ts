@@ -1,8 +1,8 @@
 import { InvestmentEntity } from '../entities/investment.entity';
 
 export interface IInvestmentsRepository {
-  findById(id: string, currency?: string): Promise<InvestmentEntity | null>;
-  findAllByUser(userId: string, currency?: string): Promise<InvestmentEntity[]>;
+  findById(id: string): Promise<InvestmentEntity | null>;
+  findAllByUser(userId: string): Promise<InvestmentEntity[]>;
   create(input: Partial<InvestmentEntity>): Promise<InvestmentEntity>;
   update(
     id: string,

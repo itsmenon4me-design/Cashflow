@@ -84,25 +84,18 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string, currency?: string): Promise<InvestmentEntity | null> {
-    // Each currency is its own ledger; legacy rows without currency stay
-    // visible in every ledger until the backfill assigns them one.
-    const where: Prisma.InvestmentWhereInput = { id };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
-    const rec = await this.prisma.investment.findFirst({ where });
+  async findById(id: string): Promise<InvestmentEntity | null> {
+    const rec = await this.prisma.investment.findFirst({ where: { id } });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
   }
 
-  async findAllByUser(userId: string, currency?: string): Promise<InvestmentEntity[]> {
-    const where: any = { user_id: userId, deleted_at: null };
-    if (currency) {
-      where.OR = [{ currency }, { account: { currency } }];
-    }
+  async findAllByUser(userId: string): Promise<InvestmentEntity[]> {
     const recs = await this.prisma.investment.findMany({
-      where,
+      where: {
+        user_id: userId,
+        deleted_at: null,
+      },
       orderBy: { purchase_date: 'desc' },
     });
     return (recs as unknown as InvRec[]).map((rec) => this.map(rec));

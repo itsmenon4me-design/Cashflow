@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Plus, ReceiptText } from "lucide-react";
 import { BudgetFilters, type BudgetPeriod } from "@/components/budgets/BudgetFilters";
-import { BudgetForm, type BudgetFormMode } from "@/components/budgets/BudgetForm";
+import type { BudgetFormMode } from "@/components/budgets/BudgetForm";
 import { BudgetProgress } from "@/components/budgets/BudgetProgress";
 import { BudgetTable } from "@/components/budgets/BudgetTable";
 import { BudgetToolbar } from "@/components/budgets/BudgetToolbar";
-import { DeleteBudgetDialog } from "@/components/budgets/DeleteBudgetDialog";
+// Form + delete dialog (react-hook-form + zod) load in async chunks the first
+// time the user opens them — keeps them out of the initial page bundle.
+import { LoadOnOpen } from "@/components/common/load-on-open";
+const LazyBudgetForm = dynamic(
+  () => import("@/components/budgets/BudgetForm").then((m) => m.BudgetForm),
+  { ssr: false },
+);
+const LazyDeleteBudgetDialog = dynamic(
+  () => import("@/components/budgets/DeleteBudgetDialog").then((m) => m.DeleteBudgetDialog),
+  { ssr: false },
+);
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -18,19 +29,14 @@ import { TransactionPagination } from "@/components/transactions/TransactionPagi
 import {
   DEFAULT_PAGE_SIZE,
   EMPTY_FILTERS,
-  getYearOptions,
 } from "@/features/budgets/constants";
 import type { BudgetFiltersState } from "@/features/budgets/types";
-import {
-  toCreateBudgetPayload,
-  toUpdateBudgetPayload,
-  type BudgetFormValues,
-} from "@/features/budgets/schema";
+import type { BudgetFormValues } from "@/features/budgets/schema";
 import { formatCurrencyCents } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
+import { useAccountMinYear } from "@/hooks/use-account-min-year";
 import {
   budgetService,
   toBudgetItem,
@@ -66,8 +72,9 @@ function periodFromSearchParams(params: URLSearchParams): BudgetPeriod | null {
 }
 
 export function BudgetsPage() {
-  const activeCurrency = useDashboardCurrencyStore((s) => s.currency);
   const searchParams = useSearchParams();
+  // Year stepper floor: the year the user's account was created.
+  const minYear = useAccountMinYear();
   const [rawBudgets, setRawBudgets] = useState<BudgetResponse[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseOption[]>([]);
   const [analysis, setAnalysis] = useState<BudgetAnalysisResponse | null>(null);
@@ -109,7 +116,7 @@ export function BudgetsPage() {
       setError(false);
       try {
         const [budgets, categories] = await Promise.all([
-          budgetService.list(activeCurrency),
+          budgetService.list(),
           categoryService.list(),
         ]);
         if (cancelled) {
@@ -140,7 +147,7 @@ export function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, activeCurrency]);
+  }, [refreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,11 +158,7 @@ export function BudgetsPage() {
         return;
       }
       try {
-        const result = await budgetService.analysis(
-          period.month,
-          period.year,
-          activeCurrency,
-        );
+        const result = await budgetService.analysis(period.month, period.year);
         if (!cancelled) {
           setAnalysis(result);
         }
@@ -171,7 +174,7 @@ export function BudgetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [period, refreshKey, activeCurrency]);
+  }, [period, refreshKey]);
 
   const budgetItems = useMemo(() => {
     const spentByCategory: Record<string, number> = {};
@@ -257,13 +260,15 @@ export function BudgetsPage() {
   };
 
   const handleFormSubmit = async (values: BudgetFormValues) => {
+    // Payload builders live in the zod schema module; import it lazily inside
+    // the submit path so zod stays out of the initial page bundle.
+    const { toCreateBudgetPayload, toUpdateBudgetPayload } = await import(
+      "@/features/budgets/schema"
+    );
+
     if (formState.mode === "edit" && formState.budget) {
       try {
-        await budgetService.update(
-          formState.budget.id,
-          toUpdateBudgetPayload(values),
-          activeCurrency,
-        );
+        await budgetService.update(formState.budget.id, toUpdateBudgetPayload(values));
       } catch {
         // daftar tetap disinkronkan dengan state server
       }
@@ -288,7 +293,7 @@ export function BudgetsPage() {
     const target = deleting;
     setDeleting(null);
     try {
-      await budgetService.remove(target.id, activeCurrency);
+      await budgetService.remove(target.id);
     } catch {
       // daftar tetap disinkronkan dengan state server
     }
@@ -317,7 +322,7 @@ export function BudgetsPage() {
 
       <BudgetFilters
         filters={filters}
-        years={getYearOptions()}
+        minYear={minYear}
         period={period}
         onChange={handleFiltersChange}
         onPeriodChange={handlePeriodChange}
@@ -389,27 +394,29 @@ export function BudgetsPage() {
         </>
       )}
 
-      <BudgetForm
-        key={formState.session}
-        open={formState.open}
-        onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
-        mode={formState.mode}
-        budget={formState.budget}
-        categories={expenseCategories}
-        budgets={budgetItems}
-        years={getYearOptions()}
-        onSubmit={(values) => void handleFormSubmit(values)}
-      />
+      <LoadOnOpen active={formState.open || deleting !== null}>
+        <LazyBudgetForm
+          key={formState.session}
+          open={formState.open}
+          onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
+          mode={formState.mode}
+          budget={formState.budget}
+          categories={expenseCategories}
+          budgets={budgetItems}
+          minYear={minYear}
+          onSubmit={(values) => void handleFormSubmit(values)}
+        />
 
-      <DeleteBudgetDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleting(null);
-          }
-        }}
-        onConfirm={() => void handleConfirmDelete()}
-      />
+        <LazyDeleteBudgetDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleting(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </LoadOnOpen>
     </div>
   );
 }

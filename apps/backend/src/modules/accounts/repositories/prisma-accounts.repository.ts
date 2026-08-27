@@ -65,27 +65,17 @@ export class PrismaAccountsRepository implements IAccountsRepository {
     return this.map(rec);
   }
 
-  async findById(id: string, currency?: string): Promise<AccountEntity | null> {
-    // Each currency is its own ledger: when a currency hint is provided the
-    // account must belong to that ledger, otherwise it is not visible.
-    let rec: AccountRec | null = null;
-    if (currency) {
-      rec = await this.prisma.account.findFirst({
-        where: { id, deleted_at: null, currency },
-      });
-    } else {
-      rec = await this.prisma.account.findUnique({ where: { id } });
-      if (rec && rec.deleted_at) rec = null;
-    }
+  async findById(id: string): Promise<AccountEntity | null> {
+    const rec = await this.prisma.account.findFirst({
+      where: { id, deleted_at: null },
+    });
 
     return rec ? this.map(rec) : null;
   }
 
-  async findAllByUser(userId: string, currency?: string): Promise<AccountEntity[]> {
-    const where: any = { user_id: userId, deleted_at: null };
-    if (currency) where.currency = currency;
+  async findAllByUser(userId: string): Promise<AccountEntity[]> {
     const recs: AccountRec[] = await this.prisma.account.findMany({
-      where,
+      where: { user_id: userId, deleted_at: null },
       orderBy: {
         created_at: 'desc',
       },
@@ -110,17 +100,13 @@ export class PrismaAccountsRepository implements IAccountsRepository {
   async findByUserAndName(
     userId: string,
     name: string,
-    currency?: string,
   ): Promise<AccountEntity | null> {
-    const where: any = {
-      user_id: userId,
-      name,
-      deleted_at: null,
-    };
-    if (currency) where.currency = currency;
-
     const rec = await this.prisma.account.findFirst({
-      where,
+      where: {
+        user_id: userId,
+        name,
+        deleted_at: null,
+      },
     });
 
     return rec ? this.map(rec) : null;

@@ -3,15 +3,14 @@
 export interface IBillsRepository {
   create(input: Partial<BillEntity>): Promise<BillEntity>;
 
-  findByIdOwned(id: string, userId: string, currency?: string): Promise<BillEntity | null>;
+  findByIdOwned(id: string, userId: string): Promise<BillEntity | null>;
 
-  findAllByUser(userId: string, currency?: string): Promise<BillEntity[]>;
+  findAllByUser(userId: string): Promise<BillEntity[]>;
 
   findUpcomingByUser(
     userId: string,
     from: Date,
     to: Date,
-    currency?: string,
   ): Promise<BillEntity[]>;
 
   updateOwned(

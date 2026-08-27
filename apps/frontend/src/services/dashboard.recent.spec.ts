@@ -81,16 +81,11 @@ describe("dashboard.getRecentTransactions (currency propagation)", () => {
       { id: "c1", name: "Salary", type: "INCOME", icon: null, color: null, description: null, is_system: false, is_active: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
     ]);
 
-    const res = await dashboardService.getRecentTransactions(5, "SGD");
+    const res = await dashboardService.getRecentTransactions(5);
     expect(Array.isArray(res)).toBe(true);
     const tx = res.find((r) => r.id === "t1");
     expect(tx).toBeDefined();
-    // 100000 minor units in SGD -> 1000 major units
-    expect(tx?.amount).toBe(1000);
-
-    // Ensure transactionService.list was called with currency param hint
-    expect((transactionService.list as any).mock.calls[0][0]).toMatchObject({ currency: "SGD" });
-    // Ensure accountService.list was called with currency hint
-    expect((accountService.list as any).mock.calls[0][0]).toBe("SGD");
+    // 100000 minor units in IDR -> 100000 major units (IDR has 0 minor units)
+    expect(tx?.amount).toBe(100000);
   });
 });
