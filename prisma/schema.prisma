@@ -3,9 +3,10 @@ generator client {
   output   = "../apps/backend/src/generated/prisma"
 }
 
-datasource db {
-  provider = "postgresql"
-}
+  datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
 
 // Base model convention: UUID primary key, createdAt, updatedAt
 // Initial placeholder model only
