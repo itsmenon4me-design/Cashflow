@@ -65,3 +65,5 @@ playwright-traces/
 
 # Local debug / temporary scripts
 *.pid
+.vercel
+.env*

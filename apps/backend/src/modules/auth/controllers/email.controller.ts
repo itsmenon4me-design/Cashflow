@@ -127,7 +127,7 @@ export class EmailController {
       process.env.APP_URL ??
       'http://localhost:3000';
     const link = `${baseUrl}/reset-password?token=${raw}&id=${user.id}`;
-    this.mail.sendPasswordReset(user.email, user.full_name, link);
+   await this.mail.sendPasswordReset(user.email, user.full_name, link);
 
     return generic;
   }
