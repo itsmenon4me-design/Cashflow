@@ -1,3 +1,4 @@
+import { UAParser } from 'ua-parser-js';
 import { AuthRequestContext } from '../types/auth-request';
 
 function safeFirst(value: string | undefined): string | undefined {
@@ -8,43 +9,41 @@ function safeFirst(value: string | undefined): string | undefined {
 
 const UNKNOWN = 'Unknown';
 
-function detectBrowser(ua: string | null): string {
-  if (!ua) return UNKNOWN;
-  const s = ua.toLowerCase();
-  if (s.includes('edg/')) return 'Edge';
-  if (s.includes('opr/') || s.includes('opera')) return 'Opera';
-  if (s.includes('chrome/') && s.includes('chromium')) return 'Chromium';
-  if (s.includes('chrome/')) return 'Chrome';
-  if (s.includes('firefox/')) return 'Firefox';
-  if (s.includes('safari/') && !s.includes('chrome')) return 'Safari';
-  return UNKNOWN;
-}
+function buildDeviceName(
+  os: string,
+  osVersion: string | undefined,
+  browser: string,
+  deviceType: string,
+  deviceVendor: string | undefined,
+  deviceModel: string | undefined,
+): string {
+  const parts: string[] = [];
 
-function detectOS(ua: string | null): string {
-  if (!ua) return UNKNOWN;
-  const s = ua.toLowerCase();
-  if (s.includes('iphone') || s.includes('ipad') || s.includes('ipod') || s.includes('ios')) return 'iOS';
-  if (s.includes('android')) return 'Android';
-  if (s.includes('win')) return 'Windows';
-  if (s.includes('mac os') || s.includes('macintosh') || s.includes('macos')) return 'macOS';
-  if (s.includes('linux') || s.includes('cros')) return 'Linux';
-  return UNKNOWN;
-}
+  const isGenericModel = deviceModel?.toLowerCase() === 'macintosh';
 
-function detectDeviceType(ua: string | null): string {
-  if (!ua) return 'Desktop';
-  return /mobile|android|iphone|ipad|ipod|blackberry|iemobile/.test(
-    ua.toLowerCase(),
-  )
-    ? 'Mobile'
-    : 'Desktop';
-}
+  if (deviceModel && !isGenericModel) {
+    if (deviceVendor && deviceVendor !== 'Apple' && !deviceModel.startsWith(deviceVendor)) {
+      parts.push(`${deviceVendor} ${deviceModel}`);
+    } else {
+      parts.push(deviceModel);
+    }
+  } else if (deviceType === 'Mobile') {
+    if (os === 'iOS') {
+      parts.push('iPhone');
+    } else if (os !== UNKNOWN) {
+      parts.push(`${os} Mobile`);
+    }
+  }
 
-function detectDeviceName(ua: string | null): string | null {
-  if (!ua) return null;
-  const type = detectDeviceType(ua);
-  const os = detectOS(ua);
-  return type === 'Mobile' ? `${os} Mobile` : `${os} Browser`;
+  if (parts.length === 0 && os !== UNKNOWN) {
+    parts.push(osVersion ? `${os} ${osVersion}` : os);
+  }
+
+  if (browser !== UNKNOWN) {
+    parts.push(browser);
+  }
+
+  return parts.join(' \u00b7 ') || UNKNOWN;
 }
 
 export function extractAuthRequestContext(req: {
@@ -68,10 +67,36 @@ export function extractAuthRequestContext(req: {
 }
 
 export function deriveDeviceInfo(userAgent: string | null) {
+  if (!userAgent) {
+    return {
+      device_name: null,
+      device_type: 'Desktop',
+      browser: UNKNOWN,
+      operating_system: UNKNOWN,
+    };
+  }
+
+  const parsed = new UAParser(userAgent).getResult();
+
+  const osName = parsed.os.name ?? UNKNOWN;
+  const osVersion = parsed.os.version ?? undefined;
+  const browserName = parsed.browser.name ?? UNKNOWN;
+  const deviceType =
+    parsed.device.type === 'mobile' || parsed.device.type === 'tablet'
+      ? 'Mobile'
+      : 'Desktop';
+
   return {
-    device_name: detectDeviceName(userAgent),
-    device_type: detectDeviceType(userAgent),
-    browser: detectBrowser(userAgent),
-    operating_system: detectOS(userAgent),
+    device_name: buildDeviceName(
+      osName,
+      osVersion,
+      browserName,
+      deviceType,
+      parsed.device.vendor ?? undefined,
+      parsed.device.model ?? undefined,
+    ),
+    device_type: deviceType,
+    browser: browserName,
+    operating_system: osName,
   };
 }

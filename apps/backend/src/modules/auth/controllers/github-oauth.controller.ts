@@ -3,49 +3,51 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { ErrorService } from '../../../common/errors/error.service';
-import { AppleAuthService } from '../services/apple-auth.service';
+import { GithubAuthService } from '../services/github-auth.service';
 import { extractAuthRequestContext } from '../services/device-info';
 
 @ApiTags('Authentication')
 @Controller('auth')
-export class AppleOauthController {
-  constructor(private readonly appleAuthService: AppleAuthService) {}
+export class GithubOauthController {
+  constructor(private readonly githubAuthService: GithubAuthService) {}
 
-  @Get('apple')
-  @ApiOperation({ summary: 'Prepare Apple OAuth redirect' })
+  @Get('github')
+  @ApiOperation({ summary: 'Prepare GitHub OAuth redirect' })
   @ApiResponse({ status: 200 })
-  async appleLogin() {
+  async githubLogin() {
     try {
       return {
         success: true,
-        url: this.appleAuthService.getLoginUrl(),
+        url: this.githubAuthService.getLoginUrl(),
       };
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Apple OAuth is not configured yet.';
+        error instanceof Error
+          ? error.message
+          : 'GitHub OAuth is not configured yet.';
       throw ErrorService.create(ErrorCode.INVALID_INPUT, message);
     }
   }
 
-  @Get('apple/callback')
-  @ApiOperation({ summary: 'Handle Apple OAuth callback' })
+  @Get('github/callback')
+  @ApiOperation({ summary: 'Handle GitHub OAuth callback' })
   @ApiResponse({ status: 302 })
-  async appleCallback(
+  async githubCallback(
     @Req() req: Request,
     @Res() res: Response,
     @Query('code') code?: string,
     @Query('state') state?: string,
   ) {
     try {
-      const result = await this.appleAuthService.handleAppleCallback({
+      const result = await this.githubAuthService.handleGithubCallback({
         code,
         state,
         context: extractAuthRequestContext(req),
       });
 
       return res.redirect(result.redirectUrl);
-    } catch (error) {
-      const fallback = await this.appleAuthService.handleAppleCallbackError();
+    } catch {
+      const fallback = this.githubAuthService.handleGithubCallbackError();
       return res.redirect(fallback.redirectUrl);
     }
   }

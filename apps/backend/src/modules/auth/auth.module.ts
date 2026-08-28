@@ -24,11 +24,11 @@ import { SessionsController } from './controllers/sessions.controller';
 import { RolesService } from './services/roles.service';
 import { PermissionsService } from './services/permissions.service';
 import { GoogleOauthController } from './controllers/google-oauth.controller';
-import { AppleOauthController } from './controllers/apple-oauth.controller';
+import { GithubOauthController } from './controllers/github-oauth.controller';
 import { GoogleAuthService } from './services/google-auth.service';
-import { AppleAuthService } from './services/apple-auth.service';
+import { GithubAuthService } from './services/github-auth.service';
 import { GoogleOAuthProvider } from './providers/google/google-oauth.provider';
-import { AppleOAuthProvider } from './providers/apple/apple-oauth.provider';
+import { GithubOAuthProvider } from './providers/github/github-oauth.provider';
 import { PrismaOauthAccountRepository } from './repositories/prisma-oauth-account.repository';
 import { OAuthAccountService } from './services/oauth-account.service';
 
@@ -53,7 +53,13 @@ import { OAuthAccountService } from './services/oauth-account.service';
       },
     }),
   ],
-  controllers: [AuthController, SessionsController, EmailController, GoogleOauthController, AppleOauthController],
+  controllers: [
+    AuthController,
+    SessionsController,
+    EmailController,
+    GoogleOauthController,
+    GithubOauthController,
+  ],
   providers: [
     AuthService,
     JwtStrategy,
@@ -70,8 +76,8 @@ import { OAuthAccountService } from './services/oauth-account.service';
     // OAuth preparation layers
     GoogleOAuthProvider,
     GoogleAuthService,
-    AppleOAuthProvider,
-    AppleAuthService,
+    GithubOAuthProvider,
+    GithubAuthService,
     PrismaOauthAccountRepository,
     OAuthAccountService,
     // Users repo provider for Auth module internal updates
@@ -79,6 +85,12 @@ import { OAuthAccountService } from './services/oauth-account.service';
     // Rate limiting guard for auth endpoints
     AuthRateLimitGuard,
   ],
-  exports: [AuthService, SessionService, RolesService, PermissionsService, OAuthAccountService],
+  exports: [
+    AuthService,
+    SessionService,
+    RolesService,
+    PermissionsService,
+    OAuthAccountService,
+  ],
 })
 export class AuthModule {}

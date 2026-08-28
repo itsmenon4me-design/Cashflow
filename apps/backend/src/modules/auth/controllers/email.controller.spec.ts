@@ -37,7 +37,9 @@ describe('EmailController (security)', () => {
       verifyToken: jest.fn().mockResolvedValue(undefined),
     };
     usersServiceMock = { findByEmail: jest.fn().mockResolvedValue(user) };
-    mailServiceMock = { sendPasswordReset: jest.fn() };
+    mailServiceMock = {
+      sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+    };
     usersRepoMock = { update: jest.fn().mockResolvedValue(user) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -201,6 +203,17 @@ describe('EmailController (security)', () => {
         .post('/auth/email/forgot-password')
         .send({ email: 'a@b.com' })
         .expect(201);
+    });
+
+    it('logs error silently and maintains generic response when SMTP fails', async () => {
+      mailServiceMock.sendPasswordReset.mockRejectedValueOnce(
+        new Error('Connection timeout'),
+      );
+      const response = await http()
+        .post('/auth/email/forgot-password')
+        .send({ email: 'a@b.com' })
+        .expect(201);
+      expect((response.body as { success: boolean }).success).toBe(true);
     });
   });
 });

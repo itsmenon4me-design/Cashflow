@@ -60,7 +60,13 @@ export class EmailController {
       return { success: true };
     }
 
-    await this.verification.sendVerificationEmail(user.id);
+    try {
+      await this.verification.sendVerificationEmail(user.id);
+    } catch (err) {
+      this.logger.error(
+        `Failed to send verification email: email=${body.email} error=${(err as Error).message}`,
+      );
+    }
     return { success: true };
   }
 
@@ -82,7 +88,13 @@ export class EmailController {
       this.logger.debug('Resend verification requested for unknown email');
       return { success: true };
     }
-    await this.verification.sendVerificationEmail(user.id);
+    try {
+      await this.verification.sendVerificationEmail(user.id);
+    } catch (err) {
+      this.logger.error(
+        `Failed to resend verification email: email=${body.email} error=${(err as Error).message}`,
+      );
+    }
     return { success: true };
   }
 
@@ -127,7 +139,13 @@ export class EmailController {
       process.env.APP_URL ??
       'http://localhost:3000';
     const link = `${baseUrl}/reset-password?token=${raw}&id=${user.id}`;
-    await this.mail.sendPasswordReset(user.email, user.full_name, link);
+    try {
+      await this.mail.sendPasswordReset(user.email, user.full_name, link);
+    } catch (err) {
+      this.logger.error(
+        `Failed to send password reset email: email=${user.email} error=${(err as Error).message}`,
+      );
+    }
 
     return generic;
   }

@@ -25,11 +25,12 @@ export const enText = {
     logout: "Logout",
   },
   common: {
-    searchPlaceholder: "Search transactions, accounts, insights, categories, budgets, goals, investments, notifications...",
+    searchPlaceholder:
+      "Search transactions, accounts, insights, categories, budgets, goals, investments, notifications...",
     searchAriaLabel: "Global search",
     noSearchResults: "No results found",
     searchResultsMenu: "Menu",
-  searchResultsTransactions: "Transactions",
+    searchResultsTransactions: "Transactions",
     searchResultsAccounts: "Accounts",
     searchResultsInsights: "Insights",
     searchResultsCategories: "Categories",
@@ -85,7 +86,8 @@ export const enText = {
     nextPage: "Next",
     allTypes: "All Types",
     allStatuses: "All Statuses",
-    searchTransactionsPlaceholder: "Search description, category, account, amount, or status...",
+    searchTransactionsPlaceholder:
+      "Search description, category, account, amount, or status...",
     actionLabel: "Actions",
   },
   status: {
@@ -199,7 +201,8 @@ export const enText = {
   },
   financeBot: {
     title: "Finance Bot",
-    subtitle: "Finance Bot helps remind you and provide simple insights based on your activity.",
+    subtitle:
+      "Finance Bot helps remind you and provide simple insights based on your activity.",
     enabled: "Enable Finance Bot",
     personalityTitle: "Bot Personality",
     personalityOptions: {
@@ -228,7 +231,8 @@ export const enText = {
     },
     openBudget: "Open Budget",
     openTransactions: "Open Transactions",
-    timezoneNote: "Reminder times use your configured timezone (or the app default when not set).",
+    timezoneNote:
+      "Reminder times use your configured timezone (or the app default when not set).",
   },
   auth: {
     loginTitle: "Log in",
@@ -241,13 +245,15 @@ export const enText = {
     loginAction: "Log in",
     processing: "Processing...",
     oauthError: "Google sign-in failed. Please try again.",
-    oauthUnavailable: "Google login is not available. OAuth configuration is required before use.",
-    appleOauthUnavailable: "Apple login is not available. OAuth configuration is required before use.",
+    oauthUnavailable:
+      "Google login is not available. OAuth configuration is required before use.",
+    githubOauthUnavailable:
+      "GitHub login is not available. OAuth configuration is required before use.",
     registerPrompt: "Don’t have an account?",
     registerLink: "Register",
     or: "or",
     continueGoogle: "Continue with Google",
-    continueApple: "Continue with Apple",
+    continueGithub: "Continue with GitHub",
     preparing: "Preparing...",
     showPassword: "Show password",
     hidePassword: "Hide password",
@@ -260,7 +266,8 @@ export const enText = {
     confirmPassword: "Confirm password",
     confirmNewPassword: "Confirm new password",
     registerAction: "Register",
-    registerSuccess: "Registration successful. Please check your email for verification.",
+    registerSuccess:
+      "Registration successful. Please check your email for verification.",
     alreadyHaveAccountPrompt: "Already have an account?",
     loginInstead: "Log in",
     forgotTitle: "Forgot Password",
@@ -268,18 +275,20 @@ export const enText = {
     forgotDescription: "Enter your email to receive a reset link",
     forgotAction: "Send reset link",
     forgotSending: "Sending...",
-    forgotSuccess: "If the email is registered, a password reset link has been sent. Check your inbox.",
+    forgotSuccess:
+      "If the email is registered, a password reset link has been sent.",
     resetTitle: "Reset Password",
     resetSubtitle: "Create a new password",
     resetDescription: "Enter your new password",
     newPassword: "New password",
     resetAction: "Reset password",
     resetProcessing: "Processing...",
-    resetSuccess: "Your password was updated. You will be redirected to the login page.",
+    resetSuccess:
+      "Your password was updated. You will be redirected to the login page.",
     genericError: "Unable to reach the server. Please try again.",
     loading: "Loading...",
     loginPasswordPlaceholder: "Enter your password",
-    passwordPlaceholder: "Minimum 12 characters",
+    passwordPlaceholder: "Minimum 8 characters",
     confirmPasswordPlaceholder: "Re-enter your password",
     confirmNewPasswordPlaceholder: "Re-enter your new password",
     loginRequired: "Email and password are required.",
@@ -288,17 +297,18 @@ export const enText = {
     fullNameRequired: "Full name is required.",
     fullNameShort: "Full name is too short.",
     usernameRequired: "Username is required.",
-    usernameInvalid: "Username is invalid. Use 3-30 alphanumeric characters, dots, underscores, or hyphens.",
+    usernameInvalid:
+      "Username is invalid. Use 3-30 alphanumeric characters, dots, underscores, or hyphens.",
     emailRequired: "Email is required.",
     passwordRequired: "Password is required.",
-    passwordMinLength: "Password must be at least 12 characters.",
+    passwordMinLength: "Password must be at least 8 characters.",
     passwordMismatch: "Passwords do not match.",
     registerFailed: "Registration failed. Please try again.",
     forgotInvalidEmail: "Email is invalid.",
     forgotRequestFailed: "Unable to send a password reset request.",
     resetInvalidToken: "The reset link is invalid or expired.",
     resetPasswordRequired: "A new password is required.",
-    resetPasswordMinLength: "Password must be at least 12 characters.",
+    resetPasswordMinLength: "Password must be at least 8 characters.",
     resetPasswordMismatch: "Passwords do not match.",
     resetFailed: "Unable to reset the password.",
   },
@@ -520,7 +530,8 @@ export const enText = {
     deleteTitle: "Delete Account",
     deleteMessage: "Are you sure you want to delete this account?",
     saveFailed: "Failed to save account. Please try again.",
-    duplicateNameError: "Account name already exists. Please use a different name.",
+    duplicateNameError:
+      "Account name already exists. Please use a different name.",
   },
 
   categories: {
@@ -674,7 +685,8 @@ export const enText = {
   },
   forecast: {
     pageTitle: "Financial Forecast",
-    pageSubtitle: "A forward-looking view of your income, expenses, and projected balance.",
+    pageSubtitle:
+      "A forward-looking view of your income, expenses, and projected balance.",
     horizonLabel: "Forecast horizon",
     horizon1Month: "1 month",
     horizonNMonths: "{count} months",
@@ -696,17 +708,22 @@ export const enText = {
     confidenceMedium: "Medium",
     confidenceLow: "Low",
     basisTitle: "Basis and history",
-    basisDescription: "Forecast uses {months} months of history from {start} to {end}.",
+    basisDescription:
+      "Forecast uses {months} months of history from {start} to {end}.",
     basisIncome: "Total income",
     basisExpense: "Total expense",
     basisAverageIncome: "Average monthly income",
     basisAverageExpense: "Average monthly expense",
     outlierTitle: "Historical outliers",
-    outlierDescription: "Some historical values were excluded from the basis to keep the forecast stable.",
+    outlierDescription:
+      "Some historical values were excluded from the basis to keep the forecast stable.",
     transferNoticeTitle: "Transfer handling",
-    transferNoticeDescription: "Transfers were excluded from this forecast so it stays focused on actual cash movement.",
-    insufficientDataTitle: "Not enough data to generate a financial forecast yet.",
-    insufficientDataDescription: "Add more transaction history to unlock a more complete forecast.",
+    transferNoticeDescription:
+      "Transfers were excluded from this forecast so it stays focused on actual cash movement.",
+    insufficientDataTitle:
+      "Not enough data to generate a financial forecast yet.",
+    insufficientDataDescription:
+      "Add more transaction history to unlock a more complete forecast.",
     spendingTitle: "Spending prediction",
     spendingSubtitle: "A category-based preview of your upcoming spending.",
     spendingPeriodLabel: "Prediction period",
@@ -717,9 +734,11 @@ export const enText = {
     spendingNoCategoryData: "No category breakdown is available yet.",
     spendingConfidenceLabel: "Confidence",
     spendingEmptyTitle: "No spending prediction available yet.",
-    spendingEmptyDescription: "Add more transaction history to generate a confidence-based category preview.",
+    spendingEmptyDescription:
+      "Add more transaction history to generate a confidence-based category preview.",
     errorTitle: "Failed to load financial forecast.",
-    errorDescription: "We could not retrieve the forecast right now. Please try again.",
+    errorDescription:
+      "We could not retrieve the forecast right now. Please try again.",
     loadingTitle: "Loading forecast...",
     noData: "No forecast data available.",
     retry: "Retry",
@@ -745,7 +764,8 @@ export const enText = {
     cashFlowTrend: "Cash Flow Trend",
     cashFlowTrendSubtitle: "Income, expense, and net cash flow per period.",
     trendNotEnoughTitle: "Not enough data to show a trend",
-    trendNotEnoughDesc: "Add transactions across at least 3 periods to reveal the trend.",
+    trendNotEnoughDesc:
+      "Add transactions across at least 3 periods to reveal the trend.",
     incomeVsExpense: "Income vs Expense",
     incomeVsExpenseSubtitle: "Comparison per period.",
     expenseByCategory: "Expense by Category",

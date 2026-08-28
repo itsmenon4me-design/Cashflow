@@ -5,9 +5,15 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
-import { GoogleIcon, AppleIcon } from "@/components/icons";
+import { GoogleIcon, GithubIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uiText } from "@/locales";
@@ -26,17 +32,19 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const [appleError, setAppleError] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
-  const [appleSubmitting, setAppleSubmitting] = useState(false);
+  const [githubSubmitting, setGithubSubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const oauthError = new URLSearchParams(window.location.search).get("oauth_error");
+    const oauthError = new URLSearchParams(window.location.search).get(
+      "oauth_error",
+    );
     if (oauthError) {
       setGoogleError(t.oauthError);
     }
@@ -47,7 +55,7 @@ export default function Page() {
     if (fullName.trim().length < 2) return t.fullNameShort;
     if (!email.trim()) return t.emailRequired;
     if (!password) return t.passwordRequired;
-    if (password.length < 12) return t.passwordMinLength;
+    if (password.length < 8) return t.passwordMinLength;
     if (password !== confirm) return t.passwordMismatch;
     return null;
   };
@@ -71,22 +79,22 @@ export default function Page() {
     }
   };
 
-  const handleAppleClick = async () => {
-    setAppleError(null);
-    setAppleSubmitting(true);
+  const handleGithubClick = async () => {
+    setGithubError(null);
+    setGithubSubmitting(true);
 
     try {
-      const response = await authService.appleLogin();
+      const response = await authService.githubLogin();
       if (!response.success || !response.url) {
-        setAppleError(response.message ?? t.appleOauthUnavailable);
+        setGithubError(response.message ?? t.githubOauthUnavailable);
         return;
       }
 
       window.location.assign(response.url);
     } catch {
-      setAppleError(t.appleOauthUnavailable);
+      setGithubError(t.githubOauthUnavailable);
     } finally {
-      setAppleSubmitting(false);
+      setGithubSubmitting(false);
     }
   };
 
@@ -128,7 +136,9 @@ export default function Page() {
     } catch (err) {
       if (err instanceof ApiError) {
         const message =
-          typeof err.data === "object" && err.data !== null && "message" in err.data
+          typeof err.data === "object" &&
+          err.data !== null &&
+          "message" in err.data
             ? String((err.data as { message: unknown }).message)
             : null;
         setError(message ?? t.registerFailed);
@@ -148,28 +158,26 @@ export default function Page() {
             <UserPlus className="size-6" />
           </div>
           <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
-         <p className="text-sm text-muted-foreground">{t.registerSubtitle}</p>
+          <p className="text-sm text-muted-foreground">{t.registerSubtitle}</p>
         </div>
 
         <Card>
           <CardHeader className="text-center">
-           <CardTitle>{t.registerTitle}</CardTitle>
-           <CardDescription>{t.registerDescription}</CardDescription>
+            <CardTitle>{t.registerTitle}</CardTitle>
+            <CardDescription>{t.registerDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-             <div className="space-y-2">
-              <Label htmlFor="fullName">{t.fullName}</Label>
-               <Input
-                 id="fullName"
-                 placeholder={t.fullName}
-                 value={fullName}
-                 onChange={(e) => setFullName(e.target.value)}
-                 disabled={submitting}
-               />
-             </div>
-
-
+              <div className="space-y-2">
+                <Label htmlFor="fullName">{t.fullName}</Label>
+                <Input
+                  id="fullName"
+                  placeholder={t.fullName}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={submitting}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
@@ -192,7 +200,7 @@ export default function Page() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
-                    placeholder="Minimal 12 karakter"
+                    placeholder={t.passwordPlaceholder}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={submitting}
@@ -204,7 +212,11 @@ export default function Page() {
                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? t.hidePassword : t.showPassword}
                   >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -264,11 +276,11 @@ export default function Page() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                loading={appleSubmitting}
-                onClick={handleAppleClick}
+                loading={githubSubmitting}
+                onClick={handleGithubClick}
               >
-                <AppleIcon className="mr-2 size-4" />
-                {appleSubmitting ? t.preparing : t.continueApple}
+                <GithubIcon className="mr-2 size-4" />
+                {githubSubmitting ? t.preparing : t.continueGithub}
               </Button>
 
               {googleError && (
@@ -277,9 +289,9 @@ export default function Page() {
                 </p>
               )}
 
-              {appleError && (
+              {githubError && (
                 <p className="text-sm text-destructive" role="alert">
-                  {appleError}
+                  {githubError}
                 </p>
               )}
             </div>
@@ -288,7 +300,10 @@ export default function Page() {
 
         <p className="text-center text-sm text-muted-foreground">
           {t.alreadyHaveAccountPrompt}{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-primary hover:underline"
+          >
             {t.loginInstead}
           </Link>
         </p>

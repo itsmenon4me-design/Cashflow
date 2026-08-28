@@ -30,6 +30,7 @@ describe('HeaderBar', () => {
       user: { name: 'Test User', email: 'test@example.com' },
       logout: vi.fn(),
       isAuthenticated: true,
+      hydrated: true,
       setUser: () => {},
       loginSession: async () => {},
     });
@@ -143,6 +144,15 @@ describe('HeaderBar', () => {
     await userEvent.click(screen.getByLabelText(uiText.common.notificationsAriaLabel));
     await userEvent.click(screen.getByText('System update'));
     expect(mockPush).toHaveBeenLastCalledWith('/notifications');
+  });
+
+  it('shows a neutral profile skeleton before auth hydration', () => {
+    useAuthStore.setState({ hydrated: false, user: null });
+
+    render(<HeaderBar />);
+
+    expect(screen.getByLabelText('Memuat profil')).toBeInTheDocument();
+    expect(screen.queryByText('U')).not.toBeInTheDocument();
   });
 
   it('does not show Quick Add in the header', () => {

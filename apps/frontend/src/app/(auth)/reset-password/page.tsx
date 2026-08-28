@@ -30,7 +30,7 @@ function ResetPasswordForm() {
   const validate = (): string | null => {
     if (!token || !id) return t.resetInvalidToken;
     if (!password) return t.resetPasswordRequired;
-    if (password.length < 12) return t.resetPasswordMinLength;
+    if (password.length < 8) return t.resetPasswordMinLength;
     if (password !== confirm) return t.resetPasswordMismatch;
     return null;
   };
@@ -101,7 +101,7 @@ function ResetPasswordForm() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
-                    placeholder="Minimal 12 karakter"
+                    placeholder={t.passwordPlaceholder}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     disabled={submitting}

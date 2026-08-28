@@ -48,9 +48,15 @@ export class EmailVerificationService {
     // Build verification link (frontend will handle token)
     const link = `${process.env.APP_URL ?? 'http://localhost:3001'}/api/v1/auth/email/verify?token=${raw}&id=${user.id}`;
 
-    this.mail.sendVerification(user.email, user.full_name, link);
-
-    this.logger.log(`Verification Sent: user=${user.id} email=${user.email}`);
+    try {
+      await this.mail.sendVerification(user.email, user.full_name, link);
+      this.logger.log(`Verification Sent: user=${user.id} email=${user.email}`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to deliver verification email: user=${user.id} email=${user.email} error=${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 
   async verifyToken(userId: string, token: string) {

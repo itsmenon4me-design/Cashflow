@@ -67,3 +67,6 @@ playwright-traces/
 *.pid
 .vercel
 .env*
+
+.hermes/
+.opencode/

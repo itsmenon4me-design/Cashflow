@@ -25,11 +25,12 @@ export const idText = {
     logout: "Keluar",
   },
   common: {
-    searchPlaceholder: "Cari transaksi, akun, wawasan, kategori, anggaran, target, investasi, notifikasi...",
+    searchPlaceholder:
+      "Cari transaksi, akun, wawasan, kategori, anggaran, target, investasi, notifikasi...",
     searchAriaLabel: "Pencarian global",
     noSearchResults: "Tidak ada hasil ditemukan",
     searchResultsMenu: "Menu",
-  searchResultsTransactions: "Transaksi",
+    searchResultsTransactions: "Transaksi",
     searchResultsAccounts: "Akun",
     searchResultsInsights: "Wawasan",
     searchResultsCategories: "Kategori",
@@ -85,7 +86,8 @@ export const idText = {
     nextPage: "Berikutnya",
     allTypes: "Semua Jenis",
     allStatuses: "Semua Status",
-    searchTransactionsPlaceholder: "Cari deskripsi, kategori, akun, jumlah, atau status...",
+    searchTransactionsPlaceholder:
+      "Cari deskripsi, kategori, akun, jumlah, atau status...",
     actionLabel: "Aksi",
   },
   status: {
@@ -199,7 +201,8 @@ export const idText = {
   },
   financeBot: {
     title: "Finance Bot",
-    subtitle: "Finance Bot membantu mengingatkan dan memberi wawasan sederhana berdasarkan aktivitas keuanganmu.",
+    subtitle:
+      "Finance Bot membantu mengingatkan dan memberi wawasan sederhana berdasarkan aktivitas keuanganmu.",
     enabled: "Aktifkan Finance Bot",
     personalityTitle: "Gaya Bicara Bot",
     personalityOptions: {
@@ -228,7 +231,8 @@ export const idText = {
     },
     openBudget: "Buka Anggaran",
     openTransactions: "Buka Transaksi",
-    timezoneNote: "Waktu pengingat mengikuti zona waktu yang Anda atur (atau zona waktu default aplikasi jika belum diatur).",
+    timezoneNote:
+      "Waktu pengingat mengikuti zona waktu yang Anda atur (atau zona waktu default aplikasi jika belum diatur).",
   },
   auth: {
     loginTitle: "Masuk",
@@ -241,13 +245,15 @@ export const idText = {
     loginAction: "Masuk",
     processing: "Memproses...",
     oauthError: "Login Google gagal. Silakan coba lagi.",
-    oauthUnavailable: "Login Google belum tersedia. Konfigurasi OAuth diperlukan sebelum digunakan.",
-    appleOauthUnavailable: "Login Apple belum tersedia. Konfigurasi OAuth diperlukan sebelum digunakan.",
+    oauthUnavailable:
+      "Login Google belum tersedia. Konfigurasi OAuth diperlukan sebelum digunakan.",
+    githubOauthUnavailable:
+      "Login GitHub belum tersedia. Konfigurasi OAuth diperlukan sebelum digunakan.",
     registerPrompt: "Belum punya akun?",
     registerLink: "Daftar",
     or: "atau",
     continueGoogle: "Lanjutkan dengan Google",
-    continueApple: "Lanjutkan dengan Apple",
+    continueGithub: "Lanjutkan dengan GitHub",
     preparing: "Mempersiapkan...",
     showPassword: "Tampilkan kata sandi",
     hidePassword: "Sembunyikan kata sandi",
@@ -260,7 +266,8 @@ export const idText = {
     confirmPassword: "Konfirmasi Kata Sandi",
     confirmNewPassword: "Konfirmasi Kata Sandi Baru",
     registerAction: "Daftar",
-    registerSuccess: "Pendaftaran berhasil. Periksa email Anda untuk verifikasi.",
+    registerSuccess:
+      "Pendaftaran berhasil. Periksa email Anda untuk verifikasi.",
     alreadyHaveAccountPrompt: "Sudah punya akun?",
     loginInstead: "Masuk",
     forgotTitle: "Lupa Kata Sandi",
@@ -268,18 +275,19 @@ export const idText = {
     forgotDescription: "Masukkan email Anda untuk menerima tautan reset",
     forgotAction: "Kirim tautan reset",
     forgotSending: "Mengirim...",
-    forgotSuccess: "Jika email terdaftar, tautan reset kata sandi sudah dikirim. Periksa inbox Anda.",
+    forgotSuccess: "Jika email terdaftar, tautan reset sudah dikirim.",
     resetTitle: "Reset Kata Sandi",
     resetSubtitle: "Buat kata sandi baru",
     resetDescription: "Masukkan kata sandi baru Anda",
     newPassword: "Kata Sandi Baru",
     resetAction: "Reset kata sandi",
     resetProcessing: "Memproses...",
-    resetSuccess: "Kata sandi berhasil diubah. Anda akan dialihkan ke halaman masuk.",
+    resetSuccess:
+      "Kata sandi berhasil diubah. Anda akan dialihkan ke halaman masuk.",
     genericError: "Tidak dapat terhubung ke server. Silakan coba lagi.",
     loading: "Memuat...",
     loginPasswordPlaceholder: "Masukkan kata sandi",
-    passwordPlaceholder: "Minimal 12 karakter",
+    passwordPlaceholder: "Minimal 8 karakter",
     confirmPasswordPlaceholder: "Ketik ulang kata sandi",
     confirmNewPasswordPlaceholder: "Ketik ulang kata sandi baru",
     loginRequired: "Email dan kata sandi wajib diisi.",
@@ -288,17 +296,18 @@ export const idText = {
     fullNameRequired: "Nama lengkap wajib diisi.",
     fullNameShort: "Nama lengkap terlalu singkat.",
     usernameRequired: "Username wajib diisi.",
-    usernameInvalid: "Username tidak valid. Gunakan 3-30 karakter alfanumerik, titik, underscore atau minus.",
+    usernameInvalid:
+      "Username tidak valid. Gunakan 3-30 karakter alfanumerik, titik, underscore atau minus.",
     emailRequired: "Email wajib diisi.",
     passwordRequired: "Kata sandi wajib diisi.",
-    passwordMinLength: "Kata sandi harus minimal 12 karakter.",
+    passwordMinLength: "Kata sandi harus minimal 8 karakter.",
     passwordMismatch: "Konfirmasi kata sandi tidak cocok.",
     registerFailed: "Gagal mendaftar. Coba lagi.",
     forgotInvalidEmail: "Email tidak valid.",
     forgotRequestFailed: "Tidak dapat mengirim permintaan reset kata sandi.",
     resetInvalidToken: "Tautan reset tidak valid atau sudah kedaluwarsa.",
     resetPasswordRequired: "Kata sandi baru wajib diisi.",
-    resetPasswordMinLength: "Kata sandi minimal 12 karakter.",
+    resetPasswordMinLength: "Kata sandi minimal 8 karakter.",
     resetPasswordMismatch: "Konfirmasi kata sandi tidak cocok.",
     resetFailed: "Gagal mengatur ulang kata sandi.",
   },
@@ -415,7 +424,8 @@ export const idText = {
     categoryTitle: "Kategori Pengeluaran",
     categorySubtitle: "Distribusi pengeluaran berdasarkan kategori.",
     expenseTrendTitle: "Komposisi Pengeluaran per Kategori",
-    expenseTrendSubtitle: "Breakdown pengeluaran dari waktu ke waktu per kategori.",
+    expenseTrendSubtitle:
+      "Breakdown pengeluaran dari waktu ke waktu per kategori.",
     trendLegendOther: "Sisa kategori",
     trendTruncated: "Menampilkan 800 transaksi pertama pada rentang ini.",
     trendTitle: "Tren Keuangan",
@@ -520,7 +530,8 @@ export const idText = {
     deleteTitle: "Hapus Akun",
     deleteMessage: "Apakah Anda yakin ingin menghapus akun ini?",
     saveFailed: "Akun gagal disimpan. Silakan coba lagi.",
-    duplicateNameError: "Nama akun sudah digunakan. Silakan gunakan nama akun lain.",
+    duplicateNameError:
+      "Nama akun sudah digunakan. Silakan gunakan nama akun lain.",
   },
 
   categories: {
@@ -546,11 +557,13 @@ export const idText = {
     deleteTitle: "Hapus Kategori",
     deleteMessage: "Apakah Anda yakin ingin menghapus kategori ini?",
     duplicateNameError: "Nama kategori sudah digunakan untuk jenis ini.",
-    actionError: "Terjadi kesalahan. Perubahan tidak tersimpan. Silakan coba lagi.",
+    actionError:
+      "Terjadi kesalahan. Perubahan tidak tersimpan. Silakan coba lagi.",
   },
   budgets: {
     title: "Anggaran",
-    subtitle: "Tetapkan batas pengeluaran per kategori dan kendalikan anggaran.",
+    subtitle:
+      "Tetapkan batas pengeluaran per kategori dan kendalikan anggaran.",
     add: "Tambah Anggaran",
     count: "{count} anggaran",
     totalBudget: "Total Anggaran",
@@ -672,7 +685,8 @@ export const idText = {
   },
   forecast: {
     pageTitle: "Perkiraan Keuangan",
-    pageSubtitle: "Gambaran ke depan untuk pemasukan, pengeluaran, dan saldo yang diproyeksikan.",
+    pageSubtitle:
+      "Gambaran ke depan untuk pemasukan, pengeluaran, dan saldo yang diproyeksikan.",
     horizonLabel: "Jangka waktu perkiraan",
     horizon1Month: "1 bulan",
     horizonNMonths: "{count} bulan",
@@ -683,7 +697,8 @@ export const idText = {
     projectedEndingBalance: "Saldo akhir yang diproyeksikan",
     currentBalance: "Saldo saat ini",
     chartTitle: "Gambaran perkiraan",
-    chartSubtitle: "Pemasukan, pengeluaran, dan arus kas bersih yang diproyeksikan dari waktu ke waktu.",
+    chartSubtitle:
+      "Pemasukan, pengeluaran, dan arus kas bersih yang diproyeksikan dari waktu ke waktu.",
     chartIncomeLabel: "Pemasukan yang diproyeksikan",
     chartExpenseLabel: "Pengeluaran yang diproyeksikan",
     chartNetLabel: "Arus kas bersih yang diproyeksikan",
@@ -694,17 +709,21 @@ export const idText = {
     confidenceMedium: "Sedang",
     confidenceLow: "Rendah",
     basisTitle: "Dasar dan riwayat",
-    basisDescription: "Perkiraan menggunakan {months} bulan riwayat dari {start} sampai {end}.",
+    basisDescription:
+      "Perkiraan menggunakan {months} bulan riwayat dari {start} sampai {end}.",
     basisIncome: "Total pemasukan",
     basisExpense: "Total pengeluaran",
     basisAverageIncome: "Rata-rata pemasukan bulanan",
     basisAverageExpense: "Rata-rata pengeluaran bulanan",
     outlierTitle: "Pencilan historis",
-    outlierDescription: "Beberapa nilai historis dikecualikan dari dasar perkiraan untuk menjaga hasil tetap stabil.",
+    outlierDescription:
+      "Beberapa nilai historis dikecualikan dari dasar perkiraan untuk menjaga hasil tetap stabil.",
     transferNoticeTitle: "Penanganan transfer",
-    transferNoticeDescription: "Transfer dikecualikan dari perkiraan ini agar fokus pada pergerakan kas aktual.",
+    transferNoticeDescription:
+      "Transfer dikecualikan dari perkiraan ini agar fokus pada pergerakan kas aktual.",
     insufficientDataTitle: "Belum cukup data untuk membuat perkiraan keuangan.",
-    insufficientDataDescription: "Tambah riwayat transaksi untuk membuka perkiraan yang lebih lengkap.",
+    insufficientDataDescription:
+      "Tambah riwayat transaksi untuk membuka perkiraan yang lebih lengkap.",
     spendingTitle: "Prediksi pengeluaran",
     spendingSubtitle: "Pratinjau pengeluaran Anda berdasarkan kategori.",
     spendingPeriodLabel: "Periode prediksi",
@@ -715,9 +734,11 @@ export const idText = {
     spendingNoCategoryData: "Belum ada rincian kategori.",
     spendingConfidenceLabel: "Kepercayaan",
     spendingEmptyTitle: "Belum ada prediksi pengeluaran.",
-    spendingEmptyDescription: "Tambah riwayat transaksi untuk menghasilkan pratinjau kategori berbasis kepercayaan.",
+    spendingEmptyDescription:
+      "Tambah riwayat transaksi untuk menghasilkan pratinjau kategori berbasis kepercayaan.",
     errorTitle: "Gagal memuat perkiraan keuangan.",
-    errorDescription: "Kami tidak bisa mengambil perkiraan saat ini. Silakan coba lagi.",
+    errorDescription:
+      "Kami tidak bisa mengambil perkiraan saat ini. Silakan coba lagi.",
     loadingTitle: "Memuat perkiraan...",
     noData: "Belum ada data perkiraan.",
     retry: "Coba lagi",
@@ -744,7 +765,8 @@ export const idText = {
     cashFlowTrendSubtitle:
       "Pemasukan, pengeluaran, dan arus kas bersih per periode.",
     trendNotEnoughTitle: "Belum cukup data untuk menampilkan tren",
-    trendNotEnoughDesc: "Tambahkan transaksi pada minimal 3 periode agar tren terlihat.",
+    trendNotEnoughDesc:
+      "Tambahkan transaksi pada minimal 3 periode agar tren terlihat.",
     incomeVsExpense: "Pemasukan vs Pengeluaran",
     incomeVsExpenseSubtitle: "Perbandingan per periode.",
     expenseByCategory: "Pengeluaran per Kategori",
@@ -796,8 +818,7 @@ export const idText = {
     offlineTitle: "Anda sedang offline.",
     offlineDescription:
       "Data mungkin tidak terbaru. Periksa koneksi internet Anda.",
-    offlinePendingCount:
-      "{count} transaksi menunggu sinkronisasi.",
+    offlinePendingCount: "{count} transaksi menunggu sinkronisasi.",
     sessionExpiredPendingSync:
       "Sesi Anda berakhir. Silakan login kembali untuk menyinkronkan {count} transaksi tertunda.",
     syncConflictDeleted:

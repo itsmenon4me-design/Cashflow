@@ -84,7 +84,7 @@ export function AuditLogPage() {
             return <li key={session.id} className="rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><Laptop className="size-4 text-muted-foreground" /><p className="font-medium text-foreground">{session.device_name || session.browser || "Perangkat tidak diketahui"}</p>{current && <Badge>Perangkat ini</Badge>}</div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2"><Laptop className="size-4 shrink-0 text-muted-foreground" /><p className="min-w-0 truncate font-medium text-foreground">{session.device_name || session.browser || "Perangkat tidak diketahui"}</p>{current && <Badge className="shrink-0">Perangkat ini</Badge>}</div>
                   <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-3.5" />{location(session)}</p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><RefreshCw className="size-3" />Aktivitas terakhir {formatTransactionDate(session.last_activity_at)}</p>
                 </div>

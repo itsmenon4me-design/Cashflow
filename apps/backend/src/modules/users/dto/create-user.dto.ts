@@ -12,7 +12,11 @@ export class CreateUserDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ description: 'Unique username', example: 'jdoe', required: false })
+  @ApiProperty({
+    description: 'Unique username',
+    example: 'jdoe',
+    required: false,
+  })
   @IsOptional()
   @Matches(/^[a-zA-Z0-9_.-]{3,30}$/)
   username?: string;
@@ -27,7 +31,7 @@ export class CreateUserDto {
     example: 'S3cur3P@ssw0rd!',
   })
   @IsNotEmpty()
-  @Length(12, 128)
+  @Length(8, 128)
   password!: string;
 
   @ApiProperty({ description: 'Avatar URL', required: false })

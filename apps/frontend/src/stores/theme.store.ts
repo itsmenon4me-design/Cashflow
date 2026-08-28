@@ -4,9 +4,23 @@ export type ThemePreference = "light" | "dark";
 type Mode = ThemePreference;
 
 const STORAGE_KEY = "cashflow.theme";
+const COOKIE_KEY = "cashflow.theme";
 const DEFAULT_THEME: ThemePreference = "dark";
+const INITIAL_THEME: ThemePreference =
+  typeof document !== "undefined" && !document.documentElement.classList.contains("dark")
+    ? "light"
+    : DEFAULT_THEME;
+
+function readCookieTheme(): ThemePreference | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${COOKIE_KEY}=([^;]*)`));
+  const val = match ? decodeURIComponent(match[1]) : null;
+  return val === "light" || val === "dark" ? val : null;
+}
 
 function readStored(): ThemePreference {
+  const cookieVal = readCookieTheme();
+  if (cookieVal) return cookieVal;
   if (typeof window === "undefined") return DEFAULT_THEME;
   const value = window.localStorage.getItem(STORAGE_KEY);
   if (value === "light" || value === "dark") return value;
@@ -16,6 +30,7 @@ function readStored(): ThemePreference {
 function persist(theme: ThemePreference): void {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, theme);
+    document.cookie = `${COOKIE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
   }
 }
 
@@ -38,9 +53,9 @@ export function hydrateThemePreference(): ThemePreference {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  // Initialize to default to avoid reading localStorage during SSR/module init.
-  theme: DEFAULT_THEME,
-  mode: DEFAULT_THEME,
+  // Initialize to default / live DOM state to avoid theme flash during hydration.
+  theme: INITIAL_THEME,
+  mode: INITIAL_THEME,
 
   setTheme: (theme) => {
     const next = sanitize(theme);

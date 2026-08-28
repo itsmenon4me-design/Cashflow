@@ -61,6 +61,7 @@ export function HeaderBar() {
   const { mode, toggleMode } = useThemeStore();
   const { unreadCount, recent, initialized, fetch, markAllRead } = useNotificationStore();
   const user = useAuthStore((state) => state.user);
+  const authHydrated = useAuthStore((state) => state.hydrated);
   const logout = useAuthStore((state) => state.logout);
   const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
   const router = useRouter();
@@ -127,14 +128,14 @@ export function HeaderBar() {
       <div className="flex h-16 min-w-0 items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
-          className="size-11 shrink-0 rounded-xl md:hidden"
+          className="size-11 shrink-0 rounded-xl lg:hidden"
           onClick={() => setMobileOpen(true)}
           aria-label={uiText.common.openMenuAriaLabel}
         >
           <Menu className="size-5" />
         </Button>
 
-        <Link href="/" className="flex items-center gap-2 md:hidden" aria-label="CashFlow">
+        <Link href="/" className="flex items-center gap-2 lg:hidden" aria-label="CashFlow">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Wallet className="size-4" />
           </div>
@@ -146,7 +147,7 @@ export function HeaderBar() {
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Button
             variant="ghost"
-            className="size-11 rounded-xl md:hidden"
+            className="size-11 rounded-xl lg:hidden"
             onClick={() => setMobileSearchOpen((open) => !open)}
             aria-label={uiText.common.searchAriaLabel}
             aria-expanded={mobileSearchOpen}
@@ -259,50 +260,60 @@ export function HeaderBar() {
             {safeMode === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={cn(
-                  "flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3 transition-colors outline-none",
-                  "hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-                )}
-              >
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
-                    {getInitials(safeUser?.name ?? "U")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden w-40 text-left md:block">
-                  <p className="truncate text-sm font-medium leading-tight text-foreground">{safeUser?.name}</p>
-                  <p className="truncate text-xs leading-tight text-muted-foreground">{safeUser?.email}</p>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <p className="font-medium">{safeUser?.name}</p>
-                <p className="text-xs font-normal text-muted-foreground">{safeUser?.email}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile">
-                  <UserRound />
-                  {uiText.navigation.profile}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings />
-                  {uiText.navigation.settings}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-                <LogOut />
-                {uiText.navigation.logout}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!authHydrated || !safeUser ? (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3" aria-label="Memuat profil">
+              <div className="size-8 animate-pulse rounded-full bg-muted" />
+              <div className="hidden w-40 space-y-1.5 md:block">
+                <div className="h-3.5 w-24 animate-pulse rounded bg-muted" />
+                <div className="h-2.5 w-32 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3 transition-colors outline-none",
+                    "hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+                  )}
+                >
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                      {getInitials(safeUser.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden w-40 text-left md:block">
+                    <p className="truncate text-sm font-medium leading-tight text-foreground">{safeUser.name}</p>
+                    <p className="truncate text-xs leading-tight text-muted-foreground">{safeUser.email}</p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <p className="font-medium">{safeUser.name}</p>
+                  <p className="text-xs font-normal text-muted-foreground">{safeUser.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <UserRound />
+                    {uiText.navigation.profile}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings />
+                    {uiText.navigation.settings}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                  <LogOut />
+                  {uiText.navigation.logout}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 

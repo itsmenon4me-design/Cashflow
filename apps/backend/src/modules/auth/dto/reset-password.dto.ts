@@ -15,11 +15,11 @@ export class ResetPasswordDto {
   id!: string;
 
   @ApiProperty({
-    description: 'New password (must be between 12 and 128 characters)',
+    description: 'New password (must be between 8 and 128 characters)',
   })
   @IsNotEmpty({ message: 'new_password must not be empty' })
-  @Length(12, 128, {
-    message: 'new_password must be between 12 and 128 characters',
+  @Length(8, 128, {
+    message: 'new_password must be between 8 and 128 characters',
   })
   new_password!: string;
 }

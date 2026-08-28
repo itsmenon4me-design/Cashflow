@@ -15,7 +15,7 @@ export const Sidebar = memo(function Sidebar() {
   return (
     <aside
       className={cn(
-        "sticky top-0 z-40 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out md:flex",
+        "sticky top-0 z-40 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out lg:flex",
         collapsed ? "w-[76px]" : "w-64"
       )}
     >

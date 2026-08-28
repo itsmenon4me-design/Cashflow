@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 
-export default function AppleOAuthCallbackPage() {
+export default function GithubOAuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function AppleOAuthCallbackPage() {
     const userName = query.get("userName");
 
     if (!accessToken || !refreshToken) {
-      router.replace("/login?oauth_error=apple_auth_failed");
+      router.replace("/login?oauth_error=github_auth_failed");
       return;
     }
 
@@ -38,7 +38,9 @@ export default function AppleOAuthCallbackPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="text-center">
-        <p className="text-sm text-muted-foreground">Memproses login Apple...</p>
+        <p className="text-sm text-muted-foreground">
+          Memproses login GitHub...
+        </p>
       </div>
     </div>
   );

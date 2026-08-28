@@ -1,21 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLanguageStore } from '@/stores/language.store';
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useLanguageStore } from "@/stores/language.store";
 
-const { mockGoogleLogin, mockAppleLogin } = vi.hoisted(() => ({
+const { mockGoogleLogin, mockGithubLogin } = vi.hoisted(() => ({
   mockGoogleLogin: vi.fn(),
-  mockAppleLogin: vi.fn(),
+  mockGithubLogin: vi.fn(),
 }));
 
-vi.mock('next/navigation', () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
-vi.mock('@/services/auth.service', () => ({
+vi.mock("@/services/auth.service", () => ({
   authService: {
     googleLogin: mockGoogleLogin,
-    appleLogin: mockAppleLogin,
+    githubLogin: mockGithubLogin,
     login: vi.fn(),
     logout: vi.fn(),
     register: vi.fn(),
@@ -25,57 +25,78 @@ vi.mock('@/services/auth.service', () => ({
   },
 }));
 
-vi.mock('@/stores/auth.store', () => ({
+vi.mock("@/stores/auth.store", () => ({
   useAuthStore: () => ({ loginSession: vi.fn() }),
 }));
 
-import Page from './page';
+import Page from "./page";
 
-describe('Login page', () => {
+describe("Login page", () => {
   beforeEach(() => {
     mockGoogleLogin.mockReset();
-    mockAppleLogin.mockReset();
-    useLanguageStore.getState().setLanguage('en');
+    mockGithubLogin.mockReset();
+    useLanguageStore.getState().setLanguage("en");
   });
 
-  it('redirects to Google when Continue with Google is clicked', async () => {
-    mockGoogleLogin.mockResolvedValue({ success: true, url: 'https://accounts.google.com/oauth2/auth' });
+  it("redirects to Google when Continue with Google is clicked", async () => {
+    mockGoogleLogin.mockResolvedValue({
+      success: true,
+      url: "https://accounts.google.com/oauth2/auth",
+    });
     const assignSpy = vi.fn();
-    Object.defineProperty(window, 'location', {
+    Object.defineProperty(window, "location", {
       configurable: true,
       value: { ...window.location, assign: assignSpy },
     });
 
     render(<Page />);
-    fireEvent.click(screen.getByRole('button', { name: /Continue with Google/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Continue with Google/i }),
+    );
 
     await waitFor(() => expect(mockGoogleLogin).toHaveBeenCalledTimes(1));
-    expect(assignSpy).toHaveBeenCalledWith('https://accounts.google.com/oauth2/auth');
+    expect(assignSpy).toHaveBeenCalledWith(
+      "https://accounts.google.com/oauth2/auth",
+    );
   });
 
-  it('redirects to Apple when Continue with Apple is clicked', async () => {
-    mockAppleLogin.mockResolvedValue({ success: true, url: 'https://appleid.apple.com/auth/authorize' });
+  it("redirects to GitHub when Continue with GitHub is clicked", async () => {
+    mockGithubLogin.mockResolvedValue({
+      success: true,
+      url: "https://github.com/login/oauth/authorize",
+    });
     const assignSpy = vi.fn();
-    Object.defineProperty(window, 'location', {
+    Object.defineProperty(window, "location", {
       configurable: true,
       value: { ...window.location, assign: assignSpy },
     });
 
     render(<Page />);
-    fireEvent.click(screen.getByRole('button', { name: /Continue with Apple/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Continue with GitHub/i }),
+    );
 
-    await waitFor(() => expect(mockAppleLogin).toHaveBeenCalledTimes(1));
-    expect(assignSpy).toHaveBeenCalledWith('https://appleid.apple.com/auth/authorize');
+    await waitFor(() => expect(mockGithubLogin).toHaveBeenCalledTimes(1));
+    expect(assignSpy).toHaveBeenCalledWith(
+      "https://github.com/login/oauth/authorize",
+    );
   });
 
-  it('displays a generic OAuth error when Google login fails', async () => {
-    mockGoogleLogin.mockResolvedValue({ success: false, message: 'Google OAuth belum dikonfigurasi.' });
+  it("displays a generic OAuth error when Google login fails", async () => {
+    mockGoogleLogin.mockResolvedValue({
+      success: false,
+      message: "Google OAuth belum dikonfigurasi.",
+    });
 
     render(<Page />);
-    fireEvent.click(screen.getByRole('button', { name: /Continue with Google/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Continue with Google/i }),
+    );
 
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(/Google OAuth belum dikonfigurasi/i),
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /Google OAuth belum dikonfigurasi/i,
+      ),
     );
   });
 });

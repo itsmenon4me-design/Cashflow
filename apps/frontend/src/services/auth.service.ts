@@ -34,43 +34,68 @@ export const authService = {
   login: (payload: LoginPayload): Promise<LoginResponse> =>
     apiClient.post<LoginResponse>("/auth/login", payload),
 
-  googleLogin: (): Promise<{ success: boolean; message?: string; url?: string }> =>
+  googleLogin: (): Promise<{
+    success: boolean;
+    message?: string;
+    url?: string;
+  }> =>
     apiClient
       .get<{ success: boolean; message?: string; url?: string }>("/auth/google")
       .catch(() => ({
         success: false,
-        message: "Google OAuth belum dikonfigurasi. Harap aktifkan Google Client ID dan secret terlebih dahulu.",
+        message:
+          "Google OAuth belum dikonfigurasi. Harap aktifkan Google Client ID dan secret terlebih dahulu.",
       })),
 
-  appleLogin: (): Promise<{ success: boolean; message?: string; url?: string }> =>
+  githubLogin: (): Promise<{
+    success: boolean;
+    message?: string;
+    url?: string;
+  }> =>
     apiClient
-      .get<{ success: boolean; message?: string; url?: string }>("/auth/apple")
+      .get<{ success: boolean; message?: string; url?: string }>("/auth/github")
       .catch(() => ({
         success: false,
-        message: "Apple OAuth belum dikonfigurasi. Harap aktifkan Apple client configuration terlebih dahulu.",
+        message:
+          "GitHub OAuth belum dikonfigurasi. Harap aktifkan GitHub Client ID dan secret terlebih dahulu.",
       })),
 
-  updateProfile: async (payload: { full_name?: string }): Promise<{ success: boolean; data?: any; message?: string }> => {
+  updateProfile: async (payload: {
+    full_name?: string;
+  }): Promise<{ success: boolean; data?: any; message?: string }> => {
     try {
-      const res = await apiClient.patch<{ success: boolean; data?: any }>("/auth/profile", payload);
+      const res = await apiClient.patch<{ success: boolean; data?: any }>(
+        "/auth/profile",
+        payload,
+      );
       return res;
     } catch (err) {
       // If the endpoint doesn't exist in the backend (404), try a fallback to /users/:id
       if (err instanceof ApiError && err.status === 404) {
         try {
           const stored = getStoredUser() as any;
-          let maybeId = stored?.id ?? stored?.user_id ?? stored?.sub ?? stored?.uuid ?? null;
+          let maybeId =
+            stored?.id ??
+            stored?.user_id ??
+            stored?.sub ??
+            stored?.uuid ??
+            null;
           if (!maybeId) {
             // Stored user may lack an id (login response ships no user object) — resolve via /auth/me.
-            const me = await apiClient.get<{ success: boolean; data?: any }>("/auth/me");
+            const me = await apiClient.get<{ success: boolean; data?: any }>(
+              "/auth/me",
+            );
             maybeId = me?.data?.id ?? null;
           }
           if (maybeId) {
             const userPatch: Record<string, unknown> = {};
-            if (payload.full_name) userPatch['full_name'] = payload.full_name;
-            const r = await apiClient.patch<{ success: boolean; data?: any }>(`/users/${maybeId}`, userPatch);
+            if (payload.full_name) userPatch["full_name"] = payload.full_name;
+            const r = await apiClient.patch<{ success: boolean; data?: any }>(
+              `/users/${maybeId}`,
+              userPatch,
+            );
             // PATCH /users/:id balik raw user object tanpa wrapper {success} — normalize
-            if (r && typeof r === 'object' && 'id' in r) {
+            if (r && typeof r === "object" && "id" in r) {
               return { success: true, data: r };
             }
             return r;
@@ -78,7 +103,10 @@ export const authService = {
         } catch (e) {
           // fall through to generic failure below
         }
-        return { success: false, message: 'No fallback endpoint available for profile update' };
+        return {
+          success: false,
+          message: "No fallback endpoint available for profile update",
+        };
       }
       return { success: false, message: String(err) };
     }
@@ -91,15 +119,33 @@ export const authService = {
     apiClient.post<RegisterResponse>("/auth/register", payload),
 
   sendVerification: (email: string): Promise<{ success: boolean }> =>
-    apiClient.post<{ success: boolean }>("/auth/email/send-verification", { email }).catch(() => ({ success: false })),
-
-  forgotPassword: (email: string): Promise<{ success: boolean; message?: string }> =>
     apiClient
-      .post<{ success: boolean; message?: string }>("/auth/email/forgot-password", { email })
-      .catch(() => ({ success: false, message: "Gagal mengirim email reset. Coba lagi." })),
+      .post<{ success: boolean }>("/auth/email/send-verification", { email })
+      .catch(() => ({ success: false })),
 
-  resetPassword: (payload: ResetPasswordPayload): Promise<{ success: boolean; message?: string }> =>
+  forgotPassword: (
+    email: string,
+  ): Promise<{ success: boolean; message?: string }> =>
     apiClient
-      .post<{ success: boolean; message?: string }>("/auth/reset-password", payload)
-      .catch(() => ({ success: false, message: "Gagal mengatur ulang kata sandi." })),
+      .post<{ success: boolean; message?: string }>(
+        "/auth/email/forgot-password",
+        { email },
+      )
+      .catch(() => ({
+        success: false,
+        message: "Gagal mengirim email reset. Coba lagi.",
+      })),
+
+  resetPassword: (
+    payload: ResetPasswordPayload,
+  ): Promise<{ success: boolean; message?: string }> =>
+    apiClient
+      .post<{ success: boolean; message?: string }>(
+        "/auth/reset-password",
+        payload,
+      )
+      .catch(() => ({
+        success: false,
+        message: "Gagal mengatur ulang kata sandi.",
+      })),
 };

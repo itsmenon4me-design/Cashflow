@@ -61,7 +61,7 @@ export class AuthService {
 
   async issueSessionForUser(
     user: Awaited<ReturnType<UsersService['findByEmail']>>,
-    loginMethod: 'password' | 'google' | 'apple' = 'password',
+    loginMethod: 'password' | 'google' | 'github' = 'password',
     context: AuthRequestContext = {},
   ) {
     const jwtCfg = this.jwtConfig.config;

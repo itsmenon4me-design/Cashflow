@@ -1,17 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
 import { setUiTextLanguage } from "@/locales";
 import { cn } from "@/lib/utils";
-
 // Single font family: Inter covers the whole UI (latin subset, display swap
 // by default via next/font). The previously loaded Geist Sans/Mono families
 // were unused (--font-geist-sans had no consumers and nothing renders
 // font-mono) and only added font downloads for low-end/mobile devices.
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-
 export const metadata: Metadata = {
   title: "CashFlow Enterprise",
   description: "Production-first CashFlow enterprise platform blueprint for secure multi-platform financial operations.",
@@ -27,7 +26,6 @@ export const metadata: Metadata = {
     shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
 };
-
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -36,36 +34,36 @@ export const viewport: Viewport = {
   colorScheme: "dark light",
   viewportFit: "cover",
 };
-
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Render the server HTML in the SAME language the client will hydrate with.
   // The active language is mirrored to a `cashflow.language` cookie by
   // language.store; reading it here makes SSR output match the client's first
   // render and eliminates the hydration mismatch (white flash / tree rebuild)
   // that occurred whenever the persisted language was not the default "id".
-  const cookieLanguage = (await cookies()).get("cashflow.language")?.value;
+  const cookieStore = await cookies();
+  const cookieLanguage = cookieStore.get("cashflow.language")?.value;
   setUiTextLanguage(cookieLanguage);
+
+  const cookieTheme = cookieStore.get("cashflow.theme")?.value;
+  const isDark = cookieTheme !== "light";
 
   return (
       <html
         lang="id"
         suppressHydrationWarning
-        className={cn("h-full", "antialiased", "font-sans", inter.variable)}
+        className={cn("h-full", isDark && "dark", "antialiased", "font-sans", inter.variable)}
       >
       <head>
-        {/* Plain <script> tags in the server-rendered head. next/script with
-            beforeInteractive/afterInteractive inside the React tree gets
-            re-processed on client navigation ("Encountered a script tag while
-            rendering React component") and pollutes hydration. These only need
-            to run once at document load; they are not part of any route tree. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
+            __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);if(t==='light'){document.documentElement.classList.remove('dark');}else if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
           }}
         />
-        <script
+        <Script
+          id="app-ready-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);var dark=t==='dark';document.documentElement.classList.toggle('dark',dark);}catch(e){document.documentElement.classList.add('dark')}})();`,
+            __html: `(function(){try{window.__app_html_ready = true;window.__app_client_ready = window.__app_client_ready || false;window.__app_signalHydrated = function(){window.__app_client_ready = true;};window.__app_requestFlush = function(){try{if(window.syncController && typeof window.syncController.flush === 'function'){return window.syncController.flush();}}catch(e){}return null;};}catch(e){} })();`,
           }}
         />
       </head>

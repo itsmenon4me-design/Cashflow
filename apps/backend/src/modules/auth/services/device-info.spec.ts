@@ -27,7 +27,7 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Desktop');
     expect(info.operating_system).toBe('Windows');
     expect(info.browser).toBe('Chrome');
-    expect(info.device_name).toBe('Windows Browser');
+    expect(info.device_name).toBe('Windows 10 · Chrome');
   });
 
   it('detects macOS Safari desktop device', () => {
@@ -37,7 +37,7 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Desktop');
     expect(info.operating_system).toBe('macOS');
     expect(info.browser).toBe('Safari');
-    expect(info.device_name).toBe('macOS Browser');
+    expect(info.device_name).toBe('macOS 10.15.7 · Safari');
   });
 
   it('detects iPhone iOS mobile device', () => {
@@ -46,18 +46,18 @@ describe('device-info parser', () => {
     );
     expect(info.device_type).toBe('Mobile');
     expect(info.operating_system).toBe('iOS');
-    expect(info.browser).toBe('Safari');
-    expect(info.device_name).toBe('iOS Mobile');
+    expect(info.browser).toBe('Mobile Safari');
+    expect(info.device_name).toBe('iPhone · Mobile Safari');
   });
 
-  it('detects Android Chrome mobile device', () => {
+  it('detects Android Chrome mobile device with vendor/model', () => {
     const info = deriveDeviceInfo(
       'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36',
     );
     expect(info.device_type).toBe('Mobile');
     expect(info.operating_system).toBe('Android');
-    expect(info.browser).toBe('Chrome');
-    expect(info.device_name).toBe('Android Mobile');
+    expect(info.browser).toBe('Mobile Chrome');
+    expect(info.device_name).toBe('Samsung SM-S918B · Mobile Chrome');
   });
 
   it('handles null/empty UA gracefully', () => {

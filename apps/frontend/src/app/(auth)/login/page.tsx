@@ -5,9 +5,15 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Wallet } from "lucide-react";
-import { GoogleIcon, AppleIcon } from "@/components/icons";
+import { GoogleIcon, GithubIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uiText } from "@/locales";
@@ -26,17 +32,19 @@ export default function Page() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const [appleError, setAppleError] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
-  const [appleSubmitting, setAppleSubmitting] = useState(false);
+  const [githubSubmitting, setGithubSubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const oauthError = new URLSearchParams(window.location.search).get("oauth_error");
+    const oauthError = new URLSearchParams(window.location.search).get(
+      "oauth_error",
+    );
     if (oauthError) {
       setGoogleError(t.oauthError);
     }
@@ -61,22 +69,22 @@ export default function Page() {
     }
   };
 
-  const handleAppleClick = async () => {
-    setAppleError(null);
-    setAppleSubmitting(true);
+  const handleGithubClick = async () => {
+    setGithubError(null);
+    setGithubSubmitting(true);
 
     try {
-      const response = await authService.appleLogin();
+      const response = await authService.githubLogin();
       if (!response.success || !response.url) {
-        setAppleError(response.message ?? t.appleOauthUnavailable);
+        setGithubError(response.message ?? t.githubOauthUnavailable);
         return;
       }
 
       window.location.assign(response.url);
     } catch {
-      setAppleError(t.appleOauthUnavailable);
+      setGithubError(t.githubOauthUnavailable);
     } finally {
-      setAppleSubmitting(false);
+      setGithubSubmitting(false);
     }
   };
 
@@ -92,17 +100,28 @@ export default function Page() {
 
     setSubmitting(true);
     try {
-      const response = await authService.login({ email: email.trim(), password });
+      const response = await authService.login({
+        email: email.trim(),
+        password,
+      });
 
       if (!response.success || !response.data) {
-        setError(response.message ?? t.loginFailed);
+        setError(t.loginInvalidCredentials);
         return;
       }
 
       // Login response ships no user object — resolve real name/email/id via /auth/me
       let user: { id?: string; name: string; email: string };
       try {
-        const me = await apiClient.get<{ success: boolean; data?: { id?: string; full_name?: string; name?: string; email?: string } }>("/auth/me");
+        const me = await apiClient.get<{
+          success: boolean;
+          data?: {
+            id?: string;
+            full_name?: string;
+            name?: string;
+            email?: string;
+          };
+        }>("/auth/me");
         const d = me.data;
         user = {
           id: d?.id,
@@ -122,11 +141,7 @@ export default function Page() {
       router.replace("/");
     } catch (err) {
       if (err instanceof ApiError) {
-        const message =
-          typeof err.data === "object" && err.data !== null && "message" in err.data
-            ? String((err.data as { message: unknown }).message)
-            : null;
-        setError(message ?? t.loginInvalidCredentials);
+        setError(t.loginInvalidCredentials);
       } else {
         setError(t.genericError);
       }
@@ -143,29 +158,29 @@ export default function Page() {
             <Wallet className="size-6" />
           </div>
           <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
-         <p className="text-sm text-muted-foreground">{t.loginSubtitle}</p>
+          <p className="text-sm text-muted-foreground">{t.loginSubtitle}</p>
         </div>
 
         <Card>
           <CardHeader className="text-center">
-           <CardTitle>{t.loginTitle}</CardTitle>
-             <CardDescription>{t.loginCardDescription}</CardDescription>
+            <CardTitle>{t.loginTitle}</CardTitle>
+            <CardDescription>{t.loginCardDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-             <div className="space-y-2">
-              <Label htmlFor="email">{t.email}</Label>
-               <Input
-                 id="email"
-                 type="email"
-                 inputMode="email"
-                 autoComplete="email"
-                 placeholder="nama@email.com"
-                 value={email}
-                 onChange={(event) => setEmail(event.target.value)}
-                 disabled={submitting}
-               />
-             </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">{t.email}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="nama@email.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  disabled={submitting}
+                />
+              </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -194,7 +209,11 @@ export default function Page() {
                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? t.hidePassword : t.showPassword}
                   >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -235,11 +254,11 @@ export default function Page() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                loading={appleSubmitting}
-                onClick={handleAppleClick}
+                loading={githubSubmitting}
+                onClick={handleGithubClick}
               >
-                <AppleIcon className="mr-2 size-4" />
-                {appleSubmitting ? t.preparing : t.continueApple}
+                <GithubIcon className="mr-2 size-4" />
+                {githubSubmitting ? t.preparing : t.continueGithub}
               </Button>
 
               {googleError && (
@@ -248,9 +267,9 @@ export default function Page() {
                 </p>
               )}
 
-              {appleError && (
+              {githubError && (
                 <p className="text-sm text-destructive" role="alert">
-                  {appleError}
+                  {githubError}
                 </p>
               )}
             </div>
@@ -259,7 +278,10 @@ export default function Page() {
 
         <p className="text-center text-sm text-muted-foreground">
           {t.registerPrompt}{" "}
-          <Link href="/register" className="font-medium text-primary hover:underline">
+          <Link
+            href="/register"
+            className="font-medium text-primary hover:underline"
+          >
             {t.registerLink}
           </Link>
         </p>

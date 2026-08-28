@@ -31,17 +31,24 @@ export class MailService {
         subject,
         html,
       });
-      this.logger.log(`Email sent: to=${to} subject=${subject}`);
+      this.logger.log(`Email sent successfully: to=${to} subject=${subject}`);
     } catch (err) {
       this.logger.error(
-        `Failed to send email: to=${to} subject=${subject} error=${(err as Error).message}`,
+        `Failed to send email via SMTP: to=${to} subject=${subject} error=${(err as Error).message}`,
       );
+      throw err;
     }
   }
 
-  async sendVerification(email: string, name: string | undefined, link: string) {
+  async sendVerification(
+    email: string,
+    name: string | undefined,
+    link: string,
+  ) {
     if (!this.cfg.config.emailVerificationEnabled) {
-      this.logger.debug('Email verification disabled, skipping send');
+      this.logger.warn(
+        `Email verification disabled. Verification email for to=${email} not sent.`,
+      );
       return;
     }
     if (this.cfg.config.smtpConfigured) {
@@ -52,12 +59,22 @@ export class MailService {
       );
       return;
     }
-    this.logger.log(`(EMAIL) To=${email} Subject=Verify your email Link=${link}`);
+    const error = new Error('SMTP not configured');
+    this.logger.error(
+      `SMTP not configured (SMTP_HOST missing). Email verification for to=${email} not sent.`,
+    );
+    throw error;
   }
 
-  async sendPasswordReset(email: string, name: string | undefined, link: string) {
+  async sendPasswordReset(
+    email: string,
+    name: string | undefined,
+    link: string,
+  ) {
     if (!this.cfg.config.passwordResetEnabled) {
-      this.logger.debug('Password reset disabled, skipping send');
+      this.logger.warn(
+        `Password reset disabled. Password reset email for to=${email} not sent.`,
+      );
       return;
     }
     if (this.cfg.config.smtpConfigured) {
@@ -68,6 +85,10 @@ export class MailService {
       );
       return;
     }
-    this.logger.log(`(EMAIL) To=${email} Subject=Password reset Link=${link}`);
+    const error = new Error('SMTP not configured');
+    this.logger.error(
+      `SMTP not configured (SMTP_HOST missing). Password reset email for to=${email} not sent.`,
+    );
+    throw error;
   }
 }

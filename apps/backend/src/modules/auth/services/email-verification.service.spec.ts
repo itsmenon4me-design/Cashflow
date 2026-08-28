@@ -17,7 +17,7 @@ describe('EmailVerificationService', () => {
       findById: jest.fn(),
     };
     mail = {
-      sendVerification: jest.fn(),
+      sendVerification: jest.fn().mockResolvedValue(undefined),
     };
     mailCfg = {
       config: {
@@ -62,6 +62,26 @@ describe('EmailVerificationService', () => {
       'a@b.com',
       'Test',
       expect.any(String),
+    );
+  });
+
+  it('waits for and propagates email delivery failures', async () => {
+    const user = new UserEntity();
+    user.id = 'u1';
+    user.email = 'a@b.com';
+    user.full_name = 'Test';
+    user.username = 't';
+    user.password_hash = 'x';
+    user.created_at = new Date();
+    user.updated_at = new Date();
+    user.status = 'PENDING_VERIFICATION';
+    (users.findById as jest.Mock).mockResolvedValue(user);
+    (mail.sendVerification as jest.Mock).mockRejectedValue(
+      new Error('SMTP unavailable'),
+    );
+
+    await expect(svc.sendVerificationEmail('u1')).rejects.toThrow(
+      'SMTP unavailable',
     );
   });
 });

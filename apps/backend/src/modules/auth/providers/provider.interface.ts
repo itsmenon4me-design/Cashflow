@@ -1,5 +1,5 @@
 export type OAuthProviderUser = {
-  provider: 'google' | 'apple';
+  provider: 'google' | 'github';
   providerUserId: string;
   email: string;
   fullName?: string | null;
