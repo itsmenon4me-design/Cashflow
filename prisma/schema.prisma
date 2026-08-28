@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../apps/backend/src/generated/prisma"
+  previewFeatures = ["driverAdapters"]
 }
 
-datasource db {
-  provider = "postgresql"
-}
+  datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
 
 // Base model convention: UUID primary key, createdAt, updatedAt
 // Initial placeholder model only
