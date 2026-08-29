@@ -56,7 +56,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (user) {
       setStoredUser(user);
     }
-    set({ isAuthenticated: true, user: (user as AuthUser | null) ?? null });
+    set({ isAuthenticated: true, user: (user as AuthUser | null) ?? null, hydrated: true });
+    if (typeof window !== "undefined") {
+      window.__authHydrated = true;
+    }
   },
   logout: () => {
     const user = getStoredUser() as AuthUser | null;

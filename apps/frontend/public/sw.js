@@ -7,7 +7,7 @@
 //   the latest shell when online and the cached shell when offline.
 // - API calls are NEVER intercepted here — data-level offline support lives in
 //   IndexedDB + the sync queue (see src/lib/offline/*).
-const VERSION = "cashflow-v5";
+const VERSION = "cashflow-v6";
 const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
 

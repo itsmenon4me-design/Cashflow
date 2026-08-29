@@ -93,7 +93,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
       SEED_ENABLED: ${SEED_ENABLED:-false}
     depends_on:

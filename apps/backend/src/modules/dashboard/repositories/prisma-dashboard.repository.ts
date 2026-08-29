@@ -76,12 +76,14 @@ export class PrismaDashboardRepository implements IDashboardRepository {
         ? new Date(Math.max(...candidates.map((d) => d.getTime())))
         : null;
 
+    const netCashFlow = income - expense;
+
     return new DashboardSummaryResponseDto({
       currency: FIXED_CURRENCY,
-      total_assets_cents: '0',
+      total_assets_cents: netCashFlow.toString(),
       total_income_cents: income.toString(),
       total_expense_cents: expense.toString(),
-      net_cash_flow_cents: (income - expense).toString(),
+      net_cash_flow_cents: netCashFlow.toString(),
       total_accounts: 0,
       total_categories: catsCount,
       total_transactions: txTotalCount,

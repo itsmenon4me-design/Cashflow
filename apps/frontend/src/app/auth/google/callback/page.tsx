@@ -32,7 +32,7 @@ export default function GoogleOAuthCallbackPage() {
       },
     });
 
-    router.replace("/");
+    router.replace("/dashboard");
   }, [router]);
 
   return (

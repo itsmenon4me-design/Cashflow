@@ -32,7 +32,7 @@ export default function GithubOAuthCallbackPage() {
       },
     });
 
-    router.replace("/");
+    router.replace("/dashboard");
   }, [router]);
 
   return (
