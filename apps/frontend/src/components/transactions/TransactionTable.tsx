@@ -127,7 +127,6 @@ export function TransactionTable({
                 <TableHead className="hidden xl:table-cell">
                   {uiText.table.description}
                 </TableHead>
-                <TableHead className="hidden lg:table-cell">{uiText.table.account}</TableHead>
                 {!hideTypeColumn && <TableHead>{uiText.table.type}</TableHead>}
                 <TableHead className="text-right">
                   <SortButton
@@ -161,12 +160,6 @@ export function TransactionTable({
                     </TableCell>
                     <TableCell className="hidden max-w-56 truncate font-medium xl:table-cell">
                       {txn.description}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Landmark className="size-3.5 shrink-0" />
-                        <span className="truncate">{txn.account}</span>
-                      </span>
                     </TableCell>
                     {!hideTypeColumn && (
                       <TableCell>

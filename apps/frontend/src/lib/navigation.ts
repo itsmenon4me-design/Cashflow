@@ -40,12 +40,6 @@ export function getAppMenuItems(): AppMenuItem[] {
       aliases: ["home", "ringkasan", "summary", "beranda", "dashboard"],
     },
     {
-      label: uiText.navigation.accounts,
-      href: "/accounts",
-      icon: CreditCard,
-      aliases: ["account", "rekening", "akun"],
-    },
-    {
       label: uiText.navigation.income,
       href: "/incomes",
       icon: ArrowDownToLine,

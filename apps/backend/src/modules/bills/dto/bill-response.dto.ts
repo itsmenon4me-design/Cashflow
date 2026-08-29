@@ -17,9 +17,6 @@ export class BillResponseDto {
   currency!: string;
 
   @ApiPropertyOptional()
-  account_id?: string | null;
-
-  @ApiPropertyOptional()
   category_id?: string | null;
 
   @ApiProperty()

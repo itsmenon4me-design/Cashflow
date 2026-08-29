@@ -53,6 +53,12 @@ export class PrismaRoleRepository {
     });
   }
 
+  async ensureDefaultRole(): Promise<RoleEntity> {
+    const userRole = await this.findByCode('USER');
+    if (userRole) return userRole;
+    return this.ensureSuperAdmin();
+  }
+
   async listPermissionCodes(roleId: string): Promise<string[]> {
     const rps = await this.prisma.rolePermission.findMany({
       where: { role_id: roleId },

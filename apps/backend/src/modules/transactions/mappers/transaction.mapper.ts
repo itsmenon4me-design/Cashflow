@@ -6,7 +6,6 @@ export function toTransactionResponse(
 ): TransactionResponseDto {
   return {
     id: t.id,
-    account_id: t.account_id,
     category_id: t.category_id,
     transaction_type: t.transaction_type,
     amount_cents: t.amount_cents.toString(),

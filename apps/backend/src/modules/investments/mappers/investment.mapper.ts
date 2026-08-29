@@ -6,7 +6,6 @@ export function toInvestmentResponse(
 ): InvestmentResponseDto {
   return {
     id: i.id,
-    account_id: i.account_id ?? null,
     currency: i.currency ?? null,
     investment_type: i.investment_type,
     platform: i.platform,

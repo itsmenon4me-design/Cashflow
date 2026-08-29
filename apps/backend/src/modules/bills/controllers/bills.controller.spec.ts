@@ -39,7 +39,6 @@ describe('BillsController (security)', () => {
     payee: 'Electricity',
     amount_cents: BigInt(50000),
     currency: 'IDR',
-    account_id: '11111111-2222-4333-8444-555555555555',
     category_id: '66666666-7777-4888-8999-aaaaaaaaaaaa',
     due_date: new Date('2026-09-01T00:00:00Z'),
     due_date_timezone: 'Asia/Jakarta',
@@ -92,8 +91,6 @@ describe('BillsController (security)', () => {
   const validCreateBody = {
     payee: 'Internet',
     amount_cents: 120000,
-    currency: 'IDR',
-    account_id: '11111111-2222-4333-8444-555555555555',
     category_id: '66666666-7777-4888-8999-aaaaaaaaaaaa',
     due_date: '2026-09-01T00:00:00.000Z',
     due_date_timezone: 'Asia/Jakarta',

@@ -49,11 +49,10 @@ model User {
  sessions        Session[]
  oauth_accounts  OAuthAccount[]
 
- // Finance modules
- accounts        Account[]
- categories      Category[]
- transactions    Transaction[]
- bills           Bill[]
+  // Finance modules
+  categories      Category[]
+  transactions    Transaction[]
+  bills           Bill[]
  audit_logs      AuditLog[]
  budgets         Budget[]
  savingGoals     SavingGoal[]
@@ -193,62 +192,6 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-model HistoricalRecoveryLedger {
-  id                 String    @id @default(uuid()) @db.Uuid
-  recovery_id        String    @unique
-  finding_id         String
-  entity_type        String
-  entity_id          String
-  user_id            String
-  currency           String
-  status             String
-  before_value_cents BigInt    @db.BigInt
-  after_value_cents  BigInt    @db.BigInt
-  approved_by        String?
-  executed_by        String?
-  rolled_back_by     String?
-  rollback_status    String?
-  source_fingerprint String
-  evidence           Json?
-  error_reason       String?
-  approved_at        DateTime? @db.Timestamptz
-  executed_at        DateTime? @db.Timestamptz
-  rolled_back_at     DateTime? @db.Timestamptz
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
-
-  @@index([entity_type, entity_id])
-  @@map("historical_recovery_ledger")
-}
-
-// Account model
-model Account {
-  id                 String   @id @default(uuid()) @db.Uuid
-  user_id            String   @db.Uuid
-  name               String
-  account_type       String
-  currency           String   @default("IDR")
-  opening_balance_cents BigInt @default(0) @db.BigInt
-  current_balance_cents BigInt @default(0) @db.BigInt
-  color              String?
-  icon               String?
-  description        String?
-  is_active          Boolean  @default(true)
-  is_default         Boolean  @default(false)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  deleted_at         DateTime? @db.Timestamptz
-
-  user User @relation(fields: [user_id], references: [id])
-
-  transactions Transaction[]
-  bills Bill[]
-  savingGoals SavingGoal[]
-  investments Investment[]
-
-  @@index([user_id])
-  @@map("accounts")
-}
 // Category model
 model Category {
   id                 String   @id @default(uuid()) @db.Uuid
@@ -294,7 +237,6 @@ model Bill {
   payee                String
   amount_cents         BigInt          @db.BigInt
   currency             String          @default("IDR")
-  account_id           String?         @db.Uuid
   category_id          String?         @db.Uuid
   due_date             DateTime
   due_date_timezone    String?
@@ -316,7 +258,6 @@ model Bill {
   deleted_at           DateTime?       @db.Timestamptz
 
   user     User      @relation(fields: [user_id], references: [id])
-  account  Account?  @relation(fields: [account_id], references: [id])
   category Category? @relation(fields: [category_id], references: [id])
   transaction Transaction? @relation(fields: [transaction_id], references: [id])
   series Bill? @relation("BillSeries", fields: [series_id], references: [id])
@@ -327,7 +268,6 @@ model Bill {
   @@index([user_id, is_paid])
   @@index([series_id])
   @@index([category_id])
-  @@index([account_id])
   @@unique([transaction_id])
   @@unique([series_id, due_date])
   @@map("Bill")
@@ -356,7 +296,6 @@ model Budget {
 model SavingGoal {
   id                 String   @id @default(uuid()) @db.Uuid
   user_id            String   @db.Uuid
-  account_id         String?  @db.Uuid
   category_id        String?  @db.Uuid
   currency           String?
   name               String
@@ -371,11 +310,9 @@ model SavingGoal {
   deleted_at         DateTime? @db.Timestamptz
 
   user     User      @relation(fields: [user_id], references: [id])
-  account  Account?  @relation(fields: [account_id], references: [id])
   category Category? @relation(fields: [category_id], references: [id])
 
   @@index([user_id])
-  @@index([account_id])
   @@index([category_id])
   @@map("saving_goals")
 }
@@ -383,7 +320,6 @@ model SavingGoal {
 model Investment {
   id                    String   @id @default(uuid()) @db.Uuid
   user_id               String   @db.Uuid
-  account_id            String?  @db.Uuid
   currency              String?
   investment_type       String
   platform              String
@@ -404,10 +340,8 @@ model Investment {
   deleted_at            DateTime? @db.Timestamptz
 
   user    User     @relation(fields: [user_id], references: [id])
-  account Account? @relation(fields: [account_id], references: [id])
 
   @@index([user_id])
-  @@index([account_id])
   @@map("investments")
 }
 
@@ -460,7 +394,6 @@ enum TransactionType {
 model Transaction {
   id                String   @id @default(uuid()) @db.Uuid
   user_id           String   @db.Uuid
-  account_id        String   @db.Uuid
   category_id       String   @db.Uuid
 
   transaction_type  TransactionType
@@ -469,23 +402,17 @@ model Transaction {
   transaction_date  DateTime
   note              String?
   reference_number  String?
-  attachment_url    String?
   location          String?
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
   deleted_at        DateTime? @db.Timestamptz
-  transfer_group_id String? @db.Uuid
-  transfer_reference String?
 
   user     User     @relation(fields: [user_id], references: [id])
-  account  Account  @relation(fields: [account_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
 
   bills Bill[]
 
   @@index([user_id])
-  @@index([account_id])
   @@index([category_id])
-  @@index([transfer_group_id])
   @@map("transactions")
 }

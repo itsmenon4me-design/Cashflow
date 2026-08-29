@@ -7,7 +7,7 @@
 //   the latest shell when online and the cached shell when offline.
 // - API calls are NEVER intercepted here — data-level offline support lives in
 //   IndexedDB + the sync queue (see src/lib/offline/*).
-const VERSION = "cashflow-v4";
+const VERSION = "cashflow-v5";
 const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
 
@@ -33,12 +33,20 @@ const isSafeAsset = (url) =>
   url.pathname === "/favicon.ico" ||
   url.pathname === "/manifest.webmanifest";
 
-const putInCache = async (cacheName, request, response) => {
-  if (!response || response.type !== "basic" || response.status !== 200) {
+const putInCache = async (cacheName, request, clonedResponse) => {
+  if (
+    !clonedResponse ||
+    clonedResponse.status !== 200 ||
+    clonedResponse.bodyUsed
+  ) {
     return;
   }
-  const cache = await caches.open(cacheName);
-  await cache.put(request, response.clone());
+  try {
+    const cache = await caches.open(cacheName);
+    await cache.put(request, clonedResponse);
+  } catch (_err) {
+    // Ignore cache put failure
+  }
 };
 
 self.addEventListener("install", (event) => {
@@ -82,7 +90,19 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          void putInCache(SHELL_CACHE, request, response);
+          if (
+            response &&
+            response.status === 200 &&
+            !response.bodyUsed &&
+            response.type === "basic"
+          ) {
+            try {
+              const copy = response.clone();
+              void putInCache(SHELL_CACHE, request, copy);
+            } catch (_e) {
+              // Ignore clone error
+            }
+          }
           return response;
         })
         .catch(() =>
@@ -101,14 +121,40 @@ self.addEventListener("fetch", (event) => {
         if (!cached) {
           return fetch(request)
             .then((response) => {
-              void putInCache(STATIC_CACHE, request, response);
+              if (
+                response &&
+                response.status === 200 &&
+                !response.bodyUsed &&
+                response.type === "basic"
+              ) {
+                try {
+                  const copy = response.clone();
+                  void putInCache(STATIC_CACHE, request, copy);
+                } catch (_e) {
+                  // Ignore clone error
+                }
+              }
               return response;
             })
             .catch(() => Response.error());
         }
         // Refresh in the background so the next load gets an updated copy.
         void fetch(request)
-          .then((response) => putInCache(STATIC_CACHE, request, response))
+          .then((response) => {
+            if (
+              response &&
+              response.status === 200 &&
+              !response.bodyUsed &&
+              response.type === "basic"
+            ) {
+              try {
+                const copy = response.clone();
+                void putInCache(STATIC_CACHE, request, copy);
+              } catch (_e) {
+                // Ignore clone error
+              }
+            }
+          })
           .catch(() => undefined);
         return cached;
       }),

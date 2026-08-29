@@ -33,15 +33,6 @@ export interface MonthlyReportResult {
 export class MonthlyReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async resolveTargetCurrency(userId: string): Promise<string> {
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-  }
-
   private validateMonthYear(month: number, year: number) {
     if (!Number.isInteger(month) || month < 1 || month > 12)
       throw new BadRequestException('Invalid month');
@@ -89,16 +80,13 @@ export class MonthlyReportService {
       end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
     }
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
-
-    // aggregates income and expense (single currency only)
+    // aggregates income and expense
     const [incAgg, expAgg, txCount] = await Promise.all([
       this.prisma.transaction.aggregate({
         where: {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.INCOME,
-          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -108,7 +96,6 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
-          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -118,7 +105,6 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_date: { gte: start, lte: end },
-          account: { currency: targetCurrency },
         },
       }),
     ]);
@@ -135,7 +121,6 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
-          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },
@@ -148,7 +133,6 @@ export class MonthlyReportService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.INCOME,
-          account: { currency: targetCurrency },
           transaction_date: { gte: start, lte: end },
         },
         _sum: { amount_cents: true },

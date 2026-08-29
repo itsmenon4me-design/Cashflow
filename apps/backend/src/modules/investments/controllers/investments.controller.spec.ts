@@ -43,7 +43,6 @@ describe('InvestmentsController (security)', () => {
     const investmentEntity = {
       id: 'inv1',
       user_id: 'user-auth',
-      account_id: null,
       investment_type: 'Stock',
       platform: 'Exchange',
       name: 'AAPL',

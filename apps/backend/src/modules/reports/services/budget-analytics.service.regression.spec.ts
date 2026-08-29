@@ -50,8 +50,7 @@ describe('BudgetAnalyticsService - regression money invariants', () => {
     expect(item.percentageUsed).toBe(25);
   });
 
-  it('keeps currency isolation by filtering transactions by account.currency', async () => {
-    // no budgets needed for this assertion
+  it('does not filter transactions by account currency (fixed IDR)', async () => {
     const budgets: any[] = [];
 
     const transaction = {
@@ -60,30 +59,20 @@ describe('BudgetAnalyticsService - regression money invariants', () => {
 
     const category = { findMany: jest.fn().mockResolvedValue([]) };
 
-    const account = {
-      // default account currency USD (is_default true)
-      findMany: jest
-        .fn()
-        .mockResolvedValue([{ currency: 'USD', is_default: true }]),
-    };
-
     const prisma: Partial<PrismaService> = {
       $queryRaw: jest.fn().mockResolvedValue(budgets),
       transaction: transaction as unknown as PrismaService['transaction'],
       category: category as unknown as PrismaService['category'],
-      account: account as unknown as PrismaService['account'],
     };
 
     const svc = new BudgetAnalyticsService(prisma as PrismaService);
     await svc.analyzeMonth('u1', 8, 2026);
 
-    // verify groupBy was called and where.account.currency equals 'USD'
     expect(transaction.groupBy).toHaveBeenCalled();
     const callArg = (transaction.groupBy.mock.calls as unknown[][])[0]?.[0] as
       { where?: { account?: unknown } } | undefined;
     expect(callArg?.where).toBeDefined();
-    // account filter should be present
-    expect(callArg?.where?.['account']).toBeDefined();
-    expect(callArg?.where?.['account']).toEqual({ currency: 'USD' });
+    // account currency filter must no longer be present
+    expect(callArg?.where?.['account']).toBeUndefined();
   });
 });

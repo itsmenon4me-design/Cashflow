@@ -8,7 +8,6 @@ export const DEFAULT_PAGE_SIZE = 10;
 export const EMPTY_FILTERS: TransactionFiltersState = {
   search: "",
   category: "all",
-  account: "all",
   type: "all",
   status: "all",
   startDate: "",
@@ -20,7 +19,6 @@ export const EMPTY_FORM_VALUES: TransactionFormValues = {
   time: "",
   type: "expense",
   category: "",
-  account: "",
   amount: 0,
   description: "",
   notes: "",

@@ -5,7 +5,6 @@ import {
   ArrowUpFromLine,
   Copy,
   Eye,
-  Landmark,
   Pencil,
   Trash2,
   type LucideIcon,
@@ -133,12 +132,8 @@ export function TransactionCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center text-xs text-muted-foreground">
           <span>{formatTransactionDate(transaction.dateTime ?? transaction.date)}</span>
-          <span className="flex min-w-0 items-center gap-1">
-            <Landmark className="size-3.5 shrink-0" />
-            <span className="truncate">{transaction.account}</span>
-          </span>
         </div>
 
         <p

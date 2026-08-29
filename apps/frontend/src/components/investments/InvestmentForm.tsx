@@ -38,24 +38,16 @@ import type { InvestmentItem } from "@/services/investment.service";
 
 export type InvestmentFormMode = "create" | "edit" | "view";
 
-export interface InvestmentFormOption {
-  id: string;
-  name: string;
-}
-
 interface InvestmentFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: InvestmentFormMode;
   item: InvestmentItem | null;
-  accounts: InvestmentFormOption[];
-  accountCurrencies?: Record<string, string>;
   onSubmit: (values: InvestmentFormValues) => void;
 }
 
 function toFormValues(item: InvestmentItem): InvestmentFormValues {
   return {
-    accountId: item.accountId ?? "",
     investmentType: item.type,
     platform: item.platform,
     name: item.name,
@@ -82,8 +74,6 @@ export function InvestmentForm({
   onOpenChange,
   mode,
   item,
-  accounts,
-  accountCurrencies,
   onSubmit,
 }: InvestmentFormProps) {
   const isView = mode === "view";
@@ -106,8 +96,7 @@ export function InvestmentForm({
 
   const { errors } = form.formState;
 
-  const watchedAccountId = form.watch("accountId");
-  const amountCurrency = accountCurrencies?.[watchedAccountId ?? ""] ?? "IDR";
+  const amountCurrency = "IDR";
 
   // NEW entries only: Modal Awal is auto-calculated as
   // Jumlah Unit × Harga Beli Rata-rata and shown read-only. Existing
@@ -231,31 +220,6 @@ export function InvestmentForm({
               <div className="space-y-2">
                 <Label htmlFor="inv-symbol">{uiText.investments.fieldSymbol}</Label>
                 <Input id="inv-symbol" className="h-11 sm:h-9" disabled={isView} {...form.register("symbol")} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{uiText.investments.accountLabel}</Label>
-                <Controller
-                  control={form.control}
-                  name="accountId"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isView}>
-                      <SelectTrigger
-                        className="h-10 w-full data-[size=default]:h-10 sm:h-9 sm:data-[size=default]:h-9"
-                      >
-                        <SelectValue placeholder="—" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">—</SelectItem>
-                        {accounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
               </div>
 
               <div className="space-y-2">

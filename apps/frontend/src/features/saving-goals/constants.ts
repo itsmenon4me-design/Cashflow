@@ -37,7 +37,6 @@ export const EMPTY_FILTERS: SavingGoalFiltersState = {
 export const EMPTY_FORM_VALUES: SavingGoalFormValues = {
   name: "",
   description: "",
-  accountId: "",
   categoryId: "",
   target: 0,
   current: 0,

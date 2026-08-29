@@ -4,13 +4,11 @@ import { PrismaTransactionsRepository } from '../repositories/prisma-transaction
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
 import { TransactionValidationService } from './validation/transaction-validation.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
-import { BalanceService } from '../../accounts/services/balance.service';
 import { FinanceBotService } from '../../finance-bot/services/finance-bot.service';
 
 const dummyTx = (id: string) => ({
   id,
   user_id: 'u1',
-  account_id: 'a1',
   category_id: 'c1',
   transaction_type: 'INCOME',
   amount_cents: BigInt(1000),
@@ -53,10 +51,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
           useValue: { create: jest.fn() },
         },
         {
-          provide: BalanceService,
-          useValue: { recalculateAccount: jest.fn() },
-        },
-        {
           provide: FinanceBotService,
           useValue: { evaluateOnTransaction: jest.fn() },
         },
@@ -69,7 +63,7 @@ describe('TransactionsService (filter & pagination & search)', () => {
   it('computes pagination correctly', async () => {
     const res = await service.listAll(
       'u1',
-      { accountId: 'a1' },
+      { categoryId: 'c1' },
       {
         page: 1,
         limit: 20,
@@ -81,7 +75,7 @@ describe('TransactionsService (filter & pagination & search)', () => {
     expect(res.pagination.limit).toBe(20);
     expect(repoMock.findByUserWithFilter).toHaveBeenCalledWith(
       'u1',
-      { accountId: 'a1' },
+      { categoryId: 'c1' },
       { page: 1, limit: 20 },
     );
   });
@@ -116,7 +110,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
       validateForUpdate: jest.fn(),
     };
     const notificationsMock = { create: jest.fn() };
-    const balanceMock = { recalculateAccount: jest.fn() };
     const financeBotMock: {
       evaluateOnTransaction: jest.Mock;
     } = {
@@ -130,7 +123,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
         { provide: AuditLogService, useValue: auditMock },
         { provide: TransactionValidationService, useValue: validatorMock },
         { provide: NotificationsService, useValue: notificationsMock },
-        { provide: BalanceService, useValue: balanceMock },
         { provide: FinanceBotService, useValue: financeBotMock },
       ],
     }).compile();
@@ -138,7 +130,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
     const serviceWithFinanceBot =
       module.get<TransactionsService>(TransactionsService);
     const result = await serviceWithFinanceBot.create('u1', {
-      account_id: 'a1',
       category_id: 'c1',
       transaction_type: 'EXPENSE',
       amount_cents: BigInt(1000),
@@ -167,10 +158,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
         },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
         {
-          provide: BalanceService,
-          useValue: { recalculateAccount: jest.fn() },
-        },
-        {
           provide: FinanceBotService,
           useValue: { evaluateOnTransaction: jest.fn() },
         },
@@ -182,7 +169,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
 
     await expect(
       serviceWithValidation.create('u1', {
-        account_id: 'a1',
         category_id: 'c1',
         transaction_type: 'EXPENSE',
         amount_cents: 10.5 as unknown as bigint,
@@ -214,10 +200,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
         },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
         {
-          provide: BalanceService,
-          useValue: { recalculateAccount: jest.fn() },
-        },
-        {
           provide: FinanceBotService,
           useValue: { evaluateOnTransaction: jest.fn() },
         },
@@ -229,7 +211,6 @@ describe('TransactionsService (filter & pagination & search)', () => {
     await serviceWithTrace.create(
       'u1',
       {
-        account_id: 'a1',
         category_id: 'c1',
         transaction_type: 'EXPENSE',
         amount_cents: BigInt(1000000),

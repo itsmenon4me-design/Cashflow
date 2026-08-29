@@ -9,7 +9,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
-import { AccountsModule } from './modules/accounts/accounts.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
 import { SavingGoalsModule } from './modules/saving-goals/saving-goals.module';
@@ -37,7 +36,6 @@ import { AiModule } from './modules/ai/ai.module';
     ReportsModule,
     AnalyticsModule,
     TransactionsModule,
-    AccountsModule,
     CategoriesModule,
     BudgetsModule,
     SavingGoalsModule,

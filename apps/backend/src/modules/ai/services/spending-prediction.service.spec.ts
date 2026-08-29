@@ -25,8 +25,6 @@ type TxQuery = {
   where: {
     user_id: string;
     deleted_at: null;
-    transfer_group_id: null;
-    account?: { currency: string };
     transaction_date: { gte: Date; lt: Date };
   };
 };
@@ -337,12 +335,15 @@ describe('SpendingPredictionService', () => {
     expect(volatileRes.confidence).toBeLessThanOrEqual(1);
   });
 
-  it('L. excludes transfer expenses', async () => {
-    const txs = stableMonths(300000, 200000);
-    txs.push(
-      makeTx('2026-04', 'EXPENSE', 999999999, CAT.transport, 'group-1'),
-      makeTx('2026-04', 'INCOME', 999999999, CAT.transport, 'group-1'),
-    );
+  it('L. includes transfer expenses', async () => {
+    const txs = [
+      makeTx('2026-02', 'EXPENSE', 300000, CAT.food),
+      makeTx('2026-03', 'EXPENSE', 300000, CAT.food),
+      makeTx('2026-04', 'EXPENSE', 300000, CAT.food),
+      makeTx('2026-02', 'EXPENSE', 100000, CAT.transport, 'group-1'),
+      makeTx('2026-03', 'EXPENSE', 100000, CAT.transport, 'group-2'),
+      makeTx('2026-04', 'EXPENSE', 100000, CAT.transport, 'group-3'),
+    ];
     const { service, prisma } = makeService({
       transaction: { findMany: makeFindMany(txs) },
     });
@@ -351,11 +352,10 @@ describe('SpendingPredictionService', () => {
 
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
     expect(txQuery.where.user_id).toBe('u1');
-    expect(txQuery.where.transfer_group_id).toBeNull();
-    expect(res.predictedTotalCents).toBe('500000');
+    expect(res.predictedTotalCents).toBe('400000');
     expect(
       res.categories.find((c) => c.categoryId === CAT.transport),
-    ).toMatchObject({ predictedAmountCents: '200000' });
+    ).toMatchObject({ predictedAmountCents: '100000' });
   });
 
   it('M. excludes income from spending', async () => {
@@ -570,50 +570,24 @@ describe('SpendingPredictionService', () => {
     expect(Object.keys(res)).not.toContain('transfer_group_id');
   });
 
-  it('W. isolates by currency (IDR default account)', async () => {
+  it('W. always uses IDR fixed currency', async () => {
     const { service, prisma } = makeService({
       transaction: {
         findMany: makeFindMany(stableMonths(300000, 200000)),
       },
     });
 
-    await service.predict('u1', { horizon: 1 });
+    const res = await service.predict('u1', { horizon: 1 });
 
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
-    expect(txQuery.where.account).toEqual({ currency: 'IDR' });
-    const [accQuery] = prisma.account.findMany.mock.calls[0];
-    expect(accQuery.where.user_id).toBe('u1');
-    expect(accQuery.where.deleted_at).toBeNull();
-  });
-
-  it('W2. resolves USD/SGD/EUR target currency without mixing', async () => {
-    for (const currency of ['USD', 'SGD', 'EUR']) {
-      const { service, prisma } = makeService({
-        account: {
-          findMany: makeFindAccounts([{ currency, is_default: true }]),
-        },
-        transaction: {
-          findMany: makeFindMany([
-            makeTx('2026-04', 'EXPENSE', 123, CAT.food),
-            makeTx('2026-04', 'EXPENSE', 1747, CAT.transport),
-          ]),
-        },
-      });
-
-      const res = await service.predict('u1', { horizon: 1 });
-
-      const [txQuery] = prisma.transaction.findMany.mock.calls[0];
-      expect(txQuery.where.account).toEqual({ currency });
-      expect(res.currency).toBe(currency);
-      expect(res.predictedTotalCents).toBe('1870');
-      expect(res.otherCents).toBe('1870');
-      expect(res.categories).toEqual([]);
-    }
+    expect(txQuery.where.user_id).toBe('u1');
+    expect(txQuery.where.deleted_at).toBeNull();
+    expect(res.currency).toBe('IDR');
   });
 
   it('X. preserves arbitrary non-round IDR minor-unit values exactly', async () => {
     const amounts = [1n, 7n, 17n, 137n, 501n, 999n, 1001n, 1234567n];
-    const { service, prisma } = makeService({
+    const { service } = makeService({
       transaction: {
         findMany: makeFindMany(
           amounts.map((amt, i) =>
@@ -625,47 +599,9 @@ describe('SpendingPredictionService', () => {
 
     const res = await service.predict('u1', { horizon: 1 });
 
-    const [txQuery] = prisma.transaction.findMany.mock.calls[0];
-    expect(txQuery.where.account).toEqual({ currency: 'IDR' });
     expect(res.currency).toBe('IDR');
     expect(res.predictedTotalCents).toBe('1237230');
     expect(res.otherCents).toBe('1237230');
-  });
-
-  it('Y. supports USD/SGD/EUR 2-minor-unit precision end to end', async () => {
-    const usdMinor = [
-      1n,
-      7n,
-      17n,
-      99n,
-      101n,
-      123n,
-      1747n,
-      13759n,
-      99991n,
-      100000099n,
-    ];
-    for (const currency of ['USD', 'SGD', 'EUR']) {
-      const { service } = makeService({
-        account: {
-          findMany: makeFindAccounts([{ currency, is_default: true }]),
-        },
-        transaction: {
-          findMany: makeFindMany(
-            usdMinor.map((v, i) =>
-              makeTx('2026-04', 'EXPENSE', v, `cat-u-${i}`),
-            ),
-          ),
-        },
-      });
-
-      const res = await service.predict('u1', { horizon: 1 });
-
-      expect(res.currency).toBe(currency);
-      expect(res.insufficientData).toBe(false);
-      expect(res.predictedTotalCents).toBe('100115944');
-      expect(res.otherCents).toBe('100115944');
-    }
   });
 
   it('Z. buckets multiple transactions on the same day into one month', async () => {

@@ -81,23 +81,11 @@ export class CategoryBreakdownService {
       end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
     }
 
-    // Resolve the target currency to prevent cross-currency summation.
-    const accounts = await this.prisma.account.findMany({
-      where: {
-        user_id: userId,
-        deleted_at: null,
-      },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    const targetCurrency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-
     const totalAgg = await this.prisma.transaction.aggregate({
       where: {
         user_id: userId,
         deleted_at: null,
         transaction_type: txType,
-        account: { currency: targetCurrency },
         transaction_date: {
           gte: start,
           lte: end,
@@ -116,7 +104,6 @@ export class CategoryBreakdownService {
         user_id: userId,
         deleted_at: null,
         transaction_type: txType,
-        account: { currency: targetCurrency },
         transaction_date: {
           gte: start,
           lte: end,

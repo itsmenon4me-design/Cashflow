@@ -10,7 +10,6 @@ const requiredMessage = "Wajib diisi";
 export const savingGoalFormSchema = z.object({
   name: z.string().min(1, requiredMessage),
   description: z.string().optional(),
-  accountId: z.string().optional(),
   categoryId: z.string().optional(),
   target: z
     .number({ error: "Nominal harus berupa angka" })
@@ -31,7 +30,6 @@ export function toCreateSavingGoalPayload(
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
-    account_id: values.accountId || undefined,
     category_id: values.categoryId || undefined,
     target_amount_cents: toMinorUnits(values.target, "IDR"),
     current_amount_cents: toMinorUnits(values.current, "IDR"),
@@ -47,7 +45,6 @@ export function toUpdateSavingGoalPayload(
   return {
     name: values.name.trim(),
     description: values.description?.trim() || undefined,
-    account_id: values.accountId || null,
     category_id: values.categoryId || null,
     target_amount_cents: toMinorUnits(values.target, "IDR"),
     current_amount_cents: toMinorUnits(values.current, "IDR"),

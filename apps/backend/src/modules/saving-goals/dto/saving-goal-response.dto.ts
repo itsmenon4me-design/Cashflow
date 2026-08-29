@@ -10,9 +10,6 @@ export class SavingGoalResponseDto {
   user_id!: string;
 
   @ApiPropertyOptional()
-  account_id?: string | null;
-
-  @ApiPropertyOptional()
   category_id?: string | null;
 
   @ApiPropertyOptional({ enum: SUPPORTED_CURRENCIES })

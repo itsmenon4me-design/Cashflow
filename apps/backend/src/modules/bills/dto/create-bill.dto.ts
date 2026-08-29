@@ -10,7 +10,6 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export const BILL_RECURRENCE_TYPES = [
   'NONE',
@@ -28,13 +27,6 @@ export class CreateBillDto {
   @IsInt()
   @Min(1)
   amount_cents!: number;
-
-  @IsString()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency!: string;
-
-  @IsUUID('loose')
-  account_id!: string;
 
   @IsUUID('loose')
   category_id!: string;

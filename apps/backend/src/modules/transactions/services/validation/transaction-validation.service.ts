@@ -4,25 +4,12 @@ import { ErrorService } from '../../../../common/errors/error.service';
 import { ErrorCode } from '../../../../common/errors/error-codes';
 import { TransactionEntity } from '../../entities/transaction.entity';
 import { normalizeAmountCents } from '../../utils/amount.utils';
-import { normalizeDashboardCurrency } from '../../../dashboard/dashboard-currency';
 
 @Injectable()
 export class TransactionValidationService {
   private readonly logger = new Logger(TransactionValidationService.name);
 
   constructor(private readonly prisma: PrismaService) {}
-
-  private async findAccount(userId: string, accountId: string, currency?: string) {
-    const normalized = normalizeDashboardCurrency(currency);
-    const where: any = { id: accountId, deleted_at: null, user_id: userId };
-    if (normalized) where.currency = normalized;
-
-    const acc = await this.prisma.account.findFirst({ where });
-
-    if (!acc) return null;
-
-    return acc;
-  }
 
   private async findCategory(userId: string, categoryId: string) {
     const cat = await this.prisma.category.findUnique({
@@ -41,33 +28,7 @@ export class TransactionValidationService {
   async validateForCreate(
     userId: string,
     tx: Partial<TransactionEntity>,
-    currency?: string,
   ): Promise<boolean> {
-    // Account
-    if (!tx.account_id) {
-      throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Account is required');
-    }
-
-    const acc = await this.findAccount(userId, tx.account_id, currency);
-
-    if (!acc) {
-      this.logger.warn(
-        `Validation Failed: invalid account user=${userId} account=${tx.account_id}`,
-      );
-
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        'Invalid or inaccessible account',
-      );
-    }
-
-    if (!acc.is_active) {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        'Account is not active',
-      );
-    }
-
     // Category
     if (!tx.category_id) {
       throw ErrorService.create(
@@ -150,8 +111,7 @@ export class TransactionValidationService {
   async validateForUpdate(
     userId: string,
     tx: Partial<TransactionEntity>,
-    currency?: string,
   ): Promise<boolean> {
-    return this.validateForCreate(userId, tx, currency);
+    return this.validateForCreate(userId, tx);
   }
 }

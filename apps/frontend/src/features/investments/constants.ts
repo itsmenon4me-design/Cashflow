@@ -68,7 +68,6 @@ export const EMPTY_FILTERS: InvestmentFiltersState = {
 };
 
 export const EMPTY_FORM_VALUES: InvestmentFormValues = {
-  accountId: "",
   investmentType: "Stock",
   platform: "",
   name: "",

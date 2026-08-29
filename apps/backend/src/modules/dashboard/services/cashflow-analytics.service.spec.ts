@@ -27,11 +27,6 @@ const makePrismaMock = (
     transaction: {
       aggregate,
     } as unknown as PrismaService['transaction'],
-    account: {
-      findMany: jest.fn(() =>
-        Promise.resolve([{ currency: 'IDR', is_default: true }]),
-      ) as unknown as PrismaService['account']['findMany'],
-    } as unknown as PrismaService['account'],
   };
 };
 

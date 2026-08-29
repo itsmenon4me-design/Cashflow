@@ -62,7 +62,6 @@ function createForecastResponse(overrides: Partial<ForecastResponse> = {}): Fore
       averageMonthlyIncomeCents: "15000000",
       averageMonthlyExpenseCents: "8000000",
     },
-    excludedTransfers: true,
     outliers: [],
     insufficientData: false,
     ...overrides,
@@ -149,10 +148,9 @@ describe("ForecastPage", () => {
         the whole case room instead of flaking on environment load */
   20_000);
 
-  it("renders forecast summary, breakdown, confidence, history, and transfer notice", async () => {
+  it("renders forecast summary, breakdown, confidence, and history", async () => {
     vi.spyOn(settingsService, "getSettings").mockResolvedValue(createBaseSettings());
     vi.spyOn(forecastService, "getForecast").mockResolvedValue(createForecastResponse({
-      excludedTransfers: true,
       outliers: [],
     }));
     vi.spyOn(forecastService, "getSpendingPrediction").mockResolvedValue(createSpendingResponse());
@@ -166,7 +164,6 @@ describe("ForecastPage", () => {
     expect(screen.getByText(locales.id.forecast.breakdownTitle)).toBeInTheDocument();
     expect(screen.getByText(locales.id.forecast.confidenceTitle)).toBeInTheDocument();
     expect(screen.getByText(locales.id.forecast.basisTitle)).toBeInTheDocument();
-    expect(screen.getByText(locales.id.forecast.transferNoticeTitle)).toBeInTheDocument();
     expect(screen.getAllByText(getTextMatcher(formatCurrencyCents("15000000", "IDR"))).length).toBeGreaterThan(0);
     expect(screen.getAllByText(getTextMatcher(formatCurrencyCents("8000000", "IDR"))).length).toBeGreaterThan(0);
     expect(screen.getAllByText(getTextMatcher(formatCurrencyCents("7000000", "IDR"))).length).toBeGreaterThan(0);

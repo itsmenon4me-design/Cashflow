@@ -7,7 +7,7 @@ import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { buildKeywordOr } from '../utils/search-keyword.utils';
 
-type TxRec = Transaction & { account?: unknown };
+type TxRec = Transaction;
 
 @Injectable()
 export class PrismaTransactionsRepository implements ITransactionsRepository {
@@ -17,7 +17,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const t = new TransactionEntity();
     t.id = rec.id;
     t.user_id = rec.user_id;
-    t.account_id = rec.account_id;
     t.category_id = rec.category_id;
     t.transaction_type = rec.transaction_type;
     const amt =
@@ -28,7 +27,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     t.transaction_date = rec.transaction_date;
     t.note = rec.note ?? null;
     t.reference_number = rec.reference_number ?? null;
-    t.attachment_url = rec.attachment_url ?? null;
     t.location = rec.location ?? null;
     t.created_at = rec.created_at;
     t.updated_at = rec.updated_at;
@@ -39,7 +37,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
   async create(input: Partial<TransactionEntity>): Promise<TransactionEntity> {
     const data: Prisma.TransactionCreateInput = {
       user_id: input.user_id!,
-      account_id: input.account_id!,
       category_id: input.category_id ?? undefined,
       transaction_type:
         input.transaction_type as Prisma.TransactionCreateInput['transaction_type'],
@@ -50,7 +47,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       transaction_date: input.transaction_date ?? new Date(),
       note: input.note ?? null,
       reference_number: input.reference_number ?? null,
-      attachment_url: input.attachment_url ?? null,
       location: input.location ?? null,
     } as unknown as Prisma.TransactionCreateInput;
 
@@ -64,7 +60,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
   async findById(id: string): Promise<TransactionEntity | null> {
     const rec = await this.prisma.transaction.findUnique({
       where: { id },
-      include: { account: true },
     });
     if (!rec || rec.deleted_at) return null;
     return this.map(rec);
@@ -104,7 +99,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       deleted_at: null,
     };
 
-    if (filter?.accountId) where.account_id = filter.accountId;
     if (filter?.categoryId) where.category_id = filter.categoryId;
     if (filter?.type) where.transaction_type = filter.type;
     if (filter?.fromDate || filter?.toDate) {
@@ -131,12 +125,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
           filter.maxAmount,
         );
     }
-    if (filter?.hasAttachment !== undefined) {
-      const has = String(filter.hasAttachment).toLowerCase() === 'true';
-      if (has) where.attachment_url = { not: null };
-      else where.attachment_url = null;
-    }
-
     // Search keyword (combines with filters via AND)
     const qWhere: Prisma.TransactionWhereInput | undefined = filter?.q
       ? { OR: buildKeywordOr(filter.q) }
@@ -169,9 +157,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
         orderBy,
         skip,
         take,
-        include: {
-          account: true,
-        },
       }),
       this.prisma.transaction.count({ where: baseWhere }),
     ]);
@@ -188,7 +173,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const query = q.trim();
     const or: Prisma.TransactionWhereInput[] = buildKeywordOr(query);
 
-    // Account name and Category name using relations
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
 
@@ -200,7 +184,7 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     const [items, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where: baseWhere,
-        include: { account: true, category: true },
+        include: { category: true },
         orderBy: { transaction_date: 'desc' },
         skip,
         take,
@@ -222,7 +206,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
           ? updates.amount_cents
           : BigInt(String(updates.amount_cents));
     }
-    if (updates.account_id !== undefined) data.account_id = updates.account_id;
     if (updates.category_id !== undefined)
       data.category_id = updates.category_id;
     if (updates.transaction_type !== undefined)
@@ -231,8 +214,6 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     if (updates.note !== undefined) data.note = updates.note;
     if (updates.reference_number !== undefined)
       data.reference_number = updates.reference_number;
-    if (updates.attachment_url !== undefined)
-      data.attachment_url = updates.attachment_url;
     if (updates.transaction_date !== undefined)
       data.transaction_date = updates.transaction_date;
 

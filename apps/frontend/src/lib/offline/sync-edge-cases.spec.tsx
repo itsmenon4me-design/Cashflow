@@ -122,7 +122,6 @@ describe("OFFLINE EDGE CASE B1: chain create -> edit while still offline (temp_i
     // Still OFFLINE: create a brand-new transaction -> gets a temp id...
     setOnline(false);
     const created = await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "EXPENSE",
       amount_cents: 100_000,
@@ -153,7 +152,6 @@ describe("OFFLINE EDGE CASE B1: chain create -> edit while still offline (temp_i
   it("processes the merged create once and REPLACES the temp id with the server id", async () => {
     setOnline(false);
     const { id: tempId } = await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "INCOME",
       amount_cents: 10_000,
@@ -255,7 +253,6 @@ describe("OFFLINE EDGE CASE B2: offline edit races with delete from another devi
   it("does NOT classify a 404 on CREATE as deleted-elsewhere", async () => {
     setOnline(false);
     await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "EXPENSE",
       amount_cents: 1,
@@ -287,7 +284,6 @@ describe("OFFLINE EDGE CASE B3: expired session while flushing pending queue", (
   it("defers a transient-failure retry by its backoff window, then retries successfully", async () => {
     setOnline(false);
     await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "EXPENSE",
       amount_cents: 7_000,
@@ -356,7 +352,6 @@ describe("OFFLINE EDGE CASE B3: expired session while flushing pending queue", (
   it("flags needsReAuth when refresh fails with pending items (visible notice, queue preserved)", async () => {
     setOnline(false);
     await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "EXPENSE",
       amount_cents: 3_333,
@@ -415,7 +410,6 @@ describe("POLISH A: dismissing parked 'Sync failed' items", () => {
     await syncUpdateTransaction("victim-id", { amount_cents: 5_000 });
     // ...and keep one healthy pending item that MUST survive dismissal.
     await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "EXPENSE",
       amount_cents: 11_000,
@@ -480,7 +474,6 @@ describe("POLISH B: offline create -> edit -> delete collapses into ZERO request
     // Entire lifecycle happens OFFLINE before any sync attempt.
     setOnline(false);
     const { id: tempId } = await syncCreateTransaction({
-      account_id: "acc-1",
       category_id: "cat-1",
       transaction_type: "INCOME",
       amount_cents: 50_000,

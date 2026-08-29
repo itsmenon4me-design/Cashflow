@@ -15,11 +15,6 @@ export class CreateTransactionDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
-  account_id!: string;
-
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
   category_id!: string;
 
   @ApiProperty({ enum: ['INCOME', 'EXPENSE'] })

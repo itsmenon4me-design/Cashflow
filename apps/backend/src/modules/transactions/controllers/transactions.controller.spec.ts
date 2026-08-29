@@ -42,7 +42,6 @@ describe('TransactionsController (security)', () => {
   beforeEach(async () => {
     const txEntity = {
       id: 't1',
-      account_id: 'acc1',
       category_id: 'cat1',
       transaction_type: 'EXPENSE',
       amount_cents: BigInt(1000),
@@ -102,7 +101,6 @@ describe('TransactionsController (security)', () => {
 
   it('create: passes authenticated userId to service and ignores client-supplied userId/user_id', async () => {
     const body = {
-      account_id: 'acc1',
       category_id: 'cat1',
       transaction_type: 'EXPENSE',
       amount_cents: 1000,
@@ -125,7 +123,6 @@ describe('TransactionsController (security)', () => {
 
   it('create: propagates request trace metadata from headers', async () => {
     const body = {
-      account_id: 'acc1',
       category_id: 'cat1',
       transaction_type: 'EXPENSE',
       amount_cents: 1000,

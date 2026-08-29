@@ -1,6 +1,17 @@
 # Development override: eksplisit dijalankan via
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up -d --build
 services:
+  postgres:
+    ports:
+      - "55433:5432"
+    networks:
+      - fronted
+      - internal
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cashflow
+
   backend:
     build:
       context: ..

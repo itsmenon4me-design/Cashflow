@@ -51,12 +51,6 @@ function buildWarmers(): Record<string, Warmer[]> {
         ]);
       },
     ],
-    "/accounts": [
-      async () => {
-        const { accountService } = await import("@/services/account.service");
-        return accountService.list();
-      },
-    ],
     "/transactions": [
       async () => {
         const [{ transactionService }, { categoryService }] = await Promise.all([
@@ -64,10 +58,6 @@ function buildWarmers(): Record<string, Warmer[]> {
           import("@/services/category.service"),
         ]);
         return Promise.allSettled([transactionService.list({ page: 1 }), categoryService.list()]);
-      },
-      async () => {
-        const { accountService } = await import("@/services/account.service");
-        return accountService.list();
       },
     ],
     "/incomes": [

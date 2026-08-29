@@ -19,15 +19,6 @@ export interface AnalyticsResult {
 export class CashflowAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async resolveTargetCurrency(userId: string): Promise<string> {
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-  }
-
   /**
    * Calculate analytics for a given user and date range.
    * If startDate/endDate are omitted, default to current month vs previous month.
@@ -64,9 +55,7 @@ export class CashflowAnalyticsService {
     const prevEnd = new Date(rangeStart.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - lenMs + 1);
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
-
-    // helper to aggregate (single currency only)
+    // helper to aggregate
     const aggFor = async (start: Date, end: Date) => {
       const [incAgg, expAgg] = await Promise.all([
         this.prisma.transaction.aggregate({
@@ -74,7 +63,6 @@ export class CashflowAnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
-            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },
@@ -84,7 +72,6 @@ export class CashflowAnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
-            account: { currency: targetCurrency },
             transaction_date: { gte: start, lte: end },
           },
           _sum: { amount_cents: true },

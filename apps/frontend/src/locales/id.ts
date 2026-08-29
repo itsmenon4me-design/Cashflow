@@ -492,12 +492,9 @@ export const idText = {
     fieldTime: "Jam",
     fieldType: "Jenis",
     fieldCategory: "Kategori",
-    fieldAccount: "Akun",
     fieldAmount: "Nominal",
     fieldDescription: "Deskripsi",
-    fieldAttachment: "Lampiran",
     fieldNotes: "Catatan",
-    attachmentPlaceholder: "Unggah lampiran (belum tersedia)",
     deleteTitle: "Hapus Transaksi",
     deleteMessage: "Apakah Anda yakin ingin menghapus transaksi ini?",
     typeIncome: "Pemasukan",
@@ -718,9 +715,6 @@ export const idText = {
     outlierTitle: "Pencilan historis",
     outlierDescription:
       "Beberapa nilai historis dikecualikan dari dasar perkiraan untuk menjaga hasil tetap stabil.",
-    transferNoticeTitle: "Penanganan transfer",
-    transferNoticeDescription:
-      "Transfer dikecualikan dari perkiraan ini agar fokus pada pergerakan kas aktual.",
     insufficientDataTitle: "Belum cukup data untuk membuat perkiraan keuangan.",
     insufficientDataDescription:
       "Tambah riwayat transaksi untuk membuka perkiraan yang lebih lengkap.",

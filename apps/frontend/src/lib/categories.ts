@@ -12,7 +12,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   Bonus: "Bonus",
   Gift: "Hadiah",
   Investment: "Investasi",
-  "Transfer In": "Transfer Masuk",
   "Other Income": "Pemasukan Lainnya",
   Housing: "Tempat Tinggal",
   Bills: "Tagihan",
@@ -23,7 +22,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   Travel: "Liburan",
   Health: "Kesehatan",
   Education: "Pendidikan",
-  "Transfer Out": "Transfer Keluar",
   "Other Expense": "Pengeluaran Lainnya",
 };
 

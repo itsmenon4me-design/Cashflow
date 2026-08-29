@@ -3,7 +3,6 @@ export type SavingGoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export class SavingGoalEntity {
   id!: string;
   user_id!: string;
-  account_id?: string | null;
   category_id?: string | null;
   currency?: string | null;
   name!: string;

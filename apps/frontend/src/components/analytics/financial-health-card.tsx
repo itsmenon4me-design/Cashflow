@@ -6,7 +6,6 @@ import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AnalyticsHealth } from "@/services/analytics.service";
 import { cn } from "@/lib/utils";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface FinancialHealthCardProps {
   health: AnalyticsHealth | null;
@@ -37,7 +36,6 @@ function MetricRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export function FinancialHealthCard({ health, loading = false }: FinancialHealthCardProps) {
-  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
   const badgeClass =
     health?.label === "healthy"
       ? "bg-success/10 text-success"
@@ -107,7 +105,7 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
                   <span
                     className={cn(health.cashFlowPositive ? "text-emerald-500" : "text-red-500")}
                   >
-                    {formatCurrencyCents(health.netCashFlow, activeCurrency)}
+                    {formatCurrencyCents(health.netCashFlow, "IDR")}
                   </span>
                 }
               />

@@ -81,11 +81,6 @@ export class ForecastResponseDto {
   @ApiProperty({ type: () => ForecastBasisDto })
   basis: ForecastBasisDto;
 
-  @ApiProperty({
-    description: 'Whether transfer transactions were excluded',
-  })
-  excludedTransfers: boolean;
-
   @ApiProperty({ type: () => [ForecastOutlierDto] })
   outliers: ForecastOutlierDto[];
 

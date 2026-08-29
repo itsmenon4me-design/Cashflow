@@ -7,7 +7,6 @@ export function toSavingGoalResponse(
   return {
     id: g.id,
     user_id: g.user_id,
-    account_id: g.account_id ?? null,
     category_id: g.category_id ?? null,
     currency: g.currency ?? null,
     name: g.name,

@@ -43,7 +43,6 @@ describe('SavingGoalsController (security)', () => {
     const goalEntity = {
       id: 'g1',
       user_id: 'user-auth',
-      account_id: null,
       category_id: null,
       name: 'Trip',
       description: 'Vacation',

@@ -8,7 +8,6 @@ export type SupportedEntityCurrency = SupportedCurrency;
 
 export interface CreateSavingGoalPayload {
   name: string;
-  account_id?: string;
   category_id?: string;
   currency?: SupportedEntityCurrency;
   description?: string;
@@ -21,7 +20,6 @@ export interface CreateSavingGoalPayload {
 
 export type UpdateSavingGoalPayload = {
   name?: string;
-  account_id?: string | null;
   category_id?: string | null;
   currency?: SupportedEntityCurrency;
   description?: string;
@@ -35,7 +33,6 @@ export type UpdateSavingGoalPayload = {
 export interface SavingGoalResponse {
   id: string;
   user_id: string;
-  account_id: string | null;
   category_id: string | null;
   currency?: SupportedEntityCurrency;
   name: string;
@@ -62,9 +59,7 @@ export interface SavingGoalItem {
   id: string;
   name: string;
   description: string | null;
-  accountId: string | null;
   categoryId: string | null;
-  accountName: string | null;
   categoryName: string | null;
   target: number;
   current: number;
@@ -78,13 +73,9 @@ export interface SavingGoalItem {
 
 export function toSavingGoalItem(
   goal: SavingGoalResponse,
-  accountNames: Record<string, string>,
   categoryNames: Record<string, string>,
-  accountCurrencies: Record<string, string> = {},
 ): SavingGoalItem {
-  const currency =
-    goal.currency ??
-    (goal.account_id ? accountCurrencies[goal.account_id] ?? "IDR" : "IDR");
+  const currency = goal.currency ?? "IDR";
   const target = toMajorUnits(BigInt(goal.target_amount_cents), currency);
   const current = toMajorUnits(BigInt(goal.current_amount_cents), currency);
   const percentage =
@@ -93,9 +84,7 @@ export function toSavingGoalItem(
     id: goal.id,
     name: goal.name,
     description: goal.description,
-    accountId: goal.account_id ?? "",
     categoryId: goal.category_id ?? "",
-    accountName: goal.account_id ? (accountNames[goal.account_id] ?? "-") : null,
     categoryName: goal.category_id ? (categoryNames[goal.category_id] ?? "-") : null,
     target,
     current,

@@ -7,9 +7,7 @@ import {
   MAX_FORECAST_HORIZON,
 } from '../dto/forecast-query.dto';
 import { ForecastEngine } from '../engines/forecast.engine';
-import { getCurrencySpec } from '../../../common/types/money';
-import { ErrorService } from '../../../common/errors/error.service';
-import { ErrorCode } from '../../../common/errors/error-codes';
+import { FIXED_CURRENCY } from '../../../common/currencies';
 
 export interface ForecastOptions {
   horizon?: number;
@@ -40,26 +38,6 @@ export class ForecastService {
     const now = this.clock();
     const window = this.engine.buildHistoryWindow(now, timezone, options);
 
-    // Resolve target currency (requested ledger scope, else primary/default
-    // account currency) to avoid mixing multi-currency amounts
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    const targetCurrency =
-      defaultAcc?.currency ??
-      accounts[0]?.currency ??
-      'IDR';
-    try {
-      getCurrencySpec(targetCurrency);
-    } catch {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        `Forecast does not support currency ${targetCurrency}`,
-      );
-    }
-
     const recs =
       window.months.length === 0
         ? []
@@ -67,15 +45,12 @@ export class ForecastService {
             where: {
               user_id: userId,
               deleted_at: null,
-              transfer_group_id: null,
-              account: { currency: targetCurrency },
               transaction_date: { gte: window.startUtc, lt: window.endUtc },
             },
             select: {
               transaction_date: true,
               transaction_type: true,
               amount_cents: true,
-              transfer_group_id: true,
             },
           });
 
@@ -85,15 +60,15 @@ export class ForecastService {
         transactionType:
           r.transaction_type === TransactionType.INCOME ? 'INCOME' : 'EXPENSE',
         amountCents: r.amount_cents ?? 0n,
-        transferGroupId: r.transfer_group_id,
       })),
       window,
       horizon,
       now,
       timezone,
-      loadCurrentBalance: () => this.loadCurrentBalance(userId, targetCurrency),
+       loadCurrentBalance: async () => 0n,
+
     });
-    return { ...result, currency: targetCurrency };
+    return { ...result, currency: FIXED_CURRENCY };
   }
 
   private async resolveTimeZone(userId: string): Promise<string> {
@@ -121,14 +96,4 @@ export class ForecastService {
     }
   }
 
-  private async loadCurrentBalance(
-    userId: string,
-    currency: string,
-  ): Promise<bigint> {
-    const agg = await this.prisma.account.aggregate({
-      where: { user_id: userId, deleted_at: null, currency },
-      _sum: { current_balance_cents: true },
-    });
-    return agg._sum.current_balance_cents ?? 0n;
-  }
 }

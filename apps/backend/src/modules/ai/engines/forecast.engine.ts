@@ -14,7 +14,6 @@ export interface ForecastTransactionInput {
   transactionDate: Date;
   transactionType: 'INCOME' | 'EXPENSE';
   amountCents: bigint;
-  transferGroupId: string | null;
 }
 
 export interface ForecastWindowMonth {
@@ -154,7 +153,6 @@ export class ForecastEngine {
         averageMonthlyIncomeCents: avgIncome.toString(),
         averageMonthlyExpenseCents: avgExpense.toString(),
       },
-      excludedTransfers: true,
       outliers,
       insufficientData: false,
     };
@@ -167,7 +165,6 @@ export class ForecastEngine {
   ): PopulatedMonth[] {
     const byMonth = new Map<string, { income: bigint; expense: bigint }>();
     for (const tx of transactions) {
-      if (tx.transferGroupId != null) continue;
       const key = this.localMonthKey(tx.transactionDate, timezone);
       const entry = byMonth.get(key) ?? { income: 0n, expense: 0n };
       if (tx.transactionType === 'INCOME') {
@@ -337,7 +334,6 @@ export class ForecastEngine {
       months: [],
       confidence: 0,
       basis,
-      excludedTransfers: true,
       outliers: [],
       insufficientData: true,
     };

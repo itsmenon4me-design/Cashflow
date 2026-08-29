@@ -10,7 +10,6 @@ type BillRecord = {
   payee: string;
   amount_cents: bigint;
   currency: string;
-  account_id: string;
   category_id: string;
   due_date: Date;
   due_date_timezone: string;
@@ -37,7 +36,6 @@ type BillCreateInput = {
   payee: string;
   amount_cents: bigint;
   currency: string;
-  account_id: string;
   category_id: string;
   due_date: Date;
   due_date_timezone: string;
@@ -60,7 +58,6 @@ type BillUpdateInput = {
   payee?: string;
   amount_cents?: bigint;
   currency?: string;
-  account_id?: string;
   category_id?: string;
   due_date?: Date;
   due_date_timezone?: string;
@@ -91,7 +88,6 @@ export class PrismaBillsRepository implements IBillsRepository {
     bill.payee = rec.payee;
     bill.amount_cents = rec.amount_cents;
     bill.currency = rec.currency;
-    bill.account_id = rec.account_id;
     bill.category_id = rec.category_id;
     bill.due_date = rec.due_date;
     bill.due_date_timezone = rec.due_date_timezone;
@@ -121,7 +117,6 @@ export class PrismaBillsRepository implements IBillsRepository {
       payee: input.payee,
       amount_cents: input.amount_cents,
       currency: input.currency,
-      account_id: input.account_id,
       category_id: input.category_id,
       due_date: input.due_date,
       due_date_timezone: input.due_date_timezone,
@@ -206,10 +201,6 @@ export class PrismaBillsRepository implements IBillsRepository {
 
     if (updates.currency !== undefined) {
       data.currency = updates.currency;
-    }
-
-    if (updates.account_id !== undefined) {
-      data.account_id = updates.account_id;
     }
 
     if (updates.category_id !== undefined) {

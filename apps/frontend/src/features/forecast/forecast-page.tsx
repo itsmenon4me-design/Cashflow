@@ -145,10 +145,6 @@ export function ForecastPage() {
       });
   };
 
-  // Backend currency is authoritative for backend-computed figures; the
-  // settings currency is only a fallback if the response omits it.
-  const displayCurrency = forecast?.currency || "IDR";
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -290,7 +286,6 @@ export function ForecastPage() {
               label={text.forecast.projectedIncome}
               value={formatCurrencyCents(
                 forecast.months.at(-1)?.projectedIncomeCents ?? "0",
-                displayCurrency,
               )}
               icon={ArrowDownToLine}
               subtitle={text.forecast.summaryTitle}
@@ -299,7 +294,6 @@ export function ForecastPage() {
               label={text.forecast.projectedExpense}
               value={formatCurrencyCents(
                 forecast.months.at(-1)?.projectedExpenseCents ?? "0",
-                displayCurrency,
               )}
               icon={ArrowUpFromLine}
               subtitle={text.forecast.summaryTitle}
@@ -308,7 +302,6 @@ export function ForecastPage() {
               label={text.forecast.projectedNetCashflow}
               value={formatCurrencyCents(
                 forecast.months.at(-1)?.projectedNetCashflowCents ?? "0",
-                displayCurrency,
               )}
               icon={TrendingUp}
               subtitle={text.forecast.summaryTitle}
@@ -317,7 +310,6 @@ export function ForecastPage() {
               label={text.forecast.projectedEndingBalance}
               value={formatCurrencyCents(
                 forecast.months.at(-1)?.projectedEndingBalanceCents ?? "0",
-                displayCurrency,
               )}
               icon={Wallet}
               subtitle={text.forecast.currentBalance}
@@ -326,7 +318,7 @@ export function ForecastPage() {
 
           <ForecastChart
             data={forecast}
-            currency={displayCurrency}
+            currency="IDR"
             loading={false}
             text={{
               chartTitle: text.forecast.chartTitle,
@@ -357,25 +349,25 @@ export function ForecastPage() {
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.projectedIncome}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(month.projectedIncomeCents, displayCurrency)}
+                          {formatCurrencyCents(month.projectedIncomeCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.projectedExpense}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(month.projectedExpenseCents, displayCurrency)}
+                          {formatCurrencyCents(month.projectedExpenseCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.projectedNetCashflow}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(month.projectedNetCashflowCents, displayCurrency)}
+                          {formatCurrencyCents(month.projectedNetCashflowCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.projectedEndingBalance}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(month.projectedEndingBalanceCents, displayCurrency)}
+                          {formatCurrencyCents(month.projectedEndingBalanceCents, "IDR")}
                         </p>
                       </div>
                     </div>
@@ -413,25 +405,25 @@ export function ForecastPage() {
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.basisIncome}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(forecast.basis.totalIncomeCents, displayCurrency)}
+                          {formatCurrencyCents(forecast.basis.totalIncomeCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.basisExpense}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(forecast.basis.totalExpenseCents, displayCurrency)}
+                          {formatCurrencyCents(forecast.basis.totalExpenseCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.basisAverageIncome}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(forecast.basis.averageMonthlyIncomeCents, displayCurrency)}
+                          {formatCurrencyCents(forecast.basis.averageMonthlyIncomeCents, "IDR")}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.basisAverageExpense}</p>
                         <p className="text-sm font-semibold text-foreground">
-                          {formatCurrencyCents(forecast.basis.averageMonthlyExpenseCents, displayCurrency)}
+                          {formatCurrencyCents(forecast.basis.averageMonthlyExpenseCents, "IDR")}
                         </p>
                       </div>
                     </div>
@@ -451,22 +443,11 @@ export function ForecastPage() {
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm font-medium text-foreground">{formatPeriodLabel(outlier.period, language)}</span>
                           <span className="text-sm font-semibold text-foreground">
-                            {formatCurrencyCents(outlier.amountCents, displayCurrency)}
+                            {formatCurrencyCents(outlier.amountCents, "IDR")}
                           </span>
                         </div>
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {forecast.excludedTransfers ? (
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle>{text.forecast.transferNoticeTitle}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{text.forecast.transferNoticeDescription}</p>
                   </CardContent>
                 </Card>
               ) : null}
@@ -480,7 +461,7 @@ export function ForecastPage() {
       {!spendingLoading && (
         <SpendingPredictionCard
           data={spendingPrediction}
-          currency={spendingPrediction?.currency ?? "IDR"}
+          currency="IDR"
           error={spendingError}
           onRetry={() => {
             setSpendingError(false);

@@ -6,7 +6,6 @@ import {
   IsInt,
   Min,
   Max,
-  IsBooleanString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -18,11 +17,6 @@ export class TransactionFilterDto {
   @IsOptional()
   @IsString()
   q?: string;
-
-  @ApiPropertyOptional({ description: 'Account id to filter' })
-  @IsOptional()
-  @IsString()
-  accountId?: string;
 
   @ApiPropertyOptional({ description: 'Category id to filter' })
   @IsOptional()
@@ -55,11 +49,6 @@ export class TransactionFilterDto {
   @IsInt()
   @Min(0)
   maxAmount?: number;
-
-  @ApiPropertyOptional({ description: 'Has attachment: true/false' })
-  @IsOptional()
-  @IsBooleanString()
-  hasAttachment?: string;
 
   // Sorting
   @ApiPropertyOptional({ description: 'sortBy: date|amount|createdAt' })

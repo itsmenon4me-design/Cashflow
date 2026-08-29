@@ -14,7 +14,6 @@ export interface TransactionListParams {
   limit?: number;
   type?: "INCOME" | "EXPENSE";
   categoryId?: string;
-  accountId?: string;
   fromDate?: string;
   toDate?: string;
   sortBy?: "date" | "amount" | "createdAt";
@@ -22,7 +21,6 @@ export interface TransactionListParams {
 }
 
 export interface CreateTransactionPayload {
-  account_id: string;
   category_id: string;
   transaction_type: "INCOME" | "EXPENSE";
   amount_cents: number;
@@ -39,37 +37,17 @@ function findNameById(lookup: NameLookup, id: string): string {
 }
 
 export function findIdByName(lookup: NameLookup, name: string): string | undefined {
-  for (const [id, value] of Object.entries(lookup)) {
-    if (value === name) {
-      return id;
-    }
-  }
-  return undefined;
+  return Object.entries(lookup).find(([, value]) => value === name)?.[0];
 }
 
-function accountCurrency(
-  values: CreateFormValues,
-  accountNames: NameLookup,
-  accountCurrencies: Record<string, string>,
-): string {
-  const accountId = findIdByName(accountNames, values.account);
-  return accountId ? (accountCurrencies[accountId] ?? "IDR") : "IDR";
-}
-
-export function toTransactionItem(
-  dto: TransactionDTO,
-  accountNames: NameLookup,
-  categoryNames: NameLookup,
-  accountCurrencies: Record<string, string> = {},
-): TransactionItem {
+export function toTransactionItem(dto: TransactionDTO, categoryNames: NameLookup): TransactionItem {
   return {
     id: dto.id,
     date: isoToInputDate(dto.transaction_date),
     dateTime: dto.transaction_date,
     category: findNameById(categoryNames, dto.category_id),
     description: dto.note ?? "",
-    account: findNameById(accountNames, dto.account_id),
-    amount: toMajorUnits(BigInt(dto.amount_cents), accountCurrencies[dto.account_id] ?? "IDR"),
+    amount: toMajorUnits(BigInt(dto.amount_cents), "IDR"),
     type: dto.transaction_type === "INCOME" ? "income" : "expense",
     status: "completed",
     note: dto.note ?? undefined,
@@ -81,7 +59,6 @@ interface CreateFormValues {
   time?: string;
   type: TransactionType;
   category: string;
-  account: string;
   amount: number;
   description?: string;
   notes?: string;
@@ -89,32 +66,17 @@ interface CreateFormValues {
 
 export function toCreateTransactionPayload(
   values: CreateFormValues,
-  accountNames: NameLookup,
   categoryNames: NameLookup,
-  accountCurrencies: Record<string, string>,
-  // optional override: when parent wants to force a transaction type (e.g. incomes/expenses pages)
-  forcedType?: 'income' | 'expense',
+  forcedType?: "income" | "expense",
 ): CreateTransactionPayload | null {
-  const accountId = findIdByName(accountNames, values.account);
   const categoryId = findIdByName(categoryNames, values.category);
-
-  if (!accountId || !categoryId) {
-    return null;
-  }
+  if (!categoryId) return null;
 
   const note = values.notes?.trim() || values.description?.trim() || undefined;
-
-  const typeSource = forcedType ?? values.type;
-
   return {
-    account_id: accountId,
     category_id: categoryId,
-    transaction_type: typeSource === "income" ? "INCOME" : "EXPENSE",
-    amount_cents: toMinorUnits(
-      values.amount,
-      accountCurrency(values, accountNames, accountCurrencies),
-    ),
-    // Local wall time -> UTC instant: the database stores UTC, the UI renders local.
+    transaction_type: (forcedType ?? values.type) === "income" ? "INCOME" : "EXPENSE",
+    amount_cents: toMinorUnits(values.amount, "IDR"),
     transaction_date: inputDateTimeToIso(values.date, values.time),
     ...(note ? { note } : {}),
   };
@@ -122,30 +84,9 @@ export function toCreateTransactionPayload(
 
 export function toUpdateTransactionPayload(
   values: CreateFormValues,
-  accountNames: NameLookup,
   categoryNames: NameLookup,
-  accountCurrencies: Record<string, string>,
 ): UpdateTransactionPayload | null {
-  const accountId = findIdByName(accountNames, values.account);
-  const categoryId = findIdByName(categoryNames, values.category);
-
-  if (!accountId || !categoryId) {
-    return null;
-  }
-
-  const note = values.notes?.trim() || values.description?.trim() || undefined;
-
-  return {
-    account_id: accountId,
-    category_id: categoryId,
-    transaction_type: values.type === "income" ? "INCOME" : "EXPENSE",
-    amount_cents: toMinorUnits(
-      values.amount,
-      accountCurrency(values, accountNames, accountCurrencies),
-    ),
-    transaction_date: inputDateTimeToIso(values.date, values.time),
-    ...(note ? { note } : {}),
-  };
+  return toCreateTransactionPayload(values, categoryNames);
 }
 
 export const transactionService = {

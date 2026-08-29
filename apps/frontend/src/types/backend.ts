@@ -38,22 +38,13 @@ export interface DashboardSummaryResponse {
   total_income_cents: string;
   total_expense_cents: string;
   net_cash_flow_cents: string;
-  total_accounts: number;
   total_categories: number;
   total_transactions: number;
   last_updated_at: string | null;
-  by_currency?: Array<{
-    currency: string;
-    total_assets_cents: string;
-    total_income_cents: string;
-    total_expense_cents: string;
-    net_cash_flow_cents: string;
-  }>;
 }
 
 export interface TransactionDTO {
   id: string;
-  account_id: string;
   category_id: string;
   transaction_type: "INCOME" | "EXPENSE";
   amount_cents: string;
@@ -76,31 +67,6 @@ export interface PaginatedTransactionResponse {
   success: boolean;
   data: TransactionDTO[];
   pagination: PaginationMeta;
-}
-
-export type AccountType =
-  | "CASH"
-  | "BANK"
-  | "E_WALLET"
-  | "CREDIT_CARD"
-  | "SAVINGS"
-  | "INVESTMENT"
-  | "OTHER";
-
-export interface AccountResponse {
-  id: string;
-  name: string;
-  account_type: string;
-  currency: string;
-  opening_balance_cents: string;
-  current_balance_cents: string;
-  color: string | null;
-  icon: string | null;
-  description: string | null;
-  is_active: boolean;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
 }
 
 export type CategoryType = "INCOME" | "EXPENSE";
@@ -154,7 +120,6 @@ export interface ForecastResponse {
   months: ForecastMonth[];
   confidence: number;
   basis: ForecastBasis;
-  excludedTransfers: boolean;
   outliers: ForecastOutlier[];
   insufficientData: boolean;
 }

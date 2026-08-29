@@ -265,9 +265,7 @@ export async function getPendingTransactionRecords(): Promise<SyncQueueRecord[]>
  * Amounts are converted back to major units using the target account currency.
  */
 export async function pendingRecordsToItems(
-  accountNames: Record<string, string>,
   categoryNames: Record<string, string>,
-  accountCurrencies: Record<string, string>,
 ): Promise<TransactionItem[]> {
   const records = await getPendingTransactionRecords();
   const items: TransactionItem[] = [];
@@ -281,15 +279,13 @@ export async function pendingRecordsToItems(
     if (!payload) {
       continue;
     }
-    const currency = accountCurrencies[payload.account_id] ?? "IDR";
     items.push({
       id: record.entityId,
       date: isoToInputDate(payload.transaction_date),
       dateTime: payload.transaction_date,
       category: categoryNames[payload.category_id] ?? "-",
       description: payload.note ?? "",
-      account: accountNames[payload.account_id] ?? "-",
-      amount: toMajorUnits(BigInt(payload.amount_cents), currency),
+      amount: toMajorUnits(BigInt(payload.amount_cents), "IDR"),
       type: payload.transaction_type === "INCOME" ? "income" : "expense",
       status: "completed",
       note: payload.note ?? undefined,

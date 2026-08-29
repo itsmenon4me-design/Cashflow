@@ -35,7 +35,6 @@ const dummyForecast = (): ForecastResponseDto => ({
     averageMonthlyIncomeCents: '2000000',
     averageMonthlyExpenseCents: '1000000',
   },
-  excludedTransfers: true,
   outliers: [],
   insufficientData: false,
 });
@@ -231,7 +230,6 @@ describe('ForecastController', () => {
         months: Record<string, unknown>[];
         basis: Record<string, unknown>;
         confidence: number;
-        excludedTransfers: boolean;
         outliers: unknown[];
         insufficientData: boolean;
       };
@@ -243,7 +241,6 @@ describe('ForecastController', () => {
       'basis',
       'confidence',
       'currency',
-      'excludedTransfers',
       'horizon',
       'insufficientData',
       'months',

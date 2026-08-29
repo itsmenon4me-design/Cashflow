@@ -3,25 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
 import { currentLocalTime, isoToLocalTime } from "@/lib/date";
@@ -40,371 +26,54 @@ interface TransactionFormProps {
   transaction: TransactionItem | null;
   categories: string[];
   categoryTypes?: Record<string, ("INCOME" | "EXPENSE")[]>;
-  accounts: string[];
-  accountCurrencyByName?: Record<string, string>;
   initialValues?: Partial<TransactionFormValues>;
-  /** Optional controlled transaction type. When provided, the form will hide the type selector and use this value. */
   transactionType?: TransactionType;
   onSubmit: (values: TransactionFormValues) => void | Promise<void>;
 }
 
 function toFormValues(transaction: TransactionItem): TransactionFormValues {
-  return {
-    date: transaction.date,
-    time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
-    type: transaction.type,
-    category: transaction.category,
-    account: transaction.account,
-    amount: transaction.amount,
-    description: transaction.description,
-    notes: transaction.note ?? "",
-  };
+  return { date: transaction.date, time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "", type: transaction.type, category: transaction.category, amount: transaction.amount, description: transaction.description, notes: transaction.note ?? "" };
 }
 
 function FormError({ message }: { message?: string }) {
-  if (!message) {
-    return null;
-  }
-  return <p className="text-xs text-red-500">{message}</p>;
+  return message ? <p className="text-xs text-red-500">{message}</p> : null;
 }
 
-export function TransactionForm({
-  open,
-  onOpenChange,
-  mode,
-  transaction,
-  categories,
-  categoryTypes,
-  accounts,
-  accountCurrencyByName,
-  initialValues,
-  transactionType,
-  onSubmit,
-}: TransactionFormProps) {
+export function TransactionForm({ open, onOpenChange, mode, transaction, categories, categoryTypes, initialValues, transactionType, onSubmit }: TransactionFormProps) {
   const isView = mode === "view";
-  const isEdit = mode === "edit";
-
-  const title = isView
-    ? uiText.transactions.viewTitle
-    : isEdit
-      ? uiText.transactions.editTitle
-      : uiText.transactions.addTitle;
-
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionFormSchema),
-    defaultValues: { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type },
-  });
-
+  const title = isView ? uiText.transactions.viewTitle : mode === "edit" ? uiText.transactions.editTitle : uiText.transactions.addTitle;
+  const form = useForm<TransactionFormValues>({ resolver: zodResolver(transactionFormSchema), defaultValues: { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type } });
   const [selectedType, setSelectedType] = useState<TransactionType>(() => transactionType ?? transaction?.type ?? "expense");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
-      try {
-        // expose the intended create type for sync layer to read (helps quick-add/header variants)
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('cashflow.pendingCreateType', (transactionType ?? form.getValues('type') ?? '').toString());
-        }
-      } catch (e) {
-        // ignore
-      }
-    } else {
-      try {
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('cashflow.pendingCreateType');
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
+    if (open) form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
+    else setSubmitError(null);
   }, [open, transaction, form, initialValues, transactionType]);
 
-  // keep form type in sync with controlled transactionType prop when provided
   useEffect(() => {
     if (transactionType) {
-      form.setValue('type', transactionType);
+      form.setValue("type", transactionType);
       setSelectedType(transactionType);
     }
   }, [transactionType, form]);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      setSubmitError(null);
-    }
-    onOpenChange(nextOpen);
-  };
-
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const watchedDescription = form.watch('description');
-   
-  const watchedAmount = form.watch('amount');
-  const watchedAccount = form.watch('account');
-  const amountCurrency = accountCurrencyByName?.[watchedAccount] ?? "IDR";
-
   const visibleCategories = useMemo(() => {
-    if (!categoryTypes) {
-      return categories;
-    }
+    if (!categoryTypes) return categories;
     const target = selectedType === "income" ? "INCOME" : "EXPENSE";
-    return categories.filter((name) => {
-      const types = categoryTypes[name];
-      return types === undefined ? true : types.includes(target);
-    });
+    return categories.filter((name) => categoryTypes[name] === undefined || categoryTypes[name].includes(target));
   }, [categories, categoryTypes, selectedType]);
-
   const { errors } = form.formState;
 
   const handleSubmit = async (values: TransactionFormValues) => {
     setSubmitError(null);
     try {
-      // If parent did not control transactionType, infer from current route to prevent quick-add/default-type regressions
-      const finalValues = { ...values } as TransactionFormValues;
-      if (typeof transactionType === 'undefined' && typeof window !== 'undefined') {
-        const p = window.location.pathname || '';
-        if (p.startsWith('/incomes')) finalValues.type = 'income';
-        else if (p.startsWith('/expenses')) finalValues.type = 'expense';
-      }
-      await onSubmit(finalValues);
+      await onSubmit({ ...values, type: transactionType ?? values.type });
       onOpenChange(false);
     } catch {
       setSubmitError(uiText.transactions.saveFailed);
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b px-6 pt-6 pb-4">
-          <DialogTitle className="pr-8">{title}</DialogTitle>
-          <DialogDescription>
-            {mode === "create" ? uiText.transactions.subtitle : formatSummary(transaction)}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="transaction-date">{uiText.transactions.fieldDate}</Label>
-                <Input
-                  id="transaction-date"
-                  type="date"
-                  className="h-11 sm:h-9"
-                  disabled={isView}
-                  aria-invalid={!!errors.date}
-                  {...form.register("date")}
-                />
-                <FormError message={errors.date?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="transaction-time">{uiText.transactions.fieldTime}</Label>
-                <Input
-                  id="transaction-time"
-                  type="time"
-                  className="h-11 sm:h-9"
-                  disabled={isView}
-                  aria-invalid={!!errors.time}
-                  {...form.register("time")}
-                />
-                <FormError message={errors.time?.message} />
-              </div>
-
-              {/* Type selector: hide when transactionType is controlled by parent page */}
-              {typeof transactionType === 'undefined' && (
-                <div className="space-y-2">
-                  <Label>{uiText.transactions.fieldType}</Label>
-                  <Controller
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value as TransactionType);
-                          setSelectedType(value as TransactionType);
-                        }}
-                        disabled={isView}
-                      >
-                        <SelectTrigger
-                          className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                          aria-label={uiText.transactions.fieldType}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
-                          <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FormError message={errors.type?.message} />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>{uiText.transactions.fieldCategory}</Label>
-                <Controller
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isView}
-                    >
-                      <SelectTrigger
-                        className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                        aria-label={uiText.transactions.fieldCategory}
-                        aria-invalid={!!errors.category}
-                      >
-                        <SelectValue placeholder={uiText.transactions.fieldCategory} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {visibleCategories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {categoryLabel(category)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FormError message={errors.category?.message} />
-              </div>
-
-
-              <div className="space-y-2">
-                <Label>{uiText.transactions.fieldAccount}</Label>
-                <Controller
-                  control={form.control}
-                  name="account"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isView}
-                    >
-                      <SelectTrigger
-                        className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                        aria-label={uiText.transactions.fieldAccount}
-                        aria-invalid={!!errors.account}
-                      >
-                        <SelectValue placeholder={uiText.transactions.fieldAccount} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {accounts.map((account) => (
-                          <SelectItem key={account} value={account}>
-                            {account}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FormError message={errors.account?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="transaction-amount">{uiText.transactions.fieldAmount}</Label>
-                <Controller
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <MoneyInput
-                      id="transaction-amount"
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      currency={amountCurrency}
-                      disabled={isView}
-                      className="h-11 sm:h-9"
-                      aria-invalid={!!errors.amount}
-                    />
-                  )}
-                />
-                <FormError message={errors.amount?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="transaction-description">{uiText.transactions.fieldDescription}</Label>
-                <Input
-                  id="transaction-description"
-                  className="h-11 sm:h-9"
-                  disabled={isView}
-                  aria-invalid={!!errors.description}
-                  {...form.register("description")}
-                />
-                <FormError message={errors.description?.message} />
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label>{uiText.transactions.fieldAttachment}</Label>
-                <div className="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground">
-                  <Paperclip className="size-4 shrink-0" />
-                  <span>{uiText.transactions.attachmentPlaceholder}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="transaction-notes">{uiText.transactions.fieldNotes}</Label>
-                <Textarea
-                  id="transaction-notes"
-                  rows={3}
-                  className="min-h-11 sm:min-h-16"
-                  disabled={isView}
-                  aria-invalid={!!errors.notes}
-                  {...form.register("notes")}
-                />
-                <FormError message={errors.notes?.message} />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="shrink-0 gap-2 border-t bg-card px-6 py-4">
-            {submitError && (
-              <p className="w-full text-sm text-red-500" role="alert">
-                {submitError}
-              </p>
-            )}
-            {isView ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 flex-1 sm:h-9 sm:flex-none"
-                onClick={() => onOpenChange(false)}
-              >
-                {uiText.common.close}
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 flex-1 sm:h-9 sm:flex-none"
-                  onClick={() => onOpenChange(false)}
-                >
-                  {uiText.common.cancel}
-                </Button>
-                <Button type="submit" className="h-11 flex-1 sm:h-9 sm:flex-none">
-                  {uiText.common.save}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function formatSummary(transaction: TransactionItem | null): string {
-  if (!transaction) {
-    return "";
-  }
-  return `${categoryLabel(transaction.category)} · ${transaction.account}`;
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0"><DialogHeader className="border-b px-6 pt-6 pb-4"><DialogTitle className="pr-8">{title}</DialogTitle><DialogDescription>{mode === "create" ? uiText.transactions.subtitle : categoryLabel(transaction?.category ?? "")}</DialogDescription></DialogHeader><form onSubmit={form.handleSubmit(handleSubmit)} className="flex min-h-0 flex-1 flex-col overflow-hidden"><div className="flex-1 space-y-4 overflow-y-auto px-6 py-4"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="transaction-date">{uiText.transactions.fieldDate}</Label><Input id="transaction-date" type="date" className="h-11 sm:h-9" disabled={isView} aria-invalid={!!errors.date} {...form.register("date")} /><FormError message={errors.date?.message} /></div><div className="space-y-2"><Label htmlFor="transaction-time">{uiText.transactions.fieldTime}</Label><Input id="transaction-time" type="time" className="h-11 sm:h-9" disabled={isView} aria-invalid={!!errors.time} {...form.register("time")} /><FormError message={errors.time?.message} /></div>{transactionType === undefined && <div className="space-y-2"><Label>{uiText.transactions.fieldType}</Label><Controller control={form.control} name="type" render={({ field }) => <Select value={field.value} onValueChange={(value) => { field.onChange(value as TransactionType); setSelectedType(value as TransactionType); }} disabled={isView}><SelectTrigger className="h-11 w-full sm:h-9" aria-label={uiText.transactions.fieldType}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem><SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem></SelectContent></Select>} /><FormError message={errors.type?.message} /></div>}<div className="space-y-2"><Label>{uiText.transactions.fieldCategory}</Label><Controller control={form.control} name="category" render={({ field }) => <Select value={field.value} onValueChange={field.onChange} disabled={isView}><SelectTrigger className="h-11 w-full sm:h-9" aria-label={uiText.transactions.fieldCategory} aria-invalid={!!errors.category}><SelectValue placeholder={uiText.transactions.fieldCategory} /></SelectTrigger><SelectContent>{visibleCategories.map((category) => <SelectItem key={category} value={category}>{categoryLabel(category)}</SelectItem>)}</SelectContent></Select>} /><FormError message={errors.category?.message} /></div><div className="space-y-2"><Label htmlFor="transaction-amount">{uiText.transactions.fieldAmount}</Label><Controller control={form.control} name="amount" render={({ field }) => <MoneyInput id="transaction-amount" value={field.value} onValueChange={field.onChange} currency="IDR" disabled={isView} className="h-11 sm:h-9" aria-invalid={!!errors.amount} />} /><FormError message={errors.amount?.message} /></div><div className="space-y-2"><Label htmlFor="transaction-description">{uiText.transactions.fieldDescription}</Label><Input id="transaction-description" className="h-11 sm:h-9" disabled={isView} aria-invalid={!!errors.description} {...form.register("description")} /><FormError message={errors.description?.message} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="transaction-notes">{uiText.transactions.fieldNotes}</Label><Textarea id="transaction-notes" rows={3} className="min-h-11 sm:min-h-16" disabled={isView} aria-invalid={!!errors.notes} {...form.register("notes")} /><FormError message={errors.notes?.message} /></div></div></div><DialogFooter className="shrink-0 gap-2 border-t bg-card px-6 py-4">{submitError && <p className="w-full text-sm text-red-500" role="alert">{submitError}</p>}{isView ? <Button type="button" variant="outline" className="h-11 flex-1 sm:h-9 sm:flex-none" onClick={() => onOpenChange(false)}>{uiText.common.close}</Button> : <><Button type="button" variant="outline" className="h-11 flex-1 sm:h-9 sm:flex-none" onClick={() => onOpenChange(false)}>{uiText.common.cancel}</Button><Button type="submit" className="h-11 flex-1 sm:h-9 sm:flex-none">{uiText.common.save}</Button></>}</DialogFooter></form></DialogContent></Dialog>;
 }

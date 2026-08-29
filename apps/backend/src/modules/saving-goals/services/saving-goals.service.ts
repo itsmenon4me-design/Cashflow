@@ -25,23 +25,8 @@ export class SavingGoalsService {
 
   private async validateReferences(
     userId: string,
-    accountId?: string | null,
     categoryId?: string | null,
   ) {
-    if (accountId) {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
-      if (!account || account.deleted_at || account.user_id !== userId) {
-        throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Invalid account');
-      }
-      if (!account.is_active) {
-        throw ErrorService.create(
-          ErrorCode.INVALID_INPUT,
-          'Account is not active',
-        );
-      }
-    }
     if (categoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: categoryId },
@@ -74,7 +59,7 @@ export class SavingGoalsService {
     userId: string,
     input: CreateSavingGoalDto,
   ): Promise<SavingGoalEntity> {
-    await this.validateReferences(userId, input.account_id, input.category_id);
+    await this.validateReferences(userId, input.category_id);
 
     const startDate = new Date(input.start_date);
     const targetDate = new Date(input.target_date);
@@ -82,7 +67,6 @@ export class SavingGoalsService {
 
     const created = await this.repo.create({
       user_id: userId,
-      account_id: input.account_id ?? null,
       category_id: input.category_id ?? null,
       currency: FIXED_CURRENCY,
       name: input.name,
@@ -127,15 +111,11 @@ export class SavingGoalsService {
   ): Promise<SavingGoalEntity> {
     const current = await this.getById(userId, id);
 
-    const nextAccountId =
-      updates.account_id !== undefined
-        ? updates.account_id
-        : current.account_id;
     const nextCategoryId =
       updates.category_id !== undefined
         ? updates.category_id
         : current.category_id;
-    await this.validateReferences(userId, nextAccountId, nextCategoryId);
+    await this.validateReferences(userId, nextCategoryId);
 
     const startDate =
       updates.start_date !== undefined
@@ -152,6 +132,7 @@ export class SavingGoalsService {
       const value = (updates as unknown as Record<string, unknown>)[key];
       if (value !== undefined) data[key] = value;
     }
+    data.currency = FIXED_CURRENCY;
     if (updates.target_amount_cents !== undefined) {
       data.target_amount_cents = BigInt(updates.target_amount_cents);
     }
@@ -196,67 +177,25 @@ export class SavingGoalsService {
 
     const active = goals.filter((g) => g.status === 'ACTIVE');
 
-    // Resolve currencies for linked accounts (for the remaining active goals)
-    const accountIds = active
-      .map((g) => g.account_id)
-      .filter((id): id is string => typeof id === 'string');
-
-    const accounts =
-      accountIds.length > 0
-        ? await this.prisma.account.findMany({
-            where: { id: { in: accountIds } },
-            select: { id: true, currency: true },
-          })
-        : [];
-    const currencyByAccountId = new Map(
-      accounts.map((a) => [a.id, a.currency]),
+    const totals = active.reduce(
+      (result, goal) => ({
+        target: result.target + goal.target_amount_cents,
+        current: result.current + goal.current_amount_cents,
+      }),
+      { target: 0n, current: 0n },
     );
-
-    const currencyMap = new Map<string, { target: bigint; current: bigint }>();
-
-    for (const g of active) {
-      const curr = g.currency ?? (g.account_id ? (currencyByAccountId.get(g.account_id) ?? 'IDR') : 'IDR');
-      const entry = currencyMap.get(curr) ?? { target: 0n, current: 0n };
-      entry.target += g.target_amount_cents;
-      entry.current += g.current_amount_cents;
-      currencyMap.set(curr, entry);
-    }
-
-    if (currencyMap.size === 0) {
-      // Zeroed bucket in the fixed ledger currency preserves legacy shape.
-      currencyMap.set(FIXED_CURRENCY, { target: 0n, current: 0n });
-    }
-
-    const primaryCurrency = Array.from(currencyMap.keys())[0] ?? 'IDR';
-    const primary = currencyMap.get(primaryCurrency)!;
-    const primaryPercentage =
-      primary.target === 0n
-        ? 0
-        : Number(((primary.current * 10000n) / primary.target).toString()) /
-          100;
-
-    const byCurrency = Array.from(currencyMap.entries()).map(([curr, data]) => {
-      const pct =
-        data.target === 0n
-          ? 0
-          : Number(((data.current * 10000n) / data.target).toString()) / 100;
-      return {
-        currency: curr,
-        targetAmount: data.target.toString(),
-        currentAmount: data.current.toString(),
-        percentageUsed: pct,
-      };
-    });
+    const percentageUsed = totals.target === 0n
+      ? 0
+      : Number(((totals.current * 10000n) / totals.target).toString()) / 100;
 
     return {
       total: goals.length,
       active: active.length,
       completed: goals.filter((g) => g.status === 'COMPLETED').length,
-      currency: primaryCurrency,
-      targetAmount: primary.target.toString(),
-      currentAmount: primary.current.toString(),
-      percentageUsed: primaryPercentage,
-      by_currency: byCurrency,
+      currency: FIXED_CURRENCY,
+      targetAmount: totals.target.toString(),
+      currentAmount: totals.current.toString(),
+      percentageUsed,
     };
 }
 }

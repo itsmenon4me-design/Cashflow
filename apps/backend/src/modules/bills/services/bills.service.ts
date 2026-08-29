@@ -19,29 +19,10 @@ export class BillsService {
     private readonly prisma: PrismaService,
   ) {}
 
-  /**
-   * Validates that referenced account/category belong to the authenticated user
-   * (or are a system category). Rejects cross-user references.
-   */
   private async validateReferences(
     userId: string,
-    accountId?: string | null,
     categoryId?: string | null,
   ) {
-    if (accountId) {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
-      if (!account || account.deleted_at || account.user_id !== userId) {
-        throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Invalid account');
-      }
-      if (!account.is_active) {
-        throw ErrorService.create(
-          ErrorCode.INVALID_INPUT,
-          'Account is not active',
-        );
-      }
-    }
     if (categoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: categoryId },
@@ -52,22 +33,6 @@ export class BillsService {
       if (!category.is_system && category.user_id !== userId) {
         throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Invalid category');
       }
-    }
-  }
-
-  private async assertBillCurrencyMatchesAccount(
-    currency: string | undefined,
-    accountId: string | undefined | null,
-  ) {
-    if (!currency || !accountId) return;
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-    });
-    if (account && account.currency !== currency) {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        'Bill currency must match its linked account currency',
-      );
     }
   }
 
@@ -83,23 +48,12 @@ export class BillsService {
     const now = new Date();
     const startRaw = from ? new Date(from) : new Date(NaN);
     const endRaw = to ? new Date(to) : new Date(NaN);
-    const start =
-      startRaw && !Number.isNaN(startRaw.getTime()) ? startRaw : now;
-    const end =
-      endRaw && !Number.isNaN(endRaw.getTime())
-        ? endRaw
-        : new Date(
-            Date.UTC(
-              now.getUTCFullYear(),
-              now.getUTCMonth(),
-              now.getUTCDate() + DEFAULT_UPCOMING_WINDOW_DAYS,
-            ),
-          );
+    const start = !Number.isNaN(startRaw.getTime()) ? startRaw : now;
+    const end = !Number.isNaN(endRaw.getTime())
+      ? endRaw
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + DEFAULT_UPCOMING_WINDOW_DAYS));
     if (end.getTime() < start.getTime()) {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        'End date must be after start date',
-      );
+      throw ErrorService.create(ErrorCode.INVALID_INPUT, 'End date must be after start date');
     }
     return this.repo.findUpcomingByUser(userId, start, end);
   }
@@ -116,20 +70,17 @@ export class BillsService {
     userId: string,
     dto: CreateBillDto,
   ): Promise<BillEntity> {
-    const billCurrency = dto.currency ?? FIXED_CURRENCY;
+    const billCurrency = FIXED_CURRENCY;
     await this.validateReferences(
       userId,
-      dto.account_id,
       dto.category_id,
     );
-    await this.assertBillCurrencyMatchesAccount(billCurrency, dto.account_id);
 
     const created = await this.repo.create({
       user_id: userId,
       payee: dto.payee,
       amount_cents: BigInt(dto.amount_cents),
       currency: billCurrency,
-      account_id: dto.account_id,
       category_id: dto.category_id,
       due_date: new Date(dto.due_date),
       due_date_timezone: dto.due_date_timezone,
@@ -155,25 +106,18 @@ export class BillsService {
   ): Promise<BillEntity> {
     const current = await this.getById(userId, id);
 
-    const nextAccountId =
-      dto.account_id !== undefined ? dto.account_id : current.account_id;
     const nextCategoryId =
       dto.category_id !== undefined ? dto.category_id : current.category_id;
     await this.validateReferences(
       userId,
-      nextAccountId,
       nextCategoryId,
     );
-
-    const nextCurrency = dto.currency ?? current.currency;
-    await this.assertBillCurrencyMatchesAccount(nextCurrency, nextAccountId);
 
     const updates: Partial<BillEntity> = {};
     if (dto.payee !== undefined) updates.payee = dto.payee;
     if (dto.amount_cents !== undefined)
       updates.amount_cents = BigInt(dto.amount_cents);
-    if (dto.currency !== undefined) updates.currency = dto.currency;
-    if (dto.account_id !== undefined) updates.account_id = dto.account_id;
+    updates.currency = FIXED_CURRENCY;
     if (dto.category_id !== undefined) updates.category_id = dto.category_id;
     if (dto.due_date !== undefined) updates.due_date = new Date(dto.due_date);
     if (dto.due_date_timezone !== undefined)

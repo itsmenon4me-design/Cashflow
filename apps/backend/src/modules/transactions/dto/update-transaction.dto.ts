@@ -13,11 +13,6 @@ export class UpdateTransactionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  account_id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   category_id?: string;
 
   @ApiPropertyOptional({ enum: ['INCOME', 'EXPENSE'] })

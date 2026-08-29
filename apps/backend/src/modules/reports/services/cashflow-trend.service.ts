@@ -21,15 +21,6 @@ export interface TrendResult {
 export class CashflowTrendService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async resolveTargetCurrency(userId: string): Promise<string> {
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-  }
-
   private validateDates(start: Date, end: Date) {
     if (!(start instanceof Date) || isNaN(start.getTime()))
       throw new BadRequestException('Invalid startDate');
@@ -69,14 +60,11 @@ export class CashflowTrendService {
       throw new BadRequestException('Invalid type');
     this.validateDates(startDate, endDate);
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
-
-    // fetch transactions in range (single currency only)
+    // fetch transactions in range
     const recs = await this.prisma.transaction.findMany({
       where: {
         user_id: userId,
         deleted_at: null,
-        account: { currency: targetCurrency },
         transaction_date: { gte: startDate, lte: endDate },
       },
       select: {

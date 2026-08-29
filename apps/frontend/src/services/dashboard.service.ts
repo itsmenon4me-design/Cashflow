@@ -1,5 +1,4 @@
 ﻿import { apiClient } from "@/lib/axios";
-import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import { transactionService, toTransactionItem } from "@/services/transaction.service";
 import type { DashboardSummaryResponse } from "@/types/backend";
@@ -161,19 +160,12 @@ export const dashboardService = {
 
 
   getRecentTransactions: async (limit = 5): Promise<TransactionItem[]> => {
-    const [page, accounts, categories] = await Promise.all([
+    const [page, categories] = await Promise.all([
       transactionService.list({ page: 1, limit }),
-      accountService.list().catch(() => []),
       categoryService.list().catch(() => []),
     ]);
-    const accountNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
     const categoryNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
-    const accountCurrencies: Record<string, string> = Object.fromEntries(
-      accounts.map((a) => [a.id, a.currency]),
-    );
-    return (page.data ?? []).map((dto) =>
-      toTransactionItem(dto, accountNames, categoryNames, accountCurrencies),
-    );
+    return (page.data ?? []).map((dto) => toTransactionItem(dto, categoryNames));
   },
 
   getBudgetStatus: async (): Promise<BudgetWidget | null> => {

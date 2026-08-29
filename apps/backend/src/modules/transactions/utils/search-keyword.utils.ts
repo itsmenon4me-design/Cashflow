@@ -10,7 +10,6 @@ const CATEGORY_LABELS_ID: Record<string, string> = {
   bonus: 'Bonus',
   hadiah: 'Gift',
   investasi: 'Investment',
-  'transfer masuk': 'Transfer In',
   'pemasukan lainnya': 'Other Income',
   'tempat tinggal': 'Housing',
   tagihan: 'Bills',
@@ -21,7 +20,6 @@ const CATEGORY_LABELS_ID: Record<string, string> = {
   liburan: 'Travel',
   kesehatan: 'Health',
   pendidikan: 'Education',
-  'transfer keluar': 'Transfer Out',
   'pengeluaran lainnya': 'Other Expense',
 };
 
@@ -140,7 +138,6 @@ export function buildKeywordOr(
   const or: Prisma.TransactionWhereInput[] = [
     { note: { contains: q, mode: 'insensitive' } },
     { reference_number: { contains: q, mode: 'insensitive' } },
-    { account: { name: { contains: q, mode: 'insensitive' } } },
     { category: { name: { contains: q, mode: 'insensitive' } } },
   ];
 
@@ -193,7 +190,7 @@ export function buildKeywordOr(
     or.push({ id: { in: [] } });
   }
 
-  // Category Indonesian labels ("Gaji" → Salary, "Transfer" → both transfers)
+  // Category Indonesian labels ("Gaji" → Salary)
   const ql = q.toLowerCase();
   const categoryNames = Object.entries(CATEGORY_LABELS_ID)
     .filter(([label]) => label.includes(ql))

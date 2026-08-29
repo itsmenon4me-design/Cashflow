@@ -47,7 +47,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     {
       key: "transactions",
       title: "Transaksi",
-      items: ["/accounts", "/incomes", "/expenses", "/transactions", "/categories"]
+      items: ["/incomes", "/expenses", "/transactions", "/categories"]
         .map(findByHref)
         .filter(Boolean) as AppMenuItem[],
     },

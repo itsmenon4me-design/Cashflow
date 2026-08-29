@@ -13,7 +13,6 @@ import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { NotificationType } from '../../notifications/constants/notification.constants';
-import { BalanceService } from '../../accounts/services/balance.service';
 import { FinanceBotService } from '../../finance-bot/services/finance-bot.service';
 import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
 import { normalizeAmountCents } from '../utils/amount.utils';
@@ -32,7 +31,6 @@ export class TransactionsService {
     private readonly audit: AuditLogService,
     private readonly validator: TransactionValidationService,
     private readonly notifications: NotificationsService,
-    private readonly balance: BalanceService,
     private readonly financeBot: FinanceBotService,
   ) {}
 
@@ -50,7 +48,6 @@ export class TransactionsService {
       entityId,
       correlationId: trace?.correlationId ?? null,
       requestId: trace?.requestId ?? null,
-      accountId: input.account_id ?? null,
       categoryId: input.category_id ?? null,
       transactionType: input.transaction_type ?? null,
       amountCents: input.amount_cents?.toString?.() ?? null,
@@ -64,7 +61,6 @@ export class TransactionsService {
 
   private async detectAmountScaleAnomaly(
     userId: string,
-    accountId: string,
     amountCents: bigint,
   ): Promise<string | null> {
     if (
@@ -76,7 +72,7 @@ export class TransactionsService {
 
     const recent = await this.repo.findByUserWithFilter(
       userId,
-      { accountId },
+      {},
       { page: 1, limit: 50 },
     );
     const knownAmounts = (recent?.items ?? [])
@@ -105,8 +101,6 @@ export class TransactionsService {
     input: Partial<TransactionEntity>,
     trace?: TransactionTraceContext,
   ): Promise<TransactionEntity> {
-    if (!input.account_id)
-      throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Account is required');
     if (!input.category_id)
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -146,13 +140,11 @@ export class TransactionsService {
 
     const amountAnomaly = await this.detectAmountScaleAnomaly(
       userId,
-      input.account_id,
       amountCents,
     );
 
     const prepared: Partial<TransactionEntity> = {
       user_id: userId,
-      account_id: input.account_id,
       category_id: input.category_id,
       transaction_type: input.transaction_type,
       amount_cents: amountCents,
@@ -162,7 +154,6 @@ export class TransactionsService {
     };
 
     const created = await this.repo.create(prepared);
-    await this.balance.recalculateAccount(created.account_id);
     void this.audit.record({
       userId,
       action: AuditAction.TRANSACTION_CREATED,
@@ -185,7 +176,7 @@ export class TransactionsService {
     );
     if (amountAnomaly) {
       this.logger.warn(
-        `Amount scale anomaly detected user=${userId} account=${input.account_id} amount=${amountCents.toString()} code=${amountAnomaly}`,
+        `Amount scale anomaly detected user=${userId} amount=${amountCents.toString()} code=${amountAnomaly}`,
       );
     }
     return created;
@@ -310,7 +301,7 @@ export class TransactionsService {
       );
 
     // Merge the existing entity with only the explicitly provided updates.
-    // DTO instances carry own undefined properties (account_id/category_id/...),
+    // DTO instances carry own undefined properties (category_id/...),
     // so a raw spread would wipe out the existing values on the entity.
     const merged: Record<string, unknown> = {};
     for (const key of Object.keys(t)) {
@@ -334,13 +325,6 @@ export class TransactionsService {
       if (value !== undefined) data[key] = value;
     }
     const updated = await this.repo.update(id, data);
-    await this.balance.recalculateAccount(updated.account_id);
-    if (
-      normalizedUpdates.account_id !== undefined &&
-      normalizedUpdates.account_id !== t.account_id
-    ) {
-      await this.balance.recalculateAccount(t.account_id);
-    }
     void this.audit.record({
       userId,
       action: AuditAction.TRANSACTION_UPDATED,
@@ -363,9 +347,8 @@ export class TransactionsService {
   }
 
   async softDelete(userId: string, id: string): Promise<void> {
-    const t = await this.getById(userId, id);
+    await this.getById(userId, id);
     await this.repo.softDelete(id);
-    await this.balance.recalculateAccount(t.account_id);
     void this.audit.record({
       userId,
       action: AuditAction.TRANSACTION_DELETED,

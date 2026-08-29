@@ -14,18 +14,6 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     monthStart: Date,
     monthEnd: Date,
   ): Promise<DashboardSummaryResponseDto> {
-    const accounts = await this.prisma.account.findMany({
-      where: {
-        user_id: userId,
-        deleted_at: null,
-      },
-      select: {
-        id: true,
-        current_balance_cents: true,
-        updated_at: true,
-      },
-    });
-
     const txIncome = await this.prisma.transaction.findMany({
       where: {
         user_id: userId,
@@ -62,16 +50,8 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       },
     });
 
-    let assets = 0n;
     let income = 0n;
     let expense = 0n;
-
-    for (const acc of accounts) {
-      assets +=
-        typeof acc.current_balance_cents === 'bigint'
-          ? acc.current_balance_cents
-          : BigInt(acc.current_balance_cents ?? 0);
-    }
 
     for (const tx of txIncome) {
       income +=
@@ -88,7 +68,6 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     }
 
     const candidates: Date[] = [];
-    for (const a of accounts) if (a.updated_at) candidates.push(a.updated_at);
     for (const t of txIncome) if (t.updated_at) candidates.push(t.updated_at);
     for (const t of txExpense) if (t.updated_at) candidates.push(t.updated_at);
 
@@ -99,23 +78,14 @@ export class PrismaDashboardRepository implements IDashboardRepository {
 
     return new DashboardSummaryResponseDto({
       currency: FIXED_CURRENCY,
-      total_assets_cents: assets.toString(),
+      total_assets_cents: '0',
       total_income_cents: income.toString(),
       total_expense_cents: expense.toString(),
       net_cash_flow_cents: (income - expense).toString(),
-      total_accounts: accounts.length,
+      total_accounts: 0,
       total_categories: catsCount,
       total_transactions: txTotalCount,
       last_updated_at: lastUpdatedAt,
-      by_currency: [
-        {
-          currency: FIXED_CURRENCY,
-          total_assets_cents: assets.toString(),
-          total_income_cents: income.toString(),
-          total_expense_cents: expense.toString(),
-          net_cash_flow_cents: (income - expense).toString(),
-        },
-      ],
     });
   }
 }

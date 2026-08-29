@@ -7,7 +7,6 @@ import {
   Bell,
   Compass,
   Folder,
-  Landmark,
   Lightbulb,
   Loader2,
   PieChart,
@@ -22,7 +21,6 @@ import { matchAppMenuItems, type AppMenuItem } from "@/lib/navigation";
 import { toInputDate } from "@/lib/date";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { uiText } from "@/locales";
-import { accountService } from "@/services/account.service";
 import { analyticsService } from "@/services/analytics.service";
 import { budgetService } from "@/services/budget.service";
 import { categoryService } from "@/services/category.service";
@@ -32,7 +30,6 @@ import { savingGoalService } from "@/services/saving-goal.service";
 import { transactionService } from "@/services/transaction.service";
 import { toMajorUnits } from "@/lib/money";
 import type {
-  AccountResponse,
   CategoryResponse,
   PaginatedTransactionResponse,
   TransactionDTO,
@@ -50,13 +47,6 @@ interface TxResult {
   categoryQuery: string;
   amount: string;
   date: string;
-}
-
-interface AccountResult {
-  id: string;
-  name: string;
-  currency: string;
-  balance: string;
 }
 
 interface CategoryResult {
@@ -100,7 +90,6 @@ interface NotificationResult {
 interface SearchResults {
   menus: AppMenuItem[];
   transactions: TxResult[];
-  accounts: AccountResult[];
   insights: string[];
   categories: CategoryResult[];
   budgets: BudgetResult[];
@@ -112,7 +101,6 @@ interface SearchResults {
 const EMPTY_RESULTS: SearchResults = {
   menus: [],
   transactions: [],
-  accounts: [],
   insights: [],
   categories: [],
   budgets: [],
@@ -205,9 +193,8 @@ export function GlobalSearch() {
           .slice(0, 4)
           .map((term) => transactionService.search(term)),
       );
-      const [accounts, categories, insights, budgets, savingGoals, investments, notifications] =
+      const [categories, insights, budgets, savingGoals, investments, notifications] =
         await Promise.allSettled([
-          accountService.list(),
           categoryService.list(),
           analyticsService.getInsights(insightsPeriod()),
           budgetService.list(),
@@ -231,12 +218,6 @@ export function GlobalSearch() {
           categoryNames[c.id] = c.name;
         }
       }
-      const accountById: Record<string, AccountResponse> = {};
-      if (accounts.status === "fulfilled") {
-        for (const a of accounts.value) {
-          accountById[a.id] = a;
-        }
-      }
 
       const seen = new Set<string>();
       const txMerged: TransactionDTO[] = [];
@@ -247,8 +228,7 @@ export function GlobalSearch() {
       }
 
       const transactions: TxResult[] = txMerged.slice(0, 5).map((dto: TransactionDTO) => {
-        const account = accountById[dto.account_id];
-        const currency = account?.currency ?? "IDR";
+        const currency = "IDR";
         const internalCategoryName = categoryNames[dto.category_id] ?? "";
         return {
           id: dto.id,
@@ -259,19 +239,6 @@ export function GlobalSearch() {
           date: dto.transaction_date,
         };
       });
-
-      const accountResults: AccountResult[] =
-        accounts.status === "fulfilled"
-          ? accounts.value
-              .filter((a) => a.name.toLowerCase().includes(q))
-              .slice(0, 5)
-              .map((a) => ({
-                id: a.id,
-                name: a.name,
-                currency: a.currency,
-                balance: formatCurrency(toMajorUnits(BigInt(a.current_balance_cents), a.currency), a.currency),
-              }))
-          : [];
 
       const insightResults: string[] =
         insights.status === "fulfilled"
@@ -379,7 +346,6 @@ export function GlobalSearch() {
         setResults({
           menus: matchAppMenuItems(q),
           transactions,
-          accounts: accountResults,
           insights: insightResults,
           categories: categoryResults,
           budgets: budgetResults,
@@ -401,7 +367,6 @@ export function GlobalSearch() {
   const totalCount =
     results.menus.length +
     results.transactions.length +
-    results.accounts.length +
     results.insights.length +
     results.categories.length +
     results.budgets.length +
@@ -541,31 +506,6 @@ export function GlobalSearch() {
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-medium">{tx.amount}</span>
-                  </button>
-                ))}
-              </SearchGroup>
-            )}
-
-            {!loading && results.accounts.length > 0 && (
-              <SearchGroup label={uiText.common.searchResultsAccounts}>
-                {results.accounts.map((account) => (
-                  <button
-                    key={account.id}
-                    type="button"
-                    role="option"
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                    onClick={() => navigate("/accounts")}
-                  >
-                    <Landmark className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {account.name}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {account.currency}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-medium">{account.balance}</span>
                   </button>
                 ))}
               </SearchGroup>

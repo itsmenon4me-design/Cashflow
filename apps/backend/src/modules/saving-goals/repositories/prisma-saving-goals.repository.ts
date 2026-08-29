@@ -7,7 +7,6 @@ import type { Prisma } from '../../../generated/prisma/client';
 type GoalRec = {
   id: string;
   user_id: string;
-  account_id: string | null;
   category_id: string | null;
   currency: string | null;
   name: string;
@@ -30,7 +29,6 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
     const g = new SavingGoalEntity();
     g.id = rec.id;
     g.user_id = rec.user_id;
-    g.account_id = rec.account_id ?? null;
     g.category_id = rec.category_id ?? null;
     g.currency = rec.currency ?? null;
     g.name = rec.name;
@@ -51,7 +49,6 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
       data: {
         user_id: input.user_id!,
         name: input.name!,
-        account_id: input.account_id ?? null,
         category_id: input.category_id ?? null,
         currency: input.currency ?? null,
         description: input.description ?? null,
@@ -88,7 +85,6 @@ export class PrismaSavingGoalsRepository implements ISavingGoalsRepository {
   ): Promise<SavingGoalEntity> {
     const data: Prisma.SavingGoalUncheckedUpdateInput = {};
     if (updates.name !== undefined) data.name = updates.name;
-    if (updates.account_id !== undefined) data.account_id = updates.account_id;
     if (updates.category_id !== undefined)
       data.category_id = updates.category_id;
     if (updates.currency !== undefined) data.currency = updates.currency;

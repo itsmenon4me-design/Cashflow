@@ -16,7 +16,6 @@ export class CategoriesSeederService implements OnModuleInit {
         'Bonus',
         'Gift',
         'Investment',
-        'Transfer In',
         'Other Income',
       ];
       const expense = [
@@ -29,7 +28,6 @@ export class CategoriesSeederService implements OnModuleInit {
         'Travel',
         'Health',
         'Education',
-        'Transfer Out',
         'Other Expense',
       ];
 

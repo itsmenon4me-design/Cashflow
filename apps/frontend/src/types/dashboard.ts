@@ -63,7 +63,6 @@ export interface TransactionItem {
   dateTime?: string;
   category: string;
   description: string;
-  account: string;
   amount: number;
   type: TransactionType;
   status: TransactionStatus;

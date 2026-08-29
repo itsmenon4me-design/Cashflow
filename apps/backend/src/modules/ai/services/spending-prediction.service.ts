@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
-import { getCurrencySpec } from '../../../common/types/money';
-import { ErrorService } from '../../../common/errors/error.service';
-import { ErrorCode } from '../../../common/errors/error-codes';
+import { FIXED_CURRENCY } from '../../../common/currencies';
 import {
   CategoryPredictionDto,
   SpendingPredictionResponseDto,
@@ -68,14 +66,11 @@ export class SpendingPredictionService {
     const periods = this.targetPeriods(cur, horizon);
     const period = periods[0];
 
-    const targetCurrency = await this.resolveTargetCurrency(userId);
-
     const windowMonths = this.buildWindowMonths(now, timezone);
     const { monthlyTotal, categoryMonthly } = await this.loadSpendingHistory(
       userId,
       timezone,
       windowMonths,
-      targetCurrency,
     );
 
     const populatedMonths = windowMonths
@@ -83,7 +78,7 @@ export class SpendingPredictionService {
       .filter((period) => (monthlyTotal.get(period) ?? 0n) > 0n);
 
     if (populatedMonths.length < MIN_TOTAL_POPULATED_MONTHS) {
-      return this.insufficientData(period, targetCurrency);
+      return this.insufficientData(period, FIXED_CURRENCY);
     }
 
     const totalSeries = populatedMonths.map((p) => ({
@@ -114,7 +109,7 @@ export class SpendingPredictionService {
     );
 
     return {
-      currency: targetCurrency,
+      currency: FIXED_CURRENCY,
       period,
       predictedTotalCents: predictedTotal.toString(),
       confidence,
@@ -129,37 +124,10 @@ export class SpendingPredictionService {
     };
   }
 
-  /**
-   * Resolve the prediction currency: default account currency OR first
-   * available account currency OR 'IDR'.
-   *
-   * The currency registry is authoritative. Any other ISO
-   * code would make minor units uninterpretable, so it is rejected instead of
-   * emitting an ambiguous monetary prediction.
-   */
-  private async resolveTargetCurrency(userId: string): Promise<string> {
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    const currency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-    try {
-      getCurrencySpec(currency);
-    } catch {
-      throw ErrorService.create(
-        ErrorCode.INVALID_INPUT,
-        `Spending prediction does not support currency ${currency}`,
-      );
-    }
-    return currency;
-  }
-
   private async loadSpendingHistory(
     userId: string,
     timezone: string,
     windowMonths: MonthRef[],
-    targetCurrency: string,
   ): Promise<{
     monthlyTotal: Map<string, bigint>;
     categoryMonthly: Map<string, Map<string, bigint>>;
@@ -184,8 +152,6 @@ export class SpendingPredictionService {
       where: {
         user_id: userId,
         deleted_at: null,
-        transfer_group_id: null,
-        account: { currency: targetCurrency },
         transaction_date: { gte: start, lt: end },
       },
       select: {
@@ -193,7 +159,6 @@ export class SpendingPredictionService {
         transaction_type: true,
         amount_cents: true,
         category_id: true,
-        transfer_group_id: true,
       },
     });
 
@@ -201,7 +166,6 @@ export class SpendingPredictionService {
     const categoryMonthly = new Map<string, Map<string, bigint>>();
 
     for (const r of recs) {
-      if (r.transfer_group_id != null) continue;
       if (r.transaction_type !== TransactionType.EXPENSE) continue;
       const amt = r.amount_cents ?? 0n;
       if (amt <= 0n) continue;

@@ -11,7 +11,6 @@ const dummyGoal = (
 ): SavingGoalEntity => ({
   id,
   user_id: 'u1',
-  account_id: null,
   category_id: null,
   name: 'Emergency Fund',
   description: null,
@@ -47,7 +46,6 @@ describe('SavingGoalsService', () => {
     };
 
     const prismaMock = {
-      account: { findUnique: jest.fn().mockResolvedValue(null) },
       category: { findUnique: jest.fn().mockResolvedValue(null) },
     };
 

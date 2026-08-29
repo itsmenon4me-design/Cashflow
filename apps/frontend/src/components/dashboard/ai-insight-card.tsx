@@ -3,15 +3,12 @@
 import { Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { uiText } from "@/locales";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 
 interface AIInsightCardProps {
   items: string[];
 }
 
 export function AIInsightCard({ items }: AIInsightCardProps) {
-  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
-
   if (!items || items.length === 0) {
     return null;
   }
@@ -22,7 +19,7 @@ export function AIInsightCard({ items }: AIInsightCardProps) {
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold">{uiText.dashboard.aiInsight}</CardTitle>
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {uiText.dashboard.aiInsightContext.replace("{currency}", activeCurrency)}
+            {uiText.dashboard.aiInsightContext.replace("{currency}", "IDR")}
           </p>
         </div>
         <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">

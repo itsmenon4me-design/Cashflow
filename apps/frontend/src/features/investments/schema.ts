@@ -4,7 +4,6 @@ import { toMinorUnits } from "@/lib/money";
 const requiredMessage = "Wajib diisi";
 
 export const investmentFormSchema = z.object({
-  accountId: z.string().optional(),
   investmentType: z.enum([
     "Stock",
     "Mutual Fund",
@@ -36,7 +35,6 @@ export type InvestmentFormValues = z.infer<typeof investmentFormSchema>;
 
 export function toCreateInvestmentPayload(values: InvestmentFormValues) {
   return {
-    account_id: values.accountId || undefined,
     investment_type: values.investmentType,
     platform: values.platform.trim(),
     name: values.name.trim(),
@@ -55,7 +53,6 @@ export function toCreateInvestmentPayload(values: InvestmentFormValues) {
 export function toUpdateInvestmentPayload(values: InvestmentFormValues) {
   return {
     ...toCreateInvestmentPayload(values),
-    account_id: values.accountId || null,
     symbol: values.symbol?.trim() || null,
     notes: values.notes?.trim() || null,
   };

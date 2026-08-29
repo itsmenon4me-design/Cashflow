@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { TriangleAlert } from "lucide-react";
 
 import { uiText } from "@/locales";
@@ -11,9 +10,12 @@ interface GlobalErrorPageProps {
 }
 
 export default function GlobalError({ error, retry }: GlobalErrorPageProps) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+  const handleRetry = () => {
+    try {
+      console.error(error);
+    } catch {}
+    retry();
+  };
 
   return (
     <html lang="id">
@@ -32,7 +34,7 @@ export default function GlobalError({ error, retry }: GlobalErrorPageProps) {
         </div>
         <button
           type="button"
-          onClick={retry}
+          onClick={handleRetry}
           className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
         >
           {uiText.common.tryAgain}

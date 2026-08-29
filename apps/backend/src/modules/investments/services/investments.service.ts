@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaInvestmentsRepository } from '../repositories/prisma-investments.repository';
-import { PrismaService } from '../../../database/prisma.service';
 import { InvestmentEntity } from '../entities/investment.entity';
 import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
@@ -67,37 +66,17 @@ export class InvestmentsService {
   constructor(
     private readonly repo: PrismaInvestmentsRepository,
     private readonly audit: AuditLogService,
-    private readonly prisma: PrismaService,
   ) {}
-
-  private async resolveAccountCurrency(
-    userId: string,
-    accountId?: string | null,
-  ): Promise<string> {
-    if (!accountId) {
-      return FIXED_CURRENCY;
-    }
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-    });
-    if (!account || account.deleted_at || account.user_id !== userId) {
-      throw ErrorService.create(ErrorCode.INVALID_INPUT, 'Invalid account');
-    }
-    return account.currency ?? 'IDR';
-  }
 
   async create(
     userId: string,
     input: CreateInvestmentDto,
   ): Promise<InvestmentEntity> {
-    const resolvedCurrency = await this.resolveAccountCurrency(userId, input.account_id);
-
-    const currencyToUse = resolvedCurrency;
+    const currencyToUse = FIXED_CURRENCY;
 
     const values = computeValues(input, minorUnitMultiplier(currencyToUse));
     const created = await this.repo.create({
       user_id: userId,
-      account_id: input.account_id ?? null,
       currency: currencyToUse,
       investment_type: input.investment_type,
       platform: input.platform,
@@ -148,13 +127,7 @@ export class InvestmentsService {
     updates: UpdateInvestmentDto,
   ): Promise<InvestmentEntity> {
     const current = await this.getById(userId, id);
-
-    const nextAccountId =
-      updates.account_id !== undefined
-        ? updates.account_id
-        : current.account_id;
-    const resolvedCurrency = updates.currency
-      ?? await this.resolveAccountCurrency(userId, nextAccountId);
+    const resolvedCurrency = FIXED_CURRENCY;
 
     const quantity =
       updates.quantity !== undefined
@@ -188,9 +161,7 @@ export class InvestmentsService {
       const value = (updates as unknown as Record<string, unknown>)[key];
       if (value !== undefined) data[key] = value;
     }
-    if (updates.currency !== undefined) {
-      data.currency = updates.currency;
-    }
+    data.currency = FIXED_CURRENCY;
     data.quantity = String(quantity);
     data.average_buy_price = String(averageBuyPrice);
     data.current_price = String(currentPrice);
@@ -232,90 +203,34 @@ export class InvestmentsService {
     const items = await this.repo.findAllByUser(userId);
     const active = items.filter((i) => i.status === 'ACTIVE');
 
-    // Group active investments by currency (via linked account or fallback IDR)
-    const currencyMap = new Map<
-      string,
-      {
-        invested: bigint;
-        value: bigint;
-        profit: bigint;
-        loss: bigint;
-        allocation: Record<string, bigint>;
-      }
-    >();
-
-    for (const item of active) {
-      const currency =
-        item.currency ?? FIXED_CURRENCY;
-      const entry = currencyMap.get(currency) ?? {
-        invested: 0n,
-        value: 0n,
-        profit: 0n,
-        loss: 0n,
-        allocation: {},
-      };
-
-      entry.invested += item.invested_amount_cents;
-      entry.value += item.current_value_cents;
-      const pl = item.profit_loss_cents;
-      if (pl > 0n) entry.profit += pl;
-      else entry.loss += pl;
-
-      entry.allocation[item.investment_type] =
-        (entry.allocation[item.investment_type] ?? 0n) +
-        item.current_value_cents;
-
-      currencyMap.set(currency, entry);
-    }
-
-    if (currencyMap.size === 0) {
-      currencyMap.set(FIXED_CURRENCY, {
-        invested: 0n,
-        value: 0n,
-        profit: 0n,
-        loss: 0n,
-        allocation: {},
-      });
-    }
-
-    const primaryCurrency = Array.from(currencyMap.keys())[0] ?? 'IDR';
-    const primary = currencyMap.get(primaryCurrency)!;
-    const investedNum = Number(primary.invested);
-    const primaryRoi =
-      investedNum === 0
-        ? 0
-        : ((Number(primary.value) - investedNum) / investedNum) * 100;
-
-    const byCurrency = Array.from(currencyMap.entries()).map(([curr, data]) => {
-      const invNum = Number(data.invested);
-      const roi =
-        invNum === 0 ? 0 : ((Number(data.value) - invNum) / invNum) * 100;
-      return {
-        currency: curr,
-        totalInvested: data.invested.toString(),
-        totalValue: data.value.toString(),
-        totalProfit: data.profit.toString(),
-        totalLoss: (data.loss * -1n).toString(),
-        roi,
-        allocation: Object.entries(data.allocation)
-          .map(([type, total]) => ({ type, total: total.toString() }))
-          .sort((a, b) => Number(b.total) - Number(a.total)),
-      };
-    });
+    const totals = active.reduce(
+      (result, item) => {
+        result.invested += item.invested_amount_cents;
+        result.value += item.current_value_cents;
+        if (item.profit_loss_cents > 0n) result.profit += item.profit_loss_cents;
+        else result.loss += item.profit_loss_cents;
+        result.allocation[item.investment_type] =
+          (result.allocation[item.investment_type] ?? 0n) + item.current_value_cents;
+        return result;
+      },
+      { invested: 0n, value: 0n, profit: 0n, loss: 0n, allocation: {} as Record<string, bigint> },
+    );
+    const invested = Number(totals.invested);
+    const roi = invested === 0 ? 0 : ((Number(totals.value) - invested) / invested) * 100;
+    const allocation = Object.entries(totals.allocation)
+      .map(([type, total]) => ({ type, total: total.toString() }))
+      .sort((a, b) => Number(b.total) - Number(a.total));
 
     return {
       total: items.length,
       active: active.length,
-      currency: primaryCurrency,
-      totalInvested: primary.invested.toString(),
-      totalValue: primary.value.toString(),
-      totalProfit: primary.profit.toString(),
-      totalLoss: (primary.loss * -1n).toString(),
-      roi: primaryRoi,
-      allocation: Object.entries(primary.allocation)
-        .map(([type, total]) => ({ type, total: total.toString() }))
-        .sort((a, b) => Number(b.total) - Number(a.total)),
-      by_currency: byCurrency,
+      currency: FIXED_CURRENCY,
+      totalInvested: totals.invested.toString(),
+      totalValue: totals.value.toString(),
+      totalProfit: totals.profit.toString(),
+      totalLoss: (totals.loss * -1n).toString(),
+      roi,
+      allocation,
     };
   }
 }

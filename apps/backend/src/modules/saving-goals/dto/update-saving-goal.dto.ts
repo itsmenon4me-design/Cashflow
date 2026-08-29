@@ -1,5 +1,4 @@
-﻿import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+﻿import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsIn,
@@ -21,21 +20,7 @@ export class UpdateSavingGoalDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  account_id?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   category_id?: string | null;
-
-  @ApiPropertyOptional({
-    description: 'Record currency ownership for the saving goal. Nullable until migration backfill is approved.',
-    enum: SUPPORTED_CURRENCIES,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

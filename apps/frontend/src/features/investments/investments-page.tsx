@@ -35,14 +35,12 @@ import type { InvestmentFormValues } from "@/features/investments/schema";
 import { cn } from "@/lib/utils";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
-import { accountService } from "@/services/account.service";
 import {
   investmentService,
   toInvestmentItem,
   type InvestmentItem,
   type InvestmentOverview,
 } from "@/services/investment.service";
-import type { AccountResponse } from "@/types/backend";
 
 interface FormState {
   open: boolean;
@@ -50,8 +48,6 @@ interface FormState {
   item: InvestmentItem | null;
   session: number;
 }
-
-type NameLookup = Record<string, string>;
 
 export function InvestmentsPage() {
   const [items, setItems] = useState<InvestmentItem[]>([]);
@@ -62,8 +58,6 @@ export function InvestmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [accountNames, setAccountNames] = useState<NameLookup>({});
-  const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
   const [formState, setFormState] = useState<FormState>({
     open: false,
     mode: "create",
@@ -83,20 +77,14 @@ export function InvestmentsPage() {
       setLoading(true);
       setError(false);
       try {
-        const [list, overviewResult, accounts] = await Promise.all([
+        const [list, overviewResult] = await Promise.all([
           investmentService.list(),
           investmentService.overview(),
-          accountService.list().catch(() => [] as AccountResponse[]),
         ]);
         if (cancelled) {
           return;
         }
-        const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
-        setAccountNames(accountMap);
-        setAccountCurrencies(
-          Object.fromEntries(accounts.map((a) => [a.id, a.currency])),
-        );
-        setItems(list.map((item) => toInvestmentItem(item, accountMap)));
+        setItems(list.map((item) => toInvestmentItem(item)));
         setOverview(overviewResult);
       } catch {
         if (!cancelled) {
@@ -157,11 +145,6 @@ export function InvestmentsPage() {
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const rows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const accountOptions = useMemo(
-    () => Object.entries(accountNames).map(([id, name]) => ({ id, name })),
-    [accountNames],
-  );
 
   const roi = overview?.roi ?? 0;
 
@@ -333,8 +316,6 @@ export function InvestmentsPage() {
           onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
           mode={formState.mode}
           item={formState.item}
-          accounts={accountOptions}
-          accountCurrencies={accountCurrencies}
           onSubmit={(values) => void handleFormSubmit(values)}
         />
 

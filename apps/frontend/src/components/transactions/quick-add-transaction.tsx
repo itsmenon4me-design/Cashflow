@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { uiText } from "@/locales";
 import { syncCreateTransaction } from "@/lib/offline/sync-client";
-import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import {
   toCreateTransactionPayload,
   type CreateTransactionPayload,
 } from "@/services/transaction.service";
 import { useDataRefreshStore } from "@/stores/refresh.store";
-import type { AccountResponse, CategoryResponse } from "@/types/backend";
+import type { CategoryResponse } from "@/types/backend";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 
 type NameLookup = Record<string, string>;
@@ -31,13 +30,10 @@ function buildCategoryTypes(
 }
 
 export function QuickAddTransaction() {
-  // Must always call the hook unconditionally (Rules of Hooks) — calling it only
-  // on the server would break hydration on every non-dashboard route.
   const pathname = usePathname();
   const clientPath = typeof window !== 'undefined' ? window.location.pathname : pathname;
   const controlledType: "income" | "expense" | undefined = clientPath?.startsWith('/incomes') ? 'income' : clientPath?.startsWith('/expenses') ? 'expense' : undefined;
   const [open, setOpen] = useState(false);
-  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [lookupsReady, setLookupsReady] = useState(false);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
@@ -53,11 +49,7 @@ export function QuickAddTransaction() {
     (nextOpen: boolean) => {
       setOpen(nextOpen);
       if (nextOpen && !lookupsReady) {
-        void Promise.all([
-          accountService.list().catch(() => [] as AccountResponse[]),
-          categoryService.list().catch(() => [] as CategoryResponse[]),
-        ]).then(([accs, cats]) => {
-          setAccounts(accs);
+        void categoryService.list().catch(() => [] as CategoryResponse[]).then((cats) => {
           setCategories(cats);
           setLookupsReady(true);
         });
@@ -66,17 +58,6 @@ export function QuickAddTransaction() {
     [lookupsReady],
   );
 
-  const accountNames = useMemo<NameLookup>(
-    () => Object.fromEntries(accounts.map((account) => [account.id, account.name])),
-    [accounts],
-  );
-  const accountCurrencyByName = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const account of accounts) {
-      map[account.name] = account.currency;
-    }
-    return map;
-  }, [accounts]);
   const categoryNames = useMemo<NameLookup>(
     () => Object.fromEntries(categories.map((category) => [category.id, category.name])),
     [categories],
@@ -90,28 +71,21 @@ export function QuickAddTransaction() {
     () => [...new Set(Object.values(categoryNames))].sort(),
     [categoryNames],
   );
-  const accountOptions = useMemo(
-    () => [...new Set(Object.values(accountNames))].sort(),
-    [accountNames],
-  );
 
   const handleSubmit = useCallback(
     async (values: TransactionFormValues) => {
-      // If the quick-add is being used from an incomes/expenses route, force the transaction type
       const payload = toCreateTransactionPayload(
         values,
-        accountNames,
         categoryNames,
-        accountCurrencyByName,
         controlledType,
       ) as CreateTransactionPayload | null;
       if (!payload) {
-        throw new Error("Invalid account or category");
+        throw new Error("Invalid category");
       }
       await syncCreateTransaction(payload);
       bumpRefresh();
     },
-    [accountNames, categoryNames, accountCurrencyByName, controlledType, bumpRefresh],
+    [categoryNames, controlledType, bumpRefresh],
   );
 
   return (
@@ -135,8 +109,6 @@ export function QuickAddTransaction() {
         transaction={null}
         categories={categoryOptions}
         categoryTypes={categoryTypes}
-        accounts={accountOptions}
-        accountCurrencyByName={accountCurrencyByName}
         initialValues={initialValues}
         transactionType={controlledType}
         onSubmit={handleSubmit}

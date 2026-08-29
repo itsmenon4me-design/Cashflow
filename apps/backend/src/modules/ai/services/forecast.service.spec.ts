@@ -17,36 +17,26 @@ type TxRecord = {
   transaction_type: 'INCOME' | 'EXPENSE';
   amount_cents: bigint;
   transaction_date: Date;
-  transfer_group_id: string | null;
 };
 
 type TxQuery = {
   where: {
     user_id: string;
     deleted_at: null;
-    transfer_group_id: null;
-    account?: { currency: string };
     transaction_date: { gte: Date; lt: Date };
   };
-};
-
-type BalanceQuery = {
-  where: { user_id: string; deleted_at: null };
-  _sum: { current_balance_cents: true };
 };
 
 const makeTx = (
   date: string,
   type: 'INCOME' | 'EXPENSE',
   cents: number | bigint,
-  transferGroupId: string | null = null,
 ): TxRecord => ({
   id: `tx-${date}-${type}-${cents}`,
   user_id: 'u1',
   transaction_type: type,
   amount_cents: BigInt(cents),
   transaction_date: new Date(date),
-  transfer_group_id: transferGroupId,
 });
 
 const seedStable = (income: number, expense: number): TxRecord[] =>
@@ -58,21 +48,9 @@ const seedStable = (income: number, expense: number): TxRecord[] =>
 const makeFindMany = (rows: TxRecord[]) =>
   jest.fn<Promise<TxRecord[]>, [TxQuery]>().mockResolvedValue(rows);
 
-const makeBalanceAgg = (value: bigint) =>
-  jest
-    .fn<
-      Promise<{ _sum: { current_balance_cents: bigint | null } }>,
-      [BalanceQuery]
-    >()
-    .mockResolvedValue({ _sum: { current_balance_cents: value } });
-
 type PrismaMock = {
   userSettings: { findUnique: jest.Mock };
   transaction: { findMany: ReturnType<typeof makeFindMany> };
-  account: {
-    findMany: jest.Mock;
-    aggregate: ReturnType<typeof makeBalanceAgg>;
-  };
 };
 
 const makeService = (overrides?: Partial<PrismaMock>) => {
@@ -81,12 +59,6 @@ const makeService = (overrides?: Partial<PrismaMock>) => {
       findUnique: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
     },
     transaction: { findMany: makeFindMany([]) },
-    account: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-      aggregate: makeBalanceAgg(100000n),
-    },
     ...overrides,
   };
   const service = new ForecastService(prisma as unknown as PrismaService);
@@ -120,15 +92,12 @@ describe('ForecastService', () => {
     expect(res.months[0].projectedIncomeCents).toBe('2000000');
     expect(res.months[0].projectedExpenseCents).toBe('1000000');
     expect(res.months[0].projectedNetCashflowCents).toBe('1000000');
-    expect(res.months[0].projectedEndingBalanceCents).toBe('1100000');
-    expect(res.months[1].projectedEndingBalanceCents).toBe('2100000');
-    expect(res.excludedTransfers).toBe(true);
+    expect(res.months[0].projectedEndingBalanceCents).toBe('1000000');
+    expect(res.months[1].projectedEndingBalanceCents).toBe('2000000');
     expect(res.outliers).toEqual([]);
     expect(res.confidence).toBeGreaterThanOrEqual(0);
     expect(res.confidence).toBeLessThanOrEqual(1);
 
-    const [balQuery] = prisma.account.aggregate.mock.calls[0];
-    expect(balQuery.where.user_id).toBe('u1');
   });
 
   it('returns insufficientData for an empty history', async () => {
@@ -150,7 +119,6 @@ describe('ForecastService', () => {
     expect(res.basis.averageMonthlyExpenseCents).toBe('0');
     expect(res.basis.historyStart).toBe('2025-11');
     expect(res.basis.historyEnd).toBe('2026-04');
-    expect(prisma.account.aggregate).not.toHaveBeenCalled();
   });
 
   it('returns insufficientData for a single populated month', async () => {
@@ -199,7 +167,7 @@ describe('ForecastService', () => {
     expect(res.insufficientData).toBe(false);
     expect(res.months[0].projectedExpenseCents).toBe('0');
     expect(res.months[0].projectedIncomeCents).toBe('1000000');
-    expect(res.months[0].projectedEndingBalanceCents).toBe('1100000');
+    expect(res.months[0].projectedEndingBalanceCents).toBe('1000000');
   });
 
   it('projects a negative cashflow', async () => {
@@ -210,14 +178,14 @@ describe('ForecastService', () => {
     const res = await service.forecast('u1', { horizon: 3 });
 
     expect(res.months[0].projectedNetCashflowCents).toBe('-2000000');
-    expect(res.months[0].projectedEndingBalanceCents).toBe('-1900000');
+    expect(res.months[0].projectedEndingBalanceCents).toBe('-2000000');
   });
 
-  it('excludes transfer transactions', async () => {
+  it('includes all transactions', async () => {
     const txs = seedStable(2000000, 1000000);
     txs.push(
-      makeTx('2026-04-15T12:00:00Z', 'EXPENSE', 999999999, 'transfer-group-1'),
-      makeTx('2026-04-15T12:00:00Z', 'INCOME', 999999999, 'transfer-group-1'),
+      makeTx('2026-04-15T12:00:00Z', 'EXPENSE', 999999999),
+      makeTx('2026-04-15T12:00:00Z', 'INCOME', 999999999),
     );
     const { service, prisma } = makeService({
       transaction: { findMany: makeFindMany(txs) },
@@ -227,10 +195,8 @@ describe('ForecastService', () => {
 
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
     expect(txQuery.where.user_id).toBe('u1');
-    expect(txQuery.where.transfer_group_id).toBeNull();
-    expect(res.basis.totalIncomeCents).toBe('12000000');
-    expect(res.basis.totalExpenseCents).toBe('6000000');
-    expect(res.basis.averageMonthlyIncomeCents).toBe('2000000');
+    expect(res.basis.totalIncomeCents).toBe('1011999999');
+    expect(res.basis.totalExpenseCents).toBe('1005999999');
   });
 
   it('flags and excludes a 3-sigma outlier month', async () => {
@@ -279,33 +245,19 @@ describe('ForecastService', () => {
     expect(res.confidence).toBeLessThanOrEqual(1);
   });
 
-  it('exposes the resolved target currency on the response', async () => {
-    const { service, prisma } = makeService({
+  it('always returns fixed IDR on the response', async () => {
+    const { service } = makeService({
       transaction: { findMany: makeFindMany(seedStable(2000000, 1000000)) },
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'USD', is_default: true }]),
-        aggregate: makeBalanceAgg(100000n),
-      },
     });
 
     const res = await service.forecast('u1', { horizon: 2 });
 
-    expect(res.currency).toBe('USD');
-    const [txQuery] = prisma.transaction.findMany.mock.calls[0];
-    expect(txQuery.where.account).toEqual({ currency: 'USD' });
+    expect(res.currency).toBe('IDR');
   });
 
   it('keeps 1,000,000 IDR as 1,000,000 (never scales by 100)', async () => {
     const { service } = makeService({
       transaction: { findMany: makeFindMany(seedStable(1000000, 1000000)) },
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-        aggregate: makeBalanceAgg(0n),
-      },
     });
 
     const res = await service.forecast('u1', { horizon: 1 });
@@ -319,47 +271,16 @@ describe('ForecastService', () => {
     expect(res.months[0].projectedEndingBalanceCents).toBe('0');
   });
 
-  it('isolates SGD and EUR history by currency without mixing', async () => {
-    for (const currency of ['SGD', 'EUR']) {
-      const { service, prisma } = makeService({
-        transaction: {
-          findMany: makeFindMany(seedStable(123, 107)),
-        },
-        account: {
-          findMany: jest
-            .fn()
-            .mockResolvedValue([{ currency, is_default: true }]),
-          aggregate: makeBalanceAgg(100000n),
-        },
-      });
-
-      const res = await service.forecast('u1', { horizon: 1 });
-
-      const [txQuery] = prisma.transaction.findMany.mock.calls[0];
-      expect(txQuery.where.account).toEqual({ currency });
-      expect(res.currency).toBe(currency);
-      expect(res.months[0].projectedIncomeCents).toBe('123');
-      expect(res.months[0].projectedExpenseCents).toBe('107');
-      expect(res.months[0].projectedEndingBalanceCents).toBe('100016');
-    }
-  });
-
   it('projects a zero net cashflow when income equals expense', async () => {
     const { service } = makeService({
       transaction: { findMany: makeFindMany(seedStable(2000000, 2000000)) },
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-        aggregate: makeBalanceAgg(500000n),
-      },
     });
 
     const res = await service.forecast('u1', { horizon: 2 });
 
     expect(res.months[0].projectedNetCashflowCents).toBe('0');
-    expect(res.months[0].projectedEndingBalanceCents).toBe('500000');
-    expect(res.months[1].projectedEndingBalanceCents).toBe('500000');
+    expect(res.months[0].projectedEndingBalanceCents).toBe('0');
+    expect(res.months[1].projectedEndingBalanceCents).toBe('0');
   });
 
   it('clamps the horizon into the supported service range', async () => {
@@ -384,8 +305,6 @@ describe('ForecastService', () => {
 
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
     expect(txQuery.where.user_id).toBe('other-user-id');
-    const [balQuery] = prisma.account.aggregate.mock.calls[0];
-    expect(balQuery.where.user_id).toBe('other-user-id');
   });
 
   it('buckets transactions by the user timezone month boundaries', async () => {
@@ -406,7 +325,6 @@ describe('ForecastService', () => {
 
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
     expect(txQuery.where.user_id).toBe('u1');
-    expect(txQuery.where.transfer_group_id).toBeNull();
     expect(txQuery.where.transaction_date.gte.toISOString()).toBe(
       '2025-10-31T17:00:00.000Z',
     );
@@ -455,18 +373,12 @@ describe('ForecastService', () => {
   it('accumulates the projected ending balance across the horizon', async () => {
     const { service } = makeService({
       transaction: { findMany: makeFindMany(seedStable(2000000, 1000000)) },
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-        aggregate: makeBalanceAgg(5000000n),
-      },
     });
 
     const res = await service.forecast('u1', { horizon: 2 });
 
-    expect(res.months[0].projectedEndingBalanceCents).toBe('6000000');
-    expect(res.months[1].projectedEndingBalanceCents).toBe('7000000');
+    expect(res.months[0].projectedEndingBalanceCents).toBe('1000000');
+    expect(res.months[1].projectedEndingBalanceCents).toBe('2000000');
   });
 
   it('keeps confidence within 0..1 for volatile data', async () => {
@@ -562,7 +474,7 @@ describe('ForecastService', () => {
     expect(res.months[0].projectedIncomeCents).toBe(big.toString());
     expect(res.basis.totalExpenseCents).toBe('6000000');
     expect(res.months[0].projectedEndingBalanceCents).toBe(
-      (100000n + big - 1000000n).toString(),
+      (big - 1000000n).toString(),
     );
   });
 
@@ -588,7 +500,6 @@ describe('ForecastService', () => {
     const [txQuery] = prisma.transaction.findMany.mock.calls[0];
     expect(txQuery.where.user_id).toBe('u1');
     expect(txQuery.where.deleted_at).toBeNull();
-    expect(txQuery.where.transfer_group_id).toBeNull();
     expect(txQuery.where.transaction_date.gte).toBeInstanceOf(Date);
     expect(txQuery.where.transaction_date.lt).toBeInstanceOf(Date);
   });
@@ -612,7 +523,6 @@ describe('ForecastService', () => {
       'basis',
       'confidence',
       'currency',
-      'excludedTransfers',
       'horizon',
       'insufficientData',
       'months',
@@ -646,6 +556,5 @@ describe('ForecastService', () => {
     expect(res.confidence).toBeLessThanOrEqual(1);
     expect(Object.keys(res)).not.toContain('transactions');
     expect(Object.keys(res)).not.toContain('accounts');
-    expect(Object.keys(res)).not.toContain('transfer_group_id');
   });
 });

@@ -18,12 +18,10 @@ const makeTx = (
   date: string,
   type: 'INCOME' | 'EXPENSE',
   cents: number | bigint,
-  transferGroupId: string | null = null,
 ): ForecastTransactionInput => ({
   transactionDate: new Date(date),
   transactionType: type,
   amountCents: BigInt(cents),
-  transferGroupId,
 });
 
 const seedStable = (
@@ -236,17 +234,17 @@ describe('ForecastEngine', () => {
     expect(result.months[0].projectedExpenseCents).toBe('1000000');
   });
 
-  it('excludes transfer transactions from the aggregation', async () => {
+  it('includes all transactions in the aggregation', async () => {
     const txs = seedStable(2000000, 1000000);
     txs.push(
-      makeTx('2026-04-15T12:00:00Z', 'EXPENSE', 999999999, 'transfer-group-1'),
-      makeTx('2026-04-15T12:00:00Z', 'INCOME', 999999999, 'transfer-group-1'),
+      makeTx('2026-04-15T12:00:00Z', 'EXPENSE', 999999999),
+      makeTx('2026-04-15T12:00:00Z', 'INCOME', 999999999),
     );
 
     const { result } = await run(txs);
 
-    expect(result.basis.totalIncomeCents).toBe('12000000');
-    expect(result.basis.totalExpenseCents).toBe('6000000');
+    expect(result.basis.totalIncomeCents).toBe('1011999999');
+    expect(result.basis.totalExpenseCents).toBe('1005999999');
   });
 
   it('accumulates the projected ending balance across the horizon', async () => {
@@ -381,7 +379,6 @@ describe('ForecastEngine', () => {
     expect(Object.keys(result).sort()).toEqual([
       'basis',
       'confidence',
-      'excludedTransfers',
       'horizon',
       'insufficientData',
       'months',

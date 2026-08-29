@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InvestmentsService } from './investments.service';
 import { PrismaInvestmentsRepository } from '../repositories/prisma-investments.repository';
 import { AuditLogService } from '../../audit-logs/services/audit-log.service';
-import { PrismaService } from '../../../database/prisma.service';
 import { InvestmentEntity } from '../entities/investment.entity';
 
 const dummy = (
@@ -11,7 +10,6 @@ const dummy = (
 ): InvestmentEntity => ({
   id,
   user_id: 'u1',
-  account_id: null,
   investment_type: 'Stock',
   platform: 'IDX',
   name: 'BBRI',
@@ -40,8 +38,6 @@ describe('InvestmentsService', () => {
     update: jest.Mock;
     softDelete: jest.Mock;
   };
-  let prismaMock: { account: { findUnique: jest.Mock } };
-
   beforeEach(async () => {
     repoMock = {
       findById: jest.fn().mockResolvedValue(dummy('i1')),
@@ -51,15 +47,11 @@ describe('InvestmentsService', () => {
       softDelete: jest.fn().mockResolvedValue(undefined),
     };
 
-    prismaMock = {
-      account: { findUnique: jest.fn().mockResolvedValue(null) },
-    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvestmentsService,
         { provide: PrismaInvestmentsRepository, useValue: repoMock },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
-        { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
 
@@ -92,6 +84,7 @@ describe('InvestmentsService', () => {
     });
     expect(repoMock.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        currency: 'IDR',
         invested_amount_cents: BigInt(5000000),
         current_value_cents: BigInt(6000000),
         profit_loss_cents: BigInt(1000000),

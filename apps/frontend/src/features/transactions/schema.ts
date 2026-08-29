@@ -11,7 +11,6 @@ export const transactionFormSchema = z.object({
     .or(z.literal("")),
   type: z.enum(["income", "expense"]),
   category: z.string().min(1, requiredMessage),
-  account: z.string().min(1, requiredMessage),
   amount: z.number({ error: "Nominal harus berupa angka" }).positive(requiredMessage),
   description: z.string().optional(),
   notes: z.string().optional(),

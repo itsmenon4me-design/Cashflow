@@ -7,7 +7,6 @@ import type { Prisma } from '../../../generated/prisma/client';
 type InvRec = {
   id: string;
   user_id: string;
-  account_id: string | null;
   currency: string | null;
   investment_type: string;
   platform: string;
@@ -36,7 +35,6 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     const i = new InvestmentEntity();
     i.id = rec.id;
     i.user_id = rec.user_id;
-    i.account_id = rec.account_id ?? null;
     i.currency = rec.currency ?? null;
     i.investment_type =
       rec.investment_type as InvestmentEntity['investment_type'];
@@ -63,7 +61,6 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     const rec = await this.prisma.investment.create({
       data: {
         user_id: input.user_id!,
-        account_id: input.account_id ?? null,
         currency: input.currency ?? null,
         investment_type: input.investment_type!,
         platform: input.platform!,
@@ -106,7 +103,6 @@ export class PrismaInvestmentsRepository implements IInvestmentsRepository {
     updates: Partial<InvestmentEntity>,
   ): Promise<InvestmentEntity> {
     const data: Prisma.InvestmentUncheckedUpdateInput = {};
-    if (updates.account_id !== undefined) data.account_id = updates.account_id;
     if (updates.currency !== undefined) data.currency = updates.currency;
     if (updates.investment_type !== undefined)
       data.investment_type = updates.investment_type;

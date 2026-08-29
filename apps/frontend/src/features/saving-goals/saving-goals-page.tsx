@@ -29,14 +29,13 @@ import { DEFAULT_PAGE_SIZE, EMPTY_FILTERS } from "@/features/saving-goals/consta
 import type { SavingGoalFiltersState } from "@/features/saving-goals/types";
 import type { SavingGoalFormValues } from "@/features/saving-goals/schema";
 import { uiText } from "@/locales";
-import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import {
   savingGoalService,
   toSavingGoalItem,
   type SavingGoalItem,
 } from "@/services/saving-goal.service";
-import type { AccountResponse, CategoryResponse } from "@/types/backend";
+import type { CategoryResponse } from "@/types/backend";
 
 interface FormState {
   open: boolean;
@@ -55,8 +54,6 @@ export function SavingGoalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [accountNames, setAccountNames] = useState<NameLookup>({});
-  const [accountCurrencies, setAccountCurrencies] = useState<Record<string, string>>({});
   const [categoryNames, setCategoryNames] = useState<NameLookup>({});
   const [formState, setFormState] = useState<FormState>({
     open: false,
@@ -77,22 +74,16 @@ export function SavingGoalsPage() {
       setLoading(true);
       setError(false);
       try {
-        const [items, accounts, categories] = await Promise.all([
+        const [items, categories] = await Promise.all([
           savingGoalService.list(),
-          accountService.list().catch(() => [] as AccountResponse[]),
           categoryService.list().catch(() => [] as CategoryResponse[]),
         ]);
         if (cancelled) {
           return;
         }
-        const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
         const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
-        setAccountNames(accountMap);
-        setAccountCurrencies(
-          Object.fromEntries(accounts.map((a) => [a.id, a.currency])),
-        );
         setCategoryNames(categoryMap);
-        setGoals(items.map((goal) => toSavingGoalItem(goal, accountMap, categoryMap)));
+        setGoals(items.map((goal) => toSavingGoalItem(goal, categoryMap)));
       } catch {
         if (!cancelled) {
           setError(true);
@@ -150,11 +141,6 @@ export function SavingGoalsPage() {
   const currentPage = Math.min(page, totalPages);
   const rows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const accountOptions = useMemo(
-    () =>
-      Object.entries(accountNames).map(([id, name]) => ({ id, name })),
-    [accountNames],
-  );
   const categoryOptions = useMemo(
     () =>
       Object.entries(categoryNames).map(([id, name]) => ({ id, name })),
@@ -297,8 +283,6 @@ export function SavingGoalsPage() {
           onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
           mode={formState.mode}
           goal={formState.goal}
-          accounts={accountOptions}
-          accountCurrencies={accountCurrencies}
           categories={categoryOptions}
           onSubmit={(values) => void handleFormSubmit(values)}
         />

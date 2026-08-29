@@ -9,7 +9,7 @@ import {
 } from '../../reports/services/cashflow-trend.service';
 import { AnalyticsQueryDto } from '../dto/analytics-query.dto';
 import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
-import { getCurrencySpec } from '../../../common/currencies';
+import { FIXED_CURRENCY, getCurrencySpec } from '../../../common/currencies';
 
 interface ResolvedRange {
   start: Date;
@@ -147,17 +147,6 @@ export class AnalyticsService {
 
   private round(value: number): number {
     return Math.round(value * 100) / 100;
-  }
-
-  // Resolve primary account currency so spending aggregates never mix
-  // different currencies (Phase C multi-currency rule).
-  private async resolveTargetCurrency(userId: string): Promise<string> {
-    const accounts = await this.prisma.account.findMany({
-      where: { user_id: userId, deleted_at: null },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    return defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
   }
 
   private percentChange(current: number, previous: number): number | null {
@@ -413,7 +402,6 @@ export class AnalyticsService {
     query: AnalyticsQueryDto,
   ): Promise<AnalyticsSpendingResult> {
     const range = this.resolveRange(query);
-    const targetCurrency = await this.resolveTargetCurrency(userId);
     const [summary, breakdown, expAgg, incomeCount, expenseCount, totalCount] =
       await Promise.all([
         this.getSummary(userId, range),
@@ -423,7 +411,6 @@ export class AnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
-            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
           _avg: { amount_cents: true },
@@ -434,7 +421,6 @@ export class AnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.INCOME,
-            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -443,7 +429,6 @@ export class AnalyticsService {
             user_id: userId,
             deleted_at: null,
             transaction_type: TransactionType.EXPENSE,
-            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -451,7 +436,6 @@ export class AnalyticsService {
           where: {
             user_id: userId,
             deleted_at: null,
-            account: { currency: targetCurrency },
             transaction_date: { gte: range.start, lte: range.end },
           },
         }),
@@ -495,26 +479,16 @@ export class AnalyticsService {
       this.toNumber(overviewResult.expense) === 0 &&
       this.toNumber(overviewResult.transactions) === 0
     ) {
-      // Additionally check account balances in the target currency: if total assets are
-      // zero we must not introduce any artificial baseline score. Return zero health.
-      const targetCurrency = await this.resolveTargetCurrency(userId);
-      const accAgg = await this.prisma.account.aggregate({
-        where: { user_id: userId, deleted_at: null, currency: targetCurrency },
-        _sum: { current_balance_cents: true },
-      });
-      const totalAssets = this.toNumber(accAgg._sum?.current_balance_cents ?? 0);
-      if (totalAssets === 0) {
-        return {
-          score: 0,
-          label: 'risk',
-          savingRate: 0,
-          expenseRatio: 0,
-          incomeVsExpense: null,
-          netCashFlow: '0',
-          cashFlowPositive: false,
-          spendingConcentration: 0,
-        };
-      }
+      return {
+        score: 0,
+        label: 'risk',
+        savingRate: 0,
+        expenseRatio: 0,
+        incomeVsExpense: null,
+        netCashFlow: '0',
+        cashFlowPositive: false,
+        spendingConcentration: 0,
+      };
     }
 
     const [summary, breakdown] = await Promise.all([
@@ -588,7 +562,6 @@ export class AnalyticsService {
 
   async insights(userId: string, query: AnalyticsQueryDto): Promise<string[]> {
     const range = this.resolveRange(query);
-    const targetCurrency = await this.resolveTargetCurrency(userId);
     const [summary, prev, breakdown] = await Promise.all([
       this.getSummary(userId, range),
       this.getSummary(userId, this.previousRange(range)),
@@ -609,11 +582,11 @@ export class AnalyticsService {
     const insights: string[] = [];
     if (txCount === 0) return insights;
 
-    const locale = getCurrencySpec(targetCurrency).primaryLocale;
-      const fmt = (v: number) =>
-        new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
-          Math.round(Math.abs(v)),
-        );
+    const locale = getCurrencySpec(FIXED_CURRENCY).primaryLocale;
+    const fmt = (v: number) =>
+      new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+        Math.round(Math.abs(v)),
+      );
 
     if (income > 0 && prevIncome > 0) {
       const change = this.percentChange(income, prevIncome);
@@ -646,11 +619,11 @@ export class AnalyticsService {
 
     if (netCashFlow > 0) {
       insights.push(
-        `Arus kas bersih positif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), targetCurrency)}.`,
+        `Arus kas bersih positif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), FIXED_CURRENCY)}.`,
       );
     } else if (netCashFlow < 0) {
       insights.push(
-        `Arus kas bersih negatif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), targetCurrency)}.`,
+        `Arus kas bersih negatif sebesar ${formatMoneyFromMinorUnits(Math.round(netCashFlow), FIXED_CURRENCY)}.`,
       );
     }
 

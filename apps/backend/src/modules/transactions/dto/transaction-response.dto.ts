@@ -5,9 +5,6 @@ export class TransactionResponseDto {
   id!: string;
 
   @ApiProperty()
-  account_id!: string;
-
-  @ApiProperty()
   category_id!: string;
 
   @ApiProperty()

@@ -47,7 +47,7 @@ export function TransactionSummaryCard({ data, loading = false }: TransactionSum
                 <span className="truncate text-sm font-medium text-foreground">{tx.category}</span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {tx.description || tx.account}
+                {tx.description}
               </p>
             </div>
             <div className="shrink-0 text-right">

@@ -21,14 +21,7 @@ describe('AnalyticsService', () => {
     const cashflowTrend = {
       getTrend: jest.fn(),
     };
-    const prisma = {
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-        aggregate: jest.fn().mockResolvedValue({ _sum: { current_balance_cents: 0 } }),
-      },
-    } as any;
+    const prisma = {} as any;
 
     const service = new AnalyticsService(
       prisma,
@@ -67,14 +60,7 @@ describe('AnalyticsService', () => {
       }),
     };
     const cashflowTrend = { getTrend: jest.fn() };
-    const prisma = {
-      account: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-        aggregate: jest.fn().mockResolvedValue({ _sum: { current_balance_cents: 100000 } }),
-      },
-    } as any;
+    const prisma = {} as any;
     const service = new AnalyticsService(prisma as any, monthly as any, categoryBreakdown as any, cashflowTrend as any);
 
     const result = await service.financialHealth('user-1', {

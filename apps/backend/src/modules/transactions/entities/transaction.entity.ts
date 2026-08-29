@@ -4,7 +4,6 @@ export class TransactionEntity {
   id!: string;
   user_id!: string;
 
-  account_id!: string;
   category_id!: string;
 
   transaction_type!: TransactionType;
@@ -13,7 +12,6 @@ export class TransactionEntity {
 
   note?: string | null;
   reference_number?: string | null;
-  attachment_url?: string | null;
   location?: string | null;
 
   created_at!: Date;

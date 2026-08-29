@@ -8,7 +8,6 @@ import { formatCurrencyCents } from "@/lib/format";
 import { getPercentage, getRemaining } from "@/lib/progress";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
-import { useDashboardCurrencyStore } from "@/stores/dashboardCurrency.store";
 import type { MonthlyTargetItem } from "@/types/dashboard";
 
 interface MonthlyTargetCardProps {
@@ -17,7 +16,6 @@ interface MonthlyTargetCardProps {
 
 export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
   const [expanded, setExpanded] = useState(true);
-  const activeCurrency = useDashboardCurrencyStore((state) => state.currency);
 
   const totalTarget = items.reduce((sum, item) => sum + item.target, 0);
   const totalRealized = items.reduce((sum, item) => sum + item.realized, 0);
@@ -75,15 +73,15 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.targetMonth}</p>
-                    <p className="font-medium text-foreground">{formatCurrencyCents(item.target, activeCurrency)}</p>
+                    <p className="font-medium text-foreground">{formatCurrencyCents(item.target, "IDR")}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.realized}</p>
-                    <p className="font-medium text-emerald-500">{formatCurrencyCents(item.realized, activeCurrency)}</p>
+                    <p className="font-medium text-emerald-500">{formatCurrencyCents(item.realized, "IDR")}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground">{uiText.dashboard.remaining}</p>
-                    <p className="font-medium text-foreground">{formatCurrencyCents(remaining, activeCurrency)}</p>
+                    <p className="font-medium text-foreground">{formatCurrencyCents(remaining, "IDR")}</p>
                   </div>
                 </div>
               </div>
@@ -104,7 +102,7 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{uiText.dashboard.realized}</span>
               <span className="font-medium text-foreground">
-                {formatCurrencyCents(totalRealized, activeCurrency)} / {formatCurrencyCents(totalTarget, activeCurrency)}
+                {formatCurrencyCents(totalRealized, "IDR")} / {formatCurrencyCents(totalTarget, "IDR")}
               </span>
             </div>
           </>

@@ -9,9 +9,6 @@ export class InvestmentResponseDto {
   @ApiProperty()
   id!: string;
 
-  @ApiPropertyOptional()
-  account_id?: string | null;
-
   @ApiPropertyOptional({ enum: SUPPORTED_CURRENCIES })
   currency?: string | null;
 

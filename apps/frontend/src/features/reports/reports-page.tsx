@@ -18,11 +18,10 @@ import { computeRange, pickTrendType, previousRange, type PeriodKey, type Report
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
-import { accountService } from "@/services/account.service";
 import { categoryService } from "@/services/category.service";
 import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ExportFormat, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
-import type { AccountResponse, CategoryResponse } from "@/types/backend";
+import type { CategoryResponse } from "@/types/backend";
 import type { FlowPoint, TransactionItem } from "@/types/dashboard";
 
 function toDateInputValue(iso: string): string {
@@ -97,7 +96,7 @@ export function ReportsPage() {
         const trendType = pickTrendType(range);
         const prev = previousRange(range);
 
-        const [summaryRes, incomeRes, expenseRes, trendRes, txRes, accounts, categories] =
+        const [summaryRes, incomeRes, expenseRes, trendRes, txRes, categories] =
           await Promise.all([
             reportService.getSummary(range),
             reportService.getCategoryBreakdown("income", range),
@@ -110,7 +109,6 @@ export function ReportsPage() {
               sortBy: "date",
               sortOrder: "desc",
             }),
-            accountService.list().catch(() => [] as AccountResponse[]),
             categoryService.list().catch(() => [] as CategoryResponse[]),
           ]);
 
@@ -123,8 +121,6 @@ export function ReportsPage() {
 
         if (cancelled) return;
 
-        const accNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
-        const accCurrencies = Object.fromEntries(accounts.map((a) => [a.id, a.currency]));
         const catNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
 
         setSummary(summaryRes);
@@ -132,7 +128,7 @@ export function ReportsPage() {
         setIncomeBreakdown(incomeRes);
         setExpenseBreakdown(expenseRes);
         setTrend(trendRes.data ? trendRes.data : []);
-        setTransactions(txRes.data.map((dto) => toTransactionItem(dto, accNames, catNames, accCurrencies)));
+        setTransactions(txRes.data.map((dto) => toTransactionItem(dto, catNames)));
       } catch {
         if (!cancelled) setError(true);
       } finally {

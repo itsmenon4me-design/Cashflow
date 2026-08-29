@@ -60,11 +60,7 @@ export class BudgetAnalyticsService {
     userId: string,
     month: number,
     year: number,
-    currency: string,
   ): Promise<BudgetRow[]> {
-    const currencyFilter = currency
-      ? Prisma.sql`AND b.currency = ${currency}`
-      : Prisma.empty;
     return this.prisma.$queryRaw<BudgetRow[]>(
       Prisma.sql`
         SELECT
@@ -75,7 +71,6 @@ export class BudgetAnalyticsService {
           AND b.month = ${month}
           AND b.year = ${year}
           AND b.deleted_at IS NULL
-          ${currencyFilter}
         ORDER BY b.budget_amount_cents DESC
       `,
     );
@@ -93,19 +88,8 @@ export class BudgetAnalyticsService {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0, 23, 59, 59, 999);
 
-    // Resolve the active ledger currency.
-    const accounts = await this.prisma.account.findMany({
-      where: {
-        user_id: userId,
-        deleted_at: null,
-      },
-      select: { currency: true, is_default: true },
-    });
-    const defaultAcc = accounts.find((a) => a.is_default);
-    const targetCurrency = defaultAcc?.currency ?? accounts[0]?.currency ?? 'IDR';
-
-    // budgets (explicit scope only: legacy NULL budgets match any scope)
-    const budgets = await this.fetchBudgets(userId, m, y, targetCurrency);
+    // budgets
+    const budgets = await this.fetchBudgets(userId, m, y);
 
     // transactions
     const groups = await this.prisma.transaction
@@ -115,9 +99,6 @@ export class BudgetAnalyticsService {
           user_id: userId,
           deleted_at: null,
           transaction_type: TransactionType.EXPENSE,
-          account: { currency: targetCurrency },
-          // exclude transfer transactions
-          transfer_group_id: null,
           transaction_date: {
             gte: start,
             lte: end,

@@ -109,12 +109,8 @@ describe('PrismaTransactionsRepository keyword (q) safety', () => {
     const { prisma, repo } = makeRepo();
 
     await repo.findByUserWithFilter('user-1', { q: 'Gaji' } as any, { page: 1, limit: 10 });
-    let or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+    const or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
     expect(or).toContainEqual({ category: { name: { in: ['Salary'] } } });
-
-    await repo.findByUserWithFilter('user-1', { q: 'transfer masuk' } as any, { page: 1, limit: 10 });
-    or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
-    expect(or).toContainEqual({ category: { name: { in: ['Transfer In'] } } });
   });
 
   it('status words map to match-all / match-none predicates (no status column exists)', async () => {

@@ -23,7 +23,6 @@ describe("forecastService", () => {
         averageMonthlyIncomeCents: "10000000",
         averageMonthlyExpenseCents: "5000000",
       },
-      excludedTransfers: false,
       outliers: [],
       insufficientData: false,
     };
@@ -76,7 +75,7 @@ describe("forecastService", () => {
       data: { currency: "IDR", horizon: 3, months: [], confidence: 0, basis: {
         monthsUsed: 0, historyStart: "", historyEnd: "", totalIncomeCents: "0", totalExpenseCents: "0",
         averageMonthlyIncomeCents: "0", averageMonthlyExpenseCents: "0",
-      }, excludedTransfers: true, outliers: [], insufficientData: true },
+      }, outliers: [], insufficientData: true },
     });
 
     await forecastService.getForecast();
@@ -91,7 +90,6 @@ describe("forecastService", () => {
       months: [{ period: "2026-07", projectedIncomeCents: "123", projectedExpenseCents: "1747", projectedNetCashflowCents: "-1624", projectedEndingBalanceCents: "9007199254740993" }],
       confidence: 0.5,
       basis: { monthsUsed: 6, historyStart: "2025-12", historyEnd: "2026-05", totalIncomeCents: "999", totalExpenseCents: "501", averageMonthlyIncomeCents: "137", averageMonthlyExpenseCents: "17" },
-      excludedTransfers: true,
       outliers: [{ period: "2026-01", amountCents: "-13759" }],
       insufficientData: false,
     };

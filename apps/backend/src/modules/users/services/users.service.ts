@@ -50,6 +50,9 @@ export class UsersService {
       this.logger.log(
         `Role Assigned: SUPER_ADMIN to first user (deferred until creation)`,
       );
+    } else if (!u.role_id) {
+      const defaultRole = await this.roleRepo.ensureDefaultRole();
+      u.role_id = defaultRole.id;
     }
 
     try {

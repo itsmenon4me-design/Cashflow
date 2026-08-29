@@ -11,7 +11,6 @@ import {
   MinLength,
 } from 'class-validator';
 import { BILL_RECURRENCE_TYPES } from './create-bill.dto';
-import { SUPPORTED_CURRENCIES } from '../../../common/types/money';
 
 export class UpdateBillDto {
   @IsOptional()
@@ -23,15 +22,6 @@ export class UpdateBillDto {
   @IsInt()
   @Min(1)
   amount_cents?: number;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(SUPPORTED_CURRENCIES as string[])
-  currency?: string;
-
-  @IsOptional()
-  @IsUUID('loose')
-  account_id?: string;
 
   @IsOptional()
   @IsUUID('loose')

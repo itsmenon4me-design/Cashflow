@@ -6,7 +6,6 @@
   amount_cents!: bigint;
   currency!: string;
 
-  account_id!: string;
   category_id!: string;
 
   due_date!: Date;

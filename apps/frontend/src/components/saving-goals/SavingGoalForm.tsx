@@ -45,8 +45,6 @@ interface SavingGoalFormProps {
   onOpenChange: (open: boolean) => void;
   mode: SavingGoalFormMode;
   goal: SavingGoalItem | null;
-  accounts: SavingGoalFormOption[];
-  accountCurrencies?: Record<string, string>;
   categories: SavingGoalFormOption[];
   onSubmit: (values: SavingGoalFormValues) => void;
 }
@@ -55,7 +53,6 @@ function toFormValues(goal: SavingGoalItem): SavingGoalFormValues {
   return {
     name: goal.name,
     description: goal.description ?? "",
-    accountId: goal.accountId ?? "",
     categoryId: goal.categoryId ?? "",
     target: goal.target,
     current: goal.current,
@@ -77,8 +74,6 @@ export function SavingGoalForm({
   onOpenChange,
   mode,
   goal,
-  accounts,
-  accountCurrencies,
   categories,
   onSubmit,
 }: SavingGoalFormProps) {
@@ -103,8 +98,7 @@ export function SavingGoalForm({
 
   const { errors } = form.formState;
 
-  const watchedAccountId = form.watch("accountId");
-  const amountCurrency = accountCurrencies?.[watchedAccountId ?? ""] ?? "IDR";
+  const amountCurrency = "IDR";
 
   const handleSubmit = (values: SavingGoalFormValues) => {
     onSubmit(values);
@@ -207,32 +201,6 @@ export function SavingGoalForm({
                   {...form.register("targetDate")}
                 />
                 <FormError message={errors.targetDate?.message} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{uiText.savingGoals.fieldAccount}</Label>
-                <Controller
-                  control={form.control}
-                  name="accountId"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isView}>
-                      <SelectTrigger
-                        className="h-11 w-full data-[size=default]:h-11 sm:h-9 sm:data-[size=default]:h-9"
-                        aria-label={uiText.savingGoals.fieldAccount}
-                      >
-                        <SelectValue placeholder="—" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">—</SelectItem>
-                        {accounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
               </div>
 
               <div className="space-y-2">

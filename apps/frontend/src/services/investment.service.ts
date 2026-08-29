@@ -16,7 +16,6 @@ export type InvestmentStatus = "ACTIVE" | "SOLD" | "CLOSED";
 export type SupportedEntityCurrency = SupportedCurrency;
 
 export interface CreateInvestmentPayload {
-  account_id?: string;
   currency?: SupportedEntityCurrency;
   investment_type: InvestmentType;
   platform: string;
@@ -32,7 +31,6 @@ export interface CreateInvestmentPayload {
 }
 
 export type UpdateInvestmentPayload = {
-  account_id?: string | null;
   currency?: SupportedEntityCurrency;
   investment_type?: InvestmentType;
   platform?: string;
@@ -49,7 +47,6 @@ export type UpdateInvestmentPayload = {
 
 export interface InvestmentResponse {
   id: string;
-  account_id: string | null;
   currency?: SupportedEntityCurrency;
   investment_type: InvestmentType;
   platform: string;
@@ -87,8 +84,6 @@ export interface InvestmentOverview {
 
 export interface InvestmentItem {
   id: string;
-  accountId: string | null;
-  accountName: string | null;
   type: InvestmentType;
   platform: string;
   name: string;
@@ -108,16 +103,10 @@ export interface InvestmentItem {
 
 export function toInvestmentItem(
   item: InvestmentResponse,
-  accountNames: Record<string, string>,
-  accountCurrencies: Record<string, string> = {},
 ): InvestmentItem {
-    const currency =
-      item.currency ??
-      (item.account_id ? accountCurrencies[item.account_id] ?? "IDR" : "IDR");
+    const currency = item.currency ?? "IDR";
   return {
     id: item.id,
-    accountId: item.account_id,
-    accountName: item.account_id ? (accountNames[item.account_id] ?? "-") : null,
     type: item.investment_type,
     platform: item.platform,
     name: item.name,

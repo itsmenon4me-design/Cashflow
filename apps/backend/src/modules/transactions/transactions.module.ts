@@ -6,7 +6,6 @@ import { PrismaModule } from '../../database/prisma.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { TransactionValidationService } from './services/validation/transaction-validation.service';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { AccountsModule } from '../accounts/accounts.module';
 import { FinanceBotModule } from '../finance-bot/finance-bot.module';
 
 @Module({
@@ -14,7 +13,6 @@ import { FinanceBotModule } from '../finance-bot/finance-bot.module';
     PrismaModule,
     AuditLogsModule,
     NotificationsModule,
-    AccountsModule,
     FinanceBotModule,
   ],
   controllers: [TransactionsController],

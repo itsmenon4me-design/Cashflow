@@ -47,7 +47,6 @@ describe("DashboardPage simplified layout", () => {
       total_categories: 5,
       total_transactions: 10,
       last_updated_at: null,
-      by_currency: [],
     } as any);
 
     vi.spyOn(dashboardService, "getFlowSeries").mockResolvedValue({
@@ -63,7 +62,6 @@ describe("DashboardPage simplified layout", () => {
         type: "income",
         category: "Salary",
         date: "2026-08-25T00:00:00.000Z",
-        account: "BCA",
         status: "completed",
       },
     ]);

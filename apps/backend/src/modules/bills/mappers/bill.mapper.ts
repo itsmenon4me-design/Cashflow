@@ -8,7 +8,6 @@ export function toBillResponse(bill: BillEntity): BillResponseDto {
     payee: bill.payee,
     amount_cents: bill.amount_cents.toString(),
     currency: bill.currency,
-    account_id: bill.account_id ?? null,
     category_id: bill.category_id ?? null,
     due_date: bill.due_date,
     due_date_timezone: bill.due_date_timezone ?? null,

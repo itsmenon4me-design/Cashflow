@@ -2,8 +2,8 @@ import { BudgetAnalyticsService } from './budget-analytics.service';
 import type { PrismaService } from '../../../database/prisma.service';
 import type { Prisma } from '../../../generated/prisma/client';
 
-describe('BudgetAnalyticsService - transfer exclusion', () => {
-  it('excludes transfer_group_id from transaction groupBy', async () => {
+describe('BudgetAnalyticsService', () => {
+  it('queries transaction groupBy without currency or transfer filters', async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const transaction = {
       groupBy: jest.fn().mockImplementation((args: unknown) => {
@@ -19,16 +19,10 @@ describe('BudgetAnalyticsService - transfer exclusion', () => {
       }),
     };
     const category = { findMany: jest.fn().mockResolvedValue([]) };
-    const account = {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-    };
     const prisma: Partial<PrismaService> = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       transaction: transaction as unknown as PrismaService['transaction'],
       category: category as unknown as PrismaService['category'],
-      account: account as unknown as PrismaService['account'],
     };
 
     const svc = new BudgetAnalyticsService(prisma as PrismaService);
@@ -36,15 +30,15 @@ describe('BudgetAnalyticsService - transfer exclusion', () => {
 
     expect(capturedWhere).not.toBeNull();
     if (!capturedWhere) return;
-    // ensure transfer_group_id filter is present and null (exclude transfers)
-    expect(capturedWhere['transfer_group_id']).toBeNull();
+    // transfer_group_id and account currency filters must no longer be present
+    expect(capturedWhere['transfer_group_id']).toBeUndefined();
+    expect(capturedWhere['account']).toBeUndefined();
     // ensure deleted_at and transaction_type still present
     expect(capturedWhere['deleted_at']).toBeNull();
     expect(capturedWhere['transaction_type']).toBeDefined();
   });
 
-  it('counts normal expense and excludes deleted/transfer', async () => {
-    // basic end-to-end mock: groups include regular expense; deleted or transfer excluded earlier by where.
+  it('counts normal expense stays BigInt-safe', async () => {
     const groups = [
       { category_id: 'c1', _sum: { amount_cents: 1000 }, _count: { id: 1 } },
     ];
@@ -52,21 +46,14 @@ describe('BudgetAnalyticsService - transfer exclusion', () => {
     const category2 = {
       findMany: jest.fn().mockResolvedValue([{ id: 'c1', name: 'Food' }]),
     };
-    const account2 = {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([{ currency: 'IDR', is_default: true }]),
-    };
     const prisma: Partial<PrismaService> = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       transaction: transaction2 as unknown as PrismaService['transaction'],
       category: category2 as unknown as PrismaService['category'],
-      account: account2 as unknown as PrismaService['account'],
     };
     const svc = new BudgetAnalyticsService(prisma as PrismaService);
     const res = await svc.analyzeMonth('u1', 8, 2026);
     expect(res.categories.length).toBeGreaterThanOrEqual(0);
-    // exact money values remain BigInt-safe strings at the API boundary
     expect(typeof res.overall.budget).toBe('string');
     expect(typeof res.overall.spent).toBe('string');
   });

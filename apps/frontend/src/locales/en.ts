@@ -492,12 +492,9 @@ export const enText = {
     fieldTime: "Time",
     fieldType: "Type",
     fieldCategory: "Category",
-    fieldAccount: "Account",
     fieldAmount: "Amount",
     fieldDescription: "Description",
-    fieldAttachment: "Attachment",
     fieldNotes: "Notes",
-    attachmentPlaceholder: "Upload attachment (not available yet)",
     deleteTitle: "Delete Transaction",
     deleteMessage: "Are you sure you want to delete this transaction?",
     typeIncome: "Income",
@@ -717,9 +714,6 @@ export const enText = {
     outlierTitle: "Historical outliers",
     outlierDescription:
       "Some historical values were excluded from the basis to keep the forecast stable.",
-    transferNoticeTitle: "Transfer handling",
-    transferNoticeDescription:
-      "Transfers were excluded from this forecast so it stays focused on actual cash movement.",
     insufficientDataTitle:
       "Not enough data to generate a financial forecast yet.",
     insufficientDataDescription:
