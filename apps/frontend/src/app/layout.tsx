@@ -59,6 +59,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);if(t==='light'){document.documentElement.classList.remove('dark');}else if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var cn='cashflow_sidebar_expanded';var c=document.cookie.split(';').find(function(c){return c.trim().startsWith(cn+'=')});if(c){var v=decodeURIComponent(c.split('=')[1]);window.__sidebarExpanded=JSON.parse(v);}else{window.__sidebarExpanded={};}}catch(e){window.__sidebarExpanded={};}})();`,
+          }}
+        />
         <Script
           id="app-ready-init"
           strategy="beforeInteractive"

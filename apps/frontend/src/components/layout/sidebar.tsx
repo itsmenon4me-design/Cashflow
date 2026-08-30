@@ -1,16 +1,29 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
-import { useSidebarStore } from "@/stores/sidebar.store";
 
-export const Sidebar = memo(function Sidebar() {
-  const { collapsed, toggleCollapsed } = useSidebarStore();
+interface SidebarProps {
+  initialExpanded: Partial<Record<"transactions" | "planning" | "reports" | "system", boolean>>;
+  initialCollapsed: boolean;
+}
+
+const COLLAPSED_COOKIE = "cashflow_sidebar_collapsed";
+
+export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(() => initialCollapsed);
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current;
+      document.cookie = `${COLLAPSED_COOKIE}=${next}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      return next;
+    });
+  };
 
   return (
     <aside
@@ -37,7 +50,7 @@ export const Sidebar = memo(function Sidebar() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-3 pb-5 pt-4">
-        <SidebarNav collapsed={collapsed} />
+        <SidebarNav collapsed={collapsed} initialExpanded={initialExpanded} />
       </ScrollArea>
 
       <div className="shrink-0 border-t border-sidebar-border p-3">

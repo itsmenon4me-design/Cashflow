@@ -8,9 +8,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 interface MobileDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialExpanded: Partial<Record<"transactions" | "planning" | "reports" | "system", boolean>>;
 }
 
-export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
+export function MobileDrawer({ open, onOpenChange, initialExpanded }: MobileDrawerProps) {
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
@@ -30,7 +31,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           <SheetTitle className="text-sidebar-foreground">CashFlow</SheetTitle>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-5 pt-4">
-          <SidebarNav onNavigate={() => onOpenChange(false)} />
+          <SidebarNav onNavigate={() => onOpenChange(false)} initialExpanded={initialExpanded} />
         </div>
       </SheetContent>
     </Sheet>

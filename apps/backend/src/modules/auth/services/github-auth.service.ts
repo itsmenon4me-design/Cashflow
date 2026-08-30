@@ -235,7 +235,7 @@ export class GithubAuthService {
     }
     const session = await this.authService.issueSessionForUser(
       user,
-      'google',
+      'github',
       input.context,
     );
     return {

@@ -52,9 +52,11 @@ function useGlobalAutoRefresh() {
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  initialExpanded: Partial<Record<"transactions" | "planning" | "reports" | "system", boolean>>;
+  initialCollapsed: boolean;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, initialExpanded, initialCollapsed }: DashboardLayoutProps) {
   const { mobileOpen, setMobileOpen } = useSidebarStore();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -63,8 +65,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="mx-auto flex h-dvh w-full max-w-[1600px] overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} />
+        <Sidebar initialExpanded={initialExpanded} initialCollapsed={initialCollapsed} />
+        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} initialExpanded={initialExpanded} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <HeaderBar />

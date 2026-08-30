@@ -10,6 +10,8 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { ErrorBoundary } from "@/components/states/ErrorBoundary";
 import { LanguageProvider } from "@/components/providers/language-provider";
+import { apiClient, ApiError } from "@/lib/axios";
+import { getAccessToken } from "@/lib/auth-token";
 import { useAuthStore } from "@/stores/auth.store";
 import { hydrateLanguagePreference } from "@/stores/language.store";
 import { hydrateThemePreference } from "@/stores/theme.store";
@@ -31,6 +33,29 @@ useEffect(() => {
     };
 
     hydrateAuth();
+
+    if (getAccessToken()) {
+      void apiClient
+        .get<{
+          success: boolean;
+          data?: { id?: string; full_name?: string; name?: string; email?: string };
+        }>("/auth/me")
+        .then((response) => {
+          const profile = response.data;
+          if (!profile) return;
+
+          useAuthStore.getState().setUser({
+            name: profile.full_name || profile.name || "Pengguna",
+            email: profile.email || useAuthStore.getState().user?.email || "",
+          });
+        })
+        .catch((error: unknown) => {
+          // Keep the locally cached profile for network failures. Auth errors are
+          // handled by the existing API interceptor and redirect flow.
+          if (error instanceof ApiError && error.status === 401) return;
+          console.warn("[app-providers] profile refresh failed; using cached user", error);
+        });
+    }
 
     // Hydrate other client-only preferences (language, theme)
     try {

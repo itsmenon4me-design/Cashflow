@@ -1,20 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Bell,
   Bot,
-  CheckCircle2,
   Globe,
-  LogOut,
+  Laptop,
   Moon,
   Palette,
   Search,
-  ShieldAlert,
   Sun,
   Trash2,
+  User as UserIcon,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,9 +25,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { FinanceBotCard } from "@/features/finance-bot/FinanceBotCard";
+import { ActiveSessionsTable } from "@/features/settings/active-sessions-table";
+import { ProfileFormInline } from "@/features/settings/profile-form-inline";
 import { ErrorState } from "@/components/states/ErrorState";
 import { uiText } from "@/locales";
-import { apiClient } from "@/lib/axios";
 import { authService } from "@/services/auth.service";
 import { settingsService } from "@/services/settings.service";
 import { useAuthStore } from "@/stores/auth.store";
@@ -123,6 +123,7 @@ function SettingsGroup({
 
 export function SettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, setTheme } = useThemeStore();
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
@@ -133,9 +134,10 @@ export function SettingsPage() {
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
-  const [accountNotice, setAccountNotice] = useState<string | null>(null);
-  const [accountError, setAccountError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
+    const tab = searchParams.get("tab");
+    return SETTINGS_TABS.some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
+  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
@@ -171,10 +173,23 @@ export function SettingsPage() {
   }, [searchQuery]);
 
   useEffect(() => {
+    const tab = searchParams.get("tab");
+    const nextTab = SETTINGS_TABS.some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
+    setActiveTab((current) => current === nextTab ? current : nextTab);
+  }, [searchParams]);
+
+  useEffect(() => {
     if (filteredTabs.length > 0 && !filteredTabs.some((tab) => tab.id === activeTab)) {
-      setActiveTab(filteredTabs[0].id);
+      const nextTab = filteredTabs[0].id;
+      setActiveTab(nextTab);
+      router.replace(`/settings?tab=${encodeURIComponent(nextTab)}`, { scroll: false });
     }
-  }, [activeTab, filteredTabs]);
+  }, [activeTab, filteredTabs, router]);
+
+  const handleTabChange = (tab: SettingsTabId) => {
+    setActiveTab(tab);
+    router.replace(`/settings?tab=${encodeURIComponent(tab)}`, { scroll: false });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -236,17 +251,6 @@ export function SettingsPage() {
     void persist({ notificationPreferences: { [key]: value } });
   };
 
-  const handleLogoutAllDevices = async () => {
-    setAccountError(null);
-    setAccountNotice(null);
-    try {
-      await apiClient.delete<{ success: boolean }>("/auth/sessions");
-      setAccountNotice("Anda sudah logout dari semua perangkat.");
-    } catch {
-      setAccountError("Gagal logout dari semua perangkat. Coba lagi.");
-    }
-  };
-
   const handleDeleteAccount = async () => {
     if (!user?.email) {
       setDeleteError("Sesi Anda tidak valid. Silakan login kembali.");
@@ -305,7 +309,7 @@ export function SettingsPage() {
       </div>
 
       <div className="flex flex-col gap-6 xl:flex-row">
-        <aside className="w-full xl:max-w-[300px]">
+        <aside className="w-full xl:w-[360px] xl:min-w-[360px] xl:max-w-[360px]">
           <div className="rounded-2xl border bg-card p-3 shadow-sm">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -330,7 +334,7 @@ export function SettingsPage() {
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                       className={[
                         "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors",
                         isActive ? "border-primary/40 bg-accent text-accent-foreground shadow-sm" : "border-border bg-background/60 hover:bg-muted/60",
@@ -345,8 +349,8 @@ export function SettingsPage() {
                           <Icon className="size-4" />
                         </div>
                         <div>
-                          <div className="text-sm font-medium">{tab.label}</div>
-                          <div className="text-[11px] text-muted-foreground">{tab.summary}</div>
+                          <div className="whitespace-nowrap text-sm font-medium">{tab.label}</div>
+                          <div className="whitespace-nowrap text-[11px] text-muted-foreground">{tab.summary}</div>
                         </div>
                       </div>
                     </button>
@@ -418,43 +422,25 @@ export function SettingsPage() {
               </div>
 
               <Card className="shadow-sm">
-                <CardContent className="space-y-4 py-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Nama</p>
-                      <p className="text-lg font-semibold text-foreground">{user?.name ?? "Pengguna"}</p>
-                    </div>
-                    <div className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Aktif</div>
-                  </div>
+                <CardHeader>
+                  <SectionHeading icon={UserIcon} title="Profil" subtitle="Informasi akun Anda" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ProfileFormInline />
 
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium text-foreground">{user?.email ?? "—"}</p>
-                  </div>
+                </CardContent>
+              </Card>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <Button variant="outline" asChild>
-                      <a href="/profile">Edit Profil</a>
-                    </Button>
-                    <Button variant="secondary" onClick={handleLogoutAllDevices} className="gap-2">
-                      <LogOut className="size-4" />
-                      Log out dari semua perangkat
-                    </Button>
-                  </div>
-
-                  {accountNotice ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                      <CheckCircle2 className="size-4" />
-                      {accountNotice}
-                    </div>
-                  ) : null}
-
-                  {accountError ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                      <ShieldAlert className="size-4" />
-                      {accountError}
-                    </div>
-                  ) : null}
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <SectionHeading
+                    icon={Laptop}
+                    title="Sesi Aktif"
+                    subtitle="Perangkat yang sedang login dengan akun Anda"
+                  />
+                </CardHeader>
+                <CardContent>
+                  <ActiveSessionsTable />
                 </CardContent>
               </Card>
 

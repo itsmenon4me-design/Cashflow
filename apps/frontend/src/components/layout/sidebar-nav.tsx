@@ -15,6 +15,7 @@ import { getAppMenuItems, type AppMenuItem } from "@/lib/navigation";
 import { warmRouteData } from "@/lib/route-data-prefetch";
 
 const STORAGE_KEY = "cashflow:sidebar-groups";
+const COOKIE_NAME = "cashflow_sidebar_expanded";
 
 type GroupKey = "transactions" | "planning" | "reports" | "system";
 
@@ -24,23 +25,74 @@ interface NavGroup {
   items: AppMenuItem[];
 }
 
+function getCookieValue(name: string): Record<string, boolean> {
+  try {
+    const entry = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith(name + "="));
+    return entry ? JSON.parse(decodeURIComponent(entry.split("=")[1])) : {};
+  } catch {
+    return {};
+  }
+}
+
 function isActivePath(href: string, pathname: string): boolean {
   return href === "/"
     ? pathname === "/" || pathname === "/dashboard"
     : pathname === href;
 }
 
+function setCookieValue(name: string, value: Record<string, boolean>) {
+  const maxAge = 30 * 24 * 60 * 60; // 30 days
+  document.cookie = `${name}=${encodeURIComponent(
+    JSON.stringify(value)
+  )}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
 interface SidebarNavProps {
   collapsed?: boolean;
   onNavigate?: () => void;
+  initialExpanded?: Partial<Record<GroupKey, boolean>>;
 }
 
-export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
+declare global {
+  interface Window {
+    __sidebarExpanded?: Partial<Record<GroupKey, boolean>>;
+  }
+}
+
+export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate, initialExpanded = {} }: SidebarNavProps) {
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState<Partial<Record<GroupKey, boolean>>>({});
-  const [hydrated, setHydrated] = useState(false);
+  const [expanded, setExpanded] = useState<Partial<Record<GroupKey, boolean>>>(() => {
+    if (Object.keys(initialExpanded).length > 0) {
+      return initialExpanded;
+    }
+    if (typeof window !== "undefined" && window.__sidebarExpanded) {
+      return window.__sidebarExpanded;
+    }
+    return {};
+  });
   const items = getAppMenuItems();
   const findByHref = (href: string) => items.find((item) => item.href === href);
+
+  useEffect(() => {
+    if (Object.keys(initialExpanded).length > 0) return;
+    if (Object.keys(expanded).length > 0) return;
+
+    const stored = getCookieValue(COOKIE_NAME);
+    if (Object.keys(stored).length > 0) {
+      setExpanded(stored);
+      return;
+    }
+
+    const legacyStored = window.localStorage.getItem(STORAGE_KEY);
+    if (!legacyStored) return;
+
+    const parsed = JSON.parse(legacyStored) as Partial<Record<GroupKey, boolean>>;
+    setExpanded(parsed);
+    setCookieValue(COOKIE_NAME, parsed);
+  }, [expanded, initialExpanded]);
 
   const groups: NavGroup[] = [
     { items: [findByHref("/dashboard")].filter(Boolean) as AppMenuItem[] },
@@ -48,8 +100,8 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       key: "transactions",
       title: "Transaksi",
       items: ["/incomes", "/expenses", "/transactions", "/categories"]
-        .map(findByHref)
-        .filter(Boolean) as AppMenuItem[],
+      .map(findByHref)
+      .filter(Boolean) as AppMenuItem[],
     },
     {
       key: "planning",
@@ -64,24 +116,18 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     {
       key: "system",
       title: "Sistem",
-      items: ["/notifications", "/log-aktivitas", "/profile"].map(findByHref).filter(Boolean) as AppMenuItem[],
+      items: [].map(findByHref).filter(Boolean) as AppMenuItem[],
     },
     { items: [findByHref("/settings")].filter(Boolean) as AppMenuItem[] },
   ];
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) setExpanded(JSON.parse(stored));
-    } catch {}
-    setHydrated(true);
-  }, []);
 
   const toggleGroup = (key: GroupKey) => {
     setExpanded((current) => {
       const next = { ...current, [key]: !current[key] };
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      setCookieValue(COOKIE_NAME, next);
+      // Also keep localStorage for backwards compatibility during migration
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch {}
       return next;
     });
@@ -92,41 +138,43 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     const isActive = isActivePath(item.href, pathname);
     const link = (
       <Link
-        key={item.href}
-        href={item.href}
-        onClick={onNavigate}
-        prefetch
-        aria-label={item.label}
-        aria-current={isActive ? "page" : undefined}
-        onMouseEnter={() => warmRouteData(item.href)}
-        onFocus={() => warmRouteData(item.href)}
-        onTouchStart={() => warmRouteData(item.href)}
-        className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150",
-          collapsed ? "justify-center px-0" : "px-3",
-          isActive
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground"
-        )}
+      key={item.href}
+      href={item.href}
+      onClick={onNavigate}
+      prefetch
+      aria-label={item.label}
+      aria-current={isActive ? "page" : undefined}
+      onMouseEnter={() => warmRouteData(item.href)}
+      onFocus={() => warmRouteData(item.href)}
+      onTouchStart={() => warmRouteData(item.href)}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+        collapsed ? "justify-center px-0" : "px-3",
+        isActive
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      )}
       >
-        <Icon className="size-4 shrink-0" />
-        {!collapsed && <span className="truncate">{item.label}</span>}
+      <Icon className="size-4 shrink-0" />
+      {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     );
 
     return collapsed ? (
       <Tooltip key={item.href} delayDuration={0}>
-        <TooltipTrigger asChild>{link}</TooltipTrigger>
-        <TooltipContent side="right">{item.label}</TooltipContent>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent side="right">{item.label}</TooltipContent>
       </Tooltip>
     ) : link;
   };
 
   return (
     <nav className={cn("flex flex-col", collapsed ? "gap-1" : "gap-3")} aria-label={uiText.common.openMenuAriaLabel}>
-      {groups.map((group, index) => {
+      {groups
+      .filter((group) => group.items.length > 0)
+      .map((group, index) => {
         const active = group.items.some((item) => isActivePath(item.href, pathname));
-        const isOpen = collapsed || !group.key || active || (hydrated && expanded[group.key]);
+        const isOpen = collapsed || !group.key || active || expanded[group.key];
 
         return (
           <div
