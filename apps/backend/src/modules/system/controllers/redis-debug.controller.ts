@@ -11,6 +11,40 @@ export class RedisDebugController {
   @Get()
   @ApiOperation({ summary: 'Temporary Redis connectivity diagnostic' })
   async checkRedis() {
-    return this.redisService.debugCheck();
+    const result = await this.redisService.debugCheck();
+    const redisEnvironment = Object.keys(process.env)
+      .filter((key) => key.toUpperCase().includes('REDIS'))
+      .sort()
+      .map((key) => ({
+        key,
+        value:
+          /PASSWORD|SECRET|TOKEN/i.test(key) || key === 'REDIS_URL'
+            ? '[redacted]'
+            : process.env[key],
+        valueJson:
+          /PASSWORD|SECRET|TOKEN/i.test(key) || key === 'REDIS_URL'
+            ? '[redacted]'
+            : JSON.stringify(process.env[key]),
+      }));
+
+    return {
+      ...result,
+      rawEnvironment: {
+        REDIS_HOST: this.rawValue(process.env.REDIS_HOST),
+        REDIS_PORT: this.rawValue(process.env.REDIS_PORT),
+        REDIS_TLS: this.rawValue(process.env.REDIS_TLS),
+        redisKeys: redisEnvironment,
+      },
+    };
+  }
+
+  private rawValue(value: string | undefined) {
+    return {
+      state: value === undefined ? 'undefined' : value === '' ? 'empty' : 'set',
+      value: value ?? null,
+      valueJson: JSON.stringify(value),
+      hasLeadingWhitespace: value !== undefined && value !== value.trimStart(),
+      hasTrailingWhitespace: value !== undefined && value !== value.trimEnd(),
+    };
   }
 }
