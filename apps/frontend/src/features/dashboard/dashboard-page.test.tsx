@@ -108,6 +108,32 @@ describe("DashboardPage simplified layout", () => {
     expect(screen.queryByText("Distribusi Pengeluaran")).not.toBeInTheDocument();
   });
 
+  it("shows no comparison state instead of mock KPI changes", async () => {
+    vi.spyOn(dashboardService, "getSummary").mockResolvedValue({
+      currency: "IDR",
+      total_assets_cents: "0",
+      total_income_cents: "0",
+      total_expense_cents: "0",
+      net_cash_flow_cents: "0",
+      total_accounts: 0,
+      total_categories: 0,
+      total_transactions: 0,
+      last_updated_at: null,
+    } as any);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(uiText.common.noComparisonData)).toHaveLength(4);
+    });
+
+    expect(screen.queryByText("+4,2%")).not.toBeInTheDocument();
+    expect(screen.queryByText("+8,1%")).not.toBeInTheDocument();
+    expect(screen.queryByText("-2,4%")).not.toBeInTheDocument();
+    expect(screen.queryByText("+12,8%")).not.toBeInTheDocument();
+    expect(screen.queryByText(uiText.common.vsLastMonth)).not.toBeInTheDocument();
+  });
+
   it("hides the AI insight section when insights are empty or only generic", async () => {
     vi.spyOn(analyticsService, "getInsights").mockResolvedValue([
       "Konteks IDR: dashboard Anda tetap selaras dengan preferensi tampilan aktif.",

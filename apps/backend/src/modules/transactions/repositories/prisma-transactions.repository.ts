@@ -6,6 +6,7 @@ import type { Transaction, Prisma } from '../../../generated/prisma/client';
 import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { buildKeywordOr } from '../utils/search-keyword.utils';
+import { DateHelper } from '../../../common/utils/date.util';
 
 type TxRec = Transaction;
 
@@ -104,14 +105,11 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     if (filter?.fromDate || filter?.toDate) {
       where.transaction_date = {};
       if (filter.fromDate)
-        (where.transaction_date as Prisma.DateTimeFilter).gte = new Date(
-          filter.fromDate,
-        );
+        (where.transaction_date as Prisma.DateTimeFilter).gte =
+          DateHelper.startOfDay(filter.fromDate);
       if (filter.toDate) {
-        // Treat toDate as inclusive end-of-day for the provided date string
-        const to = new Date(filter.toDate);
-        to.setHours(23, 59, 59, 999);
-        (where.transaction_date as Prisma.DateTimeFilter).lte = to;
+        (where.transaction_date as Prisma.DateTimeFilter).lte =
+          DateHelper.endOfDay(filter.toDate);
       }
     }
     if (filter?.minAmount !== undefined || filter?.maxAmount !== undefined) {

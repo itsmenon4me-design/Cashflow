@@ -149,4 +149,22 @@ export class PrismaUsersRepository implements IUsersRepository {
       data: { deleted_at: new Date() },
     });
   }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.session.deleteMany({ where: { user_id: id } });
+      await tx.refreshToken.deleteMany({ where: { user_id: id } });
+      await tx.oAuthAccount.deleteMany({ where: { user_id: id } });
+      await tx.notification.deleteMany({ where: { user_id: id } });
+      await tx.userSettings.deleteMany({ where: { user_id: id } });
+      await tx.auditLog.deleteMany({ where: { user_id: id } });
+      await tx.bill.deleteMany({ where: { user_id: id } });
+      await tx.transaction.deleteMany({ where: { user_id: id } });
+      await tx.budget.deleteMany({ where: { user_id: id } });
+      await tx.savingGoal.deleteMany({ where: { user_id: id } });
+      await tx.investment.deleteMany({ where: { user_id: id } });
+      await tx.category.deleteMany({ where: { user_id: id } });
+      await tx.user.delete({ where: { id } });
+    });
+  }
 }

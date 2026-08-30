@@ -9,7 +9,6 @@ import { LazyCashflowChartCard as CashflowChartCard } from "@/components/charts/
 import { ExpenseCard } from "@/components/dashboard/ExpenseCard";
 import { IncomeCard } from "@/components/dashboard/IncomeCard";
 import { RecentTransactionsCard } from "@/components/dashboard/recent-transactions-card";
-import { dashboardKpis } from "@/lib/mock-data";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import { analyticsService } from "@/services/analytics.service";
@@ -41,10 +40,10 @@ export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const [kpis, setKpis] = useState<KpiState>({
-    balance: dashboardKpis.balance,
-    income: dashboardKpis.income,
-    expense: dashboardKpis.expense,
-    cashflow: dashboardKpis.cashflow,
+    balance: { value: formatCurrencyCents("0") },
+    income: { value: formatCurrencyCents("0") },
+    expense: { value: formatCurrencyCents("0") },
+    cashflow: { value: formatCurrencyCents("0") },
   });
   const [cashFlowSeries, setCashFlowSeries] = useState<CashFlowPoint[]>(EMPTY_CASHFLOW);
   const [recentTxs, setRecentTxs] = useState<TransactionItem[]>(EMPTY_TRANSACTIONS);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
+import { RedisService } from '../../../redis/redis.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { ErrorService } from '../../../common/errors/error.service';
 import { PasswordService } from '../../../common/security/password/password.service';
@@ -18,7 +19,7 @@ type GithubEmail = { email?: string; primary?: boolean; verified?: boolean };
 
 @Injectable()
 export class GithubAuthService {
-  private readonly stateStore = new Map<string, number>();
+  private readonly oauthStateTtlSeconds = 600;
 
   constructor(
     private readonly provider: GithubOAuthProvider,
@@ -27,6 +28,7 @@ export class GithubAuthService {
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
 
   private getFrontendBaseUrl(): string {
@@ -42,23 +44,45 @@ export class GithubAuthService {
     return `${process.env.APP_URL ?? 'http://localhost:3001'}/api/v1/auth/github/callback`;
   }
 
-  private createState(): string {
-    const now = Date.now();
-    for (const [state, createdAt] of this.stateStore) {
-      if (now - createdAt > 10 * 60 * 1000) this.stateStore.delete(state);
-    }
-    const state = crypto.randomUUID();
-    this.stateStore.set(state, now);
-    return state;
+  private getStateKey(state: string): string {
+    return `oauth:github:state:${state}`;
   }
 
-  private validateState(state?: string): void {
-    if (!state || !this.stateStore.delete(state)) {
+  private createState(): string {
+    return crypto.randomUUID();
+  }
+
+  private async saveState(state: string): Promise<void> {
+    const saved = await this.redis.set(
+      this.getStateKey(state),
+      state,
+      this.oauthStateTtlSeconds,
+    );
+    if (!saved) {
+      throw ErrorService.create(
+        ErrorCode.INTERNAL,
+        'GitHub OAuth state storage is unavailable.',
+      );
+    }
+  }
+
+  private async validateState(state?: string): Promise<void> {
+    if (!state) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'GitHub authentication request was missing its security state.',
+      );
+    }
+
+    const redisValue = await this.redis.get(this.getStateKey(state));
+    if (redisValue == null) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
         'GitHub authentication request is invalid or expired.',
       );
     }
+
+    await this.redis.del(this.getStateKey(state));
   }
 
   private successUrl(
@@ -116,18 +140,20 @@ export class GithubAuthService {
     return this.usersService.findById(user.id);
   }
 
-  getLoginUrl(): string {
+  async getLoginUrl(): Promise<string> {
     if (!this.provider.getConfigurationStatus().isConfigured) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
         'GitHub OAuth is not configured yet. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
       );
     }
+    const state = this.createState();
+    await this.saveState(state);
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID ?? '',
       redirect_uri: this.getCallbackUrl(),
       scope: 'read:user user:email',
-      state: this.createState(),
+      state,
     });
     return `https://github.com/login/oauth/authorize?${params.toString()}`;
   }
@@ -143,7 +169,7 @@ export class GithubAuthService {
         'GitHub OAuth callback is unavailable.',
       );
     }
-    this.validateState(input.state);
+    await this.validateState(input.state);
     const tokenResponse = await fetch(
       'https://github.com/login/oauth/access_token',
       {

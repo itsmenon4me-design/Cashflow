@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
-import { currentLocalTime, isoToLocalTime } from "@/lib/date";
+import { currentLocalTime, isoToLocalTime, toInputDate } from "@/lib/date";
 import { categoryLabel } from "@/lib/categories";
 import { EMPTY_FORM_VALUES } from "@/features/transactions/constants";
 import { transactionFormSchema, type TransactionFormValues } from "@/features/transactions/schema";
@@ -47,7 +47,7 @@ export function TransactionForm({ open, onOpenChange, mode, transaction, categor
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
+    if (open) form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, date: initialValues?.date ?? toInputDate(new Date()), time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
     else setSubmitError(null);
   }, [open, transaction, form, initialValues, transactionType]);
 

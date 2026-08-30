@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
@@ -38,16 +39,8 @@ export class CashflowAnalyticsService {
       rangeEnd = endDate;
     } else {
       // current month
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      rangeEnd = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        0,
-        23,
-        59,
-        59,
-        999,
-      );
+      rangeStart = DateHelper.startOfMonth();
+      rangeEnd = DateHelper.endOfMonth();
     }
 
     // previous range of same length
@@ -89,19 +82,18 @@ export class CashflowAnalyticsService {
     const expense = current.exp;
     const net = income - expense;
 
-    const compIncome =
-      previous.inc === 0n
-        ? 0
-        : Number((((income - previous.inc) * 100n) / previous.inc).toString());
-    const compExpense =
-      previous.exp === 0n
-        ? 0
-        : Number((((expense - previous.exp) * 100n) / previous.exp).toString());
+    const calcPct = (curr: bigint, prev: bigint): number => {
+      if (prev === 0n) return 0;
+      const diff = Number(curr - prev);
+      const denominator = Number(prev);
+      const rawPct = (diff / denominator) * 100;
+      return Math.round(rawPct * 100) / 100;
+    };
+
+    const compIncome = calcPct(income, previous.inc);
+    const compExpense = calcPct(expense, previous.exp);
     const prevNet = previous.inc - previous.exp;
-    const compNet =
-      prevNet === 0n
-        ? 0
-        : Number((((net - prevNet) * 100n) / prevNet).toString());
+    const compNet = calcPct(net, prevNet);
 
     return {
       income: income.toString(),

@@ -40,12 +40,10 @@ export function TransactionFilters({
 }: TransactionFiltersProps) {
   const update = (patch: Partial<TransactionFiltersState>) => onChange({ ...filters, ...patch });
 
-  const gridCols = showTypeFilter ? "lg:grid-cols-3" : "lg:grid-cols-2";
-
   return (
     <Card className="shadow-sm">
-      <CardContent className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridCols}`}>
-        <div className="relative sm:col-span-2 lg:col-span-1">
+      <CardContent className="flex flex-wrap items-end gap-3">
+        <div className="relative min-w-[200px] flex-[2_1_220px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="rounded-xl bg-card pl-9"
@@ -56,81 +54,87 @@ export function TransactionFilters({
           />
         </div>
 
-        <Select
-          value={filters.category}
-          onValueChange={(category) => update({ category })}
-        >
-          <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.category}>
-            <SelectValue placeholder={uiText.transactions.allCategories} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{uiText.transactions.allCategories}</SelectItem>
-            {categoryGroups.map((group) => (
-              <SelectGroup key={group.label}>
-                <SelectLabel>{group.label}</SelectLabel>
-                {group.items.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {categoryLabel(category)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {showTypeFilter && (
+        <div className="min-w-[130px] flex-[1_1_140px]">
           <Select
-            value={filters.type}
-            onValueChange={(type) => update({ type: type as TransactionType | "all" })}
+            value={filters.category}
+            onValueChange={(category) => update({ category })}
           >
-            <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.type}>
-              <SelectValue placeholder={uiText.common.allTypes} />
+            <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.category}>
+              <SelectValue placeholder={uiText.transactions.allCategories} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{uiText.common.allTypes}</SelectItem>
-              <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
-              <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+              <SelectItem value="all">{uiText.transactions.allCategories}</SelectItem>
+              {categoryGroups.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.items.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {categoryLabel(category)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {showTypeFilter && (
+          <div className="min-w-[130px] flex-[1_1_140px]">
+            <Select
+              value={filters.type}
+              onValueChange={(type) => update({ type: type as TransactionType | "all" })}
+            >
+              <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.type}>
+                <SelectValue placeholder={uiText.common.allTypes} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{uiText.common.allTypes}</SelectItem>
+                <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
+                <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         )}
 
-        <div className="space-y-1.5">
-          <Label htmlFor="filter-from-date" className="text-xs text-muted-foreground">
+        <div className="flex flex-col gap-1.5 min-w-[160px] flex-[1_1_160px]">
+          <Label htmlFor="filter-from-date" className="text-xs text-muted-foreground font-normal">
             {uiText.transactions.fromDate}
           </Label>
           <Input
             id="filter-from-date"
             type="date"
-            className="rounded-xl bg-card lg:max-w-44"
+            className="w-full rounded-xl bg-card"
             aria-label={uiText.transactions.fromDate}
             value={filters.startDate}
             onChange={(event) => update({ startDate: event.target.value })}
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="filter-to-date" className="text-xs text-muted-foreground">
+        <div className="flex flex-col gap-1.5 min-w-[160px] flex-[1_1_160px]">
+          <Label htmlFor="filter-to-date" className="text-xs text-muted-foreground font-normal">
             {uiText.transactions.toDate}
           </Label>
           <Input
             id="filter-to-date"
             type="date"
-            className="rounded-xl bg-card lg:max-w-44"
+            className="w-full rounded-xl bg-card"
             aria-label={uiText.transactions.toDate}
             value={filters.endDate}
             onChange={(event) => update({ endDate: event.target.value })}
           />
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="self-end rounded-xl"
-          onClick={onReset}
-        >
-          <RotateCcw />
-          {uiText.transactions.resetFilters}
-        </Button>
+        <div className="min-w-[130px] flex-[1_1_130px]">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full rounded-xl"
+            onClick={onReset}
+          >
+            <RotateCcw />
+            {uiText.transactions.resetFilters}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

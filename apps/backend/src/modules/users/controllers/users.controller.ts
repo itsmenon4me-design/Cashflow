@@ -21,6 +21,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
+import { DeleteMyAccountDto } from '../dto/delete-my-account.dto';
 import { toUserResponse } from '../mappers/user.mapper';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { ErrorService } from '../../../common/errors/error.service';
@@ -85,6 +86,23 @@ export class UsersController {
     }
     const u = await this.users.update(id, body);
     return toUserResponse(u);
+  }
+
+  @Post('me/delete-account')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
+  @ApiOperation({ summary: 'Permanently delete the authenticated user and all related data' })
+  @ApiResponse({ status: 200 })
+  async deleteOwnAccount(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('email') currentEmail: string | undefined,
+    @Body() body: DeleteMyAccountDto,
+  ): Promise<{ success: true }> {
+    if (!currentEmail) {
+      throw ErrorService.create(ErrorCode.UNAUTHORIZED, 'Missing authenticated email');
+    }
+    await this.users.deleteOwnAccount(userId, currentEmail, body);
+    return { success: true };
   }
 
   @Delete(':id')

@@ -1,6 +1,7 @@
 ﻿import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
+import { RedisService } from '../../../redis/redis.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorService } from '../../../common/errors/error.service';
@@ -20,7 +21,7 @@ type GoogleTokenResponse = {
 
 @Injectable()
 export class GoogleAuthService {
-  private readonly stateStore = new Map<string, number>();
+  private readonly oauthStateTtlSeconds = 600;
 
   constructor(
     private readonly provider: GoogleOAuthProvider,
@@ -29,6 +30,7 @@ export class GoogleAuthService {
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
 
   getConfigurationStatus() {
@@ -44,23 +46,29 @@ export class GoogleAuthService {
     );
   }
 
-  private pruneStateStore() {
-    const now = Date.now();
-    for (const [state, createdAt] of this.stateStore.entries()) {
-      if (now - createdAt > 10 * 60 * 1000) {
-        this.stateStore.delete(state);
-      }
-    }
+  private getStateKey(state: string): string {
+    return `oauth:google:state:${state}`;
   }
 
   private createState(): string {
-    this.pruneStateStore();
-    const state = crypto.randomUUID();
-    this.stateStore.set(state, Date.now());
-    return state;
+    return crypto.randomUUID();
   }
 
-  private validateState(state?: string): void {
+  private async saveState(state: string): Promise<void> {
+    const saved = await this.redis.set(
+      this.getStateKey(state),
+      state,
+      this.oauthStateTtlSeconds,
+    );
+    if (!saved) {
+      throw ErrorService.create(
+        ErrorCode.INTERNAL,
+        'Google OAuth state storage is unavailable.',
+      );
+    }
+  }
+
+  private async validateState(state?: string): Promise<void> {
     if (!state) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -68,16 +76,15 @@ export class GoogleAuthService {
       );
     }
 
-    this.pruneStateStore();
-    const exists = this.stateStore.get(state);
-    if (exists === undefined) {
+    const redisValue = await this.redis.get(this.getStateKey(state));
+    if (redisValue == null) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
         'Google authentication request is invalid or expired.',
       );
     }
 
-    this.stateStore.delete(state);
+    await this.redis.del(this.getStateKey(state));
   }
 
   private buildSuccessRedirectUrl(accessToken: string, refreshToken: string, user: { email: string; full_name: string }) {
@@ -153,7 +160,7 @@ export class GoogleAuthService {
     return refreshed;
   }
 
-  getLoginUrl(): string {
+  async getLoginUrl(): Promise<string> {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
       throw ErrorService.create(
@@ -163,6 +170,7 @@ export class GoogleAuthService {
     }
 
     const state = this.createState();
+    await this.saveState(state);
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID ?? '',
       redirect_uri: process.env.GOOGLE_CALLBACK_URL ?? '',
@@ -196,7 +204,7 @@ export class GoogleAuthService {
       );
     }
 
-    this.validateState(input.state);
+    await this.validateState(input.state);
 
     // debug-able holders for token/profile responses so we can log them on error
     let tokenResponse: any = undefined;

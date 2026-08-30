@@ -73,7 +73,7 @@ model OAuthAccount {
  created_at         DateTime @default(now())
  updated_at         DateTime @updatedAt
 
- user User @relation(fields: [user_id], references: [id])
+ user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
  @@unique([provider, provider_account_id])
  @@unique([user_id, provider])
@@ -107,7 +107,7 @@ model RefreshToken {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   sessions Session[]
 
   @@index([user_id])
@@ -132,8 +132,8 @@ model Session {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
-  refreshToken RefreshToken @relation(fields: [refresh_token_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  refreshToken RefreshToken @relation(fields: [refresh_token_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([refresh_token_id])
@@ -171,7 +171,7 @@ model RolePermission {
 model AuditLog {
   id              String    @id @default(uuid()) @db.Uuid
   user_id         String?   @db.Uuid
-  user User? @relation(fields: [user_id], references: [id])
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
   action          String
   module          String
   description     String?
@@ -208,8 +208,8 @@ model Category {
   updated_at         DateTime @updatedAt
   deleted_at         DateTime? @db.Timestamptz
 
-  user User @relation(fields: [user_id], references: [id])
-  parent Category? @relation("CategoryToParent", fields: [parent_category_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent Category? @relation("CategoryToParent", fields: [parent_category_id], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryToParent")
 
   transactions Transaction[]
@@ -257,10 +257,10 @@ model Bill {
   updated_at           DateTime        @updatedAt
   deleted_at           DateTime?       @db.Timestamptz
 
-  user     User      @relation(fields: [user_id], references: [id])
-  category Category? @relation(fields: [category_id], references: [id])
-  transaction Transaction? @relation(fields: [transaction_id], references: [id])
-  series Bill? @relation("BillSeries", fields: [series_id], references: [id])
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  transaction Transaction? @relation(fields: [transaction_id], references: [id], onDelete: SetNull)
+  series Bill? @relation("BillSeries", fields: [series_id], references: [id], onDelete: SetNull)
   seriesMembers Bill[] @relation("BillSeries")
 
   @@index([user_id])
@@ -285,8 +285,8 @@ model Budget {
   updated_at         DateTime @updatedAt
   deleted_at         DateTime? @db.Timestamptz
 
-  user     User     @relation(fields: [user_id], references: [id])
-  category Category @relation(fields: [category_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([category_id])
@@ -309,8 +309,8 @@ model SavingGoal {
   updated_at         DateTime @updatedAt
   deleted_at         DateTime? @db.Timestamptz
 
-  user     User      @relation(fields: [user_id], references: [id])
-  category Category? @relation(fields: [category_id], references: [id])
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
 
   @@index([user_id])
   @@index([category_id])
@@ -339,7 +339,7 @@ model Investment {
   updated_at            DateTime @updatedAt
   deleted_at            DateTime? @db.Timestamptz
 
-  user    User     @relation(fields: [user_id], references: [id])
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@map("investments")
@@ -358,7 +358,7 @@ model Notification {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([user_id, is_read])
@@ -378,7 +378,7 @@ model UserSettings {
   created_at             DateTime @default(now())
   updated_at             DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id])
   @@index([user_id])
@@ -407,8 +407,8 @@ model Transaction {
   updated_at        DateTime @updatedAt
   deleted_at        DateTime? @db.Timestamptz
 
-  user     User     @relation(fields: [user_id], references: [id])
-  category Category @relation(fields: [category_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
 
   bills Bill[]
 

@@ -8,8 +8,8 @@ export type NotificationType = "bill" | "goal" | "income";
 
 export interface DashboardKpi {
   value: string;
-  change: string;
-  trend: number[];
+  change?: string;
+  trend?: number[];
 }
 
 export interface CashFlowPoint {

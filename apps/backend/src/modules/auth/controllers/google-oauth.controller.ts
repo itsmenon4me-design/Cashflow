@@ -18,7 +18,7 @@ export class GoogleOauthController {
     try {
       return {
         success: true,
-        url: this.googleAuthService.getLoginUrl(),
+        url: await this.googleAuthService.getLoginUrl(),
       };
     } catch (error) {
       const message =

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import { DashboardService } from './dashboard.service';
 import {
   CashflowAnalyticsService,
@@ -54,9 +55,8 @@ export class DashboardWidgetsService {
   };
 
   async getWidgets(userId: string, month?: number, year?: number) {
-    const now = new Date();
-    const m = month ?? now.getMonth() + 1;
-    const y = year ?? now.getFullYear();
+    const m = month ?? DateHelper.monthInTimezone();
+    const y = year ?? DateHelper.yearInTimezone();
 
     const summary = await this.safeCall<DashboardSummaryResponseDto | null>(
       () => this.summarySvc.getSummaryForUser(userId),
@@ -64,8 +64,8 @@ export class DashboardWidgetsService {
       null,
     );
 
-    const monthStart = new Date(y, m - 1, 1);
-    const monthEnd = new Date(y, m, 0, 23, 59, 59, 999);
+    const monthStart = DateHelper.startOfMonth(y, m);
+    const monthEnd = DateHelper.endOfMonth(y, m);
     const cashFlow = await this.safeCall<AnalyticsResult | null>(
       () => this.cashflowSvc.getAnalytics(userId, monthStart, monthEnd),
       'cashflow',

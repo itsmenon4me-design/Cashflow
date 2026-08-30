@@ -18,7 +18,7 @@ export class GithubOauthController {
     try {
       return {
         success: true,
-        url: this.githubAuthService.getLoginUrl(),
+        url: await this.githubAuthService.getLoginUrl(),
       };
     } catch (error) {
       const message =

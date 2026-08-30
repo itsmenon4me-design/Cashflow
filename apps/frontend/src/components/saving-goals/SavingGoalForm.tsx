@@ -30,6 +30,7 @@ import {
 } from "@/features/saving-goals/schema";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
+import { toInputDate } from "@/lib/date";
 import { uiText } from "@/locales";
 import type { SavingGoalItem } from "@/services/saving-goal.service";
 
@@ -92,7 +93,11 @@ export function SavingGoalForm({
 
   useEffect(() => {
     if (open) {
-      form.reset(goal ? toFormValues(goal) : EMPTY_FORM_VALUES);
+      form.reset(
+        goal
+          ? toFormValues(goal)
+          : { ...EMPTY_FORM_VALUES, startDate: toInputDate(new Date()) }
+      );
     }
   }, [open, goal, form]);
 

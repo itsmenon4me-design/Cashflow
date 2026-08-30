@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { MonthlyReportService } from '../../reports/services/monthly-report.service';
@@ -155,16 +156,14 @@ export class AnalyticsService {
   }
 
   private resolveRange(query: AnalyticsQueryDto): ResolvedRange {
-    const start = new Date(query.startDate);
-    const endRaw = new Date(query.endDate);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(endRaw.getTime())) {
+    const start = DateHelper.startOfDay(query.startDate);
+    const end = DateHelper.endOfDay(query.endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       throw new BadRequestException('Invalid date range');
     }
-    if (start.getTime() > endRaw.getTime()) {
+    if (start.getTime() > end.getTime()) {
       throw new BadRequestException('startDate must be before endDate');
     }
-    const end = new Date(endRaw.getTime());
-    end.setHours(23, 59, 59, 999);
 
     const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
     let granularity: TrendType = query.granularity ?? 'monthly';

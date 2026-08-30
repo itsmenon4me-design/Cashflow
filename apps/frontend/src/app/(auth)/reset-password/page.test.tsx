@@ -40,7 +40,7 @@ describe('Reset password page', () => {
     fireEvent.change(confirmInput, { target: { value: 'short' } });
     fireEvent.submit(screen.getByRole('button', { name: /Reset kata sandi/i }).closest('form') as HTMLFormElement);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/minimal 12 karakter/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/minimal 8 karakter/i);
     expect(resetPasswordMock).not.toHaveBeenCalled();
   });
 

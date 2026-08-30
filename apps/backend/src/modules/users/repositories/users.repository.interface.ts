@@ -6,6 +6,7 @@ export interface IUsersRepository {
   findByEmail(email: string): Promise<UserEntity | null>;
   update(id: string, updates: Partial<UserEntity>): Promise<UserEntity>;
   softDelete(id: string): Promise<void>;
+  hardDelete(id: string): Promise<void>;
   count(): Promise<number>;
   findAll(): Promise<UserEntity[]>;
 }

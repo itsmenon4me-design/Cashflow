@@ -156,4 +156,45 @@ export class UsersService {
     await this.repo.softDelete(id);
     this.loggerService.log('User Deleted', 'UsersService', { userId: id });
   }
+
+  async deleteOwnAccount(
+    userId: string,
+    currentEmail: string,
+    body: { email: string; password: string },
+  ): Promise<void> {
+    const user = await this.repo.findById(userId);
+    if (!user) {
+      throw ErrorService.create(ErrorCode.NOT_FOUND, 'User not found');
+    }
+
+    if (body.email.trim().toLowerCase() !== currentEmail.trim().toLowerCase()) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Email confirmation does not match your account',
+      );
+    }
+
+    const passwordMatches = await this.passwordService.verifyPassword(
+      user.password_hash,
+      body.password,
+    );
+    if (!passwordMatches) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is incorrect',
+      );
+    }
+
+    await this.repo.hardDelete(userId);
+    this.loggerService.log('User Permanently Deleted', 'UsersService', {
+      userId,
+    });
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.repo.hardDelete(id);
+    this.loggerService.log('User Permanently Deleted', 'UsersService', {
+      userId: id,
+    });
+  }
 }

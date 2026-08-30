@@ -45,8 +45,12 @@ export class EmailVerificationService {
       verification_token_expires_at: expiresAt,
     });
 
-    // Build verification link (frontend will handle token)
-    const link = `${process.env.APP_URL ?? 'http://localhost:3001'}/api/v1/auth/email/verify?token=${raw}&id=${user.id}`;
+    // Build verification link for frontend
+    const baseUrl =
+      process.env.FRONTEND_URL ??
+      process.env.APP_URL ??
+      'http://localhost:3000';
+    const link = `${baseUrl}/verify-email?token=${raw}&id=${user.id}`;
 
     try {
       await this.mail.sendVerification(user.email, user.full_name, link);

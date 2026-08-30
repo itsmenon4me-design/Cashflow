@@ -9,6 +9,7 @@ import { PrismaService } from '../../../database/prisma.service';
 describe('GithubAuthService', () => {
   let service: GithubAuthService;
   let provider: GithubOAuthProvider;
+  const redis = { set: jest.fn().mockResolvedValue(true), get: jest.fn().mockResolvedValue('state'), del: jest.fn().mockResolvedValue(1) };
 
   beforeEach(() => {
     provider = new GithubOAuthProvider();
@@ -22,20 +23,21 @@ describe('GithubAuthService', () => {
       {} as UsersService,
       {} as PasswordService,
       {} as PrismaService,
+      redis as any,
     );
   });
 
-  it('throws error on getLoginUrl when env is unconfigured', () => {
-    expect(() => service.getLoginUrl()).toThrow(
+  it('throws error on getLoginUrl when env is unconfigured', async () => {
+    await expect(service.getLoginUrl()).rejects.toThrow(
       'GitHub OAuth is not configured yet.',
     );
   });
 
-  it('generates login URL when configured', () => {
+  it('generates login URL when configured', async () => {
     process.env.GITHUB_CLIENT_ID = 'test-client-id';
     process.env.GITHUB_CLIENT_SECRET = 'test-client-secret';
 
-    const url = service.getLoginUrl();
+    const url = await service.getLoginUrl();
     expect(url).toContain('https://github.com/login/oauth/authorize');
     expect(url).toContain('client_id=test-client-id');
   });

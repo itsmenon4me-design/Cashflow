@@ -11,6 +11,7 @@ describe('GoogleAuthService', () => {
   const usersService: any = { findByEmail: jest.fn(), findById: jest.fn(), create: jest.fn() };
   const passwordService: any = { hashPassword: jest.fn() };
   const prisma: any = { user: { findUnique: jest.fn(), update: jest.fn() } };
+  const redis: any = { set: jest.fn().mockResolvedValue(true), get: jest.fn().mockResolvedValue('state'), del: jest.fn().mockResolvedValue(1) };
   let service: GoogleAuthService;
 
   beforeEach(() => {
@@ -34,6 +35,7 @@ describe('GoogleAuthService', () => {
       usersService,
       passwordService,
       prisma,
+      redis,
     );
   });
 
@@ -56,7 +58,7 @@ describe('GoogleAuthService', () => {
   }
 
   it('successfully logs in an existing linked Google account', async () => {
-    const stateUrl = service.getLoginUrl();
+    const stateUrl = await service.getLoginUrl();
     const state = new URL(stateUrl).searchParams.get('state');
     mockGoogleTokenExchange();
 
@@ -95,7 +97,7 @@ describe('GoogleAuthService', () => {
   });
 
   it('creates a new user and provider record for a first-time Google login', async () => {
-    const stateUrl = service.getLoginUrl();
+    const stateUrl = await service.getLoginUrl();
     const state = new URL(stateUrl).searchParams.get('state');
     const mockedFetch = jest.fn() as any;
 
@@ -150,7 +152,7 @@ describe('GoogleAuthService', () => {
   });
 
   it('rejects unverified Google emails', async () => {
-    const stateUrl = service.getLoginUrl();
+    const stateUrl = await service.getLoginUrl();
     const state = new URL(stateUrl).searchParams.get('state');
     mockGoogleTokenExchange();
     provider.validateProviderUser.mockReturnValue({
@@ -174,7 +176,7 @@ describe('GoogleAuthService', () => {
   });
 
   it('rejects when a Google account matches an existing user email without provider linkage', async () => {
-    const stateUrl = service.getLoginUrl();
+    const stateUrl = await service.getLoginUrl();
     const state = new URL(stateUrl).searchParams.get('state');
     const mockedFetch = jest.fn() as any;
 

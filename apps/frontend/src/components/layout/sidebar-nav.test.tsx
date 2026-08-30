@@ -44,7 +44,7 @@ describe("SidebarNav", () => {
     render(<SidebarNav collapsed />);
 
     expect(screen.queryByRole("button", { name: "Transaksi" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: locales.id.navigation.accounts })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: locales.id.navigation.transactions })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: locales.id.navigation.settings })).toBeInTheDocument();
     expect(screen.queryByText("Perencanaan")).not.toBeInTheDocument();
   });

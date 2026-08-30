@@ -8,9 +8,9 @@ import { uiText } from "@/locales";
 interface StatisticCardProps {
   label: string;
   value: string;
-  change: string;
+  change?: string;
   icon: LucideIcon;
-  trend: number[];
+  trend?: number[];
   comparison?: string;
   loading?: boolean;
   /** If true, render as a primary/high-emphasis KPI */
@@ -27,7 +27,9 @@ export function StatisticCard({
   loading = false,
   emphasis = false,
 }: StatisticCardProps) {
-  const isPositive = change.startsWith("+");
+  const hasChange = Boolean(change && change.trim());
+  const isPositive = hasChange && change!.startsWith("+");
+  const hasTrend = Boolean(trend && trend.length > 1);
 
   // Adaptive typography for KPI value based on formatted value length
   function getKpiValueClass(val: string) {
@@ -77,20 +79,30 @@ export function StatisticCard({
           ) : (
             <>
               <div className="flex items-center justify-between text-sm">
-                <span
-                  className={cn(
-                    "flex items-center gap-1 font-medium",
-                    isPositive ? "text-emerald-500" : "text-red-500"
-                  )}
-                >
-                  {isPositive ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-                  {change}
-                </span>
-                <span className="text-muted-foreground text-xs">{comparison}</span>
+                {hasChange ? (
+                  <>
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 font-medium",
+                        isPositive ? "text-emerald-500" : "text-red-500"
+                      )}
+                    >
+                      {isPositive ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+                      {change}
+                    </span>
+                    <span className="text-muted-foreground text-xs">{comparison}</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground text-xs font-normal">
+                    {uiText.common.noComparisonData}
+                  </span>
+                )}
               </div>
-              <div className="mt-2">
-                <Sparkline data={trend} />
-              </div>
+              {hasTrend && (
+                <div className="mt-2">
+                  <Sparkline data={trend!} />
+                </div>
+              )}
             </>
           )}
         </div>

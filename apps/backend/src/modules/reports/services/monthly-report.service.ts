@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import type { Category } from '../../../generated/prisma/client';
@@ -76,8 +77,8 @@ export class MonthlyReportService {
       if (monthNum === undefined || yearNum === undefined)
         throw new BadRequestException('Month and year are required');
       this.validateMonthYear(monthNum, yearNum);
-      start = new Date(yearNum, monthNum - 1, 1);
-      end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+      start = DateHelper.startOfMonth(yearNum, monthNum);
+      end = DateHelper.endOfMonth(yearNum, monthNum);
     }
 
     // aggregates income and expense

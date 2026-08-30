@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import {
   ApiTags,
   ApiOperation,
@@ -36,10 +37,8 @@ function buildRange(
   endDate?: string,
 ): DateRange | undefined {
   if (!startDate && !endDate) return undefined;
-  const start = new Date(startDate as string);
-  const endDateRaw = endDate ? new Date(endDate) : new Date(start);
-  const end = new Date(endDateRaw.getTime());
-  end.setHours(23, 59, 59, 999);
+  const start = DateHelper.startOfDay(startDate as string);
+  const end = DateHelper.endOfDay((endDate || startDate) as string);
   return { start, end };
 }
 

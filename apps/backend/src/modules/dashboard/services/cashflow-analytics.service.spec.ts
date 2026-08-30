@@ -42,9 +42,9 @@ describe('CashflowAnalyticsService', () => {
     expect(res.expense).toBe('8300000');
     expect(res.netCashFlow).toBe('4200000');
 
-    expect(typeof res.comparison.income).toBe('number');
-    expect(typeof res.comparison.expense).toBe('number');
-    expect(typeof res.comparison.netCashFlow).toBe('number');
+    expect(res.comparison.income).toBe(13.64);
+    expect(res.comparison.expense).toBe(-7.78);
+    expect(res.comparison.netCashFlow).toBe(110);
   });
 
   it('handles empty transactions (zeros)', async () => {

@@ -19,6 +19,7 @@ describe('UsersController (security)', () => {
     create: jest.Mock;
     update: jest.Mock;
     softDelete: jest.Mock;
+    deleteOwnAccount: jest.Mock;
   };
 
   const authGuard: CanActivate & { isAuthenticated: boolean; role: string } = {
@@ -59,6 +60,7 @@ describe('UsersController (security)', () => {
       create: jest.fn().mockResolvedValue(userEntity),
       update: jest.fn().mockResolvedValue(userEntity),
       softDelete: jest.fn().mockResolvedValue(undefined),
+      deleteOwnAccount: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -138,6 +140,29 @@ describe('UsersController (security)', () => {
       expect(usersServiceMock.update).toHaveBeenCalledWith('user-auth', {
         full_name: 'Alexander',
       });
+    });
+  });
+
+  describe('POST /users/me/delete-account', () => {
+    it('rejects unauthenticated access', async () => {
+      authGuard.isAuthenticated = false;
+      await http()
+        .post('/users/me/delete-account')
+        .send({ email: 'auth@example.com', password: 'StrongPass123!' })
+        .expect(403);
+      expect(usersServiceMock.deleteOwnAccount).not.toHaveBeenCalled();
+    });
+
+    it('requires matching email and password before deletion', async () => {
+      await http()
+        .post('/users/me/delete-account')
+        .send({ email: 'auth@example.com', password: 'StrongPass123!' })
+        .expect(200);
+      expect(usersServiceMock.deleteOwnAccount).toHaveBeenCalledWith(
+        'user-auth',
+        'auth@example.com',
+        { email: 'auth@example.com', password: 'StrongPass123!' },
+      );
     });
   });
 

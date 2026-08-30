@@ -115,6 +115,23 @@ export const authService = {
   logout: (): Promise<{ success: boolean }> =>
     apiClient.delete<{ success: boolean }>("/auth/logout"),
 
+  deleteAccount: (payload: {
+    email: string;
+    password: string;
+  }): Promise<{ success: boolean; message?: string }> =>
+    apiClient
+      .post<{ success: boolean; message?: string }>("/users/me/delete-account", payload)
+      .catch((err) => ({
+        success: false,
+        message:
+          err instanceof ApiError &&
+          typeof err.data === "object" &&
+          err.data !== null &&
+          "message" in err.data
+            ? String((err.data as { message: unknown }).message)
+            : "Hapus akun gagal. Periksa email dan password Anda.",
+      })),
+
   register: (payload: RegisterPayload): Promise<RegisterResponse> =>
     apiClient.post<RegisterResponse>("/auth/register", payload),
 
@@ -122,6 +139,25 @@ export const authService = {
     apiClient
       .post<{ success: boolean }>("/auth/email/send-verification", { email })
       .catch(() => ({ success: false })),
+
+  verifyEmail: (
+    token: string,
+    id: string,
+  ): Promise<{ success: boolean; message?: string }> =>
+    apiClient
+      .get<{ success: boolean; message?: string }>(
+        `/auth/email/verify?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`,
+      )
+      .catch((err) => ({
+        success: false,
+        message:
+          err instanceof ApiError &&
+          typeof err.data === "object" &&
+          err.data !== null &&
+          "message" in err.data
+            ? String((err.data as { message: unknown }).message)
+            : "Verifikasi email gagal atau token telah kadaluwarsa.",
+      })),
 
   forgotPassword: (
     email: string,
