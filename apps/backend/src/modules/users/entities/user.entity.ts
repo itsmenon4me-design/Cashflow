@@ -11,6 +11,7 @@ export class UserEntity {
   username!: string;
   full_name!: string;
   password_hash!: string;
+  has_manual_password?: boolean | null;
   avatar_url?: string | null;
   phone_number?: string | null;
   status!: UserStatus;

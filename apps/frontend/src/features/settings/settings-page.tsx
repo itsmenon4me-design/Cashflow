@@ -13,6 +13,8 @@ import {
   Search,
   Sun,
   Trash2,
+  Eye,
+  EyeOff,
   User as UserIcon,
   UserRound,
 } from "lucide-react";
@@ -141,6 +143,7 @@ export function SettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -260,7 +263,7 @@ export function SettingsPage() {
       setDeleteError("Email konfirmasi tidak cocok dengan akun Anda.");
       return;
     }
-    if (!deletePassword.trim()) {
+    if (user.has_manual_password !== false && !deletePassword.trim()) {
       setDeleteError("Masukkan password Anda untuk konfirmasi final.");
       return;
     }
@@ -271,7 +274,7 @@ export function SettingsPage() {
     try {
       const result = await authService.deleteAccount({
         email: deleteEmail.trim(),
-        password: deletePassword,
+        ...(user.has_manual_password !== false ? { password: deletePassword } : {}),
       });
       if (!result.success) {
         throw new Error(result.message ?? "Hapus akun gagal.");
@@ -535,17 +538,34 @@ export function SettingsPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="delete-account-password">Password saat ini</Label>
-              <Input
-                id="delete-account-password"
-                type="password"
-                value={deletePassword}
-                onChange={(event) => setDeletePassword(event.target.value)}
-                placeholder="Masukkan password Anda"
-                autoComplete="current-password"
-              />
-            </div>
+            {user?.has_manual_password === false ? (
+              <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+                Akun Anda menggunakan login Google/GitHub, konfirmasi email sudah cukup.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="delete-account-password">Password saat ini</Label>
+                <div className="relative">
+                  <Input
+                    id="delete-account-password"
+                    type={showDeletePassword ? "text" : "password"}
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                    placeholder="Masukkan password Anda"
+                    autoComplete="current-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowDeletePassword((visible) => !visible)}
+                    aria-label={showDeletePassword ? "Sembunyikan password" : "Tampilkan password"}
+                  >
+                    {showDeletePassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {deleteError ? (
               <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -562,7 +582,7 @@ export function SettingsPage() {
               type="button"
               variant="destructive"
               onClick={handleDeleteAccount}
-              disabled={isDeleting || !deleteEmail || !deletePassword}
+              disabled={isDeleting || !deleteEmail || (user?.has_manual_password !== false && !deletePassword)}
             >
               {isDeleting ? "Menghapus..." : "Yakin, hapus akun"}
             </Button>

@@ -7,6 +7,7 @@ export interface StoredUser {
   id?: string | null;
   name?: string | null;
   email?: string | null;
+  has_manual_password?: boolean | null;
 }
 
 function getStorage(): Storage | null {

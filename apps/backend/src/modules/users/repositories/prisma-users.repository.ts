@@ -32,6 +32,7 @@ export class PrismaUsersRepository implements IUsersRepository {
     u.username = record.username;
     u.full_name = record.full_name;
     u.password_hash = record.password_hash;
+    u.has_manual_password = record.has_manual_password ?? null;
     u.avatar_url = record.avatar_url ?? null;
     u.phone_number = record.phone_number ?? null;
     u.status = record.status as UserStatus;
@@ -58,6 +59,7 @@ export class PrismaUsersRepository implements IUsersRepository {
         username: user.username as string,
         full_name: user.full_name as string,
         password_hash: user.password_hash as string,
+        has_manual_password: user.has_manual_password ?? null,
         status: user.status as UserStatus,
         avatar_url: user.avatar_url ?? null,
         phone_number: user.phone_number ?? null,
@@ -96,6 +98,8 @@ export class PrismaUsersRepository implements IUsersRepository {
     if (updates.full_name !== undefined) data.full_name = updates.full_name;
     if (updates.password_hash !== undefined)
       data.password_hash = updates.password_hash;
+    if (updates.has_manual_password !== undefined)
+      data.has_manual_password = updates.has_manual_password;
     if (updates.status !== undefined) data.status = updates.status;
     if (updates.avatar_url !== undefined) data.avatar_url = updates.avatar_url;
     if (updates.phone_number !== undefined)

@@ -117,7 +117,7 @@ export const authService = {
 
   deleteAccount: (payload: {
     email: string;
-    password: string;
+    password?: string;
   }): Promise<{ success: boolean; message?: string }> =>
     apiClient
       .post<{ success: boolean; message?: string }>("/users/me/delete-account", payload)

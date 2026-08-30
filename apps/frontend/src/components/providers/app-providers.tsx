@@ -38,7 +38,13 @@ useEffect(() => {
       void apiClient
         .get<{
           success: boolean;
-          data?: { id?: string; full_name?: string; name?: string; email?: string };
+          data?: {
+            id?: string;
+            full_name?: string;
+            name?: string;
+            email?: string;
+            has_manual_password?: boolean | null;
+          };
         }>("/auth/me")
         .then((response) => {
           const profile = response.data;
@@ -47,6 +53,7 @@ useEffect(() => {
           useAuthStore.getState().setUser({
             name: profile.full_name || profile.name || "Pengguna",
             email: profile.email || useAuthStore.getState().user?.email || "",
+            has_manual_password: profile.has_manual_password ?? null,
           });
         })
         .catch((error: unknown) => {

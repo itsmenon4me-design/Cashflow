@@ -10,6 +10,7 @@ export interface UserResponse {
   email: string;
   username: string;
   full_name: string;
+  has_manual_password: boolean | null;
   avatar_url: string | null;
   phone_number: string | null;
   status: string;

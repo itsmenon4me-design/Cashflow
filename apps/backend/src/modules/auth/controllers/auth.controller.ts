@@ -112,7 +112,7 @@ export class AuthController {
     return {
       success: true,
       message: 'User profile retrieved successfully',
-      data: toUserResponse(user),
+      data: toUserResponse(user, { includePasswordCapability: true }),
     };
   }
 

@@ -132,7 +132,7 @@ export class GithubAuthService {
       full_name: fullName,
       password,
       avatar_url: profile.avatarUrl ?? undefined,
-    });
+    }, { hasManualPassword: false });
     await this.prisma.user.update({
       where: { id: user.id },
       data: { status: 'ACTIVE', email_verified_at: new Date() },

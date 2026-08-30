@@ -19,6 +19,7 @@ declare global {
 export interface AuthUser {
   name: string;
   email: string;
+  has_manual_password?: boolean | null;
 }
 
 interface AuthState {

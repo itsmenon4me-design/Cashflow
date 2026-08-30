@@ -1,8 +1,11 @@
 import { UserEntity } from '../entities/user.entity';
 import { UserResponseDto } from '../dto/user-response.dto';
 
-export function toUserResponse(u: UserEntity): UserResponseDto {
-  return {
+export function toUserResponse(
+  u: UserEntity,
+  options: { includePasswordCapability?: boolean } = {},
+): UserResponseDto {
+  const response: UserResponseDto = {
     id: u.id,
     email: u.email,
     username: u.username,
@@ -17,4 +20,10 @@ export function toUserResponse(u: UserEntity): UserResponseDto {
     created_at: u.created_at.toISOString(),
     updated_at: u.updated_at.toISOString(),
   };
+
+  if (options.includePasswordCapability) {
+    response.has_manual_password = u.has_manual_password ?? null;
+  }
+
+  return response;
 }

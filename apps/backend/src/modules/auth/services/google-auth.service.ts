@@ -138,7 +138,7 @@ export class GoogleAuthService {
       full_name: fullName,
       password: randomPassword,
       avatar_url: profile.avatarUrl ?? undefined,
-    });
+    }, { hasManualPassword: false });
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -412,4 +412,3 @@ export class GoogleAuthService {
     };
   }
 }
-

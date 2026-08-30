@@ -14,6 +14,9 @@ export class UserResponseDto {
   @ApiProperty()
   full_name!: string;
 
+  @ApiProperty({ required: false, nullable: true })
+  has_manual_password?: boolean | null;
+
   @ApiProperty({ required: false })
   avatar_url?: string | null;
 

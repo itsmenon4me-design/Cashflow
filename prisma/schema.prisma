@@ -27,6 +27,7 @@ model User {
   username        String   @unique
   full_name       String
   password_hash   String
+  has_manual_password Boolean?
   avatar_url      String?  
   phone_number    String?
   status          String

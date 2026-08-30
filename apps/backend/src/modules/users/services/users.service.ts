@@ -22,7 +22,10 @@ export class UsersService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async create(create: CreateUserDto): Promise<UserEntity> {
+  async create(
+    create: CreateUserDto,
+    options: { hasManualPassword?: boolean } = {},
+  ): Promise<UserEntity> {
     // Hash password before storing
     const hashed = await this.passwordService.hashPassword(create.password);
 
@@ -37,6 +40,7 @@ export class UsersService {
       username,
       full_name: create.full_name,
       password_hash: hashed, // DO NOT LOG THIS VALUE
+      has_manual_password: options.hasManualPassword ?? true,
       avatar_url: create.avatar_url ?? null,
       phone_number: create.phone_number ?? null,
       status: 'PENDING_VERIFICATION',
@@ -142,6 +146,7 @@ export class UsersService {
     // Set the new password hash and clear the reset token state (single-use).
     const updated = await this.repo.update(id, {
       password_hash: hashedPassword,
+      has_manual_password: true,
       password_reset_token_hash: null,
       password_reset_expires_at: null,
       password_reset_requested_at: null,
@@ -160,7 +165,7 @@ export class UsersService {
   async deleteOwnAccount(
     userId: string,
     currentEmail: string,
-    body: { email: string; password: string },
+    body: { email: string; password?: string },
   ): Promise<void> {
     const user = await this.repo.findById(userId);
     if (!user) {
@@ -174,15 +179,23 @@ export class UsersService {
       );
     }
 
-    const passwordMatches = await this.passwordService.verifyPassword(
-      user.password_hash,
-      body.password,
-    );
-    if (!passwordMatches) {
-      throw ErrorService.create(
-        ErrorCode.INVALID_CREDENTIALS,
-        'Current password is incorrect',
+    if (user.has_manual_password !== false) {
+      if (!body.password) {
+        throw ErrorService.create(
+          ErrorCode.INVALID_CREDENTIALS,
+          'Current password is required',
+        );
+      }
+      const passwordMatches = await this.passwordService.verifyPassword(
+        user.password_hash,
+        body.password,
       );
+      if (!passwordMatches) {
+        throw ErrorService.create(
+          ErrorCode.INVALID_CREDENTIALS,
+          'Current password is incorrect',
+        );
+      }
     }
 
     await this.repo.hardDelete(userId);
