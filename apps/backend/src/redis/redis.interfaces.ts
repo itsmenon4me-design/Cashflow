@@ -1,4 +1,5 @@
 export interface RedisConfig {
+  url?: string;
   host?: string;
   port?: number;
   username?: string | undefined;

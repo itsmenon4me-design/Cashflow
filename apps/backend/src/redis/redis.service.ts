@@ -38,11 +38,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   private readConfig(): RedisConfig {
+    const url = this.configService.get<string | undefined>('REDIS_URL');
     const host = this.configService.get<string>('REDIS_HOST', '127.0.0.1');
     const port = Number(
       this.configService.get<number>('REDIS_PORT', REDIS_DEFAULT_PORT),
     );
-    const username = this.configService.get<string | undefined>(
+    const configuredUsername = this.configService.get<string | undefined>(
       'REDIS_USERNAME',
     );
     const password = this.configService.get<string | undefined>(
@@ -57,7 +58,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       'REDIS_KEY_PREFIX',
     );
 
-    return { host, port, username, password, db, tls, keyPrefix };
+    return {
+      url: url || undefined,
+      host,
+      port,
+      username: configuredUsername || undefined,
+      password,
+      db,
+      tls,
+      keyPrefix,
+    };
   }
 
   async connect(): Promise<void> {
@@ -72,12 +82,50 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.client = null;
     }
 
+    let connectionUrl: string | undefined;
+    let host = this.config.host;
+    let port = this.config.port ?? REDIS_DEFAULT_PORT;
+    let username = this.config.username;
+    let password = this.config.password;
+    let db = this.config.db ?? REDIS_DEFAULT_DB;
+    let tls = this.config.tls === true;
+
+    if (this.config.url) {
+      try {
+        const parsedUrl = new URL(this.config.url);
+        if (parsedUrl.protocol !== 'redis:' && parsedUrl.protocol !== 'rediss:') {
+          throw new Error(`unsupported protocol ${parsedUrl.protocol}`);
+        }
+        connectionUrl = this.config.url;
+        host = parsedUrl.hostname;
+        port = parsedUrl.port ? Number(parsedUrl.port) : REDIS_DEFAULT_PORT;
+        username = parsedUrl.username || username;
+        password = parsedUrl.password || password;
+        db = parsedUrl.pathname.length > 1
+          ? Number(parsedUrl.pathname.slice(1))
+          : db;
+        tls = parsedUrl.protocol === 'rediss:' || tls;
+      } catch (err) {
+        this.logger.error(
+          'Invalid REDIS_URL configuration: ' + this.formatError(err),
+        );
+        throw err;
+      }
+    }
+
+    if (tls && password && !username) {
+      username = 'default';
+    }
+
     const options: RedisOptions = {
-      host: this.config.host,
-      port: this.config.port ?? REDIS_DEFAULT_PORT,
-      username: this.config.username,
-      password: this.config.password,
-      db: this.config.db ?? REDIS_DEFAULT_DB,
+      host,
+      port,
+      username,
+      password,
+      db,
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1,
+      lazyConnect: true,
       // ioredis will handle reconnection with this retryStrategy
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
@@ -90,15 +138,24 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       keyPrefix: this.config.keyPrefix,
     };
 
-    if (this.config.tls) {
-      // minimal TLS enablement: allow self-signed if necessary; production should be stricter
-      Reflect.set(options, 'tls', {});
+    if (tls) {
+      options.tls = {
+        servername: host,
+        rejectUnauthorized: true,
+      };
     }
 
-    this.client = new Redis(options);
+    this.logger.log(
+      `Redis configuring host=${host ?? 'unknown'} port=${port} tls=${tls} ` +
+        `username=${username ? 'configured' : 'unset'} source=${connectionUrl ? 'url' : 'parts'}`,
+    );
+
+    this.client = connectionUrl
+      ? new Redis(connectionUrl, options)
+      : new Redis({ ...options, host });
 
     this.client.on('connect', () => {
-      this.logger.log('Redis connecting...');
+      this.logger.log(`Redis socket connected to ${host}:${port} (tls=${tls})`);
     });
 
     this.client.on('ready', () => {
@@ -114,7 +171,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('error', (err: unknown) => {
-      this.logger.error('Redis connection error: ' + this.formatError(err));
+      this.logger.error(
+        `Redis connection error host=${host}:${port} tls=${tls}: ` +
+          this.formatError(err),
+      );
     });
 
     // wait until ready or timeout (only await if connect() returns a promise)
