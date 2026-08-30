@@ -59,6 +59,21 @@ export function AppProviders({ children }: AppProvidersProps) {
       }
     }
 
+    const handleOAuthWelcome = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string; name?: string }>)
+        .detail;
+      if (detail?.type === "new") {
+        setOauthWelcome(
+          "Akun baru berhasil dibuat, selamat datang di CashFlow!",
+        );
+      } else if (detail?.type === "returning") {
+        setOauthWelcome(
+          `Selamat datang kembali, ${detail.name || "Pengguna"}!`,
+        );
+      }
+    };
+    window.addEventListener("cashflow:oauth-welcome", handleOAuthWelcome);
+
     if (getAccessToken()) {
       void apiClient
         .get<{
@@ -120,6 +135,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     window.addEventListener("cashflow:client-route", handleClientRoute);
     return () => {
       window.removeEventListener("cashflow:client-route", handleClientRoute);
+      window.removeEventListener("cashflow:oauth-welcome", handleOAuthWelcome);
     };
   }, [router]);
 

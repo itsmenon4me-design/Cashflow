@@ -34,12 +34,16 @@ export default function GithubOAuthCallbackPage() {
     });
 
     if (welcome === "new" || welcome === "returning") {
+      const welcomeDetail = {
+        type: welcome,
+        name: userName || userEmail || "Pengguna",
+      };
       window.sessionStorage.setItem(
         "cashflow.oauth-welcome",
-        JSON.stringify({
-          type: welcome,
-          name: userName || userEmail || "Pengguna",
-        }),
+        JSON.stringify(welcomeDetail),
+      );
+      window.dispatchEvent(
+        new CustomEvent("cashflow:oauth-welcome", { detail: welcomeDetail }),
       );
     }
     router.replace("/dashboard");
