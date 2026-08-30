@@ -17,6 +17,7 @@ export default function GoogleOAuthCallbackPage() {
     const refreshToken = query.get("refreshToken");
     const userEmail = query.get("userEmail");
     const userName = query.get("userName");
+    const welcome = query.get("welcome");
 
     if (!accessToken || !refreshToken) {
       router.replace("/login?oauth_error=google_auth_failed");
@@ -32,13 +33,24 @@ export default function GoogleOAuthCallbackPage() {
       },
     });
 
+    if (welcome === "new" || welcome === "returning") {
+      window.sessionStorage.setItem(
+        "cashflow.oauth-welcome",
+        JSON.stringify({
+          type: welcome,
+          name: userName || userEmail || "Pengguna",
+        }),
+      );
+    }
     router.replace("/dashboard");
   }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="text-center">
-        <p className="text-sm text-muted-foreground">Memproses login Google...</p>
+        <p className="text-sm text-muted-foreground">
+          Memproses login Google...
+        </p>
       </div>
     </div>
   );

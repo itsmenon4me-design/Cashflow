@@ -17,6 +17,7 @@ export default function GithubOAuthCallbackPage() {
     const refreshToken = query.get("refreshToken");
     const userEmail = query.get("userEmail");
     const userName = query.get("userName");
+    const welcome = query.get("welcome");
 
     if (!accessToken || !refreshToken) {
       router.replace("/login?oauth_error=github_auth_failed");
@@ -32,6 +33,15 @@ export default function GithubOAuthCallbackPage() {
       },
     });
 
+    if (welcome === "new" || welcome === "returning") {
+      window.sessionStorage.setItem(
+        "cashflow.oauth-welcome",
+        JSON.stringify({
+          type: welcome,
+          name: userName || userEmail || "Pengguna",
+        }),
+      );
+    }
     router.replace("/dashboard");
   }, [router]);
 

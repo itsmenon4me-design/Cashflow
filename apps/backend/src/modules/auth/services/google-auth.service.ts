@@ -87,12 +87,18 @@ export class GoogleAuthService {
     await this.redis.del(this.getStateKey(state));
   }
 
-  private buildSuccessRedirectUrl(accessToken: string, refreshToken: string, user: { email: string; full_name: string }) {
+  private buildSuccessRedirectUrl(
+    accessToken: string,
+    refreshToken: string,
+    user: { email: string; full_name: string },
+    welcome: 'new' | 'returning',
+  ) {
     const params = new URLSearchParams({
       accessToken,
       refreshToken,
       userEmail: user.email,
       userName: user.full_name,
+      welcome,
     });
     return `${this.getFrontendBaseUrl()}/auth/google/callback?${params.toString()}`;
   }
@@ -126,19 +132,25 @@ export class GoogleAuthService {
     }
   }
 
-  private async createGoogleUser(profile: ReturnType<GoogleOAuthProvider['validateProviderUser']>) {
+  private async createGoogleUser(
+    profile: ReturnType<GoogleOAuthProvider['validateProviderUser']>,
+  ) {
     const fullName = profile.fullName ?? profile.email.split('@')[0];
     const username = await this.generateUniqueUsername(fullName);
     const randomPassword = crypto.randomBytes(32).toString('hex');
-    const passwordHash = await this.passwordService.hashPassword(randomPassword);
+    const passwordHash =
+      await this.passwordService.hashPassword(randomPassword);
 
-    const user = await this.usersService.create({
-      email: profile.email,
-      username,
-      full_name: fullName,
-      password: randomPassword,
-      avatar_url: profile.avatarUrl ?? undefined,
-    }, { hasManualPassword: false });
+    const user = await this.usersService.create(
+      {
+        email: profile.email,
+        username,
+        full_name: fullName,
+        password: randomPassword,
+        avatar_url: profile.avatarUrl ?? undefined,
+      },
+      { hasManualPassword: false },
+    );
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -233,13 +245,22 @@ export class GoogleAuthService {
         if (typeof tokenResponse.text === 'function') {
           tokenRaw = await tokenResponse.text().catch(() => '');
           try {
-            tokenData = tokenRaw ? JSON.parse(tokenRaw) : ({} as GoogleTokenResponse);
+            tokenData = tokenRaw
+              ? JSON.parse(tokenRaw)
+              : ({} as GoogleTokenResponse);
           } catch (parseErr) {
-            console.error('[GoogleAuth] failed to parse tokenResponse JSON from text', parseErr, 'raw:', tokenRaw);
+            console.error(
+              '[GoogleAuth] failed to parse tokenResponse JSON from text',
+              parseErr,
+              'raw:',
+              tokenRaw,
+            );
             tokenData = {} as GoogleTokenResponse;
           }
         } else if (typeof tokenResponse.json === 'function') {
-          tokenData = await tokenResponse.json().catch(() => ({} as GoogleTokenResponse));
+          tokenData = await tokenResponse
+            .json()
+            .catch(() => ({}) as GoogleTokenResponse);
           try {
             tokenRaw = tokenData ? JSON.stringify(tokenData) : '';
           } catch {
@@ -254,7 +275,14 @@ export class GoogleAuthService {
       }
 
       if (!tokenResponse.ok || !tokenData.access_token) {
-        console.error('[GoogleAuth] token exchange response not ok or missing access_token', { status: tokenResponse && tokenResponse.status, tokenData, raw: tokenRaw });
+        console.error(
+          '[GoogleAuth] token exchange response not ok or missing access_token',
+          {
+            status: tokenResponse && tokenResponse.status,
+            tokenData,
+            raw: tokenRaw,
+          },
+        );
         throw new Error('Google token exchange failed');
       }
 
@@ -282,13 +310,17 @@ export class GoogleAuthService {
       }
 
       let user: Awaited<ReturnType<UsersService['findByEmail']>> = null;
-      let existingProviderAccount = await this.oauthAccountService.findProviderAccount(
-        providerUser.provider,
-        providerUser.providerUserId,
-      );
+      let welcome: 'new' | 'returning' = 'returning';
+      let existingProviderAccount =
+        await this.oauthAccountService.findProviderAccount(
+          providerUser.provider,
+          providerUser.providerUserId,
+        );
 
       if (existingProviderAccount) {
-        user = await this.usersService.findById(existingProviderAccount.user_id);
+        user = await this.usersService.findById(
+          existingProviderAccount.user_id,
+        );
         if (!user) {
           throw ErrorService.create(
             ErrorCode.UNAUTHORIZED,
@@ -296,7 +328,9 @@ export class GoogleAuthService {
           );
         }
       } else {
-        const existingUser = await this.usersService.findByEmail(providerUser.email);
+        const existingUser = await this.usersService.findByEmail(
+          providerUser.email,
+        );
         if (existingUser) {
           throw ErrorService.create(
             ErrorCode.CONFLICT,
@@ -305,13 +339,15 @@ export class GoogleAuthService {
         }
 
         user = await this.createGoogleUser(providerUser);
-        existingProviderAccount = await this.oauthAccountService.linkProviderAccount({
-          userId: user.id,
-          provider: providerUser.provider,
-          providerAccountId: providerUser.providerUserId,
-          email: providerUser.email,
-          emailVerified: true,
-        });
+        welcome = 'new';
+        existingProviderAccount =
+          await this.oauthAccountService.linkProviderAccount({
+            userId: user.id,
+            provider: providerUser.provider,
+            providerAccountId: providerUser.providerUserId,
+            email: providerUser.email,
+            emailVerified: true,
+          });
         if (!existingProviderAccount) {
           throw ErrorService.create(
             ErrorCode.INTERNAL,
@@ -359,6 +395,7 @@ export class GoogleAuthService {
             email: user.email,
             full_name: user.full_name,
           },
+          welcome,
         ),
       };
     } catch (error) {
@@ -367,8 +404,17 @@ export class GoogleAuthService {
 
         if (tokenResponse) {
           try {
-            const trText = await (tokenResponse.clone ? tokenResponse.clone().text() : tokenResponse.text()).catch(() => '<unreadable>');
-            console.error('[GoogleAuth] tokenResponse status:', tokenResponse.status, 'body:', trText);
+            const trText = await (
+              tokenResponse.clone
+                ? tokenResponse.clone().text()
+                : tokenResponse.text()
+            ).catch(() => '<unreadable>');
+            console.error(
+              '[GoogleAuth] tokenResponse status:',
+              tokenResponse.status,
+              'body:',
+              trText,
+            );
           } catch (e) {
             console.error('[GoogleAuth] failed to read tokenResponse body', e);
           }
@@ -384,10 +430,22 @@ export class GoogleAuthService {
 
         if (profileResponse) {
           try {
-            const prText = await (profileResponse.clone ? profileResponse.clone().text() : profileResponse.text()).catch(() => '<unreadable>');
-            console.error('[GoogleAuth] profileResponse status:', profileResponse.status, 'body:', prText);
+            const prText = await (
+              profileResponse.clone
+                ? profileResponse.clone().text()
+                : profileResponse.text()
+            ).catch(() => '<unreadable>');
+            console.error(
+              '[GoogleAuth] profileResponse status:',
+              profileResponse.status,
+              'body:',
+              prText,
+            );
           } catch (e) {
-            console.error('[GoogleAuth] failed to read profileResponse body', e);
+            console.error(
+              '[GoogleAuth] failed to read profileResponse body',
+              e,
+            );
           }
         }
       } catch (logErr) {

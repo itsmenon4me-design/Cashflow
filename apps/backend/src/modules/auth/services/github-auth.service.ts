@@ -89,12 +89,14 @@ export class GithubAuthService {
     accessToken: string,
     refreshToken: string,
     user: { email: string; full_name: string },
+    welcome: 'new' | 'returning',
   ): string {
     const params = new URLSearchParams({
       accessToken,
       refreshToken,
       userEmail: user.email,
       userName: user.full_name,
+      welcome,
     });
     return `${this.getFrontendBaseUrl()}/auth/github/callback?${params.toString()}`;
   }
@@ -126,13 +128,16 @@ export class GithubAuthService {
   ) {
     const fullName = profile.fullName ?? profile.email.split('@')[0];
     const password = crypto.randomBytes(32).toString('hex');
-    const user = await this.usersService.create({
-      email: profile.email,
-      username: await this.uniqueUsername(fullName),
-      full_name: fullName,
-      password,
-      avatar_url: profile.avatarUrl ?? undefined,
-    }, { hasManualPassword: false });
+    const user = await this.usersService.create(
+      {
+        email: profile.email,
+        username: await this.uniqueUsername(fullName),
+        full_name: fullName,
+        password,
+        avatar_url: profile.avatarUrl ?? undefined,
+      },
+      { hasManualPassword: false },
+    );
     await this.prisma.user.update({
       where: { id: user.id },
       data: { status: 'ACTIVE', email_verified_at: new Date() },
@@ -211,6 +216,7 @@ export class GithubAuthService {
     }
     const providerUser = this.provider.validateProviderUser(profile);
     let user = null;
+    let welcome: 'new' | 'returning' = 'returning';
     const linked = await this.oauthAccountService.findProviderAccount(
       'github',
       providerUser.providerUserId,
@@ -224,6 +230,7 @@ export class GithubAuthService {
         );
       }
       user = await this.createGithubUser(providerUser);
+      welcome = 'new';
       if (!user) throw new Error('GitHub user creation failed');
       await this.oauthAccountService.linkProviderAccount({
         userId: user.id,
@@ -244,6 +251,7 @@ export class GithubAuthService {
         session.data.accessToken,
         session.data.refreshToken,
         user,
+        welcome,
       ),
     };
   }

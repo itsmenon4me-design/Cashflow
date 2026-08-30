@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { OfflineBanner } from "@/components/layout/offline-banner";
@@ -22,8 +22,9 @@ interface AppProvidersProps {
 
 export function AppProviders({ children }: AppProvidersProps) {
   const router = useRouter();
+  const [oauthWelcome, setOauthWelcome] = useState<string | null>(null);
 
-useEffect(() => {
+  useEffect(() => {
     const hydrateAuth = () => {
       try {
         useAuthStore.getState().hydrateFromStorage();
@@ -33,6 +34,30 @@ useEffect(() => {
     };
 
     hydrateAuth();
+
+    const pendingWelcome = window.sessionStorage.getItem(
+      "cashflow.oauth-welcome",
+    );
+    if (pendingWelcome) {
+      try {
+        const parsed = JSON.parse(pendingWelcome) as {
+          type?: string;
+          name?: string;
+        };
+        if (parsed.type === "new") {
+          setOauthWelcome(
+            "Akun baru berhasil dibuat, selamat datang di CashFlow!",
+          );
+        } else if (parsed.type === "returning") {
+          setOauthWelcome(
+            `Selamat datang kembali, ${parsed.name || "Pengguna"}!`,
+          );
+        }
+        window.sessionStorage.removeItem("cashflow.oauth-welcome");
+      } catch {
+        window.sessionStorage.removeItem("cashflow.oauth-welcome");
+      }
+    }
 
     if (getAccessToken()) {
       void apiClient
@@ -60,14 +85,25 @@ useEffect(() => {
           // Keep the locally cached profile for network failures. Auth errors are
           // handled by the existing API interceptor and redirect flow.
           if (error instanceof ApiError && error.status === 401) return;
-          console.warn("[app-providers] profile refresh failed; using cached user", error);
+          console.warn(
+            "[app-providers] profile refresh failed; using cached user",
+            error,
+          );
         });
     }
 
     // Hydrate other client-only preferences (language, theme)
     try {
-      try { hydrateLanguagePreference(); } catch (e) { console.warn('[app-providers] hydrateLanguagePreference failed', e); }
-      try { hydrateThemePreference(); } catch (e) { console.warn('[app-providers] hydrateThemePreference failed', e); }
+      try {
+        hydrateLanguagePreference();
+      } catch (e) {
+        console.warn("[app-providers] hydrateLanguagePreference failed", e);
+      }
+      try {
+        hydrateThemePreference();
+      } catch (e) {
+        console.warn("[app-providers] hydrateThemePreference failed", e);
+      }
     } catch (e) {}
 
     const handleClientRoute = (event: Event) => {
@@ -87,12 +123,20 @@ useEffect(() => {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!oauthWelcome) return;
+    const timeout = window.setTimeout(() => setOauthWelcome(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [oauthWelcome]);
+
   // Attach syncController to window for diagnostics in staging E2E (temporary)
   try {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // If test helper exists, signal hydration via it; otherwise set the flag directly
-      if (typeof (window as any).__app_signalHydrated === 'function') {
-        try { (window as any).__app_signalHydrated(); } catch (e) {}
+      if (typeof (window as any).__app_signalHydrated === "function") {
+        try {
+          (window as any).__app_signalHydrated();
+        } catch (e) {}
       } else {
         (window as any).__app_client_ready = true;
       }
@@ -103,9 +147,11 @@ useEffect(() => {
       // consistently with other in-app navigations.
       try {
         const pending = (window as any).__app_pending_client_route;
-        if (typeof pending === 'string' && pending.startsWith('/')) {
+        if (typeof pending === "string" && pending.startsWith("/")) {
           delete (window as any).__app_pending_client_route;
-          window.dispatchEvent(new CustomEvent('cashflow:client-route', { detail: pending }));
+          window.dispatchEvent(
+            new CustomEvent("cashflow:client-route", { detail: pending }),
+          );
         }
       } catch (e) {
         // ignore
@@ -126,6 +172,14 @@ useEffect(() => {
       </ThemeProvider>
       <OfflineBanner />
       <PwaInstallPrompt />
+      {oauthWelcome && (
+        <div
+          role="status"
+          className="fixed right-4 top-4 z-toast max-w-sm rounded-lg border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-lg"
+        >
+          {oauthWelcome}
+        </div>
+      )}
     </ErrorBoundary>
   );
 }
