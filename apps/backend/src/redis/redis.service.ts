@@ -4,6 +4,7 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import Redis, { Redis as IORedisClient, RedisOptions } from 'ioredis';
 import { RedisConfig } from './redis.interfaces';
@@ -93,7 +94,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (this.config.url) {
       try {
         const parsedUrl = new URL(this.config.url);
-        if (parsedUrl.protocol !== 'redis:' && parsedUrl.protocol !== 'rediss:') {
+        if (
+          parsedUrl.protocol !== 'redis:' &&
+          parsedUrl.protocol !== 'rediss:'
+        ) {
           throw new Error(`unsupported protocol ${parsedUrl.protocol}`);
         }
         connectionUrl = this.config.url;
@@ -101,9 +105,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         port = parsedUrl.port ? Number(parsedUrl.port) : REDIS_DEFAULT_PORT;
         username = parsedUrl.username || username;
         password = parsedUrl.password || password;
-        db = parsedUrl.pathname.length > 1
-          ? Number(parsedUrl.pathname.slice(1))
-          : db;
+        db =
+          parsedUrl.pathname.length > 1
+            ? Number(parsedUrl.pathname.slice(1))
+            : db;
         tls = parsedUrl.protocol === 'rediss:' || tls;
       } catch (err) {
         this.logger.error(
@@ -243,6 +248,104 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return String(err);
     } catch {
       return 'Unknown error';
+    }
+  }
+
+  getDebugConfig(): { host: string; port: number; tls: boolean } {
+    if (this.config.url) {
+      try {
+        const parsedUrl = new URL(this.config.url);
+        return {
+          host: parsedUrl.hostname,
+          port: parsedUrl.port ? Number(parsedUrl.port) : REDIS_DEFAULT_PORT,
+          tls: parsedUrl.protocol === 'rediss:' || this.config.tls === true,
+        };
+      } catch {
+        // The connection check reports the invalid URL; keep this response safe.
+      }
+    }
+
+    return {
+      host: this.config.host ?? '127.0.0.1',
+      port: this.config.port ?? REDIS_DEFAULT_PORT,
+      tls: this.config.tls === true,
+    };
+  }
+
+  async debugCheck(): Promise<
+    | {
+        status: 'connected';
+        configUsed: { host: string; port: number; tls: boolean };
+      }
+    | {
+        status: 'failed';
+        configUsed: { host: string; port: number; tls: boolean };
+        errorMessage: string;
+        errorCode?: string;
+      }
+  > {
+    const configUsed = this.getDebugConfig();
+    const c = this.ensureClient();
+
+    if (!c) {
+      return {
+        status: 'failed',
+        configUsed,
+        errorMessage: 'Redis client is not initialized.',
+      };
+    }
+
+    try {
+      await this.withTimeout(c.ping(), 6000);
+      const key = `debug:redis-check:${crypto.randomUUID()}`;
+      const value = crypto.randomUUID();
+      await this.withTimeout(c.set(key, value, 'EX', 30), 6000);
+      const storedValue = await this.withTimeout(c.get(key), 6000);
+      await this.withTimeout(c.del(key), 6000);
+
+      if (storedValue !== value) {
+        throw new Error(
+          'Redis SET/GET verification returned an unexpected value.',
+        );
+      }
+
+      return { status: 'connected', configUsed };
+    } catch (error) {
+      const redisError = error as { message?: unknown; code?: unknown };
+      return {
+        status: 'failed',
+        configUsed,
+        errorMessage:
+          typeof redisError.message === 'string'
+            ? redisError.message.replace(
+                /redis:\/\/[^\\s]+/gi,
+                'redis://[redacted]',
+              )
+            : 'Redis check failed.',
+        ...(typeof redisError.code === 'string'
+          ? { errorCode: redisError.code }
+          : {}),
+      };
+    }
+  }
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+  ): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () =>
+          reject(new Error(`Redis operation timed out after ${timeoutMs}ms.`)),
+        timeoutMs,
+      );
+    });
+
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
   }
 
