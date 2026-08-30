@@ -2,6 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RedisService } from '../../../redis/redis.service';
 
+const REDIS_DEBUG_BUILD_MARKER = 'redis-debug-2026-08-31T00:05:00+07:00';
+
 @ApiTags('Debug')
 @Controller('debug/redis-check')
 export class RedisDebugController {
@@ -28,6 +30,7 @@ export class RedisDebugController {
       }));
 
     return {
+      buildMarker: REDIS_DEBUG_BUILD_MARKER,
       ...result,
       rawEnvironment: {
         REDIS_HOST: this.rawValue(process.env.REDIS_HOST),

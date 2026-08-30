@@ -39,8 +39,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   private readConfig(): RedisConfig {
-    const url = process.env.REDIS_URL;
-    const host = process.env.REDIS_HOST || '127.0.0.1';
+    const configuredHost = process.env.REDIS_HOST?.trim();
+    const url = configuredHost ? undefined : process.env.REDIS_URL;
+    const host = configuredHost || '127.0.0.1';
     const port = Number(process.env.REDIS_PORT || REDIS_DEFAULT_PORT);
     const configuredUsername = process.env.REDIS_USERNAME;
     const password = process.env.REDIS_PASSWORD;
