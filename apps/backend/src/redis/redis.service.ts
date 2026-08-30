@@ -39,25 +39,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   private readConfig(): RedisConfig {
-    const url = this.configService.get<string | undefined>('REDIS_URL');
-    const host = this.configService.get<string>('REDIS_HOST', '127.0.0.1');
-    const port = Number(
-      this.configService.get<number>('REDIS_PORT', REDIS_DEFAULT_PORT),
-    );
-    const configuredUsername = this.configService.get<string | undefined>(
-      'REDIS_USERNAME',
-    );
-    const password = this.configService.get<string | undefined>(
-      'REDIS_PASSWORD',
-    );
-    const db = Number(
-      this.configService.get<number>('REDIS_DB', REDIS_DEFAULT_DB),
-    );
-    const tlsRaw = this.configService.get<string | undefined>('REDIS_TLS');
+    const url = process.env.REDIS_URL;
+    const host = process.env.REDIS_HOST || '127.0.0.1';
+    const port = Number(process.env.REDIS_PORT || REDIS_DEFAULT_PORT);
+    const configuredUsername = process.env.REDIS_USERNAME;
+    const password = process.env.REDIS_PASSWORD;
+    const db = Number(process.env.REDIS_DB || REDIS_DEFAULT_DB);
+    const tlsRaw = process.env.REDIS_TLS;
     const tls = tlsRaw === 'true' || tlsRaw === '1';
-    const keyPrefix = this.configService.get<string | undefined>(
-      'REDIS_KEY_PREFIX',
-    );
+    const keyPrefix = process.env.REDIS_KEY_PREFIX;
 
     return {
       url: url || undefined,
