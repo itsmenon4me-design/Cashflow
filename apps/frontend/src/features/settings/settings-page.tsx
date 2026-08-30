@@ -54,30 +54,79 @@ const DEFAULT_PREFS: NotificationPreferences = {
 
 type SettingsTabId = "general" | "account" | "finance-bot" | "notifications";
 
-const SETTINGS_TABS = [
+const getSettingsTabs = () => [
   {
     id: "general" as const,
-    label: "Umum",
-    summary: "Tampilan & bahasa",
-    keywords: ["umum", "preferensi", "aplikasi", "tampilan", "tema", "bahasa", "indonesia", "english", "terang", "gelap"],
+    label: uiText.settingsPage.tabGeneral,
+    summary: uiText.settingsPage.tabGeneralSummary,
+    keywords: [
+      "umum",
+      "general",
+      "preferensi",
+      "aplikasi",
+      "tampilan",
+      "tema",
+      "bahasa",
+      "indonesia",
+      "english",
+      "terang",
+      "gelap",
+      "light",
+      "dark",
+    ],
   },
   {
     id: "account" as const,
-    label: "Akun",
-    summary: "Profil & keamanan",
-    keywords: ["akun", "profil", "email", "nama", "logout", "semua perangkat", "hapus akun", "danger", "zona berbahaya"],
+    label: uiText.settingsPage.tabAccount,
+    summary: uiText.settingsPage.tabAccountSummary,
+    keywords: [
+      "akun",
+      "account",
+      "profil",
+      "profile",
+      "email",
+      "nama",
+      "logout",
+      "semua perangkat",
+      "hapus akun",
+      "danger",
+      "zona berbahaya",
+      "security",
+    ],
   },
   {
     id: "finance-bot" as const,
-    label: "Finance Bot",
-    summary: "Notifikasi & gaya bot",
-    keywords: ["finance bot", "bot", "anggaran", "peringatan", "reminder", "gaya bicara", "pengingat"],
+    label: uiText.settingsPage.tabFinanceBot,
+    summary: uiText.settingsPage.tabFinanceBotSummary,
+    keywords: [
+      "finance bot",
+      "bot",
+      "anggaran",
+      "budget",
+      "peringatan",
+      "warning",
+      "reminder",
+      "gaya bicara",
+      "bot style",
+      "pengingat",
+      "notifications",
+    ],
   },
   {
     id: "notifications" as const,
-    label: "Notifikasi",
-    summary: "Pengaturan pemberitahuan",
-    keywords: ["notifikasi", "transaksi", "anggaran", "target tabungan", "akun", "investasi", "sistem"],
+    label: uiText.settingsPage.tabNotifications,
+    summary: uiText.settingsPage.tabNotificationsSummary,
+    keywords: [
+      "notifikasi",
+      "notifications",
+      "transaksi",
+      "anggaran",
+      "target tabungan",
+      "akun",
+      "investasi",
+      "sistem",
+      "system",
+    ],
   },
 ];
 
@@ -138,7 +187,7 @@ export function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
     const tab = searchParams.get("tab");
-    return SETTINGS_TABS.some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
+    return getSettingsTabs().some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
@@ -148,6 +197,7 @@ export function SettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const language = currentLanguage;
+  const settingsTabs = useMemo(() => getSettingsTabs(), [language]);
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFS);
 
   const themeOptions: { value: ThemePreference; icon: typeof Sun; label: string }[] = [
@@ -166,20 +216,20 @@ export function SettingsPage() {
   const filteredTabs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return SETTINGS_TABS;
+      return settingsTabs;
     }
-    return SETTINGS_TABS.filter((tab) =>
+    return settingsTabs.filter((tab) =>
       tab.label.toLowerCase().includes(query) ||
       tab.summary.toLowerCase().includes(query) ||
       tab.keywords.some((item) => item.toLowerCase().includes(query)),
     );
-  }, [searchQuery]);
+  }, [searchQuery, settingsTabs]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    const nextTab = SETTINGS_TABS.some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
+    const nextTab = settingsTabs.some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
     setActiveTab((current) => current === nextTab ? current : nextTab);
-  }, [searchParams]);
+  }, [searchParams, settingsTabs]);
 
   useEffect(() => {
     if (filteredTabs.length > 0 && !filteredTabs.some((tab) => tab.id === activeTab)) {
@@ -302,7 +352,7 @@ export function SettingsPage() {
     );
   }
 
-  const activeSettingsTab = SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0];
+  const activeSettingsTab = settingsTabs.find((tab) => tab.id === activeTab) ?? settingsTabs[0];
 
   return (
     <div className="space-y-6">
@@ -319,7 +369,7 @@ export function SettingsPage() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Cari pengaturan"
+                placeholder={uiText.settingsPage.searchPlaceholder}
                 className="h-10 pl-9"
               />
             </div>
@@ -327,7 +377,7 @@ export function SettingsPage() {
             <nav className="mt-4 space-y-2">
               {filteredTabs.length === 0 ? (
                 <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                  Tidak ada pengaturan yang cocok.
+                  {uiText.settingsPage.searchEmpty}
                 </div>
               ) : (
                 filteredTabs.map((tab) => {
