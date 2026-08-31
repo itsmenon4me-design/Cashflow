@@ -140,12 +140,7 @@ export function ActiveSessionsTable() {
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Perangkat</th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                <div>Lokasi</div>
-                <div className="mt-1 max-w-56 text-xs font-normal leading-4 text-muted-foreground">
-                  Lokasi berdasarkan estimasi jaringan, mungkin tidak 100% akurat.
-                </div>
-              </th>
+              <th scope="col" className="px-4 py-3 font-medium">Lokasi</th>
               <th scope="col" className="px-4 py-3 font-medium">Dibuat</th>
               <th scope="col" className="px-4 py-3 font-medium">Diperbarui</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">Aksi</th>
@@ -154,7 +149,7 @@ export function ActiveSessionsTable() {
           <tbody className="divide-y divide-border">
             {items.map((session) => {
               const current = session.id === currentId;
-              const device = [session.operating_system, session.browser].filter(Boolean).join(" · ")
+              const device = [session.operating_system, session.browser].filter(Boolean).join(", ")
                 || session.device_name
                 || "Perangkat tidak diketahui";
               return (

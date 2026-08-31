@@ -36,17 +36,27 @@ export default function ProfilePage() {
     try {
       const res = await authService.updateProfile({ full_name: name.trim() });
       if (res?.success) {
+        const updatedFromPatch = res.data;
+        if (updatedFromPatch) {
+          setUser({
+            name: updatedFromPatch.full_name || updatedFromPatch.name || name.trim(),
+            email: updatedFromPatch.email || user?.email || "",
+          });
+        }
         // Refresh user data via /me + update localStorage/authStore supaya konsisten setelah reload
         try {
           // apiClient already unwraps HTTP body: response IS { success, data }
           const meRes = await apiClient.get<{ success: boolean; data: any }>("/auth/me");
           const meData = meRes?.data;
           if (meData) {
-            const updated = { id: meData.id, name: meData.full_name || meData.name, email: meData.email || user?.email };
+            const updated = { name: meData.full_name || meData.name, email: meData.email || user?.email };
             setUser(updated);
             setStoredUser(updated);
           }
-        } catch { /* fallback: optimistic update */ }
+        } catch (refreshError) {
+          console.warn("[profile-page] profile refresh failed after update", refreshError);
+          setError("Nama tersimpan, tetapi profil terbaru gagal dimuat. Silakan refresh halaman.");
+        }
         setIsEditing(false);
       } else {
         setError(res?.message ?? "Failed to update profile");

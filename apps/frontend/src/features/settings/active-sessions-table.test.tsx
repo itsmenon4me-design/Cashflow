@@ -71,8 +71,8 @@ describe("ActiveSessionsTable", () => {
     expect(screen.getByTestId("device-icon-tablet")).toBeInTheDocument();
     expect(screen.getByTestId("device-icon-desktop")).toBeInTheDocument();
     expect(screen.getByTestId("device-icon-unknown")).toBeInTheDocument();
-    expect(
-      screen.getByText("Lokasi berdasarkan estimasi jaringan, mungkin tidak 100% akurat."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Lokasi")).toBeInTheDocument();
+    expect(screen.queryByText(/Lokasi berdasarkan estimasi jaringan/)).not.toBeInTheDocument();
+    expect(screen.getByText("Windows, Chrome")).toBeInTheDocument();
   });
 });

@@ -102,7 +102,11 @@ export const authService = {
             return r;
           }
         } catch (e) {
-          // fall through to generic failure below
+          console.error("[auth-service] profile fallback update failed", e);
+          return {
+            success: false,
+            message: "Profil gagal diperbarui melalui endpoint alternatif.",
+          };
         }
         return {
           success: false,

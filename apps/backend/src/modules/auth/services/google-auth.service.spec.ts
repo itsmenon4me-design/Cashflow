@@ -66,7 +66,7 @@ describe('GoogleAuthService', () => {
       provider: 'google',
       providerUserId: 'google-123',
       email: 'user@example.com',
-      fullName: 'User Example',
+      fullName: 'Google Provider Name',
       avatarUrl: null,
       verifiedEmail: true,
     });
@@ -74,7 +74,7 @@ describe('GoogleAuthService', () => {
     usersService.findById.mockResolvedValue({
       id: 'user-1',
       email: 'user@example.com',
-      full_name: 'User Example',
+      full_name: 'Manual Custom Name',
       status: 'ACTIVE',
       role_code: 'USER',
     });
@@ -89,6 +89,14 @@ describe('GoogleAuthService', () => {
 
     expect(result.success).toBe(true);
     expect(result.redirectUrl).toContain('/auth/google/callback?');
+    expect(new URL(result.redirectUrl).searchParams.get('userName')).toBe(
+      'Manual Custom Name',
+    );
+    expect(prisma.user.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ full_name: expect.anything() }),
+      }),
+    );
     expect(authService.issueSessionForUser).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'user-1' }),
       'google',
