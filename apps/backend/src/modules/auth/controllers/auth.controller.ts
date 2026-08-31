@@ -72,6 +72,13 @@ export class AuthController {
       this.logger.error(
         `Registration verification email failed: user=${created.id} email=${created.email} error=${(error as Error).message}`,
       );
+      return {
+        success: true,
+        message: 'Registration successful',
+        verificationEmailSent,
+        debugError: String((error as Error).message ?? error),
+        data: toUserResponse(created),
+      };
     }
     return {
       success: true,

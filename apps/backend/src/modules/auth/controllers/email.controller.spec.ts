@@ -106,6 +106,7 @@ describe('EmailController (security)', () => {
         .send({ email: 'a@b.com' })
         .expect(201);
       expect(response.body.success).toBe(false);
+      expect(response.body.debugError).toBe('SMTP unavailable');
     });
 
     it('responds generically for unknown emails without sending', async () => {
@@ -154,6 +155,7 @@ describe('EmailController (security)', () => {
         .send({ email: 'a@b.com' })
         .expect(201);
       expect(response.body.success).toBe(false);
+      expect(response.body.debugError).toBe('SMTP unavailable');
     });
 
     it('is rate limited per IP', async () => {

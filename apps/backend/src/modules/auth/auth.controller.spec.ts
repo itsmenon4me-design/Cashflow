@@ -171,6 +171,7 @@ describe('AuthController', () => {
 
     expect(response.success).toBe(true);
     expect(response.verificationEmailSent).toBe(false);
+    expect(response.debugError).toBe('SMTP unavailable');
     expect(loggerSpy).toHaveBeenCalledWith(
       expect.stringContaining('Registration verification email failed'),
     );

@@ -69,6 +69,7 @@ export class EmailController {
       return {
         success: false,
         message: 'Verification email could not be sent. Please try again later.',
+        debugError: String((err as Error).message ?? err),
       };
     }
     return { success: true };
@@ -101,6 +102,7 @@ export class EmailController {
       return {
         success: false,
         message: 'Verification email could not be sent. Please try again later.',
+        debugError: String((err as Error).message ?? err),
       };
     }
     return { success: true };
