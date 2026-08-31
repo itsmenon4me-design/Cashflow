@@ -160,6 +160,33 @@ describe('AuthService (rate-limit failures)', () => {
       svc.login({ email: 'notfound@example.com', password: 'x' }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RATE_LIMIT });
   });
+
+  test('rejects pending verification with a dedicated error code', async () => {
+    const mocks = makeMocks();
+    mocks.users.findByEmail.mockResolvedValue({
+      id: 'u-pending',
+      email: 'pending@example.com',
+      password_hash: 'hash',
+      status: 'PENDING_VERIFICATION',
+    });
+    const svc = new AuthService(
+      mocks.users,
+      mocks.passwordService,
+      mocks.jwtService,
+      mocks.jwtConfig,
+      mocks.refreshService,
+      mocks.sessionService,
+      mocks.auditLogService,
+      mocks.redis,
+      mocks.authConfig,
+      mocks.appLogger,
+    );
+
+    await expect(
+      svc.login({ email: 'pending@example.com', password: 'correct' }),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.EMAIL_NOT_VERIFIED });
+    expect(mocks.passwordService.verifyPassword).not.toHaveBeenCalled();
+  });
 });
 
 describe('AuthService.resetPassword', () => {

@@ -8,6 +8,25 @@ import { useAuthStore } from "@/stores/auth.store";
 import { settingsService } from "@/services/settings.service";
 import { SettingsPage } from "@/features/settings/settings-page";
 
+const { replaceMock, searchParamsMock } = vi.hoisted(() => ({
+  replaceMock: vi.fn(),
+  searchParamsMock: {
+    get: vi.fn<(key?: string) => string | null>(),
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: replaceMock,
+    push: vi.fn(),
+    back: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  useSearchParams: () => ({
+    get: (key: string) => searchParamsMock.get(key) ?? null,
+  }),
+}));
+
 function Probe() {
   // Reads the shared live binding during render, like application components.
   return createElement("p", null, uiText.forecast.pageTitle);
@@ -21,6 +40,8 @@ describe("global language store", () => {
   afterEach(() => {
     useLanguageStore.setState({ language: "id" });
     window.localStorage.removeItem("cashflow.language");
+    searchParamsMock.get.mockReset();
+    searchParamsMock.get.mockImplementation(() => null);
     cleanup();
     vi.restoreAllMocks();
   });
@@ -72,6 +93,8 @@ describe("LanguageProvider reconciliation", () => {
   afterEach(() => {
     useAuthStore.setState({ isAuthenticated: previousAuthenticated });
     useLanguageStore.setState({ language: "id" });
+    searchParamsMock.get.mockReset();
+    searchParamsMock.get.mockImplementation(() => null);
     cleanup();
     vi.restoreAllMocks();
   });
@@ -153,6 +176,9 @@ describe("LanguageProvider reconciliation", () => {
       createdAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:00.000Z",
     }) as never);
+    searchParamsMock.get.mockImplementation((key?: string) =>
+      key === "tab" ? "notifications" : null,
+    );
 
     function SettingsProbe() {
       useEffect(() => {
@@ -171,8 +197,9 @@ describe("LanguageProvider reconciliation", () => {
     const initialCalls = getSettingsSpy.mock.calls.length;
     const initialMountCount = mountCount;
 
-    fireEvent.click(screen.getByText("Terang"));
-    fireEvent.click(screen.getByText("Transaksi"));
+    const notificationsToggle = document.getElementById("notif-transactions");
+    expect(notificationsToggle).not.toBeNull();
+    fireEvent.click(notificationsToggle!);
 
     expect(mountCount).toBe(initialMountCount);
     expect(getSettingsSpy).toHaveBeenCalledTimes(initialCalls);

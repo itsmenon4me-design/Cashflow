@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  Logger,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -14,6 +15,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { RedisService } from '../../redis/redis.service';
 import { AuthConfigService } from '../../config/auth-config.service';
 import { LoggerService } from '../../common/logger/logger.service';
+import { EmailVerificationService } from './services/email-verification.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -21,6 +23,7 @@ describe('AuthController', () => {
   const mockAuthService = {};
   const mockSessionService = { logoutCurrent: jest.fn() };
   const mockUsersService = { create: jest.fn(), findById: jest.fn() };
+  const mockVerificationService = { sendVerificationEmail: jest.fn() };
   const mockRedisService = { incr: jest.fn().mockResolvedValue(1) };
   const mockAuthConfigService = {
     config: {
@@ -84,6 +87,7 @@ describe('AuthController', () => {
     mockSessionService.logoutCurrent.mockClear();
     mockUsersService.create.mockClear();
     mockUsersService.findById.mockClear();
+    mockVerificationService.sendVerificationEmail.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -91,6 +95,7 @@ describe('AuthController', () => {
         { provide: AuthService, useValue: mockAuthService },
         { provide: SessionService, useValue: mockSessionService },
         { provide: UsersService, useValue: mockUsersService },
+        { provide: EmailVerificationService, useValue: mockVerificationService },
         { provide: RedisService, useValue: mockRedisService },
         { provide: AuthConfigService, useValue: mockAuthConfigService },
         { provide: LoggerService, useValue: mockLoggerService },
@@ -130,15 +135,46 @@ describe('AuthController', () => {
     };
 
     mockUsersService.create.mockResolvedValue(created);
+    mockVerificationService.sendVerificationEmail.mockResolvedValue(undefined);
 
     const res = await controller.register(dto);
 
     expect(mockUsersService.create).toHaveBeenCalledWith(dto);
+    expect(mockVerificationService.sendVerificationEmail).toHaveBeenCalledWith('u1');
     expect(res.success).toBe(true);
     expect(
       (res.data as unknown as { password_hash?: unknown }).password_hash,
     ).toBeUndefined();
     expect(res.data.email).toBe(dto.email);
+  });
+
+  it('keeps registration successful and logs when verification email fails', async () => {
+    const dto: CreateUserDto = {
+      email: 'failed-email@example.com',
+      username: 'failedemail',
+      full_name: 'Failed Email',
+      password: 'VeryS3cureP@ss!',
+    };
+    const created = {
+      ...userEntity,
+      id: 'u2',
+      email: dto.email,
+      username: dto.username,
+    };
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    mockUsersService.create.mockResolvedValue(created);
+    mockVerificationService.sendVerificationEmail.mockRejectedValue(
+      new Error('SMTP unavailable'),
+    );
+
+    const response = await controller.register(dto);
+
+    expect(response.success).toBe(true);
+    expect(response.verificationEmailSent).toBe(false);
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Registration verification email failed'),
+    );
+    loggerSpy.mockRestore();
   });
 
   it('me returns current user when found', async () => {

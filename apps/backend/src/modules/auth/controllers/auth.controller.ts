@@ -1,4 +1,5 @@
 import {
+  Logger,
   Body,
   Controller,
   Post,
@@ -31,14 +32,18 @@ import { ErrorService } from '../../../common/errors/error.service';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { extractAuthRequestContext } from '../services/device-info';
+import { EmailVerificationService } from '../services/email-verification.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly sessions: SessionService,
     private readonly users: UsersService,
+    private readonly verification: EmailVerificationService,
   ) {}
 
   @Post('login')
@@ -59,9 +64,19 @@ export class AuthController {
   async register(@Body() body: CreateUserDto) {
     // Delegate to UsersService which handles hashing and role assignment
     const created = await this.users.create(body);
+    let verificationEmailSent = true;
+    try {
+      await this.verification.sendVerificationEmail(created.id);
+    } catch (error) {
+      verificationEmailSent = false;
+      this.logger.error(
+        `Registration verification email failed: user=${created.id} email=${created.email} error=${(error as Error).message}`,
+      );
+    }
     return {
       success: true,
       message: 'Registration successful',
+      verificationEmailSent,
       data: toUserResponse(created),
     };
   }

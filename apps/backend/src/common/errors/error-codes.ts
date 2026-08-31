@@ -8,6 +8,7 @@ export enum ErrorCode {
 
   // Auth related
   INVALID_CREDENTIALS = 'ERR_INVALID_CREDENTIALS',
+  EMAIL_NOT_VERIFIED = 'ERR_EMAIL_NOT_VERIFIED',
   TOKEN_EXPIRED = 'ERR_TOKEN_EXPIRED',
   INVALID_TOKEN = 'ERR_INVALID_TOKEN',
   EXPIRED_TOKEN = 'ERR_EXPIRED_TOKEN',
@@ -27,6 +28,7 @@ export const ErrorCodeHttpStatusMap: Record<ErrorCode, number> = {
   [ErrorCode.NOT_FOUND]: 404,
   [ErrorCode.CONFLICT]: 409,
   [ErrorCode.INVALID_CREDENTIALS]: 401,
+  [ErrorCode.EMAIL_NOT_VERIFIED]: 403,
   [ErrorCode.TOKEN_EXPIRED]: 401,
   [ErrorCode.INVALID_TOKEN]: 400,
   [ErrorCode.EXPIRED_TOKEN]: 400,
@@ -42,6 +44,7 @@ export const ErrorCodeDefaultMessage: Record<ErrorCode, string> = {
   [ErrorCode.NOT_FOUND]: 'Resource not found',
   [ErrorCode.CONFLICT]: 'Conflict',
   [ErrorCode.INVALID_CREDENTIALS]: 'Invalid credentials',
+  [ErrorCode.EMAIL_NOT_VERIFIED]: 'Email address is not verified',
   [ErrorCode.TOKEN_EXPIRED]: 'Token expired',
   [ErrorCode.INVALID_TOKEN]: 'Invalid token',
   [ErrorCode.EXPIRED_TOKEN]: 'Expired token',

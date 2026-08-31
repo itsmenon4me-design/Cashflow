@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -125,6 +126,30 @@ describe('CategoriesController (security)', () => {
     ).toHaveBeenCalled();
     const calledWithUserId = categoriesServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
+  });
+
+  it('by-id access: rejects records owned by another user with 404', async () => {
+    categoriesServiceMock.getById.mockRejectedValueOnce(
+      new NotFoundException('Category not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .get('/categories/other-user-category')
+      .expect(404);
+
+    categoriesServiceMock.update.mockRejectedValueOnce(
+      new NotFoundException('Category not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .patch('/categories/other-user-category')
+      .send({ name: 'Hijacked' })
+      .expect(404);
+
+    categoriesServiceMock.softDelete.mockRejectedValueOnce(
+      new NotFoundException('Category not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .delete('/categories/other-user-category')
+      .expect(404);
   });
 
   it('delete: passes authenticated userId to service', async () => {

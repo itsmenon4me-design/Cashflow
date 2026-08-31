@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -169,6 +170,31 @@ describe('TransactionsController (security)', () => {
     ).toHaveBeenCalled();
     const calledWithUserId = txServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
+  });
+
+  it('by-id access: returns 404 when a record belongs to another user', async () => {
+    txServiceMock.getById.mockRejectedValueOnce(
+      new NotFoundException('Transaction not found'),
+    );
+
+    await request(app.getHttpServer() as Server)
+      .get('/transactions/other-user-transaction')
+      .expect(404);
+
+    txServiceMock.update.mockRejectedValueOnce(
+      new NotFoundException('Transaction not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .patch('/transactions/other-user-transaction')
+      .send({ note: 'hijack' })
+      .expect(404);
+
+    txServiceMock.softDelete.mockRejectedValueOnce(
+      new NotFoundException('Transaction not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .delete('/transactions/other-user-transaction')
+      .expect(404);
   });
 
   it('delete: passes authenticated userId to service', async () => {

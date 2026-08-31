@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -127,6 +128,30 @@ describe('SavingGoalsController (security)', () => {
     ).toHaveBeenCalled();
     const calledWithUserId = goalsServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
+  });
+
+  it('by-id access: rejects records owned by another user with 404', async () => {
+    goalsServiceMock.getById.mockRejectedValueOnce(
+      new NotFoundException('Saving goal not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .get('/saving-goals/other-user-goal')
+      .expect(404);
+
+    goalsServiceMock.update.mockRejectedValueOnce(
+      new NotFoundException('Saving goal not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .patch('/saving-goals/other-user-goal')
+      .send({ name: 'Hijacked' })
+      .expect(404);
+
+    goalsServiceMock.softDelete.mockRejectedValueOnce(
+      new NotFoundException('Saving goal not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .delete('/saving-goals/other-user-goal')
+      .expect(404);
   });
 
   it('delete: passes authenticated userId to service', async () => {

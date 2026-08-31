@@ -97,6 +97,17 @@ describe('EmailController (security)', () => {
       expect(verificationMock.sendVerificationEmail).toHaveBeenCalledWith('u1');
     });
 
+    it('reports verification delivery failure instead of returning false success', async () => {
+      verificationMock.sendVerificationEmail.mockRejectedValueOnce(
+        new Error('SMTP unavailable'),
+      );
+      const response = await http()
+        .post('/auth/email/send-verification')
+        .send({ email: 'a@b.com' })
+        .expect(201);
+      expect(response.body.success).toBe(false);
+    });
+
     it('responds generically for unknown emails without sending', async () => {
       usersServiceMock.findByEmail.mockResolvedValueOnce(null);
       const response = await http()
@@ -132,6 +143,17 @@ describe('EmailController (security)', () => {
         .send({ email: 'a@b.com' })
         .expect(201);
       expect(verificationMock.sendVerificationEmail).toHaveBeenCalledWith('u1');
+    });
+
+    it('reports resend delivery failure instead of returning false success', async () => {
+      verificationMock.sendVerificationEmail.mockRejectedValueOnce(
+        new Error('SMTP unavailable'),
+      );
+      const response = await http()
+        .post('/auth/email/resend')
+        .send({ email: 'a@b.com' })
+        .expect(201);
+      expect(response.body.success).toBe(false);
     });
 
     it('is rate limited per IP', async () => {
@@ -197,12 +219,12 @@ describe('EmailController (security)', () => {
       expect(JSON.stringify(response.body)).not.toContain('password_reset');
     });
 
-    it('is not blocked by the send/resend rate limiter (public flow)', async () => {
+    it('is blocked by the auth rate limiter when Redis is unavailable or rate limited', async () => {
       rateLimitGuard.allowed = false;
       await http()
         .post('/auth/email/forgot-password')
         .send({ email: 'a@b.com' })
-        .expect(201);
+        .expect(403);
     });
 
     it('logs error silently and maintains generic response when SMTP fails', async () => {

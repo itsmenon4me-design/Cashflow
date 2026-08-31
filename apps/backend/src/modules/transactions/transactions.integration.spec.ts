@@ -6,8 +6,9 @@ import { PrismaTransactionsRepository } from './repositories/prisma-transactions
 
 const dbUrl = process.env.DATABASE_URL || '';
 const hasDatabase = dbUrl.trim().length > 0;
+const describeIfDatabase = hasDatabase ? describe : describe.skip;
 
-describe.skip('Transactions Integration - user isolation (DB-level)', () => {
+describeIfDatabase('Transactions Integration - user isolation (DB-level)', () => {
   let prisma: PrismaService | null = null;
   let repo: PrismaTransactionsRepository | null = null;
   let userAId: string;

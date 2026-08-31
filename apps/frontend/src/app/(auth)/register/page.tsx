@@ -31,6 +31,8 @@ export default function Page() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(true);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -123,16 +125,8 @@ export default function Page() {
         return;
       }
 
-      // Attempt to send verification email (non-blocking for registration success)
-      try {
-        await authService.sendVerification(payload.email);
-      } catch {
-        // ignore send failures; user still registered
-      }
-
+      setVerificationEmailSent(res.verificationEmailSent !== false);
       setSuccess(t.registerSuccess);
-      // Redirect to login after a short delay
-      setTimeout(() => router.replace("/login"), 1800);
     } catch (err) {
       if (err instanceof ApiError) {
         const message =
@@ -148,6 +142,17 @@ export default function Page() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    const response = await authService.sendVerification(email.trim());
+    setSuccess(
+      response.success
+        ? t.verificationEmailSent
+        : response.message ?? t.verificationEmailFailed,
+    );
+    setResendingVerification(false);
   };
 
   return (
@@ -244,6 +249,32 @@ export default function Page() {
                 <p className="text-sm text-success" role="status">
                   {success}
                 </p>
+              )}
+
+              {success && (
+                <div className="space-y-2">
+                  {!verificationEmailSent && (
+                    <p className="text-sm text-destructive" role="alert">
+                      {t.verificationEmailFailed}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    loading={resendingVerification}
+                    onClick={handleResendVerification}
+                  >
+                    {t.resendVerification}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() => router.replace("/login")}
+                  >
+                    {t.loginInstead}
+                  </Button>
+                </div>
               )}
 
               <Button type="submit" className="w-full" loading={submitting}>

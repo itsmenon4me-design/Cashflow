@@ -17,6 +17,7 @@ import {
   EyeOff,
   User as UserIcon,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ import { ActiveSessionsTable } from "@/features/settings/active-sessions-table";
 import { ProfileFormInline } from "@/features/settings/profile-form-inline";
 import { ErrorState } from "@/components/states/ErrorState";
 import { uiText } from "@/locales";
+import { APP_VERSION } from "@/lib/version";
 import { authService } from "@/services/auth.service";
 import { settingsService } from "@/services/settings.service";
 import { useAuthStore } from "@/stores/auth.store";
@@ -52,7 +54,7 @@ const DEFAULT_PREFS: NotificationPreferences = {
   system: true,
 };
 
-type SettingsTabId = "general" | "account" | "finance-bot" | "notifications";
+type SettingsTabId = "general" | "account" | "finance-bot" | "notifications" | "about";
 
 const getSettingsTabs = () => [
   {
@@ -126,6 +128,21 @@ const getSettingsTabs = () => [
       "investasi",
       "sistem",
       "system",
+    ],
+  },
+  {
+    id: "about" as const,
+    label: uiText.settingsPage.tabAbout,
+    summary: uiText.settingsPage.tabAboutSummary,
+    keywords: [
+      "about",
+      "tentang",
+      "informasi",
+      "info",
+      "version",
+      "versi",
+      "cashflow",
+      "aplikasi",
     ],
   },
 ];
@@ -382,7 +399,7 @@ export function SettingsPage() {
               ) : (
                 filteredTabs.map((tab) => {
                   const isActive = activeSettingsTab.id === tab.id;
-                  const Icon = tab.id === "general" ? Palette : tab.id === "account" ? UserRound : tab.id === "finance-bot" ? Bot : Bell;
+                  const Icon = tab.id === "general" ? Palette : tab.id === "account" ? UserRound : tab.id === "finance-bot" ? Bot : tab.id === "about" ? Wallet : Bell;
                   return (
                     <button
                       key={tab.id}
@@ -550,6 +567,24 @@ export function SettingsPage() {
                       </div>
                     ))
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeSettingsTab.id === "about" && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">{uiText.settingsPage.tabAbout}</h2>
+                <p className="text-sm text-muted-foreground">{uiText.settingsPage.tabAboutSummary}</p>
+              </div>
+
+              <Card className="shadow-sm">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
+                    <span className="text-sm font-medium text-muted-foreground">{uiText.settingsPage.versionLabel}</span>
+                    <span className="text-sm font-semibold text-foreground">v{APP_VERSION}</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

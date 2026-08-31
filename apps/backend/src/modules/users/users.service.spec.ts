@@ -16,7 +16,10 @@ describe('UsersService (create)', () => {
   };
   const mockLoggerService = { log: jest.fn() };
   const mockPasswordService = { hashPassword: jest.fn() };
-  const mockRoleRepo = { ensureSuperAdmin: jest.fn() };
+  const mockRoleRepo = {
+    ensureSuperAdmin: jest.fn(),
+    ensureDefaultRole: jest.fn(),
+  };
   const mockPrisma = {
     user: { findUnique: jest.fn() },
   };
@@ -26,6 +29,9 @@ describe('UsersService (create)', () => {
     mockRepo.create.mockReset();
     mockPasswordService.hashPassword.mockReset();
     mockPrisma.user.findUnique.mockReset();
+    mockRoleRepo.ensureSuperAdmin.mockReset();
+    mockRoleRepo.ensureDefaultRole.mockReset();
+    mockRoleRepo.ensureDefaultRole.mockResolvedValue({ id: 'default-role-id' });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

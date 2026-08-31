@@ -7,6 +7,7 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { UsersController } from './users.controller';
+import { UsersMeController } from './users-me.controller';
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { UserEntity } from '../entities/user.entity';
@@ -64,7 +65,7 @@ describe('UsersController (security)', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [UsersController],
+      controllers: [UsersMeController, UsersController],
       providers: [{ provide: UsersService, useValue: usersServiceMock }],
     })
       .overrideGuard(JwtAuthGuard)
@@ -72,6 +73,8 @@ describe('UsersController (security)', () => {
       .compile();
 
     app = module.createNestApplication();
+    const expressAdapter = app.getHttpAdapter().getInstance() as { set: (key: string, value: unknown) => void };
+    expressAdapter.set('strict routing', true);
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, transform: true }),
     );
@@ -157,7 +160,7 @@ describe('UsersController (security)', () => {
       await http()
         .post('/users/me/delete-account')
         .send({ email: 'auth@example.com', password: 'StrongPass123!' })
-        .expect(200);
+        .expect(201);
       expect(usersServiceMock.deleteOwnAccount).toHaveBeenCalledWith(
         'user-auth',
         'auth@example.com',
@@ -184,11 +187,11 @@ describe('UsersController (security)', () => {
     });
   });
 
-  describe('POST /users', () => {
+  describe('POST /users/create', () => {
     it('rejects unauthenticated creation', async () => {
       authGuard.isAuthenticated = false;
       await http()
-        .post('/users')
+        .post('/users/create')
         .send({
           email: 'new@example.com',
           username: 'newuser',
@@ -201,7 +204,7 @@ describe('UsersController (security)', () => {
 
     it('rejects non-SUPER_ADMIN creation', async () => {
       await http()
-        .post('/users')
+        .post('/users/create')
         .send({
           email: 'new@example.com',
           username: 'newuser',
@@ -215,7 +218,7 @@ describe('UsersController (security)', () => {
     it('allows SUPER_ADMIN creation', async () => {
       authGuard.role = 'SUPER_ADMIN';
       await http()
-        .post('/users')
+        .post('/users/create')
         .send({
           email: 'new@example.com',
           username: 'newuser',

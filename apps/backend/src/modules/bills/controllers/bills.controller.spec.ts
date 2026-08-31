@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -33,6 +34,7 @@ describe('BillsController (security)', () => {
   };
 
   const billId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const otherUserBillId = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
   const billEntity = {
     id: billId,
     user_id: 'user-auth',
@@ -169,6 +171,30 @@ describe('BillsController (security)', () => {
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
     expect(billsServiceMock.getById).toHaveBeenCalledWith('user-auth', billId);
+  });
+
+  it('by-id access: rejects records owned by another user with 404', async () => {
+    billsServiceMock.getById.mockRejectedValueOnce(
+      new NotFoundException('Bill not found'),
+    );
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .get(`/bills/${otherUserBillId}`)
+      .expect(404);
+
+    billsServiceMock.update.mockRejectedValueOnce(
+      new NotFoundException('Bill not found'),
+    );
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .patch(`/bills/${otherUserBillId}`)
+      .send({ payee: 'Hijacked' })
+      .expect(404);
+
+    billsServiceMock.softDelete.mockRejectedValueOnce(
+      new NotFoundException('Bill not found'),
+    );
+    await request(app.getHttpServer() as Parameters<typeof request>[0])
+      .delete(`/bills/${otherUserBillId}`)
+      .expect(404);
   });
 
   it('POST /bills: attacker body userId is rejected by validation (forbidNonWhitelisted)', async () => {

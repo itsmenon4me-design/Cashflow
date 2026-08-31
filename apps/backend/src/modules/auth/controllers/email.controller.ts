@@ -66,6 +66,10 @@ export class EmailController {
       this.logger.error(
         `Failed to send verification email: email=${body.email} error=${(err as Error).message}`,
       );
+      return {
+        success: false,
+        message: 'Verification email could not be sent. Please try again later.',
+      };
     }
     return { success: true };
   }
@@ -94,11 +98,16 @@ export class EmailController {
       this.logger.error(
         `Failed to resend verification email: email=${body.email} error=${(err as Error).message}`,
       );
+      return {
+        success: false,
+        message: 'Verification email could not be sent. Please try again later.',
+      };
     }
     return { success: true };
   }
 
   @Post('/forgot-password')
+  @UseGuards(AuthRateLimitGuard)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiResponse({ status: 200 })
   async forgot(@Body() body: ForgotPasswordDto) {

@@ -62,6 +62,7 @@ describe('corsConfig', () => {
   });
 
   it('rejects the wildcard', async () => {
+    process.env.NODE_ENV = 'test';
     process.env.CORS_ORIGINS = '*';
     expect((await corsConfig()).origin).toEqual([]);
     process.env.CORS_ORIGINS = 'http://localhost, *';

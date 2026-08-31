@@ -12,7 +12,9 @@ import { LoggerService } from '../../common/logger/logger.service';
 /**
  * Simple endpoint-level rate limiter for authentication endpoints.
  * - Enforces per-IP limits for login/register/refresh and email verification send/resend.
- * - Uses Redis if available; if Redis is unavailable, the guard fails-open (allows requests) to avoid taking auth offline.
+ * - Uses Redis when available; if Redis is unavailable, the guard fails closed by default
+ *   to prevent brute-force attacks against sensitive auth endpoints.
+ * - A dedicated env flag can opt into fail-open only for controlled low-risk environments.
  */
 
 @Injectable()
@@ -43,12 +45,6 @@ export class AuthRateLimitGuard implements CanActivate {
     try {
       return await this.redis.incr(key, ttl);
     } catch {
-      this.logger.warn(
-        'Redis INCR failed in rate limiter; allowing request (fail-open)',
-      );
-      this.appLogger.securityLog('rate_limit_redis_error', {
-        endpointKey: key,
-      });
       return null;
     }
   }
@@ -78,7 +74,10 @@ export class AuthRateLimitGuard implements CanActivate {
     ) {
       limit = cfg.emailVerificationLimit;
       windowSec = cfg.emailVerificationWindowSeconds;
-    } else if (path.endsWith('/reset-password')) {
+    } else if (
+      path.endsWith('/forgot-password') ||
+      path.endsWith('/reset-password')
+    ) {
       limit = cfg.resetPasswordLimit;
       windowSec = cfg.resetPasswordWindowSeconds;
     } else {
@@ -88,8 +87,18 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = `rate:auth:ip:${path}:${ip}`;
     const count = await this.incrIp(key, windowSec);
     if (count === null) {
-      // Redis unavailable — fail-open to avoid outage
-      return true;
+      const failOpen = cfg.failOpenOnRedisError === true;
+      const status = failOpen ? 'allowing request (fail-open)' : 'rejecting request (fail-closed)';
+      this.logger.warn(
+        `Redis unavailable in auth rate limiter; ${status} endpoint=${path} ip=${ip} key=${key}`,
+      );
+      this.appLogger.securityLog('rate_limit_redis_error', {
+        endpoint: path,
+        clientIp: ip,
+        endpointKey: key,
+        failOpen,
+      });
+      return failOpen;
     }
 
     if (count > limit) {

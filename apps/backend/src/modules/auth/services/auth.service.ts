@@ -150,6 +150,12 @@ export class AuthService {
       user.status === 'SUSPENDED' ||
       user.status === 'PENDING_VERIFICATION'
     ) {
+      if (user.status === 'PENDING_VERIFICATION') {
+        throw ErrorService.create(
+          ErrorCode.EMAIL_NOT_VERIFIED,
+          'Email address is not verified',
+        );
+      }
       throw ErrorService.create(ErrorCode.FORBIDDEN, 'Account not active');
     }
 

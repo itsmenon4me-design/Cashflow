@@ -122,6 +122,7 @@ describe("ForecastPage", () => {
   });
 
   it("shows loading skeletons while forecast data is pending", async () => {
+    useLanguageStore.setState({ language: "id" });
     vi.spyOn(settingsService, "getSettings").mockResolvedValue(createBaseSettings());
     const forecastDeferred = resolveLater<ForecastResponse>();
     const spendingDeferred = resolveLater<SpendingPredictionResponse>();

@@ -64,6 +64,7 @@ async function bootstrap(): Promise<void> {
   // `app` is an INestApplication whose underlying platform exposes Express APIs when using the default adapter.
   const expressAdapter = app.getHttpAdapter().getInstance() as Express;
   expressAdapter.set('trust proxy', config.security.trustProxy);
+  expressAdapter.set('strict routing', true);
 
   // Global validation pipe configured for the application
   // Use the centralized AppValidationPipe to ensure consistent error format and transformations

@@ -31,6 +31,8 @@ export default function Page() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canResendVerification, setCanResendVerification] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +93,7 @@ export default function Page() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setCanResendVerification(false);
     setGoogleError(null);
 
     if (!email.trim() || !password) {
@@ -141,13 +144,29 @@ export default function Page() {
       router.replace("/");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(t.loginInvalidCredentials);
+        const errorData =
+          typeof err.data === "object" && err.data !== null
+            ? (err.data as { errorCode?: string; message?: string })
+            : {};
+        if (errorData.errorCode === "ERR_EMAIL_NOT_VERIFIED") {
+          setError(t.emailNotVerified);
+          setCanResendVerification(true);
+        } else {
+          setError(t.loginInvalidCredentials);
+        }
       } else {
         setError(t.genericError);
       }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    const response = await authService.sendVerification(email.trim());
+    setError(response.success ? t.verificationEmailSent : response.message ?? t.verificationEmailFailed);
+    setResendingVerification(false);
   };
 
   return (
@@ -222,6 +241,18 @@ export default function Page() {
                 <p className="text-sm text-destructive" role="alert">
                   {error}
                 </p>
+              )}
+
+              {canResendVerification && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  loading={resendingVerification}
+                  onClick={handleResendVerification}
+                >
+                  {t.resendVerification}
+                </Button>
               )}
 
               <Button type="submit" className="w-full" loading={submitting}>

@@ -37,7 +37,7 @@ export const corsConfig = registerAs<CorsConfig>('cors', () => {
   const origin =
     configuredOrigins.length > 0
       ? configuredOrigins
-      : environment === 'production'
+      : environment === 'production' || environment === 'test'
         ? []
         : localDevelopmentOrigins;
 

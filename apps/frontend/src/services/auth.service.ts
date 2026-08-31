@@ -18,6 +18,7 @@ export interface RegisterPayload {
 export interface RegisterResponse {
   success: boolean;
   message?: string;
+  verificationEmailSent?: boolean;
   data?: import("@/types/backend").UserResponse;
 }
 
@@ -135,10 +136,24 @@ export const authService = {
   register: (payload: RegisterPayload): Promise<RegisterResponse> =>
     apiClient.post<RegisterResponse>("/auth/register", payload),
 
-  sendVerification: (email: string): Promise<{ success: boolean }> =>
+  sendVerification: (
+    email: string,
+  ): Promise<{ success: boolean; message?: string }> =>
     apiClient
-      .post<{ success: boolean }>("/auth/email/send-verification", { email })
-      .catch(() => ({ success: false })),
+      .post<{ success: boolean; message?: string }>(
+        "/auth/email/send-verification",
+        { email },
+      )
+      .catch((err) => ({
+        success: false,
+        message:
+          err instanceof ApiError &&
+          typeof err.data === "object" &&
+          err.data !== null &&
+          "message" in err.data
+            ? String((err.data as { message: unknown }).message)
+            : "Unable to send verification email.",
+      })),
 
   verifyEmail: (
     token: string,

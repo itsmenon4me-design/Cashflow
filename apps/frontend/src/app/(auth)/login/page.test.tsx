@@ -1,10 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLanguageStore } from "@/stores/language.store";
+import { ApiError } from "@/lib/axios";
 
-const { mockGoogleLogin, mockGithubLogin } = vi.hoisted(() => ({
+const { mockGoogleLogin, mockGithubLogin, mockLogin, mockSendVerification } =
+  vi.hoisted(() => ({
   mockGoogleLogin: vi.fn(),
   mockGithubLogin: vi.fn(),
+  mockLogin: vi.fn(),
+  mockSendVerification: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -16,10 +20,10 @@ vi.mock("@/services/auth.service", () => ({
   authService: {
     googleLogin: mockGoogleLogin,
     githubLogin: mockGithubLogin,
-    login: vi.fn(),
+    login: mockLogin,
     logout: vi.fn(),
     register: vi.fn(),
-    sendVerification: vi.fn(),
+    sendVerification: mockSendVerification,
     forgotPassword: vi.fn(),
     resetPassword: vi.fn(),
   },
@@ -35,6 +39,8 @@ describe("Login page", () => {
   beforeEach(() => {
     mockGoogleLogin.mockReset();
     mockGithubLogin.mockReset();
+    mockLogin.mockReset();
+    mockSendVerification.mockReset();
     useLanguageStore.getState().setLanguage("en");
   });
 
@@ -96,6 +102,36 @@ describe("Login page", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
         /Google OAuth belum dikonfigurasi/i,
+      ),
+    );
+  });
+
+  it("shows the verification message and resend action for pending accounts", async () => {
+    mockLogin.mockRejectedValue(
+      new ApiError(403, { errorCode: "ERR_EMAIL_NOT_VERIFIED" }),
+    );
+    mockSendVerification.mockResolvedValue({ success: true });
+
+    render(<Page />);
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "pending@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "correct-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /not verified/i,
+      ),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Resend verification email/i }),
+    );
+    await waitFor(() =>
+      expect(mockSendVerification).toHaveBeenCalledWith(
+        "pending@example.com",
       ),
     );
   });

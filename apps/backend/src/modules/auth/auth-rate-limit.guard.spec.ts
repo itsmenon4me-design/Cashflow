@@ -21,7 +21,8 @@ const makeMocks = () => {
       emailVerificationWindowSeconds: 60,
       resetPasswordLimit: 2,
       resetPasswordWindowSeconds: 60,
-    },
+    failOpenOnRedisError: false,
+  },
   } as unknown as jest.Mocked<AuthConfigService>;
   const logger = {
     securityLog: jest.fn(),
@@ -142,9 +143,8 @@ describe('AuthRateLimitGuard', () => {
     ).toBe(false);
   });
 
-  test('fails open if redis returns null', async () => {
+  test('fails closed by default if redis returns null', async () => {
     const { redis, authConfig, logger } = makeMocks();
-    // Simulate redis returning null (e.g., unexpected null response)
     redis.incr.mockResolvedValue(null);
     const g = new AuthRateLimitGuard(redis, authConfig, logger);
 
@@ -154,13 +154,38 @@ describe('AuthRateLimitGuard', () => {
       ),
     );
 
-    // Guard should fail-open (allow) when redis returns null
-    expect(ok).toBe(true);
-
+    expect(ok).toBe(false);
+    expect(logger.securityLog).toHaveBeenCalledWith('rate_limit_redis_error', {
+      endpoint: '/auth/login',
+      clientIp: '1.2.3.4',
+      endpointKey: expect.stringContaining('/auth/login:1.2.3.4'),
+      failOpen: false,
+    });
     expect((redis as unknown as { incr: jest.Mock }).incr).toHaveBeenCalledWith(
       expect.stringContaining('/auth/login'),
       authConfig.config.loginWindowSeconds,
     );
+  });
+
+  test('fail-open is opt-in via config flag for redis downtime', async () => {
+    const { redis, authConfig, logger } = makeMocks();
+    authConfig.config.failOpenOnRedisError = true;
+    redis.incr.mockResolvedValue(null);
+    const g = new AuthRateLimitGuard(redis, authConfig, logger);
+
+    const ok = await g.canActivate(
+      makeCtx(
+        makeReq('/auth/email/forgot-password', {}, '9.9.9.9'),
+      ),
+    );
+
+    expect(ok).toBe(true);
+    expect(logger.securityLog).toHaveBeenCalledWith('rate_limit_redis_error', {
+      endpoint: '/auth/email/forgot-password',
+      clientIp: '9.9.9.9',
+      endpointKey: expect.stringContaining('/auth/email/forgot-password:9.9.9.9'),
+      failOpen: true,
+    });
   });
 
   test('ip extraction prefers x-forwarded-for, then req.ip, then socket.remoteAddress', async () => {

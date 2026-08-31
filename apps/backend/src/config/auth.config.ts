@@ -11,6 +11,7 @@ export interface AuthConfig {
   emailVerificationWindowSeconds: number;
   resetPasswordLimit: number;
   resetPasswordWindowSeconds: number;
+  failOpenOnRedisError: boolean;
   failLimit: number;
   failWindowSeconds: number;
 }
@@ -47,6 +48,8 @@ export const authConfig = registerAs<AuthConfig>('auth', () => ({
     process.env.AUTH_RESET_PASSWORD_WINDOW_SECONDS ?? '60',
     10,
   ),
+  failOpenOnRedisError:
+    process.env.AUTH_RATE_LIMIT_FAIL_OPEN_ON_REDIS_ERROR === 'true',
   failLimit: Number.parseInt(process.env.AUTH_FAIL_LIMIT ?? '10', 10),
   failWindowSeconds: Number.parseInt(
     process.env.AUTH_FAIL_WINDOW_SECONDS ?? '3600',

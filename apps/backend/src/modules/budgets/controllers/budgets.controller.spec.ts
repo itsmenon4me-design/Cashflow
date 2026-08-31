@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   INestApplication,
+  NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -122,6 +123,30 @@ describe('BudgetsController (security)', () => {
     ).toHaveBeenCalled();
     const calledWithUserId = budgetsServiceMock.getById.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
+  });
+
+  it('by-id access: rejects records owned by another user with 404', async () => {
+    budgetsServiceMock.getById.mockRejectedValueOnce(
+      new NotFoundException('Budget not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .get('/budgets/other-user-budget')
+      .expect(404);
+
+    budgetsServiceMock.update.mockRejectedValueOnce(
+      new NotFoundException('Budget not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .patch('/budgets/other-user-budget')
+      .send({ budget_amount_cents: 25000 })
+      .expect(404);
+
+    budgetsServiceMock.softDelete.mockRejectedValueOnce(
+      new NotFoundException('Budget not found'),
+    );
+    await request(app.getHttpServer() as Server)
+      .delete('/budgets/other-user-budget')
+      .expect(404);
   });
 
   it('delete: passes authenticated userId to service', async () => {
