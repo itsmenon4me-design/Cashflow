@@ -55,14 +55,6 @@ export function extractAuthRequestContext(req: {
     if (Array.isArray(v)) return v[0];
     return v;
   };
-  console.log('[DEBUG-GEO]', {
-    cfIpCity: header('cf-ipcity') ?? null,
-    cfIpCountry: header('cf-ipcountry') ?? null,
-    vercelIpCity: header('x-vercel-ip-city') ?? null,
-    vercelIpCountry: header('x-vercel-ip-country') ?? null,
-    forwardedFor: header('x-forwarded-for') ?? null,
-    realIp: header('x-real-ip') ?? null,
-  });
   const ip =
     safeFirst(header('x-forwarded-for') ?? '') ??
     safeFirst(header('x-real-ip') ?? '') ??
