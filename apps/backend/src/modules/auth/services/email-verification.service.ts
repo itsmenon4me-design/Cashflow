@@ -27,6 +27,7 @@ export class EmailVerificationService {
   }
 
   async sendVerificationEmail(userId: string) {
+    this.logger.log(`sendVerificationEmail called: userId=${userId}`);
     const user = await this.users.findById(userId);
     if (!user) throw ErrorService.create(ErrorCode.NOT_FOUND, 'User not found');
 

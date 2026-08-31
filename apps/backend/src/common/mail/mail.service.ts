@@ -45,6 +45,7 @@ export class MailService {
     name: string | undefined,
     link: string,
   ) {
+    this.logger.log(`mail.sendVerification called: to=${email}`);
     if (!this.cfg.config.emailVerificationEnabled) {
       this.logger.warn(
         `Email verification disabled. Verification email for to=${email} not sent.`,
