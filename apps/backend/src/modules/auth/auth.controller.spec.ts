@@ -146,6 +146,7 @@ describe('AuthController', () => {
       (res.data as unknown as { password_hash?: unknown }).password_hash,
     ).toBeUndefined();
     expect(res.data.email).toBe(dto.email);
+    expect(res.data.full_name).toBe(dto.full_name);
   });
 
   it('keeps registration successful and logs when verification email fails', async () => {

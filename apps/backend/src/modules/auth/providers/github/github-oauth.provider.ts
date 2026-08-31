@@ -44,7 +44,7 @@ export class GithubOAuthProvider implements AuthProvider<GithubProfile> {
       provider: 'github',
       providerUserId,
       email,
-      fullName: identity.name ?? identity.login ?? null,
+      fullName: identity.name?.trim() || identity.login?.trim() || null,
       avatarUrl: identity.avatar_url ?? null,
       verifiedEmail: true,
     };

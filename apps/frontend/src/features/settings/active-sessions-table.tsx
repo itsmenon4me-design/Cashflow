@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Laptop, LogOut, MoreVertical, ShieldCheck } from "lucide-react";
+import {
+  HelpCircle,
+  Laptop,
+  LogOut,
+  MoreVertical,
+  ShieldCheck,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +40,20 @@ function currentSessionId(): string | null {
 
 function location(session: SessionItem) {
   return [session.city, session.country].filter(Boolean).join(", ") || "Lokasi tidak diketahui";
+}
+
+function DeviceIcon({ deviceType }: { deviceType: string | null }) {
+  const normalizedType = deviceType?.trim().toLowerCase();
+  const props = {
+    className: "size-4 shrink-0 text-muted-foreground",
+    "aria-hidden": true,
+    "data-testid": `device-icon-${normalizedType || "unknown"}`,
+  } as const;
+
+  if (normalizedType === "mobile") return <Smartphone {...props} />;
+  if (normalizedType === "tablet") return <Tablet {...props} />;
+  if (normalizedType === "desktop") return <Laptop {...props} />;
+  return <HelpCircle {...props} data-testid="device-icon-unknown" />;
 }
 
 function formatSessionTimestamp(date: string) {
@@ -118,7 +140,12 @@ export function ActiveSessionsTable() {
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Perangkat</th>
-              <th scope="col" className="px-4 py-3 font-medium">Lokasi</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                <div>Lokasi</div>
+                <div className="mt-1 max-w-56 text-xs font-normal leading-4 text-muted-foreground">
+                  Lokasi berdasarkan estimasi jaringan, mungkin tidak 100% akurat.
+                </div>
+              </th>
               <th scope="col" className="px-4 py-3 font-medium">Dibuat</th>
               <th scope="col" className="px-4 py-3 font-medium">Diperbarui</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">Aksi</th>
@@ -134,7 +161,7 @@ export function ActiveSessionsTable() {
                 <tr key={session.id} className="align-middle">
                   <td className="px-4 py-3">
                     <div className="flex min-w-[180px] items-center gap-2">
-                      <Laptop className="size-4 shrink-0 text-muted-foreground" />
+                      <DeviceIcon deviceType={session.device_type} />
                       <span className="font-medium text-foreground">{device}</span>
                       {current && <Badge className="shrink-0 text-xs">Perangkat ini</Badge>}
                     </div>

@@ -28,6 +28,19 @@ describe('GoogleOAuthProvider', () => {
     expect(user.verifiedEmail).toBe(true);
   });
 
+  it('preserves the provider display name without falling back to email', () => {
+    const provider = new GoogleOAuthProvider();
+    const user = provider.validateProviderUser({
+      sub: 'google-user-456',
+      email: 'profile@example.com',
+      name: '  Profile Name  ',
+      email_verified: true,
+    });
+
+    expect(user.fullName).toBe('Profile Name');
+    expect(user.fullName).not.toBe('profile');
+  });
+
   it('rejects incomplete Google profiles', () => {
     const provider = new GoogleOAuthProvider();
 

@@ -48,16 +48,27 @@ function buildDeviceName(
 
 export function extractAuthRequestContext(req: {
   headers: Record<string, string | string[] | undefined>;
+  ip?: string;
 }): AuthRequestContext {
   const header = (name: string): string | undefined => {
     const v = req.headers[name.toLowerCase()];
     if (Array.isArray(v)) return v[0];
     return v;
   };
-  const ip = safeFirst(header('x-forwarded-for') ?? '') ?? header('x-real-ip');
+  const ip =
+    safeFirst(header('x-forwarded-for') ?? '') ??
+    safeFirst(header('x-real-ip') ?? '') ??
+    safeFirst(req.ip ?? '');
   const userAgent = header('user-agent');
-  const city = header('cf-ipcity') ?? header('x-vercel-ip-city');
-  const country = header('cf-ipcountry') || header('x-vercel-ip-country');
+  const firstHeader = (...names: string[]): string | undefined => {
+    for (const name of names) {
+      const value = safeFirst(header(name) ?? '');
+      if (value) return value;
+    }
+    return undefined;
+  };
+  const city = firstHeader('cf-ipcity', 'x-vercel-ip-city');
+  const country = firstHeader('cf-ipcountry', 'x-vercel-ip-country');
   return {
     ip: ip ? ip.replace(/"/g, '') : null,
     userAgent: userAgent ?? null,

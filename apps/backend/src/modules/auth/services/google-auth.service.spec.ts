@@ -144,7 +144,13 @@ describe('GoogleAuthService', () => {
       state: state ?? undefined,
     });
 
-    expect(usersService.create).toHaveBeenCalled();
+    expect(usersService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'newuser@example.com',
+        full_name: 'New User',
+      }),
+      { hasManualPassword: false },
+    );
     expect(oauthAccountService.linkProviderAccount).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'google' }),
     );

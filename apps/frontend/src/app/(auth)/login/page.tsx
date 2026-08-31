@@ -113,26 +113,33 @@ export default function Page() {
         return;
       }
 
-      // Login response ships no user object — resolve real name/email/id via /auth/me
       let user: { id?: string; name: string; email: string };
-      try {
-        const me = await apiClient.get<{
-          success: boolean;
-          data?: {
-            id?: string;
-            full_name?: string;
-            name?: string;
-            email?: string;
-          };
-        }>("/auth/me");
-        const d = me.data;
+      if (response.user) {
         user = {
-          id: d?.id,
-          name: d?.full_name || d?.name || email.split("@")[0],
-          email: d?.email || email.trim(),
+          id: response.user.id,
+          name: response.user.full_name || response.user.username,
+          email: response.user.email,
         };
-      } catch {
-        user = { name: email.split("@")[0], email: email.trim() };
+      } else {
+        try {
+          const me = await apiClient.get<{
+            success: boolean;
+            data?: {
+              id?: string;
+              full_name?: string;
+              name?: string;
+              email?: string;
+            };
+          }>("/auth/me");
+          const d = me.data;
+          user = {
+            id: d?.id,
+            name: d?.full_name || d?.name || email.split("@")[0],
+            email: d?.email || email.trim(),
+          };
+        } catch {
+          user = { name: email.split("@")[0], email: email.trim() };
+        }
       }
 
       loginSession({

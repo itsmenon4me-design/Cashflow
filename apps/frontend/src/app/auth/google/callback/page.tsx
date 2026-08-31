@@ -28,7 +28,7 @@ export default function GoogleOAuthCallbackPage() {
       accessToken,
       refreshToken,
       user: {
-        name: userName || userEmail || "CashFlow User",
+        name: userName?.trim() || "CashFlow User",
         email: userEmail || "",
       },
     });
@@ -36,7 +36,7 @@ export default function GoogleOAuthCallbackPage() {
     if (welcome === "new" || welcome === "returning") {
       const welcomeDetail = {
         type: welcome,
-        name: userName || userEmail || "Pengguna",
+        name: userName?.trim() || "Pengguna",
       };
       window.sessionStorage.setItem(
         "cashflow.oauth-welcome",

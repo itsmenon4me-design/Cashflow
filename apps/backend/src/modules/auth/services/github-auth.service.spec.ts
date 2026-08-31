@@ -41,4 +41,47 @@ describe('GithubAuthService', () => {
     expect(url).toContain('https://github.com/login/oauth/authorize');
     expect(url).toContain('client_id=test-client-id');
   });
+
+  it('persists the GitHub profile name for a new user', async () => {
+    const usersService = {
+      create: jest.fn().mockResolvedValue({ id: 'user-1' }),
+      findById: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        email: 'profile@example.com',
+        full_name: 'Profile Name',
+      }),
+    };
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    service = new GithubAuthService(
+      provider,
+      {} as OAuthAccountService,
+      {} as AuthService,
+      usersService as unknown as UsersService,
+      {} as PasswordService,
+      prisma as unknown as PrismaService,
+      redis as any,
+    );
+
+    await (service as any).createGithubUser({
+      email: 'profile@example.com',
+      fullName: 'Profile Name',
+      avatarUrl: null,
+      provider: 'github',
+      providerUserId: '67890',
+      verifiedEmail: true,
+    });
+
+    expect(usersService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'profile@example.com',
+        full_name: 'Profile Name',
+      }),
+      { hasManualPassword: false },
+    );
+  });
 });

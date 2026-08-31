@@ -46,7 +46,7 @@ export class GoogleOAuthProvider implements AuthProvider<GoogleProfile> {
       provider: 'google',
       providerUserId,
       email,
-      fullName: identity.name ?? null,
+      fullName: identity.name?.trim() || null,
       avatarUrl: identity.picture ?? null,
       verifiedEmail: Boolean(identity.email_verified),
     };

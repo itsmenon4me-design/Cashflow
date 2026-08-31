@@ -108,6 +108,18 @@ describe("DashboardPage simplified layout", () => {
     expect(screen.queryByText("Distribusi Pengeluaran")).not.toBeInTheDocument();
   });
 
+  it("renders the authenticated user's full name in the greeting", () => {
+    useAuthStore.setState({
+      user: { name: "Nama Registrasi", email: "amiboys@example.com" },
+    });
+
+    render(<DashboardPage />);
+
+    expect(
+      screen.getByRole("heading", { name: /Nama Registrasi/ }),
+    ).toBeInTheDocument();
+  });
+
   it("shows no comparison state instead of mock KPI changes", async () => {
     vi.spyOn(dashboardService, "getSummary").mockResolvedValue({
       currency: "IDR",

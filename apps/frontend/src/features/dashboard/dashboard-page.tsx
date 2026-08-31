@@ -123,7 +123,7 @@ export function DashboardPage() {
     };
   }, [dataVersion]);
 
-  const firstName = user?.name?.split(" ")[0] ?? uiText.common.user;
+  const displayName = user?.name?.trim() || uiText.common.user;
 
   const computedGreeting = (() => {
     const hour = new Date().getHours();
@@ -133,7 +133,7 @@ export function DashboardPage() {
     else if (hour >= 15 && hour < 18) key = "greetingEvening";
     else key = "greetingNight";
     const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
-    return template.replace("{name}", firstName);
+    return template.replace("{name}", displayName);
   })();
 
   return (

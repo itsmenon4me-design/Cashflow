@@ -3,13 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLanguageStore } from "@/stores/language.store";
 import { ApiError } from "@/lib/axios";
 
-const { mockGoogleLogin, mockGithubLogin, mockLogin, mockSendVerification } =
+const {
+  mockGoogleLogin,
+  mockGithubLogin,
+  mockLogin,
+  mockSendVerification,
+  mockLoginSession,
+} =
   vi.hoisted(() => ({
-  mockGoogleLogin: vi.fn(),
-  mockGithubLogin: vi.fn(),
-  mockLogin: vi.fn(),
-  mockSendVerification: vi.fn(),
-}));
+    mockGoogleLogin: vi.fn(),
+    mockGithubLogin: vi.fn(),
+    mockLogin: vi.fn(),
+    mockSendVerification: vi.fn(),
+    mockLoginSession: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -30,7 +37,8 @@ vi.mock("@/services/auth.service", () => ({
 }));
 
 vi.mock("@/stores/auth.store", () => ({
-  useAuthStore: () => ({ loginSession: vi.fn() }),
+  useAuthStore: (selector: (state: { loginSession: typeof mockLoginSession }) => unknown) =>
+    selector({ loginSession: mockLoginSession }),
 }));
 
 import Page from "./page";
@@ -41,6 +49,7 @@ describe("Login page", () => {
     mockGithubLogin.mockReset();
     mockLogin.mockReset();
     mockSendVerification.mockReset();
+    mockLoginSession.mockReset();
     useLanguageStore.getState().setLanguage("en");
   });
 
@@ -132,6 +141,43 @@ describe("Login page", () => {
     await waitFor(() =>
       expect(mockSendVerification).toHaveBeenCalledWith(
         "pending@example.com",
+      ),
+    );
+  });
+
+  it("stores the full name returned by the login response", async () => {
+    mockLogin.mockResolvedValue({
+      success: true,
+      data: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      },
+      user: {
+        id: "u1",
+        email: "amiboys@example.com",
+        username: "amiboys",
+        full_name: "Nama Registrasi",
+      },
+    });
+
+    render(<Page />);
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "amiboys@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "correct-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Log in" }));
+
+    await waitFor(() =>
+      expect(mockLoginSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: {
+            id: "u1",
+            name: "Nama Registrasi",
+            email: "amiboys@example.com",
+          },
+        }),
       ),
     );
   });
