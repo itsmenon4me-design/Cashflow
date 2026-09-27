@@ -266,33 +266,48 @@ export function TablePageSkeleton({ filterCols = 4, showAdd = true }: { filterCo
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true">
-      <PageHeaderSkeleton />
-      <KpiGridSkeleton count={4} />
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" aria-hidden="true">
-        <ChartCardSkeleton height="h-72" />
-        <ChartCardSkeleton height="h-64" />
-      </section>
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-hidden="true">
-        <ChartCardSkeleton height="h-56" />
-        <div className="grid grid-cols-1 gap-4" aria-hidden="true">
-          <SkeletonCard>
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-16 w-full rounded-xl" />
+      <PageHeaderSkeleton titleWidth="w-64" subtitleWidth="w-80" />
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, i) => (
+          <SkeletonCard key={i}>
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-7 w-28" />
+            <Skeleton className="h-3 w-20" />
           </SkeletonCard>
-          <SkeletonCard>
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-16 w-full rounded-xl" />
-          </SkeletonCard>
-        </div>
+        ))}
       </section>
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" aria-hidden="true">
-        <ChartCardSkeleton height="h-64" />
-        <ChartCardSkeleton height="h-64" />
+      <section aria-hidden="true">
+        <ChartCardSkeleton height="h-[356px]" action={false} />
       </section>
-      <TableRowsSkeleton rows={5} />
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-hidden="true">
-        <ChartCardSkeleton height="h-52" />
-        <ChartCardSkeleton height="h-52" />
+      <section aria-hidden="true">
+        <SkeletonCard>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-24 rounded-xl" />
+              <Skeleton className="h-9 w-20 rounded-xl" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-full rounded-xl sm:hidden" />
+          <div className="hidden sm:block">
+            <TableRowsSkeleton rows={5} columns={5} inCard={false} />
+          </div>
+          <div className="space-y-3 sm:hidden">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                <Skeleton className="size-9 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        </SkeletonCard>
       </section>
     </div>
   );

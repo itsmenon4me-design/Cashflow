@@ -110,28 +110,48 @@ export function TransactionFilters({
             <Label htmlFor="filter-from-date" className="pl-2 text-xs text-muted-foreground font-normal">
               {uiText.transactions.fromDate}
             </Label>
-            <Input
-              id="filter-from-date"
-              type="date"
-              className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
-              aria-label={uiText.transactions.fromDate}
-              value={filters.startDate}
-              onChange={(event) => update({ startDate: event.target.value })}
-            />
+            <div className="relative min-w-0">
+              <Input
+                id="filter-from-date"
+                type="date"
+                className={cn(
+                  "min-h-11 w-full min-w-0 rounded-xl border-border bg-background px-2 text-sm",
+                  !filters.startDate && "[&::-webkit-datetime-edit]:text-transparent",
+                )}
+                aria-label={uiText.transactions.fromDate}
+                value={filters.startDate}
+                onChange={(event) => update({ startDate: event.target.value })}
+              />
+              {!filters.startDate && (
+                <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">
+                  {uiText.transactions.selectDate}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex w-full min-w-0 max-w-40 flex-col gap-1.5">
             <Label htmlFor="filter-to-date" className="pl-2 text-xs text-muted-foreground font-normal">
               {uiText.transactions.toDate}
             </Label>
-            <Input
-              id="filter-to-date"
-              type="date"
-              className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
-              aria-label={uiText.transactions.toDate}
-              value={filters.endDate}
-              onChange={(event) => update({ endDate: event.target.value })}
-            />
+            <div className="relative min-w-0">
+              <Input
+                id="filter-to-date"
+                type="date"
+                className={cn(
+                  "min-h-11 w-full min-w-0 rounded-xl border-border bg-background px-2 text-sm",
+                  !filters.endDate && "[&::-webkit-datetime-edit]:text-transparent",
+                )}
+                aria-label={uiText.transactions.toDate}
+                value={filters.endDate}
+                onChange={(event) => update({ endDate: event.target.value })}
+              />
+              {!filters.endDate && (
+                <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">
+                  {uiText.transactions.selectDate}
+                </span>
+              )}
+            </div>
           </div>
 
           <div

@@ -6,7 +6,7 @@ import { RequireAuth } from "@/components/auth/require-auth";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { PageTransition } from "@/components/layout/page-transition";
+import { PageTransition, RouteFallback } from "@/components/layout/page-transition";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar.store";
@@ -89,7 +89,9 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
                 {/* Sidebar, header, and mobile navigation stay mounted while
                     only this route content changes. */}
                 <PageTransition>
-                  <RequireAuth>{children}</RequireAuth>
+                  <RequireAuth fallback={<RouteFallback pathname={pathname} />}>
+                    {children}
+                  </RequireAuth>
                 </PageTransition>
               </div>
             </div>

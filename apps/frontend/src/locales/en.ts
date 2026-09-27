@@ -499,6 +499,7 @@ export const enText = {
     endDate: "End Date",
     fromDate: "From date",
     toDate: "To date",
+    selectDate: "Select date",
     pendingSyncBadge: "Not synced yet",
     resetFilters: "Reset Filters",
     rowsPerPage: "Rows per page",

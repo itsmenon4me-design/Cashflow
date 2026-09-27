@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Children, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { TransactionPageLoading } from "@/components/transactions/TransactionPageLoading";
 import {
   AnalyticsSkeleton,
@@ -32,7 +32,7 @@ interface PageTransitionProps {
  * which does not) collapsed the outgoing cards into one container and then
  * expanded them again — a visible jump that read as cards bleeding through.
  */
-function RouteFallback({ pathname }: { pathname: string }) {
+export function RouteFallback({ pathname }: { pathname: string }) {
   if (pathname === "/incomes") {
     return <TransactionPageLoading type="income" />;
   }
@@ -90,7 +90,9 @@ export function PageTransition({ children }: PageTransitionProps) {
       data-slot="page-transition"
       className="min-h-[calc(100dvh-8rem)] min-w-0 [overflow-anchor:none]"
     >
-      {Children.count(children) > 0 ? children : <RouteFallback pathname={pathname} />}
+      <Suspense fallback={<RouteFallback pathname={pathname} />}>
+        {children}
+      </Suspense>
     </div>
   );
 }

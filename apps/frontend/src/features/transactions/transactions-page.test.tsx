@@ -65,20 +65,27 @@ describe("TransactionsPage", () => {
     });
   });
 
-  it("keeps native date controls visible with their browser picker", async () => {
+  it.each([
+    { page: "income", transactionType: "income" as const },
+    { page: "expense", transactionType: "expense" as const },
+    { page: "history", transactionType: undefined },
+  ])("keeps native date controls visible on the $page page", async ({ transactionType }) => {
     vi.spyOn(categoryService, "list").mockResolvedValue([]);
     vi.spyOn(transactionService, "list").mockResolvedValue({
       data: [],
       pagination: { totalItems: 0, totalPages: 0, page: 1 },
     } as any);
 
-    const { container } = render(<TransactionsPage transactionType="income" />);
+    const { container } = render(<TransactionsPage transactionType={transactionType} />);
 
     const dateFilters = container.querySelectorAll('input[type="date"]');
     expect(dateFilters).toHaveLength(2);
     dateFilters.forEach((filter) => {
       expect(filter).not.toHaveClass("appearance-none");
+      expect(filter).toHaveClass("border-border", "bg-background");
+      expect(filter).toHaveClass("[&::-webkit-datetime-edit]:text-transparent");
     });
+    expect(screen.getAllByText(uiText.transactions.selectDate)).toHaveLength(2);
   });
 
   it("keeps desktop filters compact and lets them wrap by available width", async () => {

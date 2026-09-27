@@ -16,7 +16,7 @@ interface MobileNavItem {
 
 function getMobileItems(): MobileNavItem[] {
   return [
-    { label: "Beranda", icon: Home, href: "/" },
+    { label: "Beranda", icon: Home, href: "/dashboard" },
     { label: "Transaksi", icon: ReceiptText, href: "/transactions" },
     { label: "Tambah", icon: Plus, href: "/transactions?add=1" },
     { label: "Laporan", icon: BarChart3, href: "/reports" },
@@ -39,7 +39,7 @@ export function MobileNav() {
         {mobileItems.map((item) => {
           const Icon = item.icon;
           const [itemPath, itemQuery] = item.href.split("?");
-          const isDashboardItem = itemPath === "/";
+          const isDashboardItem = itemPath === "/dashboard";
           const isCurrentPath = isDashboardItem
             ? pathname === "/" || pathname === "/dashboard"
             : pathname === itemPath || pathname.startsWith(`${itemPath}/`);

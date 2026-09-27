@@ -501,6 +501,7 @@ export const idText = {
     endDate: "Tanggal Akhir",
     fromDate: "Dari tanggal",
     toDate: "Sampai tanggal",
+    selectDate: "Pilih tanggal",
     pendingSyncBadge: "Belum tersinkron",
     resetFilters: "Reset Filter",
     rowsPerPage: "Baris per halaman",
