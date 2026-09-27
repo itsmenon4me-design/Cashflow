@@ -47,11 +47,11 @@ function renderYAxisTick(
 }
 
 function CompactYAxisTick(props: YAxisTickContentProps) {
-  return renderYAxisTick(props, -8, 10);
+  return renderYAxisTick(props, 0, 10);
 }
 
 function StandardYAxisTick(props: YAxisTickContentProps) {
-  return renderYAxisTick(props, 4, 12);
+  return renderYAxisTick(props, 12, 12);
 }
 
 export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
