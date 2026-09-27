@@ -33,6 +33,29 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      const serviceWorkerUrl = new URL("/sw.js", window.location.href).href;
+      const appScope = new URL("/", window.location.href).href;
+
+      void navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) =>
+          Promise.all(
+            registrations
+              .filter(
+                (registration) =>
+                  registration.scope === appScope &&
+                  registration.active?.scriptURL === serviceWorkerUrl,
+              )
+              .map((registration) => registration.unregister()),
+          ),
+        )
+        .catch((error: unknown) => {
+          console.error("Failed to unregister the development service worker", error);
+        });
+      return;
+    }
+
     // Stable script URL: next.config serves /sw.js with no-cache headers, so the
     // browser's normal update check picks up new versions. A per-load cache-busting
     // query would reinstall + skipWaiting + claim on every navigation, which makes

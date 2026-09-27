@@ -51,7 +51,7 @@ function CompactYAxisTick(props: YAxisTickContentProps) {
 }
 
 function StandardYAxisTick(props: YAxisTickContentProps) {
-  return renderYAxisTick(props, 8, 12);
+  return renderYAxisTick(props, -29, 12);
 }
 
 export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
