@@ -65,6 +65,22 @@ describe("TransactionsPage", () => {
     });
   });
 
+  it("normalizes native date filter controls across mobile browsers", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      data: [],
+      pagination: { totalItems: 0, totalPages: 0, page: 1 },
+    } as any);
+
+    const { container } = render(<TransactionsPage transactionType="income" />);
+
+    const dateFilters = container.querySelectorAll('input[type="date"]');
+    expect(dateFilters).toHaveLength(2);
+    dateFilters.forEach((filter) => {
+      expect(filter).toHaveClass("appearance-none");
+    });
+  });
+
   it("shows a loading skeleton instead of an empty-state message before transactions load", async () => {
     let resolveTransactions!: (
       result: Awaited<ReturnType<typeof transactionService.list>>,

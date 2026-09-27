@@ -104,7 +104,7 @@ export function TransactionFilters({
           <Input
             id="filter-from-date"
             type="date"
-            className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
+            className="min-h-11 w-full min-w-0 appearance-none rounded-xl bg-card px-2 text-sm"
             aria-label={uiText.transactions.fromDate}
             value={filters.startDate}
             onChange={(event) => update({ startDate: event.target.value })}
@@ -118,7 +118,7 @@ export function TransactionFilters({
           <Input
             id="filter-to-date"
             type="date"
-            className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
+            className="min-h-11 w-full min-w-0 appearance-none rounded-xl bg-card px-2 text-sm"
             aria-label={uiText.transactions.toDate}
             value={filters.endDate}
             onChange={(event) => update({ endDate: event.target.value })}
