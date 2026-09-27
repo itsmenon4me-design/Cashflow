@@ -43,11 +43,11 @@ export function TransactionFilters({
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="grid grid-cols-2 items-end gap-3 max-[359px]:grid-cols-1 md:flex md:flex-wrap">
-        <div className="relative col-span-2 min-w-0 max-[359px]:col-span-1 md:min-w-[200px] md:flex-[2_1_220px]">
+      <CardContent className="grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4">
+        <div className="relative col-span-full min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="rounded-xl bg-card pl-9"
+            className="min-h-11 rounded-xl bg-card pl-9"
             placeholder={uiText.common.searchTransactionsPlaceholder}
             aria-label={uiText.common.searchAriaLabel}
             value={filters.search}
@@ -55,12 +55,12 @@ export function TransactionFilters({
           />
         </div>
 
-        <div className={cn("min-w-0 md:min-w-[130px] md:flex-[1_1_140px]", !showTypeFilter && "col-span-2 max-[359px]:col-span-1")}>
+        <div className={cn("min-w-0", !showTypeFilter && "min-[360px]:col-span-2 lg:col-span-1")}>
           <Select
             value={filters.category}
             onValueChange={(category) => update({ category })}
           >
-            <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.category}>
+            <SelectTrigger className="min-h-11 w-full rounded-xl" aria-label={uiText.table.category}>
               <SelectValue placeholder={uiText.transactions.allCategories} />
             </SelectTrigger>
             <SelectContent>
@@ -80,12 +80,12 @@ export function TransactionFilters({
         </div>
 
         {showTypeFilter && (
-          <div className="min-w-0 md:min-w-[130px] md:flex-[1_1_140px]">
+          <div className="min-w-0">
             <Select
               value={filters.type}
               onValueChange={(type) => update({ type: type as TransactionType | "all" })}
             >
-              <SelectTrigger className="w-full rounded-xl" aria-label={uiText.table.type}>
+              <SelectTrigger className="min-h-11 w-full rounded-xl" aria-label={uiText.table.type}>
                 <SelectValue placeholder={uiText.common.allTypes} />
               </SelectTrigger>
               <SelectContent>
@@ -97,39 +97,39 @@ export function TransactionFilters({
           </div>
         )}
 
-        <div className="flex min-w-0 flex-col gap-1.5 md:min-w-[160px] md:flex-[1_1_160px]">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="filter-from-date" className="pl-2 text-xs text-muted-foreground font-normal">
             {uiText.transactions.fromDate}
           </Label>
           <Input
             id="filter-from-date"
             type="date"
-            className="w-full rounded-xl bg-card max-md:max-w-[136px] max-md:px-2 max-md:text-sm"
+            className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
             aria-label={uiText.transactions.fromDate}
             value={filters.startDate}
             onChange={(event) => update({ startDate: event.target.value })}
           />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-1.5 md:min-w-[160px] md:flex-[1_1_160px]">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="filter-to-date" className="pl-2 text-xs text-muted-foreground font-normal">
             {uiText.transactions.toDate}
           </Label>
           <Input
             id="filter-to-date"
             type="date"
-            className="w-full rounded-xl bg-card max-md:max-w-[136px] max-md:px-2 max-md:text-sm"
+            className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
             aria-label={uiText.transactions.toDate}
             value={filters.endDate}
             onChange={(event) => update({ endDate: event.target.value })}
           />
         </div>
 
-        <div className="col-span-2 min-w-0 max-[359px]:col-span-1 md:col-span-1 md:min-w-[130px] md:flex-[1_1_130px]">
+        <div className="col-span-full flex min-w-0 justify-center min-[360px]:justify-end">
           <Button
             type="button"
             variant="outline"
-            className="w-full rounded-xl"
+            className="min-h-11 w-full rounded-xl min-[360px]:w-auto min-[360px]:min-w-36"
             onClick={onReset}
           >
             <RotateCcw />

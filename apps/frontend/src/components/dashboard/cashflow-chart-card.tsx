@@ -47,11 +47,11 @@ function renderYAxisTick(
 }
 
 function CompactYAxisTick(props: YAxisTickContentProps) {
-  return renderYAxisTick(props, -4, 10);
+  return renderYAxisTick(props, 4, 10);
 }
 
 function StandardYAxisTick(props: YAxisTickContentProps) {
-  return renderYAxisTick(props, -29, 12);
+  return renderYAxisTick(props, -21, 12);
 }
 
 export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
@@ -111,9 +111,9 @@ export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
                   axisLine={false}
                   tickLine={false}
                   interval={0}
-                  angle={isCompact ? -45 : 0}
-                  height={isCompact ? 48 : 30}
-                  textAnchor={isCompact ? "end" : "middle"}
+                  angle={-45}
+                  height={48}
+                  textAnchor="end"
                   tick={{ fill: "var(--muted-foreground)", fontSize: isCompact ? 9 : 12 }}
                 />
                 <YAxis
