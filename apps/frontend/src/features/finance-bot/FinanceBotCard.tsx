@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -20,7 +20,7 @@ const PERSONALITIES = [
   { value: "CUSTOM", label: "Custom" },
 ] as const;
 
-const DEFAULTS: FinanceBotSettings = {
+export const DEFAULT_FINANCE_BOT_SETTINGS: FinanceBotSettings = {
   enabled: false,
   personality: "SANTAI",
   customStyle: undefined,
@@ -30,34 +30,26 @@ const DEFAULTS: FinanceBotSettings = {
   reminderTime2: "22:00",
 };
 
-export function FinanceBotCard() {
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+interface FinanceBotCardProps {
+  settings: FinanceBotSettings;
+  loading: boolean;
+  onSettingsChange: (settings: FinanceBotSettings) => void;
+}
 
-  const [settings, setSettings] = useState<FinanceBotSettings>(DEFAULTS);
+export function FinanceBotCard({
+  settings,
+  loading,
+  onSettingsChange,
+}: FinanceBotCardProps) {
   const settingsRef = useRef(settings);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      setLoadError(false);
-      try {
-        const s = await settingsService.getSettings();
-        if (cancelled) return;
-        const next = { ...settingsRef.current, ...(s.financeBotSettings ?? {}) } as FinanceBotSettings;
-        settingsRef.current = next;
-        setSettings(next);
-      } catch {
-        if (!cancelled) setLoadError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void run();
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
     return () => {
-      cancelled = true;
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, []);
@@ -77,7 +69,7 @@ export function FinanceBotCard() {
   const apply = (patch: Partial<FinanceBotSettings>, immediate = true) => {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;
-    setSettings(next);
+    onSettingsChange(next);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (immediate) {
       persist(next);
@@ -97,8 +89,6 @@ export function FinanceBotCard() {
             <Skeleton className="h-14 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
           </div>
-        ) : loadError ? (
-          <p role="alert" className="text-sm text-danger">{uiText.settingsPage.loadError}</p>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">

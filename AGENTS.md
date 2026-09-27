@@ -55,3 +55,11 @@ Kalau ada instruksi yang ambigu soal environment mana yang dimaksud (lokal atau 
 ## 6. Setelah deploy ke production
 
 Setelah push yang memicu deploy Vercel, agent harus mengingatkan user untuk mengecek status deployment di Vercel (Ready/Error) sebelum menganggap tugas selesai. Jangan menyatakan "sudah beres" hanya berdasarkan `git push` berhasil.
+
+<!-- antislop:start -->
+## antislop
+For UI, copy, people, mobile layout, or code comments work, read `../.github/skills/antislop/README.md` (core) and then the skill for the task:
+- UI / visual: `../.github/skills/antislop-ui/SKILL.md`
+- Mobile / responsive: `../.github/skills/antislop-layoutmobile/SKILL.md`
+Before starting UI work, ask the user when antislop applies: during the work, or after it is done.
+<!-- antislop:end -->

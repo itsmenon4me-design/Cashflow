@@ -1,8 +1,7 @@
 "use client";
 
 import { CategoryCard, CategoryRowActions } from "@/components/categories/CategoryCard";
-import { CardSkeleton } from "@/components/states/CardSkeleton";
-import { TableSkeleton } from "@/components/states/TableSkeleton";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -34,16 +33,7 @@ export function CategoryTable({
   onDelete,
 }: CategoryTableProps) {
   if (loading) {
-    return (
-      <>
-        <div className="hidden md:block">
-          <TableSkeleton rows={6} columns={4} />
-        </div>
-        <div className="md:hidden">
-          <CardSkeleton variant="list" rows={4} />
-        </div>
-      </>
-    );
+    return <DataLoadingState />;
   }
 
   return (

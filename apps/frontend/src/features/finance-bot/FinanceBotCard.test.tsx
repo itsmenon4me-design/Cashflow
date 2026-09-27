@@ -8,17 +8,20 @@ import type { FinanceBotSettings, UserSettings } from "@/types/settings";
 const getSettings = vi.spyOn(settingsService, "getSettings");
 const updateSettings = vi.spyOn(settingsService, "updateSettings");
 
-function resolveLater<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+function financeBotFixture(overrides: Partial<FinanceBotSettings> = {}): FinanceBotSettings {
+  return {
+    enabled: false,
+    personality: "SANTAI",
+    customStyle: undefined,
+    budgetThreshold: 80,
+    dailyReminderEnabled: true,
+    reminderTime1: "20:00",
+    reminderTime2: "22:00",
+    ...overrides,
+  };
 }
 
-const baseUserSettings: UserSettings = {
+const persistedSettings: UserSettings = {
   id: "user-1",
   userId: "user-1",
   theme: "dark",
@@ -33,22 +36,9 @@ const baseUserSettings: UserSettings = {
     system: true,
   },
   financeBotSettings: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: "2026-09-26T00:00:00.000Z",
+  updatedAt: "2026-09-26T00:00:00.000Z",
 };
-
-function financeBotFixture(overrides: Partial<FinanceBotSettings> = {}): FinanceBotSettings {
-  return {
-    enabled: false,
-    personality: "SANTAI",
-    customStyle: undefined,
-    budgetThreshold: 80,
-    dailyReminderEnabled: true,
-    reminderTime1: "20:00",
-    reminderTime2: "22:00",
-    ...overrides,
-  };
-}
 
 describe("FinanceBotCard", () => {
   afterEach(() => {
@@ -57,60 +47,89 @@ describe("FinanceBotCard", () => {
     vi.useRealTimers();
   });
 
-  it("renders loading skeleton while settings are loading", async () => {
-    const deferred = resolveLater<Awaited<ReturnType<typeof settingsService.getSettings>>>();
-    getSettings.mockReturnValue(deferred.promise);
-
-    render(<FinanceBotCard />);
+  it("shows a loading skeleton without requesting settings again", () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <FinanceBotCard
+        settings={financeBotFixture()}
+        loading
+        onSettingsChange={onSettingsChange}
+      />,
+    );
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-
-    await act(async () => {
-      deferred.resolve({ ...baseUserSettings, financeBotSettings: null });
-    });
+    expect(settingsService.getSettings).not.toHaveBeenCalled();
   });
 
-  it("loads and displays existing settings", async () => {
-    getSettings.mockResolvedValue({
-      ...baseUserSettings,
-      financeBotSettings: financeBotFixture({
-        enabled: true,
-        personality: "TEGAS",
-        budgetThreshold: 90,
-        dailyReminderEnabled: false,
-        reminderTime1: "19:00",
-        reminderTime2: "21:00",
-      }),
-    });
+  it("uses settings as soon as the shared Settings request completes", () => {
+    const onSettingsChange = vi.fn();
+    const { rerender } = render(
+      <FinanceBotCard
+        settings={financeBotFixture()}
+        loading
+        onSettingsChange={onSettingsChange}
+      />,
+    );
 
-    render(<FinanceBotCard />);
+    rerender(
+      <FinanceBotCard
+        settings={financeBotFixture({
+          personality: "CUSTOM",
+          customStyle: "Singkat dan jelas",
+        })}
+        loading={false}
+        onSettingsChange={onSettingsChange}
+      />,
+    );
 
-    expect(await screen.findByRole("switch", { name: uiText.financeBot.enabled })).toBeInTheDocument();
+    expect(screen.getByLabelText(uiText.financeBot.customLabel)).toHaveValue(
+      "Singkat dan jelas",
+    );
+    expect(settingsService.getSettings).not.toHaveBeenCalled();
+  });
+
+  it("renders the settings supplied by the Settings page", () => {
+    render(
+      <FinanceBotCard
+        settings={financeBotFixture({
+          enabled: true,
+          personality: "TEGAS",
+          budgetThreshold: 90,
+          dailyReminderEnabled: false,
+          reminderTime1: "19:00",
+          reminderTime2: "21:00",
+        })}
+        loading={false}
+        onSettingsChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("switch", { name: uiText.financeBot.enabled })).toBeChecked();
+    expect(screen.getByRole("radio", { name: uiText.financeBot.personalityOptions.TEGAS })).toBeChecked();
+    expect(screen.getByRole("combobox")).toHaveTextContent("90%");
     expect(screen.getByText(uiText.financeBot.timezoneNote)).toBeInTheDocument();
   });
 
-  it("shows load error state when settings fail to load", async () => {
-    getSettings.mockRejectedValue(new Error("load-failure"));
-
-    render(<FinanceBotCard />);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(uiText.settingsPage.loadError);
-  });
-
   it("has no save button and auto-saves on toggle", async () => {
-    getSettings.mockResolvedValue({
-      ...baseUserSettings,
-      financeBotSettings: financeBotFixture(),
-    });
-    updateSettings.mockResolvedValue(baseUserSettings);
+    const onSettingsChange = vi.fn();
+    updateSettings.mockResolvedValue(persistedSettings);
 
-    render(<FinanceBotCard />);
+    render(
+      <FinanceBotCard
+        settings={financeBotFixture()}
+        loading={false}
+        onSettingsChange={onSettingsChange}
+      />,
+    );
 
-    const toggle = await screen.findByRole("switch", { name: uiText.financeBot.enabled });
+    const toggle = screen.getByRole("switch", { name: uiText.financeBot.enabled });
     expect(screen.queryByRole("button", { name: /save|simpan/i })).not.toBeInTheDocument();
 
     fireEvent.click(toggle);
 
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true }),
+    );
     expect(updateSettings).toHaveBeenCalledWith({
       financeBotSettings: {
         enabled: true,
@@ -125,15 +144,17 @@ describe("FinanceBotCard", () => {
   });
 
   it("auto-saves on personality change", async () => {
-    getSettings.mockResolvedValue({
-      ...baseUserSettings,
-      financeBotSettings: financeBotFixture(),
-    });
-    updateSettings.mockResolvedValue(baseUserSettings);
+    updateSettings.mockResolvedValue(persistedSettings);
 
-    render(<FinanceBotCard />);
+    render(
+      <FinanceBotCard
+        settings={financeBotFixture()}
+        loading={false}
+        onSettingsChange={vi.fn()}
+      />,
+    );
 
-    const radio = await screen.findByRole("radio", { name: uiText.financeBot.personalityOptions.TEGAS });
+    const radio = screen.getByRole("radio", { name: uiText.financeBot.personalityOptions.TEGAS });
     fireEvent.click(radio);
 
     expect(updateSettings).toHaveBeenCalledWith({
@@ -144,15 +165,17 @@ describe("FinanceBotCard", () => {
   });
 
   it("debounces custom style persistence", async () => {
-    getSettings.mockResolvedValue({
-      ...baseUserSettings,
-      financeBotSettings: financeBotFixture({ personality: "CUSTOM", customStyle: "" }),
-    });
-    updateSettings.mockResolvedValue(baseUserSettings);
+    updateSettings.mockResolvedValue(persistedSettings);
 
-    render(<FinanceBotCard />);
+    render(
+      <FinanceBotCard
+        settings={financeBotFixture({ personality: "CUSTOM", customStyle: "" })}
+        loading={false}
+        onSettingsChange={vi.fn()}
+      />,
+    );
 
-    const textarea = await screen.findByLabelText(uiText.financeBot.customLabel);
+    const textarea = screen.getByLabelText(uiText.financeBot.customLabel);
     vi.useFakeTimers();
     fireEvent.change(textarea, { target: { value: "hangry" } });
 

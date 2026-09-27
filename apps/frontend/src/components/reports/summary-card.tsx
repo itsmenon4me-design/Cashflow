@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface SummaryCardProps {
@@ -40,21 +39,13 @@ export function SummaryCard({
           <p className="truncate text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {label}
           </p>
-          {loading ? (
-            <Skeleton className="mt-2 h-8 w-32" />
-          ) : (
-            <p className={cn("mt-2 text-foreground whitespace-nowrap tabular-nums overflow-visible", getKpiValueClass(value))}>
-              {value}
-            </p>
-          )}
+          <p className={cn("mt-2 text-foreground whitespace-nowrap tabular-nums overflow-visible", getKpiValueClass(value))}>
+            {value}
+          </p>
         </div>
-        {loading ? (
-          <Skeleton className="size-9 rounded-xl" />
-        ) : (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Icon className="size-4" />
-          </div>
-        )}
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </div>
       </CardHeader>
       {/* Reserved space: the loaded change row is ~20px — reserving it keeps
           the cards below stable when data arrives. */}
@@ -77,7 +68,6 @@ export function SummaryCard({
             {subtitle && <span className="text-muted-foreground">{subtitle}</span>}
           </div>
         ) : (
-          !loading &&
           subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>
         )}
       </CardContent>

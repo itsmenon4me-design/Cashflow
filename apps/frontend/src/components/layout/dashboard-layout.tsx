@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { RequireAuth } from "@/components/auth/require-auth";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { MobileDrawer } from "@/components/layout/mobile-drawer";
@@ -11,6 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
+import { QuickAddTransaction } from "@/components/transactions/quick-add-transaction";
 
 // Near-realtime global data refresh: bumps the shared refresh store on window
 // focus/visibility so every page subscribed to dataVersion stays up to date
@@ -59,12 +61,17 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, initialExpanded, initialCollapsed }: DashboardLayoutProps) {
   const { mobileOpen, setMobileOpen } = useSidebarStore();
   const mainRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
 
   useGlobalAutoRefresh();
 
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="mx-auto flex h-dvh w-full max-w-[1600px] overflow-hidden bg-background text-foreground">
+      <div className="relative mx-auto flex h-dvh w-full max-w-[1600px] overflow-hidden bg-background text-foreground">
         <Sidebar initialExpanded={initialExpanded} initialCollapsed={initialCollapsed} />
         <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} initialExpanded={initialExpanded} />
 
@@ -76,15 +83,12 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
           {/* scrollbar-gutter: main adalah scroll container (bukan html) — tanpa
               gutter stabil, scrollbar yang muncul/hilang (mis. hasil filter
               kosong -> halaman memendek) mengubah lebar semua konten di dalamnya */}
-          <main ref={mainRef} className="flex flex-1 flex-col overflow-y-auto px-4 pb-24 pt-6 [scrollbar-gutter:stable] sm:px-6 md:pb-10 md:pt-8 lg:px-8">
+          <main ref={mainRef} className="dashboard-main-scroll flex flex-1 flex-col overflow-y-auto px-4 pb-[calc(3.5625rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 md:pb-10 md:pt-8 lg:px-8">
             <div className="grid flex-1 gap-6">
-              <div className="min-w-0 space-y-6">
-                {/* Fade transition per route: the old page fades out in place
-                    (at its current scroll position), scroll resets while the
-                    slot is empty, then the new page fades in. Sidebar/header/
-                    mobile nav are rendered outside this wrapper so they stay
-                    mounted as stable visual anchors during navigation. */}
-                <PageTransition onExited={() => mainRef.current?.scrollTo({ top: 0 })}>
+              <div className="min-h-full min-w-0 space-y-6">
+                {/* Sidebar, header, and mobile navigation stay mounted while
+                    only this route content changes. */}
+                <PageTransition>
                   <RequireAuth>{children}</RequireAuth>
                 </PageTransition>
               </div>
@@ -93,6 +97,7 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
         </div>
 
         <MobileNav />
+        <QuickAddTransaction showTrigger={false} />
       </div>
     </TooltipProvider>
   );

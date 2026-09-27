@@ -59,8 +59,7 @@ export function CashFlowChart({
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -70,8 +69,7 @@ export function CashFlowChart({
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -81,8 +79,7 @@ export function CashFlowChart({
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>

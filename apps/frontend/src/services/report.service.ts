@@ -55,12 +55,13 @@ export interface TrendResult {
 }
 
 export type ExportType = "monthly" | "category" | "trend";
-export type ExportFormat = "csv";
+export type ExportFormat = "csv" | "xlsx";
 
 export interface ReportExportResponse {
   filename: string;
   contentType: string;
   content: string;
+  contentEncoding?: "utf-8" | "base64";
 }
 
 export interface ReportExportParams {
@@ -73,10 +74,14 @@ export interface ReportExportParams {
 }
 
 /** Backend reports return exact minor-unit strings. Convert to major units only at the display boundary. */
-export function fromCents(amount: number | string | bigint, currency = "IDR"): number {
-  const parsed = typeof amount === "bigint" ? Number(amount) : Number(amount ?? 0);
+export function fromCents(
+  amount: number | string | bigint,
+  currency = "IDR",
+): number {
+  const parsed =
+    typeof amount === "bigint" ? Number(amount) : Number(amount ?? 0);
   if (!Number.isFinite(parsed)) return 0;
-  return parsed / (10 ** getCurrencySpec(currency).minorUnits);
+  return parsed / 10 ** getCurrencySpec(currency).minorUnits;
 }
 
 /** Download backend export content ({filename, contentType, content}) as a file. */
@@ -84,7 +89,13 @@ export function downloadExport(res: ReportExportResponse): void {
   if (!res || !res.content || !res.filename) {
     throw new Error("Empty export response");
   }
-  const blob = new Blob([res.content], { type: res.contentType });
+  const content =
+    res.contentEncoding === "base64"
+      ? Uint8Array.from(atob(res.content), (character) =>
+          character.charCodeAt(0),
+        )
+      : res.content;
+  const blob = new Blob([content], { type: res.contentType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -92,7 +103,7 @@ export function downloadExport(res: ReportExportResponse): void {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export const reportService = {
@@ -109,7 +120,10 @@ export const reportService = {
       params: { type, startDate: period.startDate, endDate: period.endDate },
     }),
 
-  getCashflowTrend: (type: TrendType, period: ReportPeriod): Promise<TrendResult> =>
+  getCashflowTrend: (
+    type: TrendType,
+    period: ReportPeriod,
+  ): Promise<TrendResult> =>
     apiClient.get<TrendResult>("/reports/cashflow-trend", {
       params: { type, startDate: period.startDate, endDate: period.endDate },
     }),

@@ -148,7 +148,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       onFocus={() => warmRouteData(item.href)}
       onTouchStart={() => warmRouteData(item.href)}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
         collapsed ? "justify-center px-0" : "px-3",
         isActive
           ? "bg-primary text-primary-foreground"
@@ -195,7 +195,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
             <div
               aria-hidden={!isOpen}
               className={cn(
-                "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+                "grid",
                 isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
               )}
             >

@@ -2,8 +2,7 @@
 
 import { Eye, Pencil, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { BudgetProgress } from "@/components/budgets/BudgetProgress";
-import { CardSkeleton } from "@/components/states/CardSkeleton";
-import { TableSkeleton } from "@/components/states/TableSkeleton";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,16 +104,7 @@ export function BudgetTable({
   onDelete,
 }: BudgetTableProps) {
   if (loading) {
-    return (
-      <>
-        <div className="hidden md:block">
-          <TableSkeleton rows={6} columns={6} />
-        </div>
-        <div className="md:hidden">
-          <CardSkeleton variant="list" rows={4} />
-        </div>
-      </>
-    );
+    return <DataLoadingState />;
   }
 
   return (

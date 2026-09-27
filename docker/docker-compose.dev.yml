@@ -22,10 +22,11 @@ services:
       NODE_ENV: development
     volumes:
       - ../apps/backend:/app/apps/backend:cached
+      - ./backend/entrypoint.sh:/app/entrypoint.sh:ro
       - /app/node_modules
     ports:
       - "3001:3001"
-    command: ["npm", "run", "start:dev", "-w", "backend"]
+    command: ["npm", "--prefix", "/app/apps/backend", "run", "start:dev"]
     depends_on:
       postgres:
         condition: service_healthy

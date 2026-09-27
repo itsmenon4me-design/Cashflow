@@ -13,13 +13,14 @@ import { TransactionSummaryCard } from "@/components/reports/transaction-summary
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
 import { computeRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
-import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ExportFormat, type ReportSummary, type TrendPoint } from "@/services/report.service";
+import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
 import type { CategoryResponse } from "@/types/backend";
 import type { FlowPoint, TransactionItem } from "@/types/dashboard";
@@ -53,7 +54,7 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [summary, setSummary] = useState<ReportSummary | null>(null);
@@ -202,26 +203,25 @@ export function ReportsPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const handleExport = async (format: ExportFormat) => {
-    const start = new Date(range.startDate);
-    setExporting(format);
+  const handleExport = async () => {
+    setExporting(true);
     setExportError(null);
     try {
       const res = await reportService.exportReport({
         type: "monthly",
-        format,
-        month: start.getMonth() + 1,
-        year: start.getFullYear(),
+        format: "xlsx",
+        startDate: range.startDate,
+        endDate: range.endDate,
       });
       downloadExport(res);
     } catch {
-      setExportError(uiText.reports.exportError);
+      setExportError(uiText.reports.exportExcelError);
     } finally {
-      setExporting(null);
+      setExporting(false);
     }
   };
 
-  const exportBusy = exporting !== null;
+  const exportBusy = exporting;
 
   return (
     <div className="space-y-6">
@@ -251,16 +251,16 @@ export function ReportsPage() {
             type="button"
             variant="outline"
             className="rounded-xl"
-            onClick={() => void handleExport("csv")}
+            onClick={() => void handleExport()}
             disabled={exportBusy}
-            aria-label={uiText.reports.downloadCsv}
+            aria-label={uiText.reports.downloadExcel}
           >
-            {exporting === "csv" ? (
+            {exporting ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
               <Download className="size-4" aria-hidden="true" />
             )}
-            {exporting === "csv" ? uiText.reports.downloading : uiText.reports.downloadCsv}
+            {exporting ? uiText.reports.downloading : uiText.reports.downloadExcel}
           </Button>
         </div>
         {exportError && (
@@ -270,7 +270,13 @@ export function ReportsPage() {
         )}
       </div>
 
-      {error ? (
+      {loading ? (
+        <DataLoadingState
+          title={uiText.reports.emptyTitle}
+          description={uiText.reports.emptySubtitle}
+          icon={<ArrowUpRight className="size-8 text-muted-foreground" aria-hidden="true" />}
+        />
+      ) : error ? (
         <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} />
       ) : isEmpty ? (
         <EmptyState

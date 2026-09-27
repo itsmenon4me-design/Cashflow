@@ -28,9 +28,15 @@ import { cn } from "@/lib/utils";
 function ChartPlaceholder({ heightClass }: { heightClass: string }) {
   return (
     <div
-      aria-hidden="true"
-      className={cn("w-full animate-pulse rounded-xl bg-accent/50", heightClass)}
-    />
+      role="status"
+      aria-label="Memuat grafik"
+      className={cn(
+        "flex w-full items-center justify-center text-sm text-muted-foreground",
+        heightClass,
+      )}
+    >
+      Memuat grafik...
+    </div>
   );
 }
 
@@ -51,8 +57,8 @@ function WhenNearViewport({
     // No IntersectionObserver (old browsers / jsdom): render immediately.
     // Real deferral matters on modern browsers, all of which support IO.
     if (typeof IntersectionObserver === "undefined") {
-      setShow(true);
-      return;
+      const fallback = window.setTimeout(() => setShow(true), 0);
+      return () => window.clearTimeout(fallback);
     }
 
     const io = new IntersectionObserver(
@@ -101,10 +107,10 @@ function lazyChart(
   return memo(ChartWithGate);
 }
 
-/** Dashboard: monthly cashflow area chart (plot ≈ h-72). */
+/** Dashboard: monthly cashflow bar chart (plot ≈ h-72). */
 export const LazyCashflowChartCard = lazyChart(
   () => import("@/components/dashboard/cashflow-chart-card").then((m) => m.CashflowChartCard),
-  "h-64",
+  "h-[296px] md:h-[356px]",
 );
 
 /** Dashboard: category distribution donut (plot ≈ h-64). */

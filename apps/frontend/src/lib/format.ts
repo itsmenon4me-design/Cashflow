@@ -24,8 +24,6 @@ export function formatCompactCurrency(value: number, _currency?: string): string
   const majorUnits = toMajorUnits(Number.isFinite(value) ? value : 0, IDR);
 
   return new Intl.NumberFormat(spec.primaryLocale, {
-    style: "currency",
-    currency: spec.code,
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(majorUnits);

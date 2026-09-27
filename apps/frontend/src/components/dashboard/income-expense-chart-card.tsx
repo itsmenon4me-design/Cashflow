@@ -31,7 +31,7 @@ export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCar
       <CardContent className="p-5 pt-0">
         {(!data || data.length === 0) ? (
           <div className="h-[200px] md:h-[260px] w-full">
-            <CenteredEmptyState title={(uiText as any)?.dashboard?.emptyIncomeVsExpense ?? uiText.common.noDataAvailable} />
+            <CenteredEmptyState title={uiText.common.noDataAvailable} />
           </div>
         ) : (
           <div className="h-[200px] md:h-[260px] w-full">
@@ -60,6 +60,7 @@ export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCar
                   fill="var(--chart-2)"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={18}
+                  isAnimationActive={false}
                 />
                 <Bar
                   dataKey="expense"
@@ -67,6 +68,7 @@ export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCar
                   fill="var(--primary)"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={18}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>

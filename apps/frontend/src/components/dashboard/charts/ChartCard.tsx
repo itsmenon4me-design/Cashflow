@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Inbox } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 
@@ -42,9 +41,20 @@ export function ChartCard({
             ResponsiveContainer mount/resize (recharts measures parent
             asynchronously — without clip the SVG can leak outside the
             Card border for 1–2 frames on initial render and data swaps). */}
-        <div className={cn("h-72 overflow-hidden", contentClassName)}>
+        <div
+          className={cn(
+            "h-72 overflow-hidden rounded-lg bg-muted/20",
+            contentClassName,
+          )}
+        >
           {loading ? (
-            <Skeleton className="h-full w-full rounded-xl" />
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex h-full items-center justify-center text-sm text-muted-foreground"
+            >
+              Memuat grafik...
+            </div>
           ) : showEmpty ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
               <Inbox className="size-8" />

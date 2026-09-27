@@ -1,8 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
-import { CardSkeleton } from "@/components/states/CardSkeleton";
-import { TableSkeleton } from "@/components/states/TableSkeleton";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -123,16 +122,7 @@ export function InvestmentTable({
   onDelete,
 }: InvestmentTableProps) {
   if (loading) {
-    return (
-      <>
-        <div className="hidden md:block">
-          <TableSkeleton rows={6} columns={7} />
-        </div>
-        <div className="md:hidden">
-          <CardSkeleton variant="list" rows={4} />
-        </div>
-      </>
-    );
+    return <DataLoadingState />;
   }
 
   return (
@@ -163,7 +153,7 @@ export function InvestmentTable({
         </div>
       </div>
 
-      <div className="grid gap-4 md:hidden">
+      <div className="grid w-full min-w-0 gap-4 md:hidden">
         {items.map((item) => (
           <InvestmentCard key={item.id} item={item} onView={onView} onEdit={onEdit} onDelete={onDelete} />
         ))}
@@ -239,7 +229,7 @@ function InvestmentCard({
   const info = investmentTypeInfo(item.type);
   const Icon = info.icon;
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="w-full min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
@@ -260,18 +250,18 @@ function InvestmentCard({
         </Badge>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col items-start gap-2 min-[421px]:flex-row min-[421px]:items-center min-[421px]:justify-between">
+        <div className="min-w-0">
           <p className="text-[11px] text-muted-foreground">{uiText.investments.currentValue}</p>
-          <p className="text-lg font-semibold tracking-tight">{formatMoney(item.currentValue, item.currency)}</p>
+          <p className="break-words text-lg font-semibold tracking-tight">{formatMoney(item.currentValue, item.currency)}</p>
         </div>
         <ProfitLossValue item={item} />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+      <div className="grid min-w-0 grid-cols-2 gap-2 text-xs text-muted-foreground">
         <div>
           <p className="text-[11px]">{uiText.investments.totalInvested}</p>
-          <p className="font-medium text-foreground">{formatMoney(item.invested, item.currency)}</p>
+          <p className="break-words font-medium text-foreground">{formatMoney(item.invested, item.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.investments.fieldPurchaseDate}</p>

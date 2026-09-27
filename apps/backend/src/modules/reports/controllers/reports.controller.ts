@@ -1,4 +1,10 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { DateHelper } from '../../../common/utils/date.util';
 import {
   ApiTags,
@@ -37,8 +43,28 @@ function buildRange(
   endDate?: string,
 ): DateRange | undefined {
   if (!startDate && !endDate) return undefined;
-  const start = DateHelper.startOfDay(startDate as string);
-  const end = DateHelper.endOfDay((endDate || startDate) as string);
+  if (!startDate || !endDate) {
+    const date = startDate || endDate;
+    if (!date) return undefined;
+    return {
+      start: DateHelper.startOfDay(date),
+      end: DateHelper.endOfDay(date),
+    };
+  }
+  const parseBoundary = (value: string, boundary: 'start' | 'end') => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return boundary === 'start'
+        ? DateHelper.startOfDay(value)
+        : DateHelper.endOfDay(value);
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(`Invalid ${boundary} date`);
+    }
+    return date;
+  };
+  const start = parseBoundary(startDate, 'start');
+  const end = parseBoundary(endDate, 'end');
   return { start, end };
 }
 
@@ -143,16 +169,12 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: BudgetQueryDto,
   ) {
-    return this.budgetAnalytics.analyzeMonth(
-      userId,
-      query.month,
-      query.year,
-    );
+    return this.budgetAnalytics.analyzeMonth(userId, query.month, query.year);
   }
 
   @Get('export')
   @ApiOperation({
-    summary: 'Export reports (monthly|category|trend) in json or csv',
+    summary: 'Export report data as CSV or a styled XLSX workbook',
   })
   @ApiQuery({ name: 'type', required: true, type: String })
   @ApiQuery({ name: 'format', required: true, type: String })
@@ -164,26 +186,34 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: ExportQueryDto,
   ) {
+    if (Boolean(query.startDate) !== Boolean(query.endDate)) {
+      throw new BadRequestException(
+        'Both startDate and endDate are required for a date range',
+      );
+    }
     const month = query.month;
     const year = query.year;
-    const startDate = query.startDate ? new Date(query.startDate) : undefined;
-    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+    const range = query.startDate
+      ? buildRange(query.startDate, query.endDate)
+      : undefined;
 
     const res = await this.exporter.export({
       type: query.type,
       format: query.format,
       month,
       year,
-      startDate,
-      endDate,
+      startDate: range?.start,
+      endDate: range?.end,
       userId,
     });
 
-    // For simplicity, return an object with filename and content; controllers elsewhere stream files differently.
     return {
       filename: res.filename,
       contentType: res.contentType,
-      content: res.content,
+      content: Buffer.isBuffer(res.content)
+        ? res.content.toString('base64')
+        : res.content,
+      contentEncoding: Buffer.isBuffer(res.content) ? 'base64' : 'utf-8',
     };
   }
 
@@ -200,10 +230,6 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: FinancialInsightsQueryDto,
   ) {
-    return this.insights.getInsights(
-      userId,
-      query.month,
-      query.year,
-    );
+    return this.insights.getInsights(userId, query.month, query.year);
   }
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useEffect, useRef, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyCents, formatCompactCurrency } from "@/lib/format";
@@ -14,7 +23,26 @@ interface CashflowChartCardProps {
 }
 
 export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
-  const isSparse = data && data.length > 0 && data.length < 3;
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width !== undefined) {
+        setIsCompact((current) => {
+          const next = width < 480;
+          return current === next ? current : next;
+        });
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Card className="shadow-sm">
@@ -25,82 +53,47 @@ export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
           <span className="size-2 rounded-full bg-primary" />
-          {uiText.dashboard.balance}
+          {uiText.dashboard.cashFlow}
         </div>
       </CardHeader>
       <CardContent>
         {(!data || data.length === 0) ? (
           <div className="h-[200px] md:h-[260px] w-full">
-            <CenteredEmptyState title={(uiText as any)?.dashboard?.emptyMonthlyTransactions ?? uiText.common.noDataAvailable} />
+            <CenteredEmptyState title={uiText.common.noDataAvailable} />
           </div>
         ) : (
-          <div className="h-[200px] md:h-[260px] w-full">
+          <div ref={chartContainerRef} className="h-[200px] md:h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              {isSparse ? (
-                <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                    tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
-                  />
-                  <Tooltip
-                    content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
-                    cursor={{ fill: "var(--accent)", opacity: 0.3 }}
-                  />
-                  <Bar
-                    dataKey="balance"
-                    name={uiText.dashboard.balance}
-                    fill="var(--primary)"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={56}
-                    label={{ position: "top", fill: "var(--muted-foreground)", fontSize: 11, formatter: (v) => formatCompactCurrency(Number(v), currency) }}
-                  />
-                </BarChart>
-              ) : (
-                <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="var(--border)" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                    tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
-                  />
-                  <Tooltip
-                    content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
-                    cursor={{ stroke: "var(--border)" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="balance"
-                    name={uiText.dashboard.balance}
-                    stroke="var(--primary)"
-                    fill="url(#balanceFill)"
-                    strokeWidth={2.5}
-                    dot={data.length < 5 ? { r: 4, fill: "var(--primary)", strokeWidth: 0 } : false}
-                    activeDot={{ r: 5, strokeWidth: 2, fill: "var(--background)", stroke: "var(--primary)" }}
-                  />
-                </AreaChart>
-              )}
+              <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                  angle={isCompact ? -45 : 0}
+                  height={isCompact ? 48 : 30}
+                  textAnchor={isCompact ? "end" : "middle"}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: isCompact ? 9 : 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
+                />
+                <Tooltip
+                  content={<ChartTooltip valueFormatter={(value) => formatCurrencyCents(String(value), currency)} />}
+                  cursor={{ fill: "var(--accent)", opacity: 0.3 }}
+                />
+                <Bar
+                  dataKey="balance"
+                  name={uiText.dashboard.cashFlow}
+                  fill="var(--primary)"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={56}
+                />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}

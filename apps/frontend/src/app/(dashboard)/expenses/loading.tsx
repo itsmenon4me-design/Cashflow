@@ -1,5 +1,5 @@
-import { TablePageSkeleton } from "@/components/skeletons/page-skeletons";
+import { TransactionPageLoading } from "@/components/transactions/TransactionPageLoading";
 
 export default function Loading() {
-  return <TablePageSkeleton />;
+  return <TransactionPageLoading type="expense" />;
 }

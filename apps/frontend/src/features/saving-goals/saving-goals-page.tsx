@@ -21,7 +21,6 @@ const LazyDeleteSavingGoalDialog = dynamic(
 import { SavingGoalFilters } from "@/components/saving-goals/SavingGoalFilters";
 import { SavingGoalTable } from "@/components/saving-goals/SavingGoalTable";
 import { SavingGoalToolbar } from "@/components/saving-goals/SavingGoalToolbar";
-import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
@@ -52,6 +51,7 @@ export function SavingGoalsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [categoryNames, setCategoryNames] = useState<NameLookup>({});
@@ -84,6 +84,7 @@ export function SavingGoalsPage() {
         const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
         setCategoryNames(categoryMap);
         setGoals(items.map((goal) => toSavingGoalItem(goal, categoryMap)));
+        setHasLoadedOnce(true);
       } catch {
         if (!cancelled) {
           setError(true);
@@ -212,7 +213,8 @@ export function SavingGoalsPage() {
     }
   };
 
-  const isEmpty = !loading && !error && visible.length === 0;
+  const initialLoading = loading && !hasLoadedOnce;
+  const isEmpty = hasLoadedOnce && !error && visible.length === 0;
 
   return (
     <div className="space-y-6">
@@ -243,28 +245,19 @@ export function SavingGoalsPage() {
           description={uiText.states.errorDescription}
           onRetry={() => setRefreshKey((key) => key + 1)}
         />
+      ) : initialLoading ? (
+        <SavingGoalResultState loading onAdd={() => openForm("create", null)} />
       ) : isEmpty ? (
-        <EmptyState
-          title={uiText.savingGoals.emptyTitle}
-          description={uiText.savingGoals.emptySubtitle}
-          icon={<Target className="size-8 text-muted-foreground" aria-hidden="true" />}
-          actionButton={
-            <Button type="button" className="rounded-xl" onClick={() => openForm("create", null)}>
-              <Plus />
-              {uiText.savingGoals.add}
-            </Button>
-          }
-        />
+        <SavingGoalResultState onAdd={() => openForm("create", null)} />
       ) : (
         <>
           <SavingGoalTable
             goals={rows}
-            loading={loading}
             onView={(goal) => openForm("view", goal)}
             onEdit={(goal) => openForm("edit", goal)}
             onDelete={setDeleting}
           />
-          {!loading && (
+          {!initialLoading && (
             <TransactionPagination
               page={currentPage}
               pageSize={pageSize}
@@ -297,6 +290,45 @@ export function SavingGoalsPage() {
           onConfirm={() => void handleConfirmDelete()}
         />
       </LoadOnOpen>
+    </div>
+  );
+}
+
+function SavingGoalResultState({
+  loading = false,
+  onAdd,
+}: {
+  loading?: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-[360px] flex-col items-center justify-center gap-4 overflow-hidden rounded-xl bg-card px-6 py-16 text-center shadow-card ring-1 ring-foreground/10"
+    >
+      <div
+        aria-hidden="true"
+        className="flex size-16 items-center justify-center rounded-2xl bg-muted"
+      >
+        <Target className="size-8 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="min-h-6 text-base font-semibold text-foreground">
+          {loading ? uiText.common.loading : uiText.savingGoals.emptyTitle}
+        </h2>
+        <p className="mx-auto flex min-h-[60px] max-w-sm items-center justify-center text-sm text-muted-foreground">
+          {loading ? "" : uiText.savingGoals.emptySubtitle}
+        </p>
+      </div>
+      <div className="flex min-h-11 items-center">
+        {!loading && (
+          <Button type="button" className="rounded-xl" onClick={onAdd}>
+            <Plus />
+            {uiText.savingGoals.add}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

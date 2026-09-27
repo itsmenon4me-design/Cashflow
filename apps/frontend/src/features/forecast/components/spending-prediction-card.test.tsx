@@ -176,7 +176,7 @@ describe("SpendingPredictionCard", () => {
         }}
       />,
     );
-
+    expect(screen.getByText(locales.id.forecast.spendingEmptyTitle)).toBeInTheDocument();
     expect(screen.getByText(locales.id.forecast.spendingEmptyTitle)).toBeInTheDocument();
     expect(screen.queryByText(locales.id.forecast.spendingTotalLabel)).not.toBeInTheDocument();
     expect(screen.queryByText(/Rp0/)).not.toBeInTheDocument();

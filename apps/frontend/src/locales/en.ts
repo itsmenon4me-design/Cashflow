@@ -30,16 +30,6 @@ export const enText = {
     searchAriaLabel: "Global search",
     noSearchResults: "No results found",
     searchResultsMenu: "Menu",
-    searchResultsTransactions: "Transaction History",
-    searchResultsAccounts: "Accounts",
-    searchResultsInsights: "Insights",
-    searchResultsCategories: "Categories",
-    searchResultsBudgets: "Budgets",
-    searchResultsSavingGoals: "Savings Goals",
-    searchResultsInvestments: "Investments",
-    searchResultsNotifications: "Notifications",
-    searchIncome: "Income",
-    searchExpense: "Expense",
     notificationsAriaLabel: "Notifications",
     themeToLight: "Switch to light mode",
     themeToDark: "Switch to dark mode",
@@ -380,6 +370,10 @@ export const enText = {
     totalExpense: "Total Expense",
     cashFlow: "Cash Flow",
     cashFlowMonthly: "Monthly Cash Flow",
+    flowLoadError:
+      "Cash flow could not be refreshed. The last loaded data is still shown.",
+    recentTransactionsLoadError:
+      "Recent transactions could not be refreshed. The last loaded data is still shown.",
     incomeVsExpense: "Income vs Expense",
     monthlyTrend: "Monthly trend",
     categoryExpense: "Expense Categories",
@@ -426,6 +420,8 @@ export const enText = {
   analytics: {
     title: "Financial Analytics",
     subtitle: "Deep insights into your financial performance.",
+    refreshing:
+      "Updating analytics. Some data may not reflect the selected period yet.",
     range7D: "7 Days",
     range30D: "30 Days",
     range3M: "3 Months",
@@ -522,6 +518,8 @@ export const enText = {
     deleteMessage: "Are you sure you want to delete this transaction?",
     typeIncome: "Income",
     typeExpense: "Expense",
+    categoryLoadFailed:
+      "Categories could not be loaded. Check your connection and try again.",
     saveFailed: "Failed to save transaction. Please try again.",
   },
   accounts: {
@@ -808,9 +806,9 @@ export const enText = {
     alertInvalidRange: "End date must be after the start date.",
     periodLabel: "Period",
     exportLabel: "Export Report",
-    downloadCsv: "Download CSV",
+    downloadExcel: "Download Excel (.xlsx)",
     downloading: "Downloading...",
-    exportError: "Export failed. Please try again.",
+    exportExcelError: "Excel download failed. Please try again.",
   },
   states: {
     emptyTransactions: "No transactions yet.",

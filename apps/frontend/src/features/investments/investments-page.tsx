@@ -56,6 +56,7 @@ export function InvestmentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [formState, setFormState] = useState<FormState>({
@@ -86,6 +87,7 @@ export function InvestmentsPage() {
         }
         setItems(list.map((item) => toInvestmentItem(item)));
         setOverview(overviewResult);
+        setHasLoadedOnce(true);
       } catch {
         if (!cancelled) {
           setError(true);
@@ -233,7 +235,7 @@ export function InvestmentsPage() {
 
       <InvestmentToolbar
         count={visible.length}
-        loading={loading}
+        loading={loading && !hasLoadedOnce}
         onAdd={() => openForm("create", null)}
       />
 
@@ -244,28 +246,28 @@ export function InvestmentsPage() {
       />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <InvestmentStat
-          label={uiText.investments.totalInvested}
-          value={formatCurrencyCents(overview?.totalInvested ?? "0")}
-          loading={loading}
-        />
-        <InvestmentStat
-          label={uiText.investments.currentValue}
-          value={formatCurrencyCents(overview?.totalValue ?? "0")}
-          loading={loading}
-        />
-        <InvestmentStat
-          label={uiText.investments.profitLoss}
-          value={formatCurrencyCents(profitLoss)}
-          loading={loading}
-          tone={plPositive ? "profit" : "loss"}
-        />
-        <InvestmentStat
-          label={uiText.investments.roi}
-          value={`${roi.toFixed(1)}%`}
-          loading={loading}
-          tone={roi >= 0 ? "profit" : "loss"}
-        />
+          <InvestmentStat
+            label={uiText.investments.totalInvested}
+            value={formatCurrencyCents(overview?.totalInvested ?? "0")}
+            loading={!hasLoadedOnce}
+          />
+          <InvestmentStat
+            label={uiText.investments.currentValue}
+            value={formatCurrencyCents(overview?.totalValue ?? "0")}
+            loading={!hasLoadedOnce}
+          />
+          <InvestmentStat
+            label={uiText.investments.profitLoss}
+            value={formatCurrencyCents(profitLoss)}
+            loading={!hasLoadedOnce}
+            tone={plPositive ? "profit" : "loss"}
+          />
+          <InvestmentStat
+            label={uiText.investments.roi}
+            value={`${roi.toFixed(1)}%`}
+            loading={!hasLoadedOnce}
+            tone={roi >= 0 ? "profit" : "loss"}
+          />
       </section>
 
       {error ? (
@@ -290,12 +292,12 @@ export function InvestmentsPage() {
           <>
             <InvestmentTable
               items={rows}
-              loading={loading}
+              loading={loading && !hasLoadedOnce}
               onView={(item) => openForm("view", item)}
               onEdit={(item) => openForm("edit", item)}
               onDelete={setDeleting}
             />
-            {!loading && (
+            {(!loading || hasLoadedOnce) && (
               <TransactionPagination
                 page={currentPage}
                 pageSize={pageSize}
@@ -307,7 +309,9 @@ export function InvestmentsPage() {
           </>
         )}
 
-      <AllocationPieCard allocation={overview?.allocation ?? []} />
+      {!loading && !error && !isEmpty && (
+        <AllocationPieCard allocation={overview?.allocation ?? []} />
+      )}
 
       <LoadOnOpen active={formState.open || deleting !== null}>
         <LazyInvestmentForm
@@ -345,7 +349,7 @@ function InvestmentStat({
   tone?: "profit" | "loss";
 }) {
   return (
-    <Card className="shadow-sm">
+    <Card className="min-h-[116px] shadow-sm">
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground">{label}</p>
         {loading ? (

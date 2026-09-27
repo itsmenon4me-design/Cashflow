@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Plus, ReceiptText } from "lucide-react";
@@ -85,6 +85,7 @@ export function BudgetsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [formState, setFormState] = useState<FormState>({
@@ -99,8 +100,10 @@ export function BudgetsPage() {
   useEffect(() => {
     const next = periodFromSearchParams(new URLSearchParams(searchParams.toString()));
     if (next) {
-      setPeriod(next);
-      setPage(1);
+      startTransition(() => {
+        setPeriod(next);
+        setPage(1);
+      });
     }
   }, [searchParams]);
 
@@ -131,6 +134,7 @@ export function BudgetsPage() {
             )
             .map((category) => ({ id: category.id, name: category.name })),
         );
+        setHasLoadedOnce(true);
       } catch {
         if (!cancelled) {
           setError(true);
@@ -316,7 +320,7 @@ export function BudgetsPage() {
 
       <BudgetToolbar
         count={visible.length}
-        loading={loading}
+        loading={loading && !hasLoadedOnce}
         onAdd={() => openForm("create", null)}
       />
 
@@ -330,27 +334,27 @@ export function BudgetsPage() {
       />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <BudgetStat
-          label={uiText.budgets.totalBudget}
-          value={overallBudgetDisplay}
-          loading={loading}
-        />
-        <BudgetStat
-          label={uiText.budgets.totalSpent}
-          value={overallSpentDisplay}
-          loading={loading}
-        />
-        <BudgetStat
-          label={uiText.budgets.remaining}
-          value={overallRemainingDisplay}
-          loading={loading}
-        />
-        <BudgetStat
-          label={uiText.budgets.usage}
-          value={`${overall.percentageUsed.toFixed(0)}%`}
-          loading={loading}
-          progress={overall.percentageUsed}
-        />
+          <BudgetStat
+            label={uiText.budgets.totalBudget}
+            value={overallBudgetDisplay}
+            loading={!hasLoadedOnce}
+          />
+          <BudgetStat
+            label={uiText.budgets.totalSpent}
+            value={overallSpentDisplay}
+            loading={!hasLoadedOnce}
+          />
+          <BudgetStat
+            label={uiText.budgets.remaining}
+            value={overallRemainingDisplay}
+            loading={!hasLoadedOnce}
+          />
+          <BudgetStat
+            label={uiText.budgets.usage}
+            value={`${overall.percentageUsed.toFixed(0)}%`}
+            loading={!hasLoadedOnce}
+            progress={overall.percentageUsed}
+          />
       </section>
 
       {error ? (
@@ -377,12 +381,12 @@ export function BudgetsPage() {
         <>
           <BudgetTable
             budgets={rows}
-            loading={loading}
+            loading={loading && !hasLoadedOnce}
             onView={(budget) => openForm("view", budget)}
             onEdit={(budget) => openForm("edit", budget)}
             onDelete={setDeleting}
           />
-          {!loading && (
+          {(!loading || hasLoadedOnce) && (
             <TransactionPagination
               page={currentPage}
               pageSize={pageSize}
@@ -433,7 +437,7 @@ function BudgetStat({
   progress?: number;
 }) {
   return (
-    <Card className="shadow-sm">
+    <Card className="min-h-[116px] shadow-sm">
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground">{label}</p>
         {loading ? (

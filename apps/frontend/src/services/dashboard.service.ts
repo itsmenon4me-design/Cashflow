@@ -116,20 +116,37 @@ const MONTH_LABELS = [
   "Feb",
   "Mar",
   "Apr",
-  "May",
+  "Mei",
   "Jun",
   "Jul",
-  "Aug",
+  "Agu",
   "Sep",
-  "Oct",
+  "Okt",
   "Nov",
-  "Dec",
+  "Des",
 ];
 
-function monthLabel(period: string): string {
-  const month = period.split("-")[1];
-  const idx = Number(month) - 1;
-  return Number.isInteger(idx) && idx >= 0 && idx < 12 ? MONTH_LABELS[idx] : period;
+function parseMonth(period: string): { year: number; index: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return Number.isInteger(year) && month >= 1 && month <= 12
+    ? { year, index: month - 1 }
+    : null;
+}
+
+function currentPeriodInJakarta(): { year: number; month: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "numeric",
+  }).formatToParts(new Date());
+  return {
+    year: Number(parts.find(({ type }) => type === "year")?.value),
+    month: Number(parts.find(({ type }) => type === "month")?.value),
+  };
 }
 
 export const dashboardService = {
@@ -142,10 +159,36 @@ export const dashboardService = {
 
   getFlowSeries: async (): Promise<FlowSeries> => {
     const widgets = await dashboardService.getWidgets();
-    const points = widgets.trend?.data ?? [];
+    const points = widgets.trend?.data;
+    if (!points) {
+      return { cashFlow: [], flow: [] };
+    }
+
+    const currentPeriod = currentPeriodInJakarta();
+    const year = (points[0] && parseMonth(points[0].period)?.year) ?? currentPeriod.year;
+    const monthlyPoints = Array.from({ length: 12 }, (_, index) => ({
+      month: MONTH_LABELS[index],
+      cashFlow: year === currentPeriod.year && index + 1 > currentPeriod.month ? null : 0,
+      income: year === currentPeriod.year && index + 1 > currentPeriod.month ? null : 0,
+      expense: year === currentPeriod.year && index + 1 > currentPeriod.month ? null : 0,
+    }));
+
+    for (const point of points) {
+      const parsedMonth = parseMonth(point.period);
+      if (!parsedMonth || parsedMonth.year !== year) continue;
+      const { index } = parsedMonth;
+
+      monthlyPoints[index] = {
+        month: MONTH_LABELS[index],
+        cashFlow: toNumber(point.netCashFlow),
+        income: toNumber(point.income),
+        expense: toNumber(point.expense),
+      };
+    }
+
     return {
-      cashFlow: points.map((p) => ({ month: monthLabel(p.period), balance: p.netCashFlow })),
-      flow: points.map((p) => ({ month: monthLabel(p.period), income: p.income, expense: p.expense })),
+      cashFlow: monthlyPoints.map(({ month, cashFlow }) => ({ month, balance: cashFlow })),
+      flow: monthlyPoints.map(({ month, income, expense }) => ({ month, income, expense })),
     };
   },
 

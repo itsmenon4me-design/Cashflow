@@ -15,7 +15,7 @@ export function SavingGoalProgress({ percentage, className }: SavingGoalProgress
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
           className={cn(
-            "h-full rounded-full transition-all",
+            "h-full rounded-full",
             done ? "bg-primary" : "bg-primary/70"
           )}
           style={{ width: `${width}%` }}

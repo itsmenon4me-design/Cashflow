@@ -62,6 +62,14 @@ apps/recovery_reports/evidence/recovery/staging/
 **/playwright-results-small/
 **/test-results/
 playwright-traces/
+apps/frontend/test-logs/
+**/.tmp-trace-analysis/
+
+# Generated test reports
+apps/frontend/playwright_verify_results.json
+apps/frontend/vitest-language.json
+apps/backend/.tmp-jest-results.json
+apps/backend/jest-report.json
 
 # Local debug / temporary scripts
 *.pid

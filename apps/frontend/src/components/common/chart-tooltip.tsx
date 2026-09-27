@@ -30,7 +30,9 @@ export function ChartTooltip({ active, payload, label, valueFormatter }: ChartTo
             />
             <span>{entry.name}</span>
             <span className="ml-auto font-medium text-foreground">
-              {valueFormatter ? valueFormatter(entry.value ?? "") : entry.value}
+              {valueFormatter
+                ? valueFormatter(entry.value ?? "").replace(/\bRp\s*/g, "")
+                : entry.value}
             </span>
           </div>
         ))}

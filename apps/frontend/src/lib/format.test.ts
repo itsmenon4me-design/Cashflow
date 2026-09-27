@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrencyCents } from './format';
+import { formatCompactCurrency, formatCurrencyCents } from './format';
 
 describe('formatCurrencyCents', () => {
   it('formats every IDR minor-unit regression value without a /100 transform', () => {
@@ -10,6 +10,15 @@ describe('formatCurrencyCents', () => {
       [BigInt(1000000), 'Rp1.000.000'],
     ];
     for (const [amount, expected] of cases) expect(formatCurrencyCents(amount, 'IDR')).toBe(expected);
+  });
+
+  describe('formatCompactCurrency', () => {
+    it('formats chart axis values compactly without a currency prefix', () => {
+      const formatted = formatCompactCurrency(600000);
+
+      expect(formatted).not.toMatch(/Rp/i);
+      expect(formatted).toContain('600');
+    });
   });
 
   it('accepts backend minor-unit strings without coercion and keeps values above Number.MAX_SAFE_INTEGER exact', () => {

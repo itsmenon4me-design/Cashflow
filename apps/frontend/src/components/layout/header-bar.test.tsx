@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNotificationStore } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -159,6 +159,67 @@ describe('HeaderBar', () => {
     mockPathname.mockReturnValue('/');
     render(<HeaderBar />);
     expect(screen.queryByLabelText(uiText.common.quickAdd)).not.toBeInTheDocument();
+  });
+
+  it('keeps the mobile search input in the main header row', async () => {
+    const user = userEvent.setup();
+    render(<HeaderBar />);
+
+    await user.click(screen.getByRole('button', {
+      name: uiText.common.searchAriaLabel,
+    }));
+
+    const header = document.querySelector('header');
+    const mobileSearch = screen.getAllByRole('combobox', {
+      name: uiText.common.searchAriaLabel,
+    })[1];
+    expect(header).not.toBeNull();
+    expect(mobileSearch.closest('header > div')).toBe(header?.firstElementChild);
+    expect(header?.querySelector(':scope > div.border-t')).toBeNull();
+  });
+
+  it('removes the close button and collapses mobile search when the page scrolls', async () => {
+    const user = userEvent.setup();
+    render(<HeaderBar />);
+
+    await user.click(screen.getByRole('button', {
+      name: uiText.common.searchAriaLabel,
+    }));
+
+    expect(screen.getAllByRole('combobox', {
+      name: uiText.common.searchAriaLabel,
+    })).toHaveLength(2);
+    expect(screen.queryByRole('button', {
+      name: uiText.common.closeAriaLabel,
+    })).not.toBeInTheDocument();
+
+    fireEvent.scroll(document);
+
+    expect(screen.getAllByRole('combobox', {
+      name: uiText.common.searchAriaLabel,
+    })).toHaveLength(1);
+  });
+
+  it('collapses mobile search after route changes or Escape', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<HeaderBar />);
+
+    await user.click(screen.getByRole('button', {
+      name: uiText.common.searchAriaLabel,
+    }));
+    mockPathname.mockReturnValue('/transactions');
+    rerender(<HeaderBar />);
+    expect(screen.getAllByRole('combobox', {
+      name: uiText.common.searchAriaLabel,
+    })).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', {
+      name: uiText.common.searchAriaLabel,
+    }));
+    await user.keyboard('{Escape}');
+    expect(screen.getAllByRole('combobox', {
+      name: uiText.common.searchAriaLabel,
+    })).toHaveLength(1);
   });
 
   it('uses a non-scrollable header container to prevent horizontal overflow', () => {

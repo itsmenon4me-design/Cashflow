@@ -64,8 +64,7 @@ export function MonthlyTrendChart({
             stroke="var(--primary)"
             fill="url(#trendFill)"
             strokeWidth={2.5}
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>

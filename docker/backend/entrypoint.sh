@@ -28,4 +28,11 @@ else
 fi
 
 echo "==> Starting backend..."
+if [ "$NODE_ENV" = "development" ]; then
+  if [ "$#" -eq 0 ]; then
+    set -- npm --prefix /app/apps/backend run start:dev
+  fi
+  exec "$@"
+fi
+
 exec node apps/backend/dist/main.js

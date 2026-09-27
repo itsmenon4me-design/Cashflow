@@ -2,7 +2,6 @@
 
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { uiText } from "@/locales";
 
 interface InvestmentToolbarProps {
@@ -11,17 +10,13 @@ interface InvestmentToolbarProps {
   onAdd: () => void;
 }
 
-export function InvestmentToolbar({ count, loading = false, onAdd }: InvestmentToolbarProps) {
+export function InvestmentToolbar({ count, onAdd }: InvestmentToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      {loading ? (
-        <Skeleton className="h-5 w-32" />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {uiText.investments.count.replace("{count}", String(count))}
-        </p>
-      )}
-      <Button type="button" className="rounded-xl" onClick={onAdd}>
+    <div className="flex min-h-9 items-center justify-between gap-3">
+      <p className="text-sm text-muted-foreground">
+        {uiText.investments.count.replace("{count}", String(count))}
+      </p>
+      <Button type="button" className="w-fit rounded-xl" onClick={onAdd}>
         <Plus />
         {uiText.investments.add}
       </Button>

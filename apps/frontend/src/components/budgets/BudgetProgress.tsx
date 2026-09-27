@@ -21,7 +21,7 @@ export function BudgetProgress({ percentage, className }: BudgetProgressProps) {
     <div className={cn("space-y-1", className)}>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full rounded-full transition-all", toneClasses[tone].bar)}
+          className={cn("h-full rounded-full", toneClasses[tone].bar)}
           style={{ width: `${width}%` }}
         />
       </div>

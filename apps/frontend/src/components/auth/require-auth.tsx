@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { GenericPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { useAuthStore } from "@/stores/auth.store";
 
 interface RequireAuthProps {
@@ -27,7 +26,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
   // navigating or hard-refreshing protected routes. A page-shaped skeleton keeps
   // the layout footprint stable (no centered spinner on an empty screen).
   if (!hydrated || !isAuthenticated) {
-    return <GenericPageSkeleton />;
+    return null;
   }
 
   return <>{children}</>;

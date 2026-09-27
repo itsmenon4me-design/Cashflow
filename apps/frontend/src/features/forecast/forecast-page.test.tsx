@@ -121,7 +121,7 @@ describe("ForecastPage", () => {
     useLanguageStore.setState({ language: "id" });
   });
 
-  it("shows loading skeletons while forecast data is pending", async () => {
+  it("keeps the page free of loading text and skeletons while forecast data is pending", async () => {
     useLanguageStore.setState({ language: "id" });
     vi.spyOn(settingsService, "getSettings").mockResolvedValue(createBaseSettings());
     const forecastDeferred = resolveLater<ForecastResponse>();
@@ -129,10 +129,14 @@ describe("ForecastPage", () => {
     vi.spyOn(forecastService, "getForecast").mockReturnValue(forecastDeferred.promise);
     vi.spyOn(forecastService, "getSpendingPrediction").mockReturnValue(spendingDeferred.promise);
 
-    render(<ForecastPage />);
+    const { container } = render(<ForecastPage />);
 
     expect(screen.getByText(locales.id.forecast.pageTitle)).toBeInTheDocument();
     expect(screen.queryByText(formatCurrencyCents("15000000", "IDR"))).not.toBeInTheDocument();
+    expect(screen.queryByText(locales.id.forecast.projectedIncome)).not.toBeInTheDocument();
+    expect(screen.queryByText(locales.id.common.loading)).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(container.querySelector("div.pointer-events-none.rounded-md.bg-muted")).not.toBeInTheDocument();
 
     forecastDeferred.resolve(createForecastResponse());
     spendingDeferred.resolve(createSpendingResponse());

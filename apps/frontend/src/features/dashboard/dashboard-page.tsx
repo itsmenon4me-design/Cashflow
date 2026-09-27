@@ -45,78 +45,101 @@ export function DashboardPage() {
     expense: { value: formatCurrencyCents("0") },
     cashflow: { value: formatCurrencyCents("0") },
   });
-  const [cashFlowSeries, setCashFlowSeries] = useState<CashFlowPoint[]>(EMPTY_CASHFLOW);
-  const [recentTxs, setRecentTxs] = useState<TransactionItem[]>(EMPTY_TRANSACTIONS);
+  const [hasLoadedKpis, setHasLoadedKpis] = useState(false);
+  const [cashFlowSeries, setCashFlowSeries] =
+    useState<CashFlowPoint[]>(EMPTY_CASHFLOW);
+  const [recentTxs, setRecentTxs] =
+    useState<TransactionItem[]>(EMPTY_TRANSACTIONS);
   const [insights, setInsights] = useState<string[]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [flowLoadFailed, setFlowLoadFailed] = useState(false);
+  const [transactionsLoadFailed, setTransactionsLoadFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      await Promise.all([
-        dashboardService
-          .getSummary()
-          .then((summary) => {
-            if (cancelled) return;
-            setKpis((prev) => ({
+      const summaryRequest = dashboardService
+        .getSummary()
+        .catch(() => null)
+        .then((summary) => {
+          if (!cancelled && summary) {
+            const netCashFlow = BigInt(summary.net_cash_flow_cents);
+            const cashflow: DashboardKpi = {
+              value: formatCurrencyCents(summary.net_cash_flow_cents),
+            };
+            if (summary.previous_net_cash_flow_cents !== undefined) {
+              const previousNetCashFlow = BigInt(
+                summary.previous_net_cash_flow_cents,
+              );
+              const cashFlowChange = netCashFlow - previousNetCashFlow;
+              const zero = BigInt(0);
+              cashflow.change = `${cashFlowChange > zero ? "+" : cashFlowChange < zero ? "-" : ""}${formatCurrencyCents(cashFlowChange < zero ? -cashFlowChange : cashFlowChange)}`;
+              cashflow.changeTone =
+                cashFlowChange > zero
+                  ? "positive"
+                  : cashFlowChange < zero
+                    ? "negative"
+                    : "neutral";
+            }
+            setKpis({
               balance: {
-                ...prev.balance,
                 value: formatCurrencyCents(summary.total_assets_cents),
               },
               income: {
-                ...prev.income,
                 value: formatCurrencyCents(summary.total_income_cents),
               },
               expense: {
-                ...prev.expense,
                 value: formatCurrencyCents(summary.total_expense_cents),
               },
-              cashflow: {
-                ...prev.cashflow,
-                value: formatCurrencyCents(summary.net_cash_flow_cents),
-              },
-            }));
-          })
-          .catch(() => {}),
-        dashboardService
-          .getFlowSeries()
-          .then((series) => {
-            if (!cancelled) {
-              setCashFlowSeries(series.cashFlow ?? EMPTY_CASHFLOW);
-            }
-          })
-          .catch(() => {}),
-        dashboardService
-          .getRecentTransactions(5)
-          .then((items) => {
-            if (!cancelled) {
-              setRecentTxs(items);
-            }
-          })
-          .catch(() => {}),
+              cashflow,
+            });
+          }
+          return summary;
+        })
+        .finally(() => {
+          if (!cancelled) setHasLoadedKpis(true);
+        });
+
+      const [, flow, transactions, insightItems] = await Promise.all([
+        summaryRequest,
+        dashboardService.getFlowSeries().catch(() => null),
+        dashboardService.getRecentTransactions(5).catch(() => null),
         analyticsService
           .getInsights(computeRange("thisMonth"))
-          .then((items) => {
-            if (!cancelled) {
-              // Filter out non-actionable generic fallback text
-              const filtered = (items ?? []).filter(
-                (item) => !item.toLowerCase().includes("selaras dengan preferensi") && !item.toLowerCase().includes("preferensi tampilan")
-              );
-              setInsights(filtered);
-            }
-          })
-          .catch(() => {
-            if (!cancelled) setInsights([]);
-          }),
-      ]).finally(() => {
-        if (!cancelled) {
-          setDataLoaded(true);
-        }
-      });
+          .catch(() => null),
+      ]);
+      if (cancelled) return;
+
+      if (flow) {
+        setCashFlowSeries(flow.cashFlow);
+        setFlowLoadFailed(false);
+      } else {
+        setFlowLoadFailed(true);
+      }
+      if (transactions) {
+        setRecentTxs(transactions);
+        setTransactionsLoadFailed(false);
+      } else {
+        setTransactionsLoadFailed(true);
+      }
+      if (insightItems) {
+        setInsights(
+          insightItems.filter(
+            (item) =>
+              !item.toLowerCase().includes("selaras dengan preferensi") &&
+              !item.toLowerCase().includes("preferensi tampilan"),
+          ),
+        );
+      }
     };
 
-    void load();
+    void load().catch(() => {
+      if (!cancelled) {
+        setHasLoadedKpis(true);
+        setFlowLoadFailed(true);
+        setTransactionsLoadFailed(true);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -127,37 +150,55 @@ export function DashboardPage() {
 
   const computedGreeting = (() => {
     const hour = new Date().getHours();
-    let key: "greetingMorning" | "greetingAfternoon" | "greetingEvening" | "greetingNight";
+    let key:
+      | "greetingMorning"
+      | "greetingAfternoon"
+      | "greetingEvening"
+      | "greetingNight";
     if (hour >= 4 && hour < 11) key = "greetingMorning";
     else if (hour >= 11 && hour < 15) key = "greetingAfternoon";
     else if (hour >= 15 && hour < 18) key = "greetingEvening";
     else key = "greetingNight";
-    const template = (uiText.dashboard as any)[key] ?? uiText.dashboard.welcomeBack;
+    const template = uiText.dashboard[key] ?? uiText.dashboard.welcomeBack;
     return template.replace("{name}", displayName);
   })();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{computedGreeting}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{uiText.dashboard.summarySubtitle}</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {computedGreeting}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {uiText.dashboard.summarySubtitle}
+        </p>
       </div>
 
       {/* Section 1: 4 KPI Cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <BalanceCard kpi={kpis.balance} loading={!dataLoaded} />
-        <IncomeCard kpi={kpis.income} loading={!dataLoaded} />
-        <ExpenseCard kpi={kpis.expense} loading={!dataLoaded} />
-        <CashFlowCard kpi={kpis.cashflow} loading={!dataLoaded} />
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <BalanceCard kpi={kpis.balance} loading={!hasLoadedKpis} />
+        <IncomeCard kpi={kpis.income} loading={!hasLoadedKpis} />
+        <ExpenseCard kpi={kpis.expense} loading={!hasLoadedKpis} />
+        <CashFlowCard kpi={kpis.cashflow} loading={!hasLoadedKpis} />
       </section>
 
       {/* Section 2: Chart Arus Kas Bulanan */}
       <section>
+        {flowLoadFailed && (
+          <p className="mb-3 text-sm text-destructive" role="alert">
+            {uiText.dashboard.flowLoadError}
+          </p>
+        )}
         <CashflowChartCard data={cashFlowSeries} />
       </section>
 
       {/* Section 3: Transaksi Terbaru */}
       <section>
+        {transactionsLoadFailed && (
+          <p className="mb-3 text-sm text-destructive" role="alert">
+            {uiText.dashboard.recentTransactionsLoadError}
+          </p>
+        )}
         <MemoRecentTransactionsCard items={recentTxs} />
       </section>
 

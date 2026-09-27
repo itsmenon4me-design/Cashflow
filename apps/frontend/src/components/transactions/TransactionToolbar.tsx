@@ -2,7 +2,6 @@
 
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { uiText } from "@/locales";
 
 interface TransactionToolbarProps {
@@ -14,22 +13,19 @@ interface TransactionToolbarProps {
 
 export function TransactionToolbar({
   count,
-  loading = false,
   onAdd,
   showAdd = true,
 }: TransactionToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      {loading ? (
-        <Skeleton className="h-5 w-32" />
-      ) : typeof count === "number" ? (
+    <div className="flex min-h-9 items-center justify-between gap-3">
+      {typeof count === "number" ? (
         <p className="text-sm text-muted-foreground">
           {uiText.transactions.count.replace("{count}", String(count))}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-end gap-2">
         {showAdd && (
-          <Button type="button" className="rounded-xl" onClick={onAdd}>
+          <Button type="button" className="w-fit rounded-xl" onClick={onAdd}>
             <Plus />
             {uiText.transactions.add}
           </Button>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ReceiptText } from "lucide-react";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import type { TransactionFormMode } from "@/components/transactions/TransactionForm";
@@ -35,6 +35,18 @@ type CategoryTypeLookup = Record<string, ("INCOME" | "EXPENSE")[]>;
 
 interface FormState { open: boolean; mode: TransactionFormMode; transaction: TransactionItem | null; session: number; }
 
+export function getSafeReturnPath(returnTo: string | null, origin: string): string {
+  if (!returnTo?.startsWith("/") || returnTo.startsWith("//")) return "/dashboard";
+
+  try {
+    const destination = new URL(returnTo, origin);
+    if (destination.origin !== origin) return "/dashboard";
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 function buildCategoryTypes(categories: CategoryResponse[]): CategoryTypeLookup {
   const lookup: CategoryTypeLookup = {};
   for (const category of categories) (lookup[category.name] ??= []).push(category.type);
@@ -50,7 +62,11 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
-  const urlQuery = useSearchParams().get("q") ?? "";
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlQuery = searchParams.get("q") ?? "";
+  const addQuery = searchParams.get("add");
+  const returnTo = searchParams.get("returnTo");
   const [filters, setFilters] = useState<TransactionFiltersState>({ ...EMPTY_FILTERS, type: transactionType ?? "all" });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -59,7 +75,7 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
   const [categoryTypes, setCategoryTypes] = useState<CategoryTypeLookup>({});
   const [lookupsReady, setLookupsReady] = useState(false);
-  const [formState, setFormState] = useState<FormState>({ open: false, mode: "create", transaction: null, session: 0 });
+  const [formState, setFormState] = useState<FormState>({ open: addQuery === "1", mode: "create", transaction: null, session: 0 });
   const [deleting, setDeleting] = useState<TransactionItem | null>(null);
 
   useEffect(() => {
@@ -104,6 +120,15 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   }, [categoryTypes, transactionType]);
   const refresh = () => setRefreshKey((value) => value + 1);
   const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => setFormState((state) => ({ open: true, mode, transaction, session: state.session + 1 }));
+  const getReturnPath = () =>
+    getSafeReturnPath(returnTo, window.location.origin);
+  const closeCreateForm = (open: boolean) => {
+    if (open || addQuery !== "1") {
+      setFormState((state) => ({ ...state, open }));
+      return;
+    }
+    router.replace(getReturnPath());
+  };
   const handleSubmit = async (values: TransactionFormValues) => {
     if (formState.mode === "edit" && formState.transaction) {
       const payload = toUpdateTransactionPayload(values, categoryNames);
@@ -115,6 +140,7 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
       await syncCreateTransaction(payload);
     }
     setPage(1); refresh(); bumpRefresh();
+    if (addQuery === "1") router.replace(getReturnPath());
   };
   const handleDuplicate = async (transaction: TransactionItem) => {
     const payload = toCreateTransactionPayload({ date: transaction.date, time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "", type: transaction.type, category: transaction.category, amount: transaction.amount, description: transaction.description, notes: "" }, categoryNames, transactionType);
@@ -126,8 +152,7 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const title = transactionType === "income" ? uiText.navigation.income : transactionType === "expense" ? uiText.navigation.expense : uiText.transactions.title;
   const subtitle = transactionType === "income" ? uiText.transactions.incomeSubtitle : transactionType === "expense" ? uiText.transactions.expenseSubtitle : uiText.transactions.subtitle;
 
-  // Tombol tambah transaksi disembunyikan di halaman ini; endpoint POST /transactions tetap dipakai oleh Pemasukan & Pengeluaran
-  const showAddButton = !!transactionType;
+  const showAddButton = true;
 
-  return <div className="space-y-6"><div><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div><TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters({ ...EMPTY_FILTERS, type: transactionType ?? "all" }); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={setDeleting} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={(open) => setFormState((state) => ({ ...state, open }))} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { if (!deleting) return; void syncDeleteTransaction(deleting.id).finally(() => { setDeleting(null); refresh(); bumpRefresh(); }); }} /></LoadOnOpen></div>;
+  return <div className="space-y-6"><div className="min-h-[72px]"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div><TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters({ ...EMPTY_FILTERS, type: transactionType ?? "all" }); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={setDeleting} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={closeCreateForm} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { if (!deleting) return; void syncDeleteTransaction(deleting.id).finally(() => { setDeleting(null); refresh(); bumpRefresh(); }); }} /></LoadOnOpen></div>;
 }

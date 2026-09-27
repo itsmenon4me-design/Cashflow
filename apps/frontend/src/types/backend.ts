@@ -39,6 +39,7 @@ export interface DashboardSummaryResponse {
   total_income_cents: string;
   total_expense_cents: string;
   net_cash_flow_cents: string;
+  previous_net_cash_flow_cents?: string;
   total_categories: number;
   total_transactions: number;
   last_updated_at: string | null;

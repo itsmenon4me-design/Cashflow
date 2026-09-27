@@ -8,7 +8,7 @@ const AllocationPieCard = dynamic(
   () => import("@/components/investments/AllocationPieCard").then((m) => m.AllocationPieCard),
   {
     ssr: false,
-    loading: () => <div className="h-40 w-full animate-pulse rounded-xl bg-accent/50" aria-hidden="true" />,
+    loading: () => <div className="h-40 w-full" aria-hidden="true" />,
   },
 );
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

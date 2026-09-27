@@ -82,13 +82,13 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="gap-4">
-        <div className="flex flex-row items-center justify-between gap-4">
+      <CardHeader className="min-w-0 gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <CardTitle>{uiText.dashboard.recentTransactions}</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">{uiText.common.updatedJustNow}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
             <Button asChild variant="ghost" size="sm" className="rounded-xl text-primary hover:text-primary hover:bg-primary/10">
               <Link href="/transactions" className="flex items-center gap-1">
                 <span>{uiText.common.viewAll}</span>
@@ -160,8 +160,8 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="overflow-hidden rounded-xl border border-border">
+      <CardContent className="min-w-0 space-y-4">
+        <div className="hidden overflow-hidden rounded-xl border border-border sm:block">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -238,6 +238,39 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
           </Table>
         </div>
 
+        <div className="divide-y divide-border rounded-xl border border-border sm:hidden">
+          {visibleRows.length === 0 ? (
+            <div className="h-32">
+              <CenteredEmptyState
+                title={(uiText as any)?.dashboard?.emptyRecentTransactions ?? uiText.common.noDataAvailable}
+                description={(uiText as any)?.common?.addTransactionsPrompt ?? uiText.common.addTransaction}
+              />
+            </div>
+          ) : (
+            visibleRows.map((txn) => (
+              <div key={txn.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {categoryLabel(txn.category)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatTransactionDate(txn.dateTime ?? txn.date)}
+                  </p>
+                </div>
+                <p
+                  className={cn(
+                    "shrink-0 text-right text-sm font-semibold tabular-nums",
+                    transactionTone(txn.type).amountClass,
+                  )}
+                >
+                  {transactionTone(txn.type).sign}
+                  {formatCurrency(txn.amount)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             {filtered.length === 0
@@ -247,30 +280,37 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                   .replace("{end}", String(startIndex + visibleRows.length))
                   .replace("{total}", String(filtered.length))}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+              className="w-11 rounded-xl px-0 sm:w-auto sm:px-2.5"
+              aria-label={uiText.common.prevPage}
               disabled={currentPage <= 1}
               onClick={() => setPage((value) => value - 1)}
             >
               <ChevronLeft />
-              {uiText.common.prevPage}
+              <span className="sr-only sm:not-sr-only">{uiText.common.prevPage}</span>
             </Button>
-            <span className="min-w-24 text-center text-sm text-muted-foreground">
-              {uiText.common.pageOf
-                .replace("{page}", String(currentPage))
-                .replace("{total}", String(totalPages))}
+            <span className="min-w-0 flex-1 text-center text-sm text-muted-foreground sm:flex-none sm:whitespace-nowrap">
+              <span className="sm:hidden">
+                {currentPage} / {totalPages}
+              </span>
+              <span className="sr-only sm:not-sr-only">
+                {uiText.common.pageOf
+                  .replace("{page}", String(currentPage))
+                  .replace("{total}", String(totalPages))}
+              </span>
             </span>
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+              className="w-11 rounded-xl px-0 sm:w-auto sm:px-2.5"
+              aria-label={uiText.common.nextPage}
               disabled={currentPage >= totalPages}
               onClick={() => setPage((value) => value + 1)}
             >
-              {uiText.common.nextPage}
+              <span className="sr-only sm:not-sr-only">{uiText.common.nextPage}</span>
               <ChevronRight />
             </Button>
           </div>

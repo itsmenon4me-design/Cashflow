@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
   Copy,
   Eye,
   Pencil,
@@ -10,8 +8,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PendingSyncBadge } from "@/components/transactions/PendingSyncBadge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
@@ -94,7 +92,7 @@ export function TransactionRowActions({
   );
 }
 
-export function TransactionCard({
+export function TransactionMobileRow({
   transaction,
   onView,
   onEdit,
@@ -104,58 +102,42 @@ export function TransactionCard({
   const tone = transactionTone(transaction.type);
 
   return (
-    <Card size="sm" className="shadow-sm" data-transaction-id={transaction.id}>
-      <CardContent className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-xl",
-                tone.chipClass
-              )}
-            >
-              {transaction.type === "income" ? (
-                <ArrowDownToLine className="size-4" />
-              ) : (
-                <ArrowUpFromLine className="size-4" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
-                {transaction.description}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">{categoryLabel(transaction.category)}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {transaction.pendingSync && <PendingSyncBadge />}
-          </div>
+    <div
+      role="listitem"
+      data-transaction-id={transaction.id}
+      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3"
+    >
+      <div className="min-w-0 space-y-1">
+        <p className="truncate text-xs text-muted-foreground">
+          {formatTransactionDate(transaction.dateTime ?? transaction.date)}
+        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge variant="secondary" className="max-w-full truncate rounded-lg bg-muted">
+            {categoryLabel(transaction.category)}
+          </Badge>
+          {transaction.pendingSync && <PendingSyncBadge />}
         </div>
-
-        <div className="flex items-center text-xs text-muted-foreground">
-          <span>{formatTransactionDate(transaction.dateTime ?? transaction.date)}</span>
-        </div>
-
-        <p
-          className={cn(
-            "text-lg font-semibold tracking-tight",
-            tone.amountClass
-          )}
-        >
+        {transaction.description && (
+          <p className="truncate text-xs text-muted-foreground">
+            {transaction.description}
+          </p>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-col items-end gap-1">
+        <p className={cn("whitespace-nowrap text-right text-sm font-semibold tabular-nums", tone.amountClass)}>
           {tone.sign}
           {formatCurrency(transaction.amount)}
         </p>
-
-        <div className="border-t pt-3">
-          <TransactionRowActions
-            transaction={transaction}
-            onView={onView}
-            onEdit={onEdit}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-          />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="col-span-2 flex justify-end border-t border-border/80 pt-1">
+        <TransactionRowActions
+          transaction={transaction}
+          onView={onView}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+        />
+      </div>
+    </div>
   );
 }

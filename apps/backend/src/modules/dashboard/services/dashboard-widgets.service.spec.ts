@@ -17,6 +17,7 @@ import type {
   BudgetAnalyticsService,
   BudgetAnalysisResult,
 } from '../../reports/services/budget-analytics.service';
+import { DateHelper } from '../../../common/utils/date.util';
 
 const makeMocks = () => {
   const summary = {
@@ -24,6 +25,7 @@ const makeMocks = () => {
     total_income_cents: '120000',
     total_expense_cents: '80000',
     net_cash_flow_cents: '40000',
+    previous_net_cash_flow_cents: '35000',
     total_accounts: 3,
     total_budgets: 2,
     total_categories: 5,
@@ -146,6 +148,12 @@ describe('DashboardWidgetsService', () => {
     expect(res.categoryBreakdown.length).toBeGreaterThan(0);
     expect(res.trend?.type).toBe('monthly');
     expect(res.trend?.data.length).toBeGreaterThan(0);
+    expect(mocks.trendSvc.getTrend).toHaveBeenCalledWith(
+      'user-1',
+      'monthly',
+      DateHelper.startOfMonth(2026, 1),
+      DateHelper.endOfMonth(2026, 12),
+    );
     expect(res.budget).toBeDefined();
   });
 

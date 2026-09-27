@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { usePathname } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
@@ -13,6 +13,7 @@ import {
   type CreateTransactionPayload,
 } from "@/services/transaction.service";
 import { useDataRefreshStore } from "@/stores/refresh.store";
+import { useAddTransactionStore } from "@/stores/add-transaction.store";
 import type { CategoryResponse } from "@/types/backend";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 
@@ -29,14 +30,46 @@ function buildCategoryTypes(
   return lookup;
 }
 
-export function QuickAddTransaction() {
+interface QuickAddTransactionProps {
+  showTrigger?: boolean;
+}
+
+export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionProps) {
   const pathname = usePathname();
   const clientPath = typeof window !== 'undefined' ? window.location.pathname : pathname;
   const controlledType: "income" | "expense" | undefined = clientPath?.startsWith('/incomes') ? 'income' : clientPath?.startsWith('/expenses') ? 'expense' : undefined;
-  const [open, setOpen] = useState(false);
+  const open = useAddTransactionStore((state) => state.open);
+  const openDialog = useAddTransactionStore((state) => state.openDialog);
+  const closeDialog = useAddTransactionStore((state) => state.closeDialog);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [lookupsReady, setLookupsReady] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [lookupAttempt, setLookupAttempt] = useState(0);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
+
+  useEffect(() => {
+    if (!open || lookupStatus === "ready" || lookupStatus === "error") return;
+
+    let cancelled = false;
+    void categoryService
+      .list()
+      .then((cats) => {
+        if (cancelled) return;
+        setCategories(cats);
+        setLookupStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setLookupStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupAttempt, lookupStatus, open]);
+
+  const retryCategoryLookup = useCallback(() => {
+    setLookupStatus("loading");
+    setLookupAttempt((attempt) => attempt + 1);
+  }, []);
 
   const initialValues = useMemo<Partial<TransactionFormValues>>(() => {
     const d = new Date();
@@ -47,15 +80,10 @@ export function QuickAddTransaction() {
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (nextOpen && !lookupsReady) {
-        void categoryService.list().catch(() => [] as CategoryResponse[]).then((cats) => {
-          setCategories(cats);
-          setLookupsReady(true);
-        });
-      }
+      if (nextOpen) openDialog();
+      else closeDialog();
     },
-    [lookupsReady],
+    [closeDialog, openDialog],
   );
 
   const categoryNames = useMemo<NameLookup>(
@@ -90,16 +118,18 @@ export function QuickAddTransaction() {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        className="size-11 shrink-0 rounded-xl sm:inline-flex sm:size-auto sm:gap-2 sm:rounded-xl sm:px-3"
-        onClick={() => handleOpenChange(true)}
-        aria-label={uiText.common.quickAdd}
-        title={uiText.common.quickAdd}
-      >
-        <CirclePlus className="size-5" />
-        <span className="hidden sm:inline">{uiText.common.quickAdd}</span>
-      </Button>
+      {showTrigger && (
+        <Button
+          variant="ghost"
+          className="size-11 shrink-0 rounded-xl sm:inline-flex sm:size-auto sm:gap-2 sm:rounded-xl sm:px-3"
+          onClick={openDialog}
+          aria-label={uiText.common.quickAdd}
+          title={uiText.common.quickAdd}
+        >
+          <CirclePlus className="size-5" />
+          <span className="hidden sm:inline">{uiText.common.quickAdd}</span>
+        </Button>
+      )}
 
       <TransactionForm
         key="quick-add"
@@ -111,6 +141,8 @@ export function QuickAddTransaction() {
         categoryTypes={categoryTypes}
         initialValues={initialValues}
         transactionType={controlledType}
+        categoryLookupStatus={lookupStatus === "loading" ? "loading" : lookupStatus === "error" ? "error" : undefined}
+        onRetryCategories={retryCategoryLookup}
         onSubmit={handleSubmit}
       />
     </>

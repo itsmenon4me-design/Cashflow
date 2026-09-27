@@ -47,8 +47,7 @@ export function ExpenseCategoryChart({
             outerRadius="82%"
             paddingAngle={3}
             stroke="none"
-            animationDuration={300}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           >
             {data.map((entry, index) => (
               <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />

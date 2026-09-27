@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
@@ -13,8 +13,6 @@ import {
   Settings,
   SunMedium,
   UserRound,
-  Wallet,
-  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatFullDate } from "@/lib/format";
 import { uiText } from "@/locales";
@@ -65,8 +62,16 @@ export function HeaderBar() {
   const logout = useAuthStore((state) => state.logout);
   const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
   const router = useRouter();
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [headerSearch, setHeaderSearch] = useState("");
+  const pathname = usePathname();
+  const [mobileSearchState, setMobileSearchState] = useState({ open: false, pathname });
+  if (mobileSearchState.pathname !== pathname) {
+    setMobileSearchState({ open: false, pathname });
+  }
+  const mobileSearchOpen = mobileSearchState.open;
+  const closeMobileSearch = useCallback(
+    () => setMobileSearchState({ open: false, pathname }),
+    [pathname],
+  );
   const [mounted, setMounted] = useState(false);
   const safeUser = mounted ? user : undefined;
   const safeMode = mounted ? mode : "dark";
@@ -75,6 +80,21 @@ export function HeaderBar() {
     const raf = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  useEffect(() => {
+    if (!mobileSearchOpen) return;
+
+    const closeOnPageScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[role="listbox"]')) return;
+      closeMobileSearch();
+    };
+
+    document.addEventListener("scroll", closeOnPageScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("scroll", closeOnPageScroll, true);
+    };
+  }, [closeMobileSearch, mobileSearchOpen]);
 
   useEffect(() => {
     if (!initialized) {
@@ -112,55 +132,53 @@ export function HeaderBar() {
     router.replace("/login");
   };
 
-  const submitHeaderSearch = () => {
-    const q = headerSearch.trim();
-    if (q) {
-      router.push(`/transactions?q=${encodeURIComponent(q)}`);
-      setHeaderSearch("");
-      setMobileSearchOpen(false);
-    }
-  };
-
   const today = mounted ? formatFullDate() : "";
 
   return (
     <header className="sticky top-0 z-30 overflow-hidden border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="flex h-16 min-w-0 items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 min-w-0 items-center gap-3 px-4 max-[479px]:gap-1.5 max-[479px]:px-2 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
-          className="size-11 shrink-0 rounded-xl lg:hidden"
+          className={cn(
+            "size-11 shrink-0 rounded-xl lg:hidden",
+            mobileSearchOpen && "hidden",
+          )}
           onClick={() => setMobileOpen(true)}
           aria-label={uiText.common.openMenuAriaLabel}
         >
           <Menu className="size-5" />
         </Button>
 
-        <Link href="/" className="flex items-center gap-2 lg:hidden" aria-label="CashFlow">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Wallet className="size-4" />
-          </div>
-          <span className="text-sm font-semibold">CashFlow</span>
-        </Link>
+        {mobileSearchOpen && (
+          <GlobalSearch
+            className="block min-w-0 max-w-none md:hidden"
+            autoFocus
+            onNavigate={closeMobileSearch}
+            onDismiss={closeMobileSearch}
+          />
+        )}
 
-        <GlobalSearch />
+        <GlobalSearch className="hidden md:block" />
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <Button
-            variant="ghost"
-            className="size-11 rounded-xl lg:hidden"
-            onClick={() => setMobileSearchOpen((open) => !open)}
-            aria-label={uiText.common.searchAriaLabel}
-            aria-expanded={mobileSearchOpen}
-          >
-            <Search className="size-5" />
-          </Button>
+          {!mobileSearchOpen && (
+            <Button
+              variant="ghost"
+              className="size-11 rounded-xl md:hidden"
+              onClick={() => setMobileSearchState({ open: true, pathname })}
+              aria-label={uiText.common.searchAriaLabel}
+              aria-expanded={false}
+            >
+              <Search className="size-5" />
+            </Button>
+          )}
 
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground xl:flex">
             <CalendarDays className="size-4 shrink-0 text-primary" />
             <span className="min-w-[10.5rem] whitespace-nowrap text-center tabular-nums">{today}</span>
           </div>
 
-          <SyncStatusIndicator showLabel={false} className="sm:hidden" />
+          <SyncStatusIndicator showLabel={false} className="hidden sm:hidden" />
           <SyncStatusIndicator className="hidden sm:inline-flex" />
 
           <DropdownMenu>
@@ -252,7 +270,7 @@ export function HeaderBar() {
 
           <Button
             variant="ghost"
-            className="size-11 rounded-xl md:size-9"
+            className="hidden size-11 rounded-xl min-[480px]:inline-flex md:size-9"
             onClick={toggleMode}
             aria-label={safeMode === "dark" ? uiText.common.themeToLight : uiText.common.themeToDark}
             title={safeMode === "dark" ? uiText.common.themeToLight : uiText.common.themeToDark}
@@ -261,19 +279,13 @@ export function HeaderBar() {
           </Button>
 
           {!authHydrated || !safeUser ? (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3" aria-label="Memuat profil">
-              <div className="size-8 animate-pulse rounded-full bg-muted" />
-              <div className="hidden w-40 space-y-1.5 md:block">
-                <div className="h-3.5 w-24 animate-pulse rounded bg-muted" />
-                <div className="h-2.5 w-32 animate-pulse rounded bg-muted" />
-              </div>
-            </div>
+            <div className="size-9" aria-label="Memuat profil" />
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3 transition-colors outline-none",
+                    "flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3 transition-colors outline-none max-[479px]:pr-1.5",
                     "hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
                   )}
                 >
@@ -317,32 +329,6 @@ export function HeaderBar() {
         </div>
       </div>
 
-      {mobileSearchOpen && (
-        <div className="border-t border-border p-3 md:hidden">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              autoFocus
-              className="h-12 rounded-xl bg-card pr-10 pl-9"
-              placeholder={uiText.common.searchPlaceholder}
-              aria-label={uiText.common.searchAriaLabel}
-              value={headerSearch}
-              onChange={(event) => setHeaderSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") submitHeaderSearch();
-              }}
-            />
-            <Button
-              variant="ghost"
-              className="absolute top-1/2 right-0.5 h-11 w-11 -translate-y-1/2 rounded-xl text-muted-foreground hover:text-foreground"
-              onClick={() => setMobileSearchOpen(false)}
-              aria-label={uiText.common.closeAriaLabel}
-            >
-              <X className="size-5" />
-            </Button>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

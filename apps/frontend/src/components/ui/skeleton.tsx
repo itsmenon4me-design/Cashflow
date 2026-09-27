@@ -1,20 +1,14 @@
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      data-slot="skeleton"
-      className={cn(
-        "bg-accent rounded-md relative overflow-hidden",
-        className
-      )}
+      aria-hidden="true"
+      className={cn("pointer-events-none rounded-md bg-muted", className)}
       {...props}
-    >
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-    </div>
-  )
+    />
+  );
 }
 
 export { Skeleton }

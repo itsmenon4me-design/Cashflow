@@ -18,6 +18,7 @@ interface ReportPeriodFilterProps {
   value: PeriodKey;
   range: ReportRange;
   loading?: boolean;
+  refreshingLabel?: string;
   customStart: string;
   customEnd: string;
   onPeriodChange: (key: PeriodKey) => void;
@@ -30,6 +31,7 @@ export function ReportPeriodFilter({
   value,
   range,
   loading = false,
+  refreshingLabel,
   customStart,
   customEnd,
   onPeriodChange,
@@ -103,6 +105,11 @@ export function ReportPeriodFilter({
         )}
 
         <p className="text-sm text-muted-foreground">{rangeLabel}</p>
+        {loading && refreshingLabel && (
+          <p role="status" aria-live="polite" aria-atomic="true" className="basis-full text-xs text-muted-foreground sm:basis-auto">
+            {refreshingLabel}
+          </p>
+        )}
       </div>
     </div>
   );

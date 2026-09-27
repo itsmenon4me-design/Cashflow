@@ -27,7 +27,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { FinanceBotCard } from "@/features/finance-bot/FinanceBotCard";
+import {
+  DEFAULT_FINANCE_BOT_SETTINGS,
+  FinanceBotCard,
+} from "@/features/finance-bot/FinanceBotCard";
 import { ActiveSessionsTable } from "@/features/settings/active-sessions-table";
 import { ProfileFormInline } from "@/features/settings/profile-form-inline";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -40,6 +43,7 @@ import { useLanguageStore } from "@/stores/language.store";
 import { useThemeStore } from "@/stores/theme.store";
 import type {
   LanguagePreference,
+  FinanceBotSettings,
   NotificationPreferences,
   ThemePreference,
   UserSettingsPatch,
@@ -216,6 +220,8 @@ export function SettingsPage() {
   const language = currentLanguage;
   const settingsTabs = useMemo(() => getSettingsTabs(), [language]);
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFS);
+  const [financeBotSettings, setFinanceBotSettings] =
+    useState<FinanceBotSettings>(DEFAULT_FINANCE_BOT_SETTINGS);
 
   const themeOptions: { value: ThemePreference; icon: typeof Sun; label: string }[] = [
     { value: "light", icon: Sun, label: uiText.settingsPage.themeLight },
@@ -275,6 +281,10 @@ export function SettingsPage() {
         if (cancelled) return;
         setUiLanguage(settings.language);
         setPreferences(settings.notificationPreferences);
+        setFinanceBotSettings({
+          ...DEFAULT_FINANCE_BOT_SETTINGS,
+          ...(settings.financeBotSettings ?? {}),
+        });
         document.documentElement.lang = settings.language;
       } catch {
         if (!cancelled) setError(true);
@@ -391,7 +401,7 @@ export function SettingsPage() {
               />
             </div>
 
-            <nav className="mt-4 space-y-2">
+            <nav className="mt-4 flex flex-col gap-2">
               {filteredTabs.length === 0 ? (
                 <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
                   {uiText.settingsPage.searchEmpty}
@@ -406,22 +416,20 @@ export function SettingsPage() {
                       type="button"
                       onClick={() => handleTabChange(tab.id)}
                       className={[
-                        "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors",
+                        "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border px-2 py-2 text-left transition-colors xl:justify-between xl:gap-3 xl:px-3 xl:py-2.5",
                         isActive ? "border-primary/40 bg-accent text-accent-foreground shadow-sm" : "border-border bg-background/60 hover:bg-muted/60",
                         searchQuery.trim() ? "ring-1 ring-primary/20" : "",
                       ].join(" ")}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={[
-                          "flex size-8 items-center justify-center rounded-lg",
-                          isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-                        ].join(" ")}>
-                          <Icon className="size-4" />
-                        </div>
-                        <div>
-                          <div className="whitespace-nowrap text-sm font-medium">{tab.label}</div>
-                          <div className="whitespace-nowrap text-[11px] text-muted-foreground">{tab.summary}</div>
-                        </div>
+                      <div className={[
+                        "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                        isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                      ].join(" ")}>
+                        <Icon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-medium xl:whitespace-nowrap xl:text-sm">{tab.label}</div>
+                        <div className="hidden whitespace-nowrap text-[11px] text-muted-foreground xl:block">{tab.summary}</div>
                       </div>
                     </button>
                   );
@@ -436,7 +444,7 @@ export function SettingsPage() {
             <div className="space-y-6">
               <SettingsGroup title={uiText.settingsPage.groupApplication}>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <Card className="shadow-sm">
+                  <Card className="min-h-[242px] shadow-sm">
                     <CardHeader>
                       <SectionHeading icon={Palette} title={uiText.settingsPage.appearance} subtitle={uiText.settingsPage.appearanceSubtitle} />
                     </CardHeader>
@@ -445,10 +453,10 @@ export function SettingsPage() {
                         {themeOptions.map((option) => {
                           const Icon = option.icon;
                           return (
-                            <div key={option.value} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
-                              <div className="flex items-center gap-3">
+                            <div key={option.value} className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <Icon className="size-4 text-muted-foreground" />
-                                <Label htmlFor={`theme-${option.value}`} className="cursor-pointer">{option.label}</Label>
+                                <Label htmlFor={`theme-${option.value}`} className="flex min-h-11 flex-1 cursor-pointer items-center">{option.label}</Label>
                               </div>
                               <RadioGroupItem value={option.value} id={`theme-${option.value}`} />
                             </div>
@@ -458,7 +466,7 @@ export function SettingsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm">
+                  <Card className="min-h-[184px] shadow-sm">
                     <CardHeader>
                       <SectionHeading icon={Globe} title={uiText.settingsPage.language} subtitle={uiText.settingsPage.languageSubtitle} />
                     </CardHeader>
@@ -467,12 +475,12 @@ export function SettingsPage() {
                         <Skeleton className="h-[100px] w-full rounded-xl" />
                       ) : (
                         <RadioGroup value={language} onValueChange={(value) => handleLanguageChange(value as LanguagePreference)}>
-                          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
-                            <Label htmlFor="lang-id" className="cursor-pointer">Indonesia</Label>
+                          <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
+                            <Label htmlFor="lang-id" className="flex min-h-11 flex-1 cursor-pointer items-center">Indonesia</Label>
                             <RadioGroupItem value="id" id="lang-id" data-testid="lang-id" />
                           </div>
-                          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
-                            <Label htmlFor="lang-en" className="cursor-pointer">English</Label>
+                          <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
+                            <Label htmlFor="lang-en" className="flex min-h-11 flex-1 cursor-pointer items-center">English</Label>
                             <RadioGroupItem value="en" id="lang-en" data-testid="lang-en" />
                           </div>
                         </RadioGroup>
@@ -540,7 +548,11 @@ export function SettingsPage() {
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">Finance Bot</h2>
                 <p className="text-sm text-muted-foreground">Pindahan dari pengaturan bot yang sudah ada.</p>
               </div>
-              <FinanceBotCard />
+              <FinanceBotCard
+                settings={financeBotSettings}
+                loading={loading}
+                onSettingsChange={setFinanceBotSettings}
+              />
             </div>
           )}
 

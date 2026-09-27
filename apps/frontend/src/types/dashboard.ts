@@ -9,18 +9,19 @@ export type NotificationType = "bill" | "goal" | "income";
 export interface DashboardKpi {
   value: string;
   change?: string;
+  changeTone?: "positive" | "negative" | "neutral";
   trend?: number[];
 }
 
 export interface CashFlowPoint {
   month: string;
-  balance: number;
+  balance: number | null;
 }
 
 export interface FlowPoint {
   month: string;
-  income: number;
-  expense: number;
+  income: number | null;
+  expense: number | null;
 }
 
 export interface DistributionPoint {

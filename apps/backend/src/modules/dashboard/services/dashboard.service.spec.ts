@@ -14,6 +14,7 @@ describe('DashboardService', () => {
         total_income_cents: '500',
         total_expense_cents: '200',
         net_cash_flow_cents: '300',
+        previous_net_cash_flow_cents: '250',
         total_accounts: 2,
         total_categories: 3,
         total_transactions: 10,

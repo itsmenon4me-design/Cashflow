@@ -66,7 +66,7 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
                   {/* transform (bukan width) supaya animasi berjalan di GPU
                       tanpa memicu reflow per frame */}
                   <div
-                    className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
+                    className="h-full w-full origin-left rounded-full bg-primary"
                     style={{ transform: `scaleX(${percentage / 100})` }}
                   />
                 </div>
@@ -95,7 +95,7 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
+                className="h-full w-full origin-left rounded-full bg-primary"
                 style={{ transform: `scaleX(${overallPercentage / 100})` }}
               />
             </div>

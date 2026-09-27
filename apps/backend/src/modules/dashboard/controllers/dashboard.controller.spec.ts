@@ -29,6 +29,7 @@ describe('DashboardController (security)', () => {
     total_income_cents: '50000',
     total_expense_cents: '30000',
     net_cash_flow_cents: '20000',
+    previous_net_cash_flow_cents: '15000',
     total_accounts: 2,
     total_categories: 5,
     total_transactions: 10,

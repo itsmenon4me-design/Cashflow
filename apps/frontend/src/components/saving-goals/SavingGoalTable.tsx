@@ -2,8 +2,7 @@
 
 import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { SavingGoalProgress } from "@/components/saving-goals/SavingGoalProgress";
-import { CardSkeleton } from "@/components/states/CardSkeleton";
-import { TableSkeleton } from "@/components/states/TableSkeleton";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,16 +113,7 @@ export function SavingGoalTable({
   onDelete,
 }: SavingGoalTableProps) {
   if (loading) {
-    return (
-      <>
-        <div className="hidden md:block">
-          <TableSkeleton rows={6} columns={7} />
-        </div>
-        <div className="md:hidden">
-          <CardSkeleton variant="list" rows={4} />
-        </div>
-      </>
-    );
+    return <DataLoadingState />;
   }
 
   return (
@@ -154,7 +144,7 @@ export function SavingGoalTable({
         </div>
       </div>
 
-      <div className="grid gap-4 md:hidden">
+      <div className="grid w-full min-w-0 gap-4 md:hidden">
         {goals.map((goal) => (
           <SavingGoalCard key={goal.id} goal={goal} onView={onView} onEdit={onEdit} onDelete={onDelete} />
         ))}
@@ -227,7 +217,7 @@ function SavingGoalCard({
 }) {
   const estimate = estimateCompletionDate(goal);
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="w-full min-w-0 space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">{goal.name}</p>
@@ -242,18 +232,18 @@ function SavingGoalCard({
 
       <SavingGoalProgress percentage={goal.percentage} />
 
-      <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
+      <div className="grid min-w-0 grid-cols-2 gap-2 text-center text-xs text-muted-foreground min-[400px]:grid-cols-3">
         <div>
           <p className="text-[11px]">{uiText.savingGoals.target}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.target, goal.currency)}</p>
+          <p className="break-words text-[11px] font-medium leading-tight text-foreground min-[400px]:text-xs">{formatMoney(goal.target, goal.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.savingGoals.collected}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.current, goal.currency)}</p>
+          <p className="break-words text-[11px] font-medium leading-tight text-foreground min-[400px]:text-xs">{formatMoney(goal.current, goal.currency)}</p>
         </div>
         <div>
           <p className="text-[11px]">{uiText.savingGoals.remaining}</p>
-          <p className="font-medium text-foreground">{formatMoney(goal.remaining, goal.currency)}</p>
+          <p className="break-words text-[11px] font-medium leading-tight text-foreground min-[400px]:text-xs">{formatMoney(goal.remaining, goal.currency)}</p>
         </div>
       </div>
 

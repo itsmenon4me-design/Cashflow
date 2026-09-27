@@ -20,6 +20,7 @@ const LazyDeleteCategoryDialog = dynamic(
 );
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
+import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
@@ -405,6 +406,10 @@ function CategoryPanel({
   onDelete,
   children,
 }: CategoryPanelProps) {
+  if (loading) {
+    return <DataLoadingState />;
+  }
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex-row items-center justify-between gap-3">
@@ -417,7 +422,7 @@ function CategoryPanel({
             title={uiText.categories.emptyTitle}
             description={uiText.categories.emptySubtitle}
             icon={<Tags className="size-6 text-muted-foreground" aria-hidden="true" />}
-            className="py-8"
+            className="min-h-[280px] bg-transparent py-8 shadow-none ring-0"
             actionButton={
               <Button
                 type="button"

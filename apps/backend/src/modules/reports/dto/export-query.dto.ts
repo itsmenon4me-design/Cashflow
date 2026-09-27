@@ -6,9 +6,9 @@ export class ExportQueryDto {
   @IsIn(['monthly', 'category', 'trend'])
   type: 'monthly' | 'category' | 'trend';
 
-  @ApiProperty({ enum: ['csv'] })
-  @IsIn(['csv'])
-  format: 'csv';
+  @ApiProperty({ enum: ['csv', 'xlsx'] })
+  @IsIn(['csv', 'xlsx'])
+  format: 'csv' | 'xlsx';
 
   @ApiProperty({ required: false })
   @IsOptional()

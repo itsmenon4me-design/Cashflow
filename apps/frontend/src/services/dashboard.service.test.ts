@@ -17,6 +17,8 @@ const mockedApi = apiClient as unknown as {
 
 describe("dashboard.service", () => {
   it("getFlowSeries maps the wrapped { type, data } trend contract", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T11:00:00.000Z"));
     mockedApi.get.mockResolvedValue({
       summary: {},
       cashFlow: {},
@@ -32,17 +34,35 @@ describe("dashboard.service", () => {
       budget: null,
     });
 
-    const series = await dashboardService.getFlowSeries();
+    try {
+      const series = await dashboardService.getFlowSeries();
 
-    expect(apiClient.get).toHaveBeenCalledWith("/dashboard/widgets");
-    expect(series.cashFlow).toEqual([
-      { month: "Mar", balance: "50000" },
-      { month: "Apr", balance: "120000" },
-    ]);
-    expect(series.flow).toEqual([
-      { month: "Mar", income: "100000", expense: "50000" },
-      { month: "Apr", income: "200000", expense: "80000" },
-    ]);
+      expect(apiClient.get).toHaveBeenCalledWith("/dashboard/widgets");
+      expect(series.cashFlow).toHaveLength(12);
+      expect(series.cashFlow.map(({ month }) => month)).toEqual([
+        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+      ]);
+      expect(series.cashFlow.slice(0, 4)).toEqual([
+        { month: "Jan", balance: 0 },
+        { month: "Feb", balance: 0 },
+        { month: "Mar", balance: 50000 },
+        { month: "Apr", balance: 120000 },
+      ]);
+      expect(series.cashFlow.slice(-3)).toEqual([
+        { month: "Okt", balance: null },
+        { month: "Nov", balance: null },
+        { month: "Des", balance: null },
+      ]);
+      expect(series.flow).toHaveLength(12);
+      expect(series.flow.slice(0, 4)).toEqual([
+        { month: "Jan", income: 0, expense: 0 },
+        { month: "Feb", income: 0, expense: 0 },
+        { month: "Mar", income: 100000, expense: 50000 },
+        { month: "Apr", income: 200000, expense: 80000 },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("getFlowSeries returns empty series when trend is null (widget failure)", async () => {
@@ -61,7 +81,7 @@ describe("dashboard.service", () => {
     expect(series.flow).toEqual([]);
   });
 
-  it("getFlowSeries falls back to empty when trend.data is absent", async () => {
+  it("getFlowSeries returns twelve zero-value months when the trend is empty", async () => {
     mockedApi.get.mockResolvedValue({
       summary: {},
       cashFlow: {},
@@ -71,10 +91,21 @@ describe("dashboard.service", () => {
       budget: null,
     });
 
-    const series = await dashboardService.getFlowSeries();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T11:00:00.000Z"));
 
-    expect(series.cashFlow).toEqual([]);
-    expect(series.flow).toEqual([]);
+    try {
+      const series = await dashboardService.getFlowSeries();
+
+      expect(series.cashFlow).toHaveLength(12);
+      expect(series.cashFlow.slice(0, 9).every(({ balance }) => balance === 0)).toBe(true);
+      expect(series.cashFlow.slice(9).every(({ balance }) => balance === null)).toBe(true);
+      expect(series.flow).toHaveLength(12);
+      expect(series.flow.slice(0, 9).every(({ income, expense }) => income === 0 && expense === 0)).toBe(true);
+      expect(series.flow.slice(9).every(({ income, expense }) => income === null && expense === null)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("getCategoryDistribution maps percentage values from categoryBreakdown", async () => {

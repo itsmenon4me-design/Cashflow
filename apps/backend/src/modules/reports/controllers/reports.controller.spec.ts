@@ -158,13 +158,37 @@ describe('ReportsController (security)', () => {
 
   it('export: passes authenticated userId in export options', async () => {
     await request(app.getHttpServer() as Server)
-      .get('/reports/export?type=monthly&format=csv')
+      .get('/reports/export?type=monthly&format=xlsx')
+      .query({
+        startDate: '2026-08-01T00:00:00.000Z',
+        endDate: '2026-08-31T23:59:59.999Z',
+      })
       .query({ userId: 'user-attacker', user_id: 'user-attacker' })
       .expect(200);
 
     expect(mocks.export).toHaveBeenCalled();
     const exportOpts = mocks.export.mock.calls[0][0];
     expect(exportOpts.userId).toBe('user-auth');
+    expect(exportOpts.format).toBe('xlsx');
+    expect(exportOpts.startDate).toEqual(new Date('2026-08-01T00:00:00.000Z'));
+    expect(exportOpts.endDate).toEqual(new Date('2026-08-31T23:59:59.999Z'));
+  });
+
+  it('export: returns XLSX content as base64 for the browser download', async () => {
+    const workbookBytes = Buffer.from('xlsx-binary');
+    mocks.export.mockResolvedValueOnce({
+      filename: 'report.xlsx',
+      contentType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      content: workbookBytes,
+    });
+    const response = await request(app.getHttpServer() as Server)
+      .get('/reports/export?type=monthly&format=xlsx')
+      .query({ startDate: '2026-08-01', endDate: '2026-08-31' })
+      .expect(200);
+
+    expect(response.body.content).toBe(workbookBytes.toString('base64'));
+    expect(response.body.contentEncoding).toBe('base64');
   });
 
   it('financial-insights: passes authenticated userId', async () => {

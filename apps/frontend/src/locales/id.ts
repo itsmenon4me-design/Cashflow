@@ -30,16 +30,6 @@ export const idText = {
     searchAriaLabel: "Pencarian global",
     noSearchResults: "Tidak ada hasil ditemukan",
     searchResultsMenu: "Menu",
-    searchResultsTransactions: "Riwayat Transaksi",
-    searchResultsAccounts: "Akun",
-    searchResultsInsights: "Wawasan",
-    searchResultsCategories: "Kategori",
-    searchResultsBudgets: "Anggaran",
-    searchResultsSavingGoals: "Target Tabungan",
-    searchResultsInvestments: "Investasi",
-    searchResultsNotifications: "Notifikasi",
-    searchIncome: "Pemasukan",
-    searchExpense: "Pengeluaran",
     notificationsAriaLabel: "Notifikasi",
     themeToLight: "Ganti ke mode terang",
     themeToDark: "Ganti ke mode gelap",
@@ -288,8 +278,10 @@ export const idText = {
     verifyEmailTitle: "Verifikasi Email",
     verifyEmailSubtitle: "Proses verifikasi alamat email akun Anda",
     verifyEmailProcessing: "Memeriksa tautan verifikasi...",
-    verifyEmailSuccess: "Email berhasil diverifikasi! Anda akan dialihkan ke halaman masuk.",
-    verifyEmailInvalidToken: "Tautan verifikasi tidak valid atau telah kadaluwarsa.",
+    verifyEmailSuccess:
+      "Email berhasil diverifikasi! Anda akan dialihkan ke halaman masuk.",
+    verifyEmailInvalidToken:
+      "Tautan verifikasi tidak valid atau telah kadaluwarsa.",
     genericError: "Tidak dapat terhubung ke server. Silakan coba lagi.",
     loading: "Memuat...",
     loginPasswordPlaceholder: "Masukkan kata sandi",
@@ -379,6 +371,10 @@ export const idText = {
     totalExpense: "Total Pengeluaran",
     cashFlow: "Arus Kas",
     cashFlowMonthly: "Arus Kas Bulanan",
+    flowLoadError:
+      "Data arus kas gagal diperbarui. Data sebelumnya tetap ditampilkan.",
+    recentTransactionsLoadError:
+      "Transaksi terbaru gagal diperbarui. Data sebelumnya tetap ditampilkan.",
     incomeVsExpense: "Pemasukan vs Pengeluaran",
     monthlyTrend: "Tren bulanan",
     categoryExpense: "Kategori Pengeluaran",
@@ -425,6 +421,8 @@ export const idText = {
   analytics: {
     title: "Analitik Keuangan",
     subtitle: "Wawasan mendalam atas performa keuangan Anda.",
+    refreshing:
+      "Memperbarui analitik. Data mungkin belum mencerminkan periode yang dipilih.",
     range7D: "7 Hari",
     range30D: "30 Hari",
     range3M: "3 Bulan",
@@ -522,6 +520,8 @@ export const idText = {
     deleteMessage: "Apakah Anda yakin ingin menghapus transaksi ini?",
     typeIncome: "Pemasukan",
     typeExpense: "Pengeluaran",
+    categoryLoadFailed:
+      "Kategori gagal dimuat. Periksa koneksi lalu coba lagi.",
     saveFailed: "Gagal menyimpan transaksi. Silakan coba lagi.",
   },
   accounts: {
@@ -809,9 +809,9 @@ export const idText = {
     alertInvalidRange: "Tanggal akhir harus setelah tanggal mulai.",
     periodLabel: "Periode",
     exportLabel: "Ekspor Laporan",
-    downloadCsv: "Download CSV",
+    downloadExcel: "Unduh Excel (.xlsx)",
     downloading: "Mengunduh...",
-    exportError: "Ekspor gagal. Silakan coba lagi.",
+    exportExcelError: "Unduhan Excel gagal. Silakan coba lagi.",
   },
   states: {
     emptyTransactions: "Belum ada transaksi.",

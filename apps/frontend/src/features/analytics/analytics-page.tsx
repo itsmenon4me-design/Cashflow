@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, PieChart, ReceiptText } from "lucide-react";
 import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
@@ -14,7 +14,6 @@ import { ReportPeriodFilter } from "@/components/reports/report-period-filter";
 import { SummaryCard } from "@/components/reports/summary-card";
 import { TopCategoriesCard, type TopCategoryItem } from "@/components/reports/top-categories-card";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
-import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import {
   computeRange,
@@ -77,6 +76,7 @@ export function AnalyticsPage() {
   const [customEnd, setCustomEnd] = useState("");
 
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -102,8 +102,10 @@ export function AnalyticsPage() {
   useEffect(() => {
     const next = periodFromSearchParams(new URLSearchParams(searchParams.toString()));
     if (next) {
-      setPeriodKey(next);
-      setRange(computeRange(next));
+      startTransition(() => {
+        setPeriodKey(next);
+        setRange(computeRange(next));
+      });
     }
   }, [searchParams]);
 
@@ -147,6 +149,7 @@ export function AnalyticsPage() {
         setSpending(spendingRes);
         setHealth(healthRes);
         setInsights(insightsRes);
+        setHasLoadedOnce(true);
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -164,7 +167,8 @@ export function AnalyticsPage() {
     (overview?.transactions ?? 0) > 0 ||
     (cashflow?.trend.length ?? 0) > 0 ||
     insights.length > 0;
-  const isEmpty = !loading && !error && !hasAnyData;
+  const initialLoading = loading && !hasLoadedOnce;
+  const isEmpty = hasLoadedOnce && !error && !hasAnyData;
 
   const incomeValue = overview ? fromCents(overview.income) : 0;
   const expenseValue = overview ? fromCents(overview.expense) : 0;
@@ -234,6 +238,7 @@ export function AnalyticsPage() {
         value={periodKey}
         range={range}
         loading={loading}
+        refreshingLabel={hasLoadedOnce ? uiText.analytics.refreshing : undefined}
         customStart={customStart}
         customEnd={customEnd}
         onPeriodChange={applyPeriod}
@@ -242,18 +247,16 @@ export function AnalyticsPage() {
         onApplyCustom={applyCustom}
       />
 
-      {error ? (
+      {initialLoading ? (
+        <AnalyticsResultState loading />
+      ) : error ? (
         <ErrorState
           title={uiText.states.errorTitle}
           description={uiText.states.errorDescription}
           onRetry={refresh}
         />
       ) : isEmpty ? (
-        <EmptyState
-          title={uiText.reports.emptyTitle}
-          description={uiText.reports.emptySubtitle}
-          icon={<PieChart className="size-8 text-muted-foreground" aria-hidden="true" />}
-        />
+        <AnalyticsResultState />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -264,7 +267,7 @@ export function AnalyticsPage() {
               change={incomeChange?.text}
               positive={incomeChange?.positive}
               subtitle={uiText.reports.previousPeriod}
-              loading={loading}
+              loading={initialLoading}
             />
             <SummaryCard
               label={uiText.reports.totalExpense}
@@ -273,7 +276,7 @@ export function AnalyticsPage() {
               change={expenseChange?.text}
               positive={expenseChange?.positive}
               subtitle={uiText.reports.previousPeriod}
-              loading={loading}
+              loading={initialLoading}
             />
             <SummaryCard
               label={uiText.reports.netCashFlow}
@@ -282,7 +285,7 @@ export function AnalyticsPage() {
               change={netChange?.text}
               positive={netChange?.positive}
               subtitle={uiText.reports.previousPeriod}
-              loading={loading}
+              loading={initialLoading}
             />
             <SummaryCard
               label={uiText.analytics.savingRate}
@@ -291,14 +294,14 @@ export function AnalyticsPage() {
               change={savingChange?.text}
               positive={savingChange?.positive}
               subtitle={uiText.reports.previousPeriod}
-              loading={loading}
+              loading={initialLoading}
             />
             <SummaryCard
               label={uiText.reports.totalTransactions}
               value={txCount.toLocaleString("id-ID")}
               icon={ReceiptText}
               subtitle={uiText.reports.previousPeriod}
-              loading={loading}
+              loading={initialLoading}
             />
           </div>
 
@@ -314,7 +317,7 @@ export function AnalyticsPage() {
               title={uiText.analytics.categoryTitle}
               subtitle={uiText.analytics.categorySubtitle}
               data={expenseSlices}
-              loading={loading}
+              loading={initialLoading}
             />
           </div>
 
@@ -324,27 +327,52 @@ export function AnalyticsPage() {
               subtitle={uiText.analytics.categorySubtitle}
               data={topExpense}
               total={expenseValue}
-              loading={loading}
+              loading={initialLoading}
             />
             <TopCategoriesCard
               title={uiText.reports.topIncome}
               subtitle={uiText.analytics.categorySubtitle}
               data={topIncome}
               total={incomeValue}
-              loading={loading}
+              loading={initialLoading}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <SpendingAnalysisCard spending={spending} loading={loading} />
-            <FinancialHealthCard health={health} loading={loading} />
+            <SpendingAnalysisCard spending={spending} loading={initialLoading} />
+            <FinancialHealthCard health={health} loading={initialLoading} />
           </div>
 
           {/* Last element: render after load so variable insight count can
               never push existing content. */}
-          {!loading && <InsightsCard insights={insights} loading={loading} />}
+          {insights.length > 0 && <InsightsCard insights={insights} loading={initialLoading} />}
         </>
       )}
+    </div>
+  );
+}
+
+function AnalyticsResultState({ loading = false }: { loading?: boolean }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-[360px] flex-col items-center justify-center gap-4 overflow-hidden rounded-xl bg-card px-6 py-16 text-center shadow-card ring-1 ring-foreground/10"
+    >
+      <div
+        aria-hidden="true"
+        className="flex size-16 items-center justify-center rounded-2xl bg-muted"
+      >
+        <PieChart className="size-8 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="min-h-6 text-base font-semibold text-foreground">
+          {loading ? uiText.common.loading : uiText.reports.emptyTitle}
+        </h2>
+        <p className="mx-auto flex min-h-[60px] max-w-sm items-center justify-center text-sm text-muted-foreground">
+          {loading ? "" : uiText.reports.emptySubtitle}
+        </p>
+      </div>
     </div>
   );
 }

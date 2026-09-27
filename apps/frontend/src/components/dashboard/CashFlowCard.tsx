@@ -14,6 +14,7 @@ export function CashFlowCard({ kpi, loading = false }: CashFlowCardProps) {
       label={uiText.dashboard.cashFlow}
       value={kpi.value}
       change={kpi.change}
+      changeTone={kpi.changeTone}
       icon={HandCoins}
       trend={kpi.trend}
       loading={loading}

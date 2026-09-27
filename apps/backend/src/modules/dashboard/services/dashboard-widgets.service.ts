@@ -93,8 +93,8 @@ export class DashboardWidgetsService {
       [],
     );
 
-    const end = monthEnd;
-    const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
+    const start = DateHelper.startOfMonth(y, 1);
+    const end = DateHelper.endOfMonth(y, 12);
     const trend = await this.safeCall<TrendResult | null>(
       () => this.trendSvc.getTrend(userId, 'monthly', start, end),
       'trend',

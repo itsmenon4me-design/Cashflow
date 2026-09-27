@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, TrendingUp, Wallet } from "lucide-react";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { ChartSkeleton } from "@/components/states/ChartSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -46,10 +44,6 @@ export function ForecastPage() {
   const [spendingPrediction, setSpendingPrediction] = useState<SpendingPredictionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  // Delayed skeleton: fetch lokal biasanya <200ms — skeleton yang terlihat
-  // 1-2 frame lalu ketiban hasil justru terbaca sebagai flash/race. Skeleton
-  // hanya muncul bila fetch benar-benar lambat.
-  const [skeletonVisible, setSkeletonVisible] = useState(false);
   const [spendingLoading, setSpendingLoading] = useState(true);
   const [error, setError] = useState(false);
   const [spendingError, setSpendingError] = useState(false);
@@ -57,15 +51,6 @@ export function ForecastPage() {
   const dataVersion = useDataRefreshStore((state) => state.version);
 
   const text = useMemo(() => getUiText(language), [language]);
-
-  useEffect(() => {
-    if (!loading) {
-      setSkeletonVisible(false);
-      return;
-    }
-    const t = setTimeout(() => setSkeletonVisible(true), 200);
-    return () => clearTimeout(t);
-  }, [loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,99 +157,8 @@ export function ForecastPage() {
         </div>
       </div>
 
-      {/* Delayed skeleton + stale-while-revalidate:
-          - Fetch cepat (<200ms): skeleton TIDAK pernah render — langsung
-            hasil akhir, tanpa flash "Pemasukan yang…" 1-2 frame.
-          - Fetch lambat: skeleton muncul setelah threshold.
-          - Refetch horizon: konten lama tetap ter-render.
-          Selama initial load (loading && !hasLoadedOnce), tampilkan skeleton
-          ATAU ruang kosong — TIDAK EmptyState/Content, supaya tidak ada
-          flash "Tidak ada data" sebelum fetch selesai. */}
       {loading && !hasLoadedOnce ? (
-        skeletonVisible ? (
-        <div className="space-y-6" aria-busy="true">
-          {/* 1. summary grid */}
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <ForecastSummaryCard
-                key={index}
-                label={text.forecast.projectedIncome}
-                value="—"
-                icon={Wallet}
-                loading
-              />
-            ))}
-          </div>
-          {/* 2. chart card */}
-          <div className="overflow-hidden rounded-xl border border-border bg-card p-4">
-            <ChartSkeleton />
-          </div>
-          {/* 3. two-column: breakdown + confidence/outliers — mirror struktur final.
-              Judul memakai bar Skeleton (bukan teks) agar tidak bertabrakan
-              dengan query konten nyata saat transisi. */}
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <Skeleton className="h-5 w-40" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                    <div className="grid gap-2 sm:min-w-[280px] sm:grid-cols-2">
-                      {Array.from({ length: 4 }).map((_, j) => (
-                        <div key={j} className="space-y-1">
-                          <Skeleton className="h-2.5 w-16" />
-                          <Skeleton className="h-3.5 w-24" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-            <div className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <Skeleton className="h-5 w-48" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Skeleton className="h-8 w-40 rounded-full" />
-                  <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-12 w-full" />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="space-y-1">
-                          <Skeleton className="h-2.5 w-16" />
-                          <Skeleton className="h-3.5 w-20" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <Skeleton className="h-5 w-44" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Skeleton className="h-4 w-full max-w-sm" />
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-11 w-full rounded-xl" />
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </div>
-        ) : null /* loading, skeleton belum visible — ruang kosong stabil */
+        null
       ) : error && !forecast ? (
         <ErrorState
           title={text.forecast.errorTitle}
