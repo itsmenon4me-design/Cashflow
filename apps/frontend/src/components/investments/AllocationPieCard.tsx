@@ -58,6 +58,7 @@ export function AllocationPieCard({
                     outerRadius={92}
                     paddingAngle={3}
                     stroke="none"
+                    isAnimationActive={false}
                   >
                     {data.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

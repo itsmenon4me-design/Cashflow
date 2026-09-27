@@ -229,7 +229,7 @@ export function SavingGoalsPage() {
 
       <SavingGoalToolbar
         count={visible.length}
-        loading={loading}
+        loading={initialLoading}
         onAdd={() => openForm("create", null)}
       />
 
@@ -257,15 +257,13 @@ export function SavingGoalsPage() {
             onEdit={(goal) => openForm("edit", goal)}
             onDelete={setDeleting}
           />
-          {!initialLoading && (
-            <TransactionPagination
-              page={currentPage}
-              pageSize={pageSize}
-              totalItems={visible.length}
-              onPageChange={setPage}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          )}
+          <TransactionPagination
+            page={currentPage}
+            pageSize={pageSize}
+            totalItems={visible.length}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </>
       )}
 

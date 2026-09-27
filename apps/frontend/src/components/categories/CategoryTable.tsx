@@ -1,7 +1,6 @@
 "use client";
 
 import { CategoryCard, CategoryRowActions } from "@/components/categories/CategoryCard";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -19,7 +18,6 @@ import type { CategoryItem } from "@/services/category.service";
 
 interface CategoryTableProps {
   categories: CategoryItem[];
-  loading?: boolean;
   onView: (category: CategoryItem) => void;
   onEdit: (category: CategoryItem) => void;
   onDelete: (category: CategoryItem) => void;
@@ -27,15 +25,10 @@ interface CategoryTableProps {
 
 export function CategoryTable({
   categories,
-  loading = false,
   onView,
   onEdit,
   onDelete,
 }: CategoryTableProps) {
-  if (loading) {
-    return <DataLoadingState />;
-  }
-
   return (
     <>
       <div className="hidden md:block">

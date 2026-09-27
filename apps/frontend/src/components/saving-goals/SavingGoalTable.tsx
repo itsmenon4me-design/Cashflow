@@ -120,15 +120,15 @@ export function SavingGoalTable({
     <>
       <div className="hidden md:block">
         <div className="overflow-x-auto rounded-xl border border-border">
-          <Table>
+          <Table className="min-w-full">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>{uiText.savingGoals.fieldName}</TableHead>
-                <TableHead className="text-right">{uiText.savingGoals.target}</TableHead>
-                <TableHead className="text-right">{uiText.savingGoals.collected}</TableHead>
-                <TableHead className="text-right">{uiText.savingGoals.remaining}</TableHead>
+                <TableHead className="whitespace-nowrap text-right">{uiText.savingGoals.target}</TableHead>
+                <TableHead className="whitespace-nowrap text-right">{uiText.savingGoals.collected}</TableHead>
+                <TableHead className="whitespace-nowrap text-right">{uiText.savingGoals.remaining}</TableHead>
                 <TableHead className="w-40">{uiText.savingGoals.progress}</TableHead>
-                <TableHead className="hidden lg:table-cell">
+                <TableHead className="hidden whitespace-nowrap lg:table-cell">
                   {uiText.savingGoals.fieldTargetDate}
                 </TableHead>
                 <TableHead>{uiText.table.status}</TableHead>
@@ -168,7 +168,7 @@ function SavingGoalRow({
   return (
     <TableRow key={goal.id}>
       <TableCell>
-        <span className="flex flex-col">
+        <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{goal.name}</span>
           {goal.description && (
             <span className="max-w-56 truncate text-xs text-muted-foreground">
@@ -177,23 +177,23 @@ function SavingGoalRow({
           )}
         </span>
       </TableCell>
-      <TableCell className="text-right font-medium">{formatMoney(goal.target, goal.currency)}</TableCell>
-      <TableCell className="text-right">{formatMoney(goal.current, goal.currency)}</TableCell>
-      <TableCell className="text-right text-muted-foreground">
+      <TableCell className="whitespace-nowrap text-right font-medium">{formatMoney(goal.target, goal.currency)}</TableCell>
+      <TableCell className="whitespace-nowrap text-right">{formatMoney(goal.current, goal.currency)}</TableCell>
+      <TableCell className="whitespace-nowrap text-right text-muted-foreground">
         {formatMoney(goal.remaining, goal.currency)}
       </TableCell>
       <TableCell>
         <SavingGoalProgress percentage={goal.percentage} />
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 whitespace-nowrap text-[11px] text-muted-foreground">
           {uiText.savingGoals.estimate}:{" "}
           {estimate ? formatTransactionDate(estimate) : uiText.savingGoals.notEnough}
         </p>
       </TableCell>
-      <TableCell className="hidden text-muted-foreground lg:table-cell">
+      <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell">
         {formatTransactionDate(goal.targetDate)}
       </TableCell>
       <TableCell>
-        <Badge variant={statusColor(goal.status) } className="rounded-lg">
+        <Badge variant={statusColor(goal.status)} className="rounded-lg">
           {statusLabel(goal.status)}
         </Badge>
       </TableCell>

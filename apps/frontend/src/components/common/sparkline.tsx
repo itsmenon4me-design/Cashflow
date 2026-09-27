@@ -3,6 +3,7 @@ interface SparklineProps {
 }
 
 export function Sparkline({ data }: SparklineProps) {
+  if (!data || data.length === 0) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
   const points = data

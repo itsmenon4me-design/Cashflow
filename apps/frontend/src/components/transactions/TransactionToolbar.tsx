@@ -13,12 +13,15 @@ interface TransactionToolbarProps {
 
 export function TransactionToolbar({
   count,
+  loading = false,
   onAdd,
   showAdd = true,
 }: TransactionToolbarProps) {
   return (
     <div className="flex min-h-9 items-center justify-between gap-3">
-      {typeof count === "number" ? (
+      {loading ? (
+        <span aria-hidden="true" className="h-4 w-20 rounded-md bg-muted" />
+      ) : typeof count === "number" ? (
         <p className="text-sm text-muted-foreground">
           {uiText.transactions.count.replace("{count}", String(count))}
         </p>

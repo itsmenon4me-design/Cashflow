@@ -93,52 +93,65 @@ export function TransactionTable({
   hideTypeColumn = false,
 }: TransactionTableProps) {
   if (loading) {
-    const loadingGridClass = hideTypeColumn
-      ? "md:grid-cols-[1.3fr_0.8fr_0.9fr_0.7fr] xl:grid-cols-[1.3fr_0.8fr_1.5fr_0.9fr_0.7fr]"
-      : "md:grid-cols-[1.3fr_0.8fr_0.9fr_0.9fr_0.7fr] xl:grid-cols-[1.3fr_0.8fr_1.5fr_0.9fr_0.9fr_0.7fr]";
+    const rows = 6;
 
     return (
-      <div role="status" aria-label={uiText.common.loading} aria-live="polite">
-        <div className="hidden overflow-hidden rounded-xl border border-border md:block">
-          <div className={cn("grid gap-4 border-b border-border px-5 py-4", loadingGridClass)}>
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="hidden h-4 w-20 xl:block" />
-            {!hideTypeColumn && <Skeleton className="h-4 w-20" />}
-            <Skeleton className="ml-auto h-4 w-20" />
-            <Skeleton className="ml-auto h-4 w-12" />
+      <div
+        role="status"
+        aria-label={uiText.common.loading}
+        aria-live="polite"
+        className="min-h-[360px] overflow-hidden rounded-xl bg-card"
+      >
+        <div className="hidden md:block">
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead><Skeleton className="h-3 w-20" /></TableHead>
+                  <TableHead><Skeleton className="h-3 w-24" /></TableHead>
+                  <TableHead className="hidden xl:table-cell"><Skeleton className="h-3 w-40" /></TableHead>
+                  {!hideTypeColumn && <TableHead><Skeleton className="h-3 w-16" /></TableHead>}
+                  <TableHead className="text-right"><Skeleton className="ml-auto h-3 w-24" /></TableHead>
+                  <TableHead className="text-right"><Skeleton className="ml-auto h-3 w-16" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: rows }, (_, row) => (
+                  <TableRow key={row} className="hover:bg-transparent">
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-lg" /></TableCell>
+                    <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-40" /></TableCell>
+                    {!hideTypeColumn && <TableCell><Skeleton className="h-4 w-16" /></TableCell>}
+                    <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="ml-auto flex items-center gap-0.5">
+                        {Array.from({ length: 4 }, (_, action) => (
+                          <Skeleton key={action} className="size-8" />
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          {Array.from({ length: 6 }, (_, row) => (
-            <div
-              key={row}
-              className={cn("grid items-center gap-4 border-b border-border px-5 py-5 last:border-b-0", loadingGridClass)}
-            >
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-7 w-16 rounded-lg" />
-              <Skeleton className="hidden h-5 w-40 xl:block" />
-              {!hideTypeColumn && <Skeleton className="h-5 w-20" />}
-              <Skeleton className="ml-auto h-5 w-24" />
-              <div className="ml-auto flex items-center gap-3">
-                <Skeleton className="size-5" />
-                <Skeleton className="size-5" />
-                <Skeleton className="size-5" />
-                <Skeleton className="size-5" />
-              </div>
-            </div>
-          ))}
         </div>
+
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card md:hidden">
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3">
-              <div className="space-y-2">
+            <div
+              key={index}
+              className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3"
+            >
+              <div className="min-w-0 space-y-2">
                 <Skeleton className="h-3.5 w-28" />
                 <Skeleton className="h-5 w-24 rounded-lg" />
               </div>
               <Skeleton className="h-5 w-24" />
-              <div className="col-span-2 flex justify-end border-t border-border/80 pt-1">
-                <div className="flex gap-0.5">
+              <div className="col-span-2 flex min-w-0 justify-end border-t border-border/80 pt-1">
+                <div className="flex min-w-0 gap-0.5">
                   {Array.from({ length: 4 }, (_, action) => (
-                    <Skeleton key={action} className="size-11 rounded-md" />
+                    <Skeleton key={action} className="size-11 shrink-0 rounded-md" />
                   ))}
                 </div>
               </div>

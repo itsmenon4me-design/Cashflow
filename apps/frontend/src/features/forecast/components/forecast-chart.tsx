@@ -99,6 +99,7 @@ export function ForecastChart({ data, currency, loading = false, text, locale }:
             stroke="var(--chart-2)"
             fill="url(#forecast-income)"
             strokeWidth={2.5}
+            isAnimationActive={false}
           />
           <Area
             type="monotone"
@@ -107,6 +108,7 @@ export function ForecastChart({ data, currency, loading = false, text, locale }:
             stroke="var(--chart-4)"
             fill="url(#forecast-expense)"
             strokeWidth={2.5}
+            isAnimationActive={false}
           />
           <Area
             type="monotone"
@@ -115,6 +117,7 @@ export function ForecastChart({ data, currency, loading = false, text, locale }:
             stroke="var(--chart-1)"
             fill="url(#forecast-net)"
             strokeWidth={2}
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>

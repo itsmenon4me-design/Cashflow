@@ -304,6 +304,7 @@ export function BudgetsPage() {
     setRefreshKey((key) => key + 1);
   };
 
+  const initialLoading = loading && !hasLoadedOnce;
   const isEmpty = !loading && !error && visible.length === 0;
   const isSearchActive = filters.search.trim().length > 0;
 
@@ -320,7 +321,7 @@ export function BudgetsPage() {
 
       <BudgetToolbar
         count={visible.length}
-        loading={loading && !hasLoadedOnce}
+        loading={initialLoading}
         onAdd={() => openForm("create", null)}
       />
 
@@ -337,22 +338,22 @@ export function BudgetsPage() {
           <BudgetStat
             label={uiText.budgets.totalBudget}
             value={overallBudgetDisplay}
-            loading={!hasLoadedOnce}
+            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.totalSpent}
             value={overallSpentDisplay}
-            loading={!hasLoadedOnce}
+            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.remaining}
             value={overallRemainingDisplay}
-            loading={!hasLoadedOnce}
+            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.usage}
             value={`${overall.percentageUsed.toFixed(0)}%`}
-            loading={!hasLoadedOnce}
+            loading={initialLoading}
             progress={overall.percentageUsed}
           />
       </section>
@@ -381,20 +382,17 @@ export function BudgetsPage() {
         <>
           <BudgetTable
             budgets={rows}
-            loading={loading && !hasLoadedOnce}
             onView={(budget) => openForm("view", budget)}
             onEdit={(budget) => openForm("edit", budget)}
             onDelete={setDeleting}
           />
-          {(!loading || hasLoadedOnce) && (
-            <TransactionPagination
-              page={currentPage}
-              pageSize={pageSize}
-              totalItems={visible.length}
-              onPageChange={setPage}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          )}
+          <TransactionPagination
+            page={currentPage}
+            pageSize={pageSize}
+            totalItems={visible.length}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </>
       )}
 

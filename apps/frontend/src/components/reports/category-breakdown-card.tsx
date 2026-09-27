@@ -45,6 +45,7 @@ export function CategoryBreakdownCard({
                 outerRadius={90}
                 paddingAngle={3}
                 stroke="none"
+                isAnimationActive={false}
               >
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />

@@ -107,60 +107,60 @@ function lazyChart(
   return memo(ChartWithGate);
 }
 
-/** Dashboard: monthly cashflow bar chart (plot ≈ h-72). */
+/** Dashboard: monthly cashflow bar chart (real card = 356px). */
 export const LazyCashflowChartCard = lazyChart(
   () => import("@/components/dashboard/cashflow-chart-card").then((m) => m.CashflowChartCard),
-  "h-[296px] md:h-[356px]",
+  "h-[356px]",
 );
 
-/** Dashboard: category distribution donut (plot ≈ h-64). */
+/** Dashboard: category distribution donut (real card = 344px). */
 export const LazyCategoryDistributionCard = lazyChart(
   () =>
     import("@/components/dashboard/category-distribution-card").then(
       (m) => m.CategoryDistributionCard,
     ),
-  "h-56",
+  "h-[344px]",
 );
 
-/** Dashboard + reports + analytics: income vs expense bars (plot ≈ h-64). */
+/** Dashboard + reports + analytics: income vs expense bars (real card = 380px). */
 export const LazyIncomeExpenseChartCard = lazyChart(
   () =>
     import("@/components/dashboard/income-expense-chart-card").then(
       (m) => m.IncomeExpenseChartCard,
     ),
-  "h-56",
+  "h-[380px]",
 );
 
-/** Reports + analytics: cashflow trend line (plot ≈ h-72). */
+/** Reports + analytics: cashflow trend line (real card = 380px). */
 export const LazyCashflowTrendChart = lazyChart(
   () => import("@/components/reports/cashflow-trend-chart").then((m) => m.CashflowTrendChart),
-  "h-64",
+  "h-[380px]",
 );
 
-/** Reports + analytics: category breakdown donut (plot ≈ h-64). */
+/** Reports + analytics: category breakdown donut (real card = 380px). */
 export const LazyCategoryBreakdownCard = lazyChart(
   () =>
     import("@/components/reports/category-breakdown-card").then((m) => m.CategoryBreakdownCard),
-  "h-56",
+  "h-[380px]",
 );
 
-/** Investments: allocation pie (plot ≈ h-72). */
+/** Investments: allocation pie (real card = 344px). */
 export const LazyAllocationPieCard = lazyChart(
   () => import("@/components/investments/AllocationPieCard").then((m) => m.AllocationPieCard),
-  "h-64",
+  "h-[344px]",
 );
 
-/** Forecast: projected balance chart (plot ≈ h-80). */
+/** Forecast: projected balance chart (real card = 412px). */
 export const LazyForecastChart = lazyChart(
   () => import("@/features/forecast/components/forecast-chart").then((m) => m.ForecastChart),
-  "h-72",
+  "h-[412px]",
 );
 
-/** Analytics: stacked expense-by-category-over-time bars (plot ~ h-72). */
+/** Analytics: stacked expense-by-category-over-time bars (real card = 380px). */
 export const LazyExpenseCategoryTrendCard = lazyChart(
   () =>
     import("@/components/analytics/expense-category-trend-card").then(
       (m) => m.ExpenseCategoryTrendCard,
     ),
-  "h-64",
+  "h-[380px]",
 );

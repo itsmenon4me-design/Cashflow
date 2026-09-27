@@ -34,10 +34,10 @@ export function InsightsCard({ insights, loading = false }: InsightsCardProps) {
             {insights.map((insight, index) => (
               <li
                 key={`${index}-${insight}`}
-                className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3 text-sm text-foreground"
+                className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3 text-sm text-foreground min-w-0"
               >
                 <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>{insight}</span>
+                <span className="min-w-0 flex-1 break-words">{insight}</span>
               </li>
             ))}
           </ul>

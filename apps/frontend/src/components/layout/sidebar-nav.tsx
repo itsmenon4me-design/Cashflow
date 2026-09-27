@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -64,6 +64,9 @@ declare global {
 
 export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate, initialExpanded = {} }: SidebarNavProps) {
   const pathname = usePathname();
+  const [tooltipsSuppressed, setTooltipsSuppressed] = useState(false);
+  const pointerHoveringLink = useRef(false);
+  const tooltipResetTimer = useRef<number | undefined>(undefined);
   const [expanded, setExpanded] = useState<Partial<Record<GroupKey, boolean>>>(() => {
     if (Object.keys(initialExpanded).length > 0) {
       return initialExpanded;
@@ -75,6 +78,8 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
   });
   const items = getAppMenuItems();
   const findByHref = (href: string) => items.find((item) => item.href === href);
+
+  useEffect(() => () => window.clearTimeout(tooltipResetTimer.current), []);
 
   useEffect(() => {
     if (Object.keys(initialExpanded).length > 0) return;
@@ -140,13 +145,33 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       <Link
       key={item.href}
       href={item.href}
-      onClick={onNavigate}
+      onClick={() => {
+        if (collapsed) {
+          setTooltipsSuppressed(true);
+          window.clearTimeout(tooltipResetTimer.current);
+          if (!pointerHoveringLink.current) {
+            tooltipResetTimer.current = window.setTimeout(
+              () => setTooltipsSuppressed(false),
+              500,
+            );
+          }
+        }
+        onNavigate?.();
+      }}
       prefetch
       aria-label={item.label}
       aria-current={isActive ? "page" : undefined}
       onMouseEnter={() => warmRouteData(item.href)}
       onFocus={() => warmRouteData(item.href)}
       onTouchStart={() => warmRouteData(item.href)}
+      onPointerEnter={(event) => {
+        pointerHoveringLink.current = event.pointerType === "mouse";
+      }}
+      onPointerLeave={() => {
+        pointerHoveringLink.current = false;
+        window.clearTimeout(tooltipResetTimer.current);
+        setTooltipsSuppressed(false);
+      }}
       className={cn(
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
         collapsed ? "justify-center px-0" : "px-3",
@@ -161,9 +186,11 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     );
 
     return collapsed ? (
-      <Tooltip key={item.href} delayDuration={0}>
+      <Tooltip key={item.href} delayDuration={0} open={tooltipsSuppressed ? false : undefined}>
       <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">{item.label}</TooltipContent>
+      <TooltipContent side="right" style={{ animation: "none" }}>
+        {item.label}
+      </TooltipContent>
       </Tooltip>
     ) : link;
   };

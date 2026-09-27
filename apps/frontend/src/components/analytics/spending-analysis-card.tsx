@@ -21,10 +21,10 @@ function Tile({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-muted p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="rounded-xl bg-muted p-3 min-w-0 overflow-hidden">
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
       {loading ? (
-        <Skeleton className="mt-2 h-6 w-24" />
+        <Skeleton className="mt-1 h-7 w-24" />
       ) : (
         <p className="mt-1 truncate text-lg font-semibold text-foreground">{value}</p>
       )}

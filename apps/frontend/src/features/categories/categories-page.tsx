@@ -300,6 +300,8 @@ export function CategoriesPage() {
           description={uiText.states.errorDescription}
           onRetry={() => void load()}
         />
+      ) : loading ? (
+        <DataLoadingState label="Memuat kategori..." />
       ) : isEmpty ? (
         <EmptyState
           title={uiText.categories.emptyTitle}
@@ -317,7 +319,6 @@ export function CategoriesPage() {
           <CategoryPanel
             title={uiText.transactions.typeIncome}
             count={incomeSorted.length}
-            loading={loading}
             empty={incomeSorted.length === 0}
             categories={incomeRows}
             emptyAction={() => openForm("create", null)}
@@ -337,7 +338,6 @@ export function CategoriesPage() {
           <CategoryPanel
             title={uiText.transactions.typeExpense}
             count={expenseSorted.length}
-            loading={loading}
             empty={expenseSorted.length === 0}
             categories={expenseRows}
             emptyAction={() => openForm("create", null)}
@@ -384,7 +384,6 @@ export function CategoriesPage() {
 interface CategoryPanelProps {
   title: string;
   count: number;
-  loading: boolean;
   empty: boolean;
   categories: CategoryItem[];
   emptyAction: () => void;
@@ -397,7 +396,6 @@ interface CategoryPanelProps {
 function CategoryPanel({
   title,
   count,
-  loading,
   empty,
   categories,
   emptyAction,
@@ -406,10 +404,6 @@ function CategoryPanel({
   onDelete,
   children,
 }: CategoryPanelProps) {
-  if (loading) {
-    return <DataLoadingState />;
-  }
-
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex-row items-center justify-between gap-3">
@@ -417,7 +411,7 @@ function CategoryPanel({
         <span className="text-sm text-muted-foreground">{count}</span>
       </CardHeader>
       <CardContent className="space-y-4">
-        {empty && !loading ? (
+        {empty ? (
           <EmptyState
             title={uiText.categories.emptyTitle}
             description={uiText.categories.emptySubtitle}
@@ -439,13 +433,11 @@ function CategoryPanel({
           <>
             <CategoryTable
               categories={categories}
-              loading={loading}
               onView={onView}
               onEdit={onEdit}
               onDelete={onDelete}
             />
-            {/* Reserve pagination height during loading so data arrival never shifts layout */}
-            {loading ? <div aria-hidden className="h-[60px]" /> : children}
+            {children}
           </>
         )}
       </CardContent>

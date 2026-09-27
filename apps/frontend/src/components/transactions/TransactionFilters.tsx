@@ -43,8 +43,8 @@ export function TransactionFilters({
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4">
-        <div className="relative col-span-full min-w-0">
+      <CardContent className="space-y-3">
+        <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="min-h-11 rounded-xl bg-card pl-9"
@@ -55,86 +55,101 @@ export function TransactionFilters({
           />
         </div>
 
-        <div className={cn("min-w-0", !showTypeFilter && "min-[360px]:col-span-2 lg:col-span-1")}>
-          <Select
-            value={filters.category}
-            onValueChange={(category) => update({ category })}
+        <div
+          data-slot="transaction-filter-controls"
+          className="grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]"
+        >
+          <div
+            className={cn(
+              "min-w-0 max-w-40",
+              !showTypeFilter && "min-[360px]:col-span-2 lg:col-span-1",
+            )}
           >
-            <SelectTrigger className="min-h-11 w-full rounded-xl" aria-label={uiText.table.category}>
-              <SelectValue placeholder={uiText.transactions.allCategories} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{uiText.transactions.allCategories}</SelectItem>
-              {categoryGroups.map((group) => (
-                <SelectGroup key={group.label}>
-                  <SelectLabel>{group.label}</SelectLabel>
-                  {group.items.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {categoryLabel(category)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {showTypeFilter && (
-          <div className="min-w-0">
             <Select
-              value={filters.type}
-              onValueChange={(type) => update({ type: type as TransactionType | "all" })}
+              value={filters.category}
+              onValueChange={(category) => update({ category })}
             >
-              <SelectTrigger className="min-h-11 w-full rounded-xl" aria-label={uiText.table.type}>
-                <SelectValue placeholder={uiText.common.allTypes} />
+              <SelectTrigger className="min-h-11 w-full max-w-40 rounded-xl" aria-label={uiText.table.category}>
+                <SelectValue placeholder={uiText.transactions.allCategories} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{uiText.common.allTypes}</SelectItem>
-                <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
-                <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+                <SelectItem value="all">{uiText.transactions.allCategories}</SelectItem>
+                {categoryGroups.map((group) => (
+                  <SelectGroup key={group.label}>
+                    <SelectLabel>{group.label}</SelectLabel>
+                    {group.items.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {categoryLabel(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
               </SelectContent>
             </Select>
           </div>
-        )}
 
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor="filter-from-date" className="pl-2 text-xs text-muted-foreground font-normal">
-            {uiText.transactions.fromDate}
-          </Label>
-          <Input
-            id="filter-from-date"
-            type="date"
-            className="min-h-11 w-full min-w-0 appearance-none rounded-xl bg-card px-2 text-sm"
-            aria-label={uiText.transactions.fromDate}
-            value={filters.startDate}
-            onChange={(event) => update({ startDate: event.target.value })}
-          />
-        </div>
+          {showTypeFilter && (
+            <div className="min-w-0 max-w-40">
+              <Select
+                value={filters.type}
+                onValueChange={(type) => update({ type: type as TransactionType | "all" })}
+              >
+                <SelectTrigger className="min-h-11 w-full max-w-40 rounded-xl" aria-label={uiText.table.type}>
+                  <SelectValue placeholder={uiText.common.allTypes} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{uiText.common.allTypes}</SelectItem>
+                  <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
+                  <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor="filter-to-date" className="pl-2 text-xs text-muted-foreground font-normal">
-            {uiText.transactions.toDate}
-          </Label>
-          <Input
-            id="filter-to-date"
-            type="date"
-            className="min-h-11 w-full min-w-0 appearance-none rounded-xl bg-card px-2 text-sm"
-            aria-label={uiText.transactions.toDate}
-            value={filters.endDate}
-            onChange={(event) => update({ endDate: event.target.value })}
-          />
-        </div>
+          <div className="flex w-full min-w-0 max-w-40 flex-col gap-1.5">
+            <Label htmlFor="filter-from-date" className="pl-2 text-xs text-muted-foreground font-normal">
+              {uiText.transactions.fromDate}
+            </Label>
+            <Input
+              id="filter-from-date"
+              type="date"
+              className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
+              aria-label={uiText.transactions.fromDate}
+              value={filters.startDate}
+              onChange={(event) => update({ startDate: event.target.value })}
+            />
+          </div>
 
-        <div className="col-span-full flex min-w-0 justify-center min-[360px]:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 w-full rounded-xl min-[360px]:w-auto min-[360px]:min-w-36"
-            onClick={onReset}
+          <div className="flex w-full min-w-0 max-w-40 flex-col gap-1.5">
+            <Label htmlFor="filter-to-date" className="pl-2 text-xs text-muted-foreground font-normal">
+              {uiText.transactions.toDate}
+            </Label>
+            <Input
+              id="filter-to-date"
+              type="date"
+              className="min-h-11 w-full min-w-0 rounded-xl bg-card px-2 text-sm"
+              aria-label={uiText.transactions.toDate}
+              value={filters.endDate}
+              onChange={(event) => update({ endDate: event.target.value })}
+            />
+          </div>
+
+          <div
+            className={cn(
+              "col-span-full flex min-w-0 justify-center min-[360px]:justify-end",
+              "lg:col-span-1 lg:justify-start",
+            )}
           >
-            <RotateCcw />
-            {uiText.transactions.resetFilters}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full rounded-xl min-[360px]:w-auto min-[360px]:min-w-36"
+              onClick={onReset}
+            >
+              <RotateCcw />
+              {uiText.transactions.resetFilters}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

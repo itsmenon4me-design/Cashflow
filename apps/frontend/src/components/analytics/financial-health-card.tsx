@@ -111,7 +111,12 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
               />
             </dl>
           </>
-        ) : null}
+        ) : (
+          <div className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-4 py-6 text-center">
+            <p className="text-sm font-medium text-foreground">{uiText.common.noDataAvailable}</p>
+            <p className="max-w-xs text-xs text-muted-foreground">{uiText.states.emptyDefault}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

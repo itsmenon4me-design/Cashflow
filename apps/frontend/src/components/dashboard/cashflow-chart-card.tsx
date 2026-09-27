@@ -134,6 +134,7 @@ export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
                   fill="var(--primary)"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={56}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>

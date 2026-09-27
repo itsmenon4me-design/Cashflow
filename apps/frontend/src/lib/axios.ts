@@ -149,6 +149,45 @@ function buildUrl(path: string, params?: RequestOptions["params"]): string {
   return `${BASE_URL}${path}${query.size > 0 ? `?${query.toString()}` : ""}`;
 }
 
+/**
+ * In-memory GET cache with stale-while-revalidate.
+ *
+ * Every page mounts with `loading: true`, which paints a skeleton until its
+ * fetch resolves. Revisiting a page therefore always showed skeleton -> data,
+ * i.e. a visible flash on every navigation even though the data was fetched
+ * milliseconds earlier.
+ *
+ * Caching GET responses lets a revisited page paint real data on the first
+ * frame, then refresh in the background. Fresh entries are returned without any
+ * network round trip; stale ones are returned immediately and revalidated in the
+ * background, so navigation never blocks on the network.
+ */
+const GET_CACHE_TTL_MS = 60_000;
+
+interface CacheEntry {
+  data: unknown;
+  storedAt: number;
+  revalidating: boolean;
+}
+
+const getCache = new Map<string, CacheEntry>();
+
+/** Drop every cached GET so the next read hits the network. */
+export function invalidateGetCache(): void {
+  getCache.clear();
+}
+
+function readCache<T>(key: string): { data: T; isFresh: boolean } | null {
+  const entry = getCache.get(key);
+  if (!entry) return null;
+  return { data: entry.data as T, isFresh: Date.now() - entry.storedAt < GET_CACHE_TTL_MS };
+}
+
+function writeCache(key: string, data: unknown): void {
+  const existing = getCache.get(key);
+  getCache.set(key, { data, storedAt: Date.now(), revalidating: existing?.revalidating ?? false });
+}
+
 async function request<T>(
   path: string,
   method: string,
@@ -202,11 +241,61 @@ async function request<T>(
   return data as T;
 }
 
+/**
+ * GET with stale-while-revalidate.
+ *
+ * Fresh cache hit resolves without touching the network, so the caller paints
+ * real data immediately. A stale hit resolves from cache straight away and
+ * schedules a background refresh; the next caller picks up the refreshed value.
+ * A caller with no cache entry falls through to a real request.
+ */
+async function getWithCache<T>(path: string, options?: RequestOptions): Promise<T> {
+  const url = buildUrl(path, options?.params);
+  const cached = readCache<T>(url);
+
+  if (cached?.isFresh) {
+    return cached.data;
+  }
+
+  if (cached) {
+    const entry = getCache.get(url);
+    if (entry && !entry.revalidating) {
+      entry.revalidating = true;
+      void request<T>(path, "GET", options)
+        .then((fresh) => {
+          writeCache(url, fresh);
+        })
+        .catch(() => {
+          // keep serving the stale value rather than blanking the page
+        })
+        .finally(() => {
+          const current = getCache.get(url);
+          if (current) current.revalidating = false;
+        });
+    }
+    return cached.data;
+  }
+
+  const data = await request<T>(path, "GET", options);
+  writeCache(url, data);
+  return data;
+}
+
 export const apiClient = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>(path, "GET", options),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, "POST", options, body),
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, "PATCH", options, body),
-  delete: <T>(path: string, options?: RequestOptions) => request<T>(path, "DELETE", options),
+  get: <T>(path: string, options?: RequestOptions) => getWithCache<T>(path, options),
+  post: async <T>(path: string, body?: unknown, options?: RequestOptions) => {
+    const res = await request<T>(path, "POST", options, body);
+    invalidateGetCache();
+    return res;
+  },
+  patch: async <T>(path: string, body?: unknown, options?: RequestOptions) => {
+    const res = await request<T>(path, "PATCH", options, body);
+    invalidateGetCache();
+    return res;
+  },
+  delete: async <T>(path: string, options?: RequestOptions) => {
+    const res = await request<T>(path, "DELETE", options);
+    invalidateGetCache();
+    return res;
+  },
 };

@@ -65,7 +65,7 @@ describe("TransactionsPage", () => {
     });
   });
 
-  it("normalizes native date filter controls across mobile browsers", async () => {
+  it("keeps native date controls visible with their browser picker", async () => {
     vi.spyOn(categoryService, "list").mockResolvedValue([]);
     vi.spyOn(transactionService, "list").mockResolvedValue({
       data: [],
@@ -77,8 +77,36 @@ describe("TransactionsPage", () => {
     const dateFilters = container.querySelectorAll('input[type="date"]');
     expect(dateFilters).toHaveLength(2);
     dateFilters.forEach((filter) => {
-      expect(filter).toHaveClass("appearance-none");
+      expect(filter).not.toHaveClass("appearance-none");
     });
+  });
+
+  it("keeps desktop filters compact and lets them wrap by available width", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      data: [],
+      pagination: { totalItems: 0, totalPages: 0, page: 1 },
+    } as any);
+
+    const { container, unmount } = render(<TransactionsPage />);
+
+    const filterGrid = container.querySelector('[data-slot="transaction-filter-controls"]');
+    expect(filterGrid).toHaveClass(
+      "lg:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]",
+    );
+    expect(
+      screen.getByRole("combobox", { name: uiText.table.category }),
+    ).toHaveClass("max-w-40");
+    expect(
+      screen.getByRole("button", { name: uiText.transactions.resetFilters }).parentElement,
+    ).toHaveClass("lg:col-span-1");
+
+    unmount();
+    render(<TransactionsPage transactionType="income" />);
+
+    expect(
+      screen.getByRole("combobox", { name: uiText.table.category }).parentElement,
+    ).toHaveClass("max-w-40");
   });
 
   it("shows a loading skeleton instead of an empty-state message before transactions load", async () => {
@@ -94,7 +122,12 @@ describe("TransactionsPage", () => {
 
     render(<TransactionsPage transactionType="income" />);
 
-    expect(screen.getByRole("status", { name: uiText.common.loading })).toBeInTheDocument();
+    const loadingState = screen.getByRole("status", { name: uiText.common.loading });
+    expect(loadingState).toBeInTheDocument();
+    expect(loadingState).toHaveClass("min-h-[360px]", "bg-card");
+    expect(
+      screen.queryByText(uiText.transactions.count.replace("{count}", "0")),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(uiText.transactions.emptyTitle)).not.toBeInTheDocument();
 
     resolveTransactions({

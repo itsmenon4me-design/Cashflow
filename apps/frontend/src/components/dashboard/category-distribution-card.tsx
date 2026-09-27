@@ -45,6 +45,7 @@ export function CategoryDistributionCard({ data, currency }: CategoryDistributio
                     outerRadius={92}
                     paddingAngle={3}
                     stroke="none"
+                    isAnimationActive={false}
                   >
                     {items.map((entry, index) => (
                       <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
