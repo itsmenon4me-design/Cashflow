@@ -9,6 +9,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  type YAxisTickContentProps,
 } from "recharts";
 import { ChartTooltip } from "@/components/common/chart-tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,37 @@ import CenteredEmptyState from "@/components/states/CenteredEmptyState";
 interface CashflowChartCardProps {
   data: CashFlowPoint[];
   currency?: string;
+}
+
+function renderYAxisTick(
+  { x, y, payload, tickFormatter, index }: YAxisTickContentProps,
+  xOffset: number,
+  fontSize: number,
+) {
+  const value = tickFormatter
+    ? tickFormatter(payload.value, index)
+    : payload.value;
+
+  return (
+    <text
+      x={Number(x) + xOffset}
+      y={y}
+      dy="0.355em"
+      textAnchor="end"
+      fill="var(--muted-foreground)"
+      fontSize={fontSize}
+    >
+      {value}
+    </text>
+  );
+}
+
+function CompactYAxisTick(props: YAxisTickContentProps) {
+  return renderYAxisTick(props, -8, 10);
+}
+
+function StandardYAxisTick(props: YAxisTickContentProps) {
+  return renderYAxisTick(props, 4, 12);
 }
 
 export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
@@ -64,7 +96,15 @@ export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
         ) : (
           <div ref={chartContainerRef} className="h-[200px] md:h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <BarChart
+                data={data}
+                margin={{
+                  top: 8,
+                  right: isCompact ? 0 : 8,
+                  left: 0,
+                  bottom: 0,
+                }}
+              >
                 <CartesianGrid stroke="var(--border)" vertical={false} />
                 <XAxis
                   dataKey="month"
@@ -77,9 +117,11 @@ export function CashflowChartCard({ data, currency }: CashflowChartCardProps) {
                   tick={{ fill: "var(--muted-foreground)", fontSize: isCompact ? 9 : 12 }}
                 />
                 <YAxis
+                  width={isCompact ? 32 : 60}
+                  tickMargin={isCompact ? 4 : 5}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                  tick={isCompact ? CompactYAxisTick : StandardYAxisTick}
                   tickFormatter={(value) => formatCompactCurrency(Number(value), currency)}
                 />
                 <Tooltip

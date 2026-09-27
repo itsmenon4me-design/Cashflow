@@ -57,89 +57,86 @@ export function DashboardPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      const summaryRequest = dashboardService
+    const load = () => {
+      void dashboardService
         .getSummary()
-        .catch(() => null)
         .then((summary) => {
-          if (!cancelled && summary) {
-            const netCashFlow = BigInt(summary.net_cash_flow_cents);
-            const cashflow: DashboardKpi = {
-              value: formatCurrencyCents(summary.net_cash_flow_cents),
-            };
-            if (summary.previous_net_cash_flow_cents !== undefined) {
-              const previousNetCashFlow = BigInt(
-                summary.previous_net_cash_flow_cents,
-              );
-              const cashFlowChange = netCashFlow - previousNetCashFlow;
-              const zero = BigInt(0);
-              cashflow.change = `${cashFlowChange > zero ? "+" : cashFlowChange < zero ? "-" : ""}${formatCurrencyCents(cashFlowChange < zero ? -cashFlowChange : cashFlowChange)}`;
-              cashflow.changeTone =
-                cashFlowChange > zero
-                  ? "positive"
-                  : cashFlowChange < zero
-                    ? "negative"
-                    : "neutral";
-            }
-            setKpis({
-              balance: {
-                value: formatCurrencyCents(summary.total_assets_cents),
-              },
-              income: {
-                value: formatCurrencyCents(summary.total_income_cents),
-              },
-              expense: {
-                value: formatCurrencyCents(summary.total_expense_cents),
-              },
-              cashflow,
-            });
+          if (cancelled || !summary) return;
+
+          const netCashFlow = BigInt(summary.net_cash_flow_cents);
+          const cashflow: DashboardKpi = {
+            value: formatCurrencyCents(summary.net_cash_flow_cents),
+          };
+          if (summary.previous_net_cash_flow_cents !== undefined) {
+            const previousNetCashFlow = BigInt(
+              summary.previous_net_cash_flow_cents,
+            );
+            const cashFlowChange = netCashFlow - previousNetCashFlow;
+            const zero = BigInt(0);
+            cashflow.change = `${cashFlowChange > zero ? "+" : cashFlowChange < zero ? "-" : ""}${formatCurrencyCents(cashFlowChange < zero ? -cashFlowChange : cashFlowChange)}`;
+            cashflow.changeTone =
+              cashFlowChange > zero
+                ? "positive"
+                : cashFlowChange < zero
+                  ? "negative"
+                  : "neutral";
           }
-          return summary;
+          setKpis({
+            balance: {
+              value: formatCurrencyCents(summary.total_assets_cents),
+            },
+            income: {
+              value: formatCurrencyCents(summary.total_income_cents),
+            },
+            expense: {
+              value: formatCurrencyCents(summary.total_expense_cents),
+            },
+            cashflow,
+          });
         })
+        .catch(() => undefined)
         .finally(() => {
           if (!cancelled) setHasLoadedKpis(true);
         });
 
-      const [, flow, transactions, insightItems] = await Promise.all([
-        summaryRequest,
-        dashboardService.getFlowSeries().catch(() => null),
-        dashboardService.getRecentTransactions(5).catch(() => null),
-        analyticsService
-          .getInsights(computeRange("thisMonth"))
-          .catch(() => null),
-      ]);
-      if (cancelled) return;
+      void dashboardService
+        .getFlowSeries()
+        .then((flow) => {
+          if (cancelled) return;
+          setCashFlowSeries(flow.cashFlow);
+          setFlowLoadFailed(false);
+        })
+        .catch(() => {
+          if (!cancelled) setFlowLoadFailed(true);
+        });
 
-      if (flow) {
-        setCashFlowSeries(flow.cashFlow);
-        setFlowLoadFailed(false);
-      } else {
-        setFlowLoadFailed(true);
-      }
-      if (transactions) {
-        setRecentTxs(transactions);
-        setTransactionsLoadFailed(false);
-      } else {
-        setTransactionsLoadFailed(true);
-      }
-      if (insightItems) {
-        setInsights(
-          insightItems.filter(
-            (item) =>
-              !item.toLowerCase().includes("selaras dengan preferensi") &&
-              !item.toLowerCase().includes("preferensi tampilan"),
-          ),
-        );
-      }
+      void dashboardService
+        .getRecentTransactions(5)
+        .then((transactions) => {
+          if (cancelled) return;
+          setRecentTxs(transactions);
+          setTransactionsLoadFailed(false);
+        })
+        .catch(() => {
+          if (!cancelled) setTransactionsLoadFailed(true);
+        });
+
+      void analyticsService
+        .getInsights(computeRange("thisMonth"))
+        .then((insightItems) => {
+          if (cancelled) return;
+          setInsights(
+            insightItems.filter(
+              (item) =>
+                !item.toLowerCase().includes("selaras dengan preferensi") &&
+                !item.toLowerCase().includes("preferensi tampilan"),
+            ),
+          );
+        })
+        .catch(() => undefined);
     };
 
-    void load().catch(() => {
-      if (!cancelled) {
-        setHasLoadedKpis(true);
-        setFlowLoadFailed(true);
-        setTransactionsLoadFailed(true);
-      }
-    });
+    load();
 
     return () => {
       cancelled = true;
@@ -176,10 +173,18 @@ export function DashboardPage() {
 
       {/* Section 1: 4 KPI Cards */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <BalanceCard kpi={kpis.balance} loading={!hasLoadedKpis} />
-        <IncomeCard kpi={kpis.income} loading={!hasLoadedKpis} />
-        <ExpenseCard kpi={kpis.expense} loading={!hasLoadedKpis} />
-        <CashFlowCard kpi={kpis.cashflow} loading={!hasLoadedKpis} />
+        <div className="order-1">
+          <BalanceCard kpi={kpis.balance} loading={!hasLoadedKpis} />
+        </div>
+        <div className="order-2">
+          <IncomeCard kpi={kpis.income} loading={!hasLoadedKpis} />
+        </div>
+        <div className="order-4 xl:order-3">
+          <ExpenseCard kpi={kpis.expense} loading={!hasLoadedKpis} />
+        </div>
+        <div className="order-3 xl:order-4">
+          <CashFlowCard kpi={kpis.cashflow} loading={!hasLoadedKpis} />
+        </div>
       </section>
 
       {/* Section 2: Chart Arus Kas Bulanan */}

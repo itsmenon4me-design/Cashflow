@@ -10,8 +10,17 @@ import { uiText } from "@/locales";
 import { formatCurrencyCents } from "@/lib/format";
 
 vi.mock("@/components/charts/lazy-charts", () => ({
-  LazyCashflowChartCard: () => (
-    <div data-testid="lazy-cashflow-chart">Arus Kas Bulanan</div>
+  LazyCashflowChartCard: ({
+    data,
+  }: {
+    data: Array<{ month: string; balance: number | null }>;
+  }) => (
+    <div data-testid="lazy-cashflow-chart">
+      Arus Kas Bulanan
+      <span data-testid="cashflow-chart-data">
+        {data.map(({ month, balance }) => `${month}:${balance}`).join(",")}
+      </span>
+    </div>
   ),
 }));
 
@@ -106,6 +115,14 @@ describe("DashboardPage simplified layout", () => {
       .closest("section");
     expect(kpiSection).toHaveClass("grid-cols-2");
     expect(kpiSection?.querySelectorAll('[data-slot="card"]')).toHaveLength(4);
+    expect(
+      screen.getByText(uiText.dashboard.cashFlow).closest('[data-slot="card"]')
+        ?.parentElement,
+    ).toHaveClass("order-3", "xl:order-4");
+    expect(
+      screen.getByText(uiText.dashboard.totalExpense).closest('[data-slot="card"]')
+        ?.parentElement,
+    ).toHaveClass("order-4", "xl:order-3");
     expect(
       screen.getByText(`+${formatCurrencyCents("50000000")}`),
     ).toBeInTheDocument();
@@ -226,7 +243,7 @@ describe("DashboardPage simplified layout", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows summary KPIs before the other dashboard requests finish", async () => {
+  it("shows each dashboard section as soon as its own request finishes", async () => {
     const flow =
       deferred<Awaited<ReturnType<typeof dashboardService.getFlowSeries>>>();
     const transactions =
@@ -259,9 +276,34 @@ describe("DashboardPage simplified layout", () => {
       await screen.findByText(formatCurrencyCents("123456")),
     ).toBeInTheDocument();
 
-    flow.resolve({ cashFlow: [], flow: [] });
-    transactions.resolve([]);
-    insights.resolve([]);
+    flow.resolve({
+      cashFlow: [{ month: "Aug", balance: 3500000 }],
+      flow: [],
+    });
+    transactions.resolve([
+      {
+        id: "tx-early",
+        description: "Transaksi siap lebih awal",
+        amount: 120000,
+        type: "expense",
+        category: "Makan",
+        date: "2026-08-25T00:00:00.000Z",
+        status: "completed",
+      },
+    ]);
+
+    expect(
+      await screen.findByText("Transaksi siap lebih awal"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Aug:3500000")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Wawasan yang tiba terakhir"),
+    ).not.toBeInTheDocument();
+
+    insights.resolve(["Wawasan yang tiba terakhir"]);
+    expect(
+      await screen.findByText("Wawasan yang tiba terakhir"),
+    ).toBeInTheDocument();
   });
 
   it("keeps dashboard panels available when an older summary omits the cash-flow comparison", async () => {
