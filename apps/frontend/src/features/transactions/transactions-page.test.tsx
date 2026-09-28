@@ -4,6 +4,7 @@ import { getSafeReturnPath, TransactionsPage } from "./transactions-page";
 import { transactionService } from "@/services/transaction.service";
 import { categoryService } from "@/services/category.service";
 import { uiText } from "@/locales";
+import { ApiTimeoutError } from "@/lib/axios";
 
 const searchParamsMock = vi.hoisted(() => ({ value: new URLSearchParams() }));
 
@@ -166,5 +167,19 @@ describe("TransactionsPage", () => {
     expect(within(mobileList).getByText("DATA DUMMY")).toBeInTheDocument();
     expect(within(mobileList).getAllByRole("button")).toHaveLength(4);
     expect(screen.queryByRole("status", { name: uiText.common.loading })).not.toBeInTheDocument();
+  });
+
+  it("replaces the loading state with an error state when the request times out", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockRejectedValue(
+      new ApiTimeoutError(20_000),
+    );
+
+    render(<TransactionsPage transactionType="income" />);
+
+    expect(await screen.findByText(uiText.states.errorTitle)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("status", { name: uiText.common.loading }),
+    ).not.toBeInTheDocument();
   });
 });

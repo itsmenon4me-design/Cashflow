@@ -7,6 +7,7 @@
 } from "@/lib/auth-token";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api/v1";
+export const API_REQUEST_TIMEOUT_MS = 20_000;
 
 export class ApiError extends Error {
   status: number;
@@ -20,6 +21,16 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Request timed out after ${timeoutMs}ms`);
+    this.name = "ApiTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 interface RequestOptions {
   headers?: Record<string, string>;
   params?: Record<string, unknown>;
@@ -29,6 +40,48 @@ interface RequestOptions {
 
 let refreshPromise: Promise<boolean> | null = null;
 
+async function withRequestTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  externalSignal?: AbortSignal,
+): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let externalAbortHandler: (() => void) | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new ApiTimeoutError(API_REQUEST_TIMEOUT_MS));
+      controller.abort();
+    }, API_REQUEST_TIMEOUT_MS);
+  });
+  const externalAbort = externalSignal
+    ? new Promise<never>((_, reject) => {
+        externalAbortHandler = () => {
+          const reason =
+            externalSignal.reason ??
+            new DOMException("The request was aborted", "AbortError");
+          controller.abort(reason);
+          reject(reason);
+        };
+        if (externalSignal.aborted) externalAbortHandler();
+        else externalSignal.addEventListener("abort", externalAbortHandler, { once: true });
+      })
+    : null;
+
+  try {
+    const operationPromise = operation(controller.signal);
+    return await Promise.race(
+      externalAbort
+        ? [operationPromise, timeout, externalAbort]
+        : [operationPromise, timeout],
+    );
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    if (externalSignal && externalAbortHandler) {
+      externalSignal.removeEventListener("abort", externalAbortHandler);
+    }
+  }
+}
+
 async function doRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
@@ -36,27 +89,30 @@ async function doRefresh(): Promise<boolean> {
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    });
+    return await withRequestTimeout(async (signal) => {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+        signal,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        return false;
+      }
+
+      const json: unknown = await response.json();
+      const data = typeof json === "object" && json !== null && "data" in json
+        ? (json as { data?: { accessToken?: string; refreshToken?: string } }).data
+        : undefined;
+
+      if (data?.accessToken && data.refreshToken) {
+        setAuthTokens(data.accessToken, data.refreshToken);
+        return true;
+      }
+
       return false;
-    }
-
-    const json: unknown = await response.json();
-    const data = typeof json === "object" && json !== null && "data" in json
-      ? (json as { data?: { accessToken?: string; refreshToken?: string } }).data
-      : undefined;
-
-    if (data?.accessToken && data.refreshToken) {
-      setAuthTokens(data.accessToken, data.refreshToken);
-      return true;
-    }
-
-    return false;
+    });
   } catch {
     return false;
   }
@@ -101,19 +157,22 @@ function redirectToLogin(): void {
 }
 
 async function handleUnauthorized(): Promise<boolean> {
-  if (!refreshPromise) {
-    refreshPromise = doRefresh().finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  const refreshed = await refreshPromise;
+  const refreshed = await refreshAccessToken();
 
   if (!refreshed) {
     redirectToLogin();
   }
 
   return refreshed;
+}
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 // Default staleness window: access tokens are short-lived (JWT exp), so any
@@ -136,7 +195,7 @@ export async function ensureFreshAccessToken(
   if (getAccessTokenAgeMs() <= maxAgeMs) {
     return Boolean(getAccessToken());
   }
-  return doRefresh();
+  return refreshAccessToken();
 }
 
 function buildUrl(path: string, params?: RequestOptions["params"]): string {
@@ -198,47 +257,47 @@ async function request<T>(
 
   const url = buildUrl(path, params);
 
-  // Tokens live synchronously in localStorage, so no waiting is needed here.
-  // Waiting for React hydration before reading storage only delays requests and
-  // makes route transitions feel slow/blank.
-  const accessToken = getAccessToken();
+  return withRequestTimeout(async (requestSignal) => {
+    // Tokens live synchronously in localStorage, so no waiting is needed here.
+    const accessToken = getAccessToken();
 
-  const doFetch = (token: string | null) =>
-    fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    });
+    const doFetch = (token: string | null) =>
+      fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: requestSignal,
+      });
 
-  let response = await doFetch(accessToken);
+    let response = await doFetch(accessToken);
 
-  if (response.status === 401 && refresh) {
-    const refreshed = await handleUnauthorized();
-    if (refreshed) {
-      response = await doFetch(getAccessToken());
+    if (response.status === 401 && refresh) {
+      const refreshed = await handleUnauthorized();
+      if (refreshed) {
+        response = await doFetch(getAccessToken());
+      }
     }
-  }
 
-  const text = await response.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
+    const text = await response.text();
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
     }
-  }
 
-  if (!response.ok) {
-    throw new ApiError(response.status, data);
-  }
+    if (!response.ok) {
+      throw new ApiError(response.status, data);
+    }
 
-  return data as T;
+    return data as T;
+  }, signal);
 }
 
 /**
