@@ -42,24 +42,28 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // that occurred whenever the persisted language was not the default "id".
   const cookieStore = await cookies();
   const cookieLanguage = cookieStore.get("cashflow.language")?.value;
-  setUiTextLanguage(cookieLanguage);
+  const language = setUiTextLanguage(cookieLanguage);
 
   const cookieTheme = cookieStore.get("cashflow.theme")?.value;
   const isDark = cookieTheme !== "light";
 
   return (
       <html
-        lang="id"
+        lang={language}
         suppressHydrationWarning
         className={cn("h-full", isDark && "dark", "antialiased", "font-sans", inter.variable)}
       >
       <head>
-        <script
+        <Script
+          id="theme-preference-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var k='cashflow.theme',t=localStorage.getItem(k);if(t==='light'){document.documentElement.classList.remove('dark');}else if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
           }}
         />
-        <script
+        <Script
+          id="sidebar-preference-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var cn='cashflow_sidebar_expanded';var c=document.cookie.split(';').find(function(c){return c.trim().startsWith(cn+'=')});if(c){var v=decodeURIComponent(c.split('=')[1]);window.__sidebarExpanded=JSON.parse(v);}else{window.__sidebarExpanded={};}}catch(e){window.__sidebarExpanded={};}})();`,
           }}

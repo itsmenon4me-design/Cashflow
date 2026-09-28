@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrencyCents } from "@/lib/format";
 import { uiText } from "@/locales";
 import type { AnalyticsHealth } from "@/services/analytics.service";
@@ -36,6 +35,8 @@ function MetricRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export function FinancialHealthCard({ health, loading = false }: FinancialHealthCardProps) {
+  if (loading) return null;
+
   const badgeClass =
     health?.label === "healthy"
       ? "bg-success/10 text-success"
@@ -50,9 +51,7 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
         <p className="mt-1 text-sm text-muted-foreground">{uiText.analytics.healthSubtitle}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {loading ? (
-          <Skeleton className="h-32 w-full rounded-xl" />
-        ) : health ? (
+        {health ? (
           <>
             <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
               <div>

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useNotificationStore } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { HeaderBar } from '@/components/layout/header-bar';
 import { uiText } from '@/locales';
+import { useLanguageStore } from '@/stores/language.store';
 
 const mockPush = vi.fn();
 const mockPathname = vi.fn(() => "/");
@@ -18,6 +19,7 @@ describe('HeaderBar', () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockPathname.mockReturnValue('/');
+    useLanguageStore.getState().setLanguage('id');
     useNotificationStore.setState({
       unreadCount: 0,
       recent: [],
@@ -37,7 +39,22 @@ describe('HeaderBar', () => {
   });
 
   afterEach(() => {
+    useLanguageStore.getState().setLanguage('id');
     vi.restoreAllMocks();
+  });
+
+  it('updates accessible labels when the interface language changes', () => {
+    render(<HeaderBar />);
+
+    expect(screen.getByLabelText('Buka menu navigasi')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notifikasi')).toBeInTheDocument();
+
+    act(() => {
+      useLanguageStore.getState().setLanguage('en');
+    });
+
+    expect(screen.getByLabelText('Open navigation menu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
   });
 
   it('navigates to the expected routes for Finance Bot notifications in the header dropdown', async () => {

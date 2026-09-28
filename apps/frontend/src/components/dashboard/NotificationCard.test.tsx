@@ -34,7 +34,7 @@ describe("NotificationCard", () => {
     });
   });
 
-  it("shows skeleton while loading", async () => {
+  it("does not show placeholders while loading", async () => {
     act(() => {
       useNotificationStore.setState({
         unreadCount: 0,
@@ -52,7 +52,7 @@ describe("NotificationCard", () => {
       container = render(<NotificationCard />).container;
     });
 
-    expect(container!.querySelectorAll("li").length).toBe(3);
+    expect(container!.querySelectorAll("li").length).toBe(0);
   });
 
   it("shows empty state when there are no notifications", async () => {

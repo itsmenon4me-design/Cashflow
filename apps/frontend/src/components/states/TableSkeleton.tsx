@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { uiText } from "@/locales";
 
 interface TableSkeletonProps {
   rows?: number;
@@ -16,7 +17,7 @@ export function TableSkeleton({ className }: TableSkeletonProps) {
         className
       )}
     >
-      Memuat data...
+      {uiText.common.loading}
     </div>
   );
 }

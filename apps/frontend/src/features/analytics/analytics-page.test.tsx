@@ -50,6 +50,7 @@ vi.mock("@/components/analytics/spending-analysis-card", () => ({
 }));
 vi.mock("@/components/charts/lazy-charts", () => ({
   LazyCategoryBreakdownCard: () => null,
+  LazyBudgetVsExpenseChartCard: () => <div>Anggaran vs Pengeluaran per Kategori</div>,
   LazyExpenseCategoryTrendCard: () => null,
   LazyIncomeExpenseChartCard: () => null,
 }));
@@ -158,6 +159,9 @@ describe("AnalyticsPage", () => {
 
     render(<AnalyticsPage />);
     expect(await screen.findByTestId("Total Pemasukan")).toHaveTextContent("10000");
+    expect(
+      screen.getByText("Anggaran vs Pengeluaran per Kategori"),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Ganti periode" }));
 

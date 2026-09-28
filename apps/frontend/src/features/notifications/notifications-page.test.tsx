@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { useNotificationStore } from '@/stores/notification.store';
 import { notificationService } from '@/services/notification.service';
 import { NotificationsPage } from './notifications-page';
@@ -49,7 +49,7 @@ describe('NotificationsPage', () => {
     vi.clearAllMocks();
   });
 
-  it('shows loading skeleton while notifications load', async () => {
+  it('shows no placeholder while notifications load', async () => {
     let resolveList: (value: NotificationListResult) => void = () => {};
     const listPromise = new Promise<NotificationListResult>((resolve) => {
       resolveList = resolve;
@@ -61,7 +61,7 @@ describe('NotificationsPage', () => {
     const { container } = render(<NotificationsPage />);
 
     expect(screen.queryByText(uiText.notificationsPage.empty)).not.toBeInTheDocument();
-    expect(container.querySelectorAll('ul[aria-hidden="true"] > li').length).toBeGreaterThan(0);
+    expect(container.querySelector('ul[aria-hidden="true"]')).toBeNull();
 
     await act(async () => {
       resolveList({

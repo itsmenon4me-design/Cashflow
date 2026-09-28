@@ -9,8 +9,10 @@ import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { apiClient } from "@/lib/axios";
 import { setStoredUser } from "@/lib/auth-token";
+import { useUiText } from "@/hooks/useUiText";
 
 export function ProfileFormInline() {
+  const uiText = useUiText();
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -47,11 +49,11 @@ export function ProfileFormInline() {
           }
         } catch (refreshError) {
           console.warn("[profile-form] profile refresh failed after update", refreshError);
-          setError("Nama tersimpan, tetapi profil terbaru gagal dimuat. Silakan refresh halaman.");
+          setError(uiText.settingsPage.nameSavedButRefreshFailed);
         }
         setIsEditing(false);
       } else {
-        setError(res?.message ?? "Gagal memperbarui profil");
+        setError(res?.message ?? uiText.settingsPage.updateProfileFailed);
       }
     } catch (e) {
       setError(String(e));
@@ -71,7 +73,7 @@ export function ProfileFormInline() {
       {/* Name field — read-only by default, edit on click */}
       <div className="space-y-1.5">
         <Label htmlFor="profile-name" className="text-xs text-muted-foreground">
-          Nama
+          {uiText.settingsPage.name}
         </Label>
         {isEditing ? (
           <div className="flex items-center gap-2">
@@ -87,7 +89,7 @@ export function ProfileFormInline() {
               size="icon"
               onClick={handleSave}
               loading={saving}
-              aria-label="Simpan"
+              aria-label={uiText.settingsPage.save}
             >
               <Save className="size-4" />
             </Button>
@@ -96,7 +98,7 @@ export function ProfileFormInline() {
               size="icon"
               onClick={handleCancel}
               disabled={saving}
-              aria-label="Batal"
+              aria-label={uiText.settingsPage.cancel}
             >
               <span className="text-lg leading-none">×</span>
             </Button>
@@ -104,13 +106,13 @@ export function ProfileFormInline() {
         ) : (
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground min-w-0">
-              {user?.name || "Pengguna"}
+              {user?.name || uiText.settingsPage.userFallback}
             </p>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setIsEditing(true)}
-              aria-label="Edit"
+              aria-label={uiText.settingsPage.profileEdit}
             >
               <Pencil className="size-4" />
             </Button>
@@ -122,7 +124,7 @@ export function ProfileFormInline() {
       {/* Email — always read-only */}
       <div className="space-y-1.5">
         <Label htmlFor="profile-email" className="text-xs text-muted-foreground">
-          Email
+          {uiText.settingsPage.email}
         </Label>
         <div className="flex items-center gap-2">
           <Mail className="size-4 text-muted-foreground" />

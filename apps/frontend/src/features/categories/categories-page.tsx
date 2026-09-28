@@ -20,9 +20,7 @@ const LazyDeleteCategoryDialog = dynamic(
 );
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import {
   DEFAULT_PAGE_SIZE,
@@ -67,8 +65,7 @@ function sortList(list: CategoryItem[], sort: CategoryFiltersState["sort"]): Cat
 export function CategoriesPage() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [filters, setFilters] = useState<CategoryFiltersState>(EMPTY_FILTERS);
-  const [incomePage, setIncomePage] = useState(1);
-  const [expensePage, setExpensePage] = useState(1);
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -130,7 +127,7 @@ export function CategoriesPage() {
     };
   }, [fetchCategories]);
 
-  const { incomeSorted, expenseSorted } = useMemo(() => {
+  const filteredCategories = useMemo(() => {
     const keyword = filters.search.trim().toLowerCase();
     const matches = (category: CategoryItem) =>
       keyword === "" ||
@@ -140,47 +137,36 @@ export function CategoriesPage() {
       categoryLabel(category.name).toLowerCase().includes(keyword) ||
       (category.description?.toLowerCase().includes(keyword) ?? false);
 
-    return {
-      incomeSorted: sortList(
-        categories.filter((c) => c.type === "INCOME" && matches(c)),
-        filters.sort,
+    return sortList(
+      categories.filter(
+        (category) =>
+          (filters.type === "all" || category.type === filters.type) &&
+          matches(category),
       ),
-      expenseSorted: sortList(
-        categories.filter((c) => c.type === "EXPENSE" && matches(c)),
-        filters.sort,
-      ),
-    };
+      filters.sort,
+    );
   }, [categories, filters]);
 
-  const incomeTotalPages = Math.max(1, Math.ceil(incomeSorted.length / pageSize));
-  const expenseTotalPages = Math.max(1, Math.ceil(expenseSorted.length / pageSize));
-  const currentIncomePage = Math.min(incomePage, incomeTotalPages);
-  const currentExpensePage = Math.min(expensePage, expenseTotalPages);
-  const incomeRows = incomeSorted.slice(
-    (currentIncomePage - 1) * pageSize,
-    currentIncomePage * pageSize,
-  );
-  const expenseRows = expenseSorted.slice(
-    (currentExpensePage - 1) * pageSize,
-    currentExpensePage * pageSize,
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleCategories = filteredCategories.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
   );
 
   const handleFiltersChange = (nextFilters: CategoryFiltersState) => {
     setFilters(nextFilters);
-    setIncomePage(1);
-    setExpensePage(1);
+    setPage(1);
   };
 
   const handleResetFilters = () => {
     setFilters(EMPTY_FILTERS);
-    setIncomePage(1);
-    setExpensePage(1);
+    setPage(1);
   };
 
   const handlePageSizeChange = (nextPageSize: number) => {
     setPageSize(nextPageSize);
-    setIncomePage(1);
-    setExpensePage(1);
+    setPage(1);
   };
 
   const openForm = (mode: CategoryFormMode, category: CategoryItem | null) => {
@@ -220,8 +206,7 @@ export function CategoriesPage() {
     } catch {
       setActionError(true);
     }
-    setIncomePage(1);
-    setExpensePage(1);
+    setPage(1);
     void load();
   };
 
@@ -231,28 +216,26 @@ export function CategoriesPage() {
     }
     const target = deleting;
     setDeleting(null);
+    let removed = false;
     try {
       await categoryService.remove(target.id);
       setActionError(false);
+      removed = true;
     } catch {
       setActionError(true);
     }
-
-    if (target.type === "INCOME") {
-      if (incomeSorted.length === 1 && incomePage > 1) {
-        setIncomePage((value) => value - 1);
-      } else {
-        void load();
-      }
-    } else if (expenseSorted.length === 1 && expensePage > 1) {
-      setExpensePage((value) => value - 1);
-    } else {
-      void load();
+    if (removed) {
+      const remainingCount = filteredCategories.filter(
+        (category) => category.id !== target.id,
+      ).length;
+      setPage(Math.min(page, Math.max(1, Math.ceil(remainingCount / pageSize))));
     }
+    void load();
   };
 
   const isEmpty = !loading && !error && categories.length === 0;
-  const filteredCount = incomeSorted.length + expenseSorted.length;
+  const hasNoMatches =
+    !loading && !error && categories.length > 0 && filteredCategories.length === 0;
 
   return (
     <div className="space-y-6">
@@ -283,7 +266,7 @@ export function CategoriesPage() {
       )}
 
       <CategoryToolbar
-        count={filteredCount}
+        count={filteredCategories.length}
         loading={loading}
         onAdd={() => openForm("create", null)}
       />
@@ -300,9 +283,7 @@ export function CategoriesPage() {
           description={uiText.states.errorDescription}
           onRetry={() => void load()}
         />
-      ) : loading ? (
-        <DataLoadingState label="Memuat kategori..." />
-      ) : isEmpty ? (
+      ) : loading ? null : isEmpty ? (
         <EmptyState
           title={uiText.categories.emptyTitle}
           description={uiText.categories.emptySubtitle}
@@ -314,45 +295,37 @@ export function CategoriesPage() {
             </Button>
           }
         />
+      ) : hasNoMatches ? (
+        <EmptyState
+          title={uiText.categories.noMatchesTitle}
+          description={uiText.categories.noMatchesSubtitle}
+          icon={<Tags className="size-8 text-muted-foreground" aria-hidden="true" />}
+          actionButton={
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={handleResetFilters}
+            >
+              {uiText.transactions.resetFilters}
+            </Button>
+          }
+        />
       ) : (
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <CategoryPanel
-            title={uiText.transactions.typeIncome}
-            count={incomeSorted.length}
-            empty={incomeSorted.length === 0}
-            categories={incomeRows}
-            emptyAction={() => openForm("create", null)}
+        <section className="space-y-4">
+          <CategoryTable
+            categories={visibleCategories}
             onView={(category) => openForm("view", category)}
             onEdit={(category) => openForm("edit", category)}
             onDelete={setDeleting}
-          >
-            <TransactionPagination
-              page={currentIncomePage}
-              pageSize={pageSize}
-              totalItems={incomeSorted.length}
-              onPageChange={setIncomePage}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          </CategoryPanel>
-
-          <CategoryPanel
-            title={uiText.transactions.typeExpense}
-            count={expenseSorted.length}
-            empty={expenseSorted.length === 0}
-            categories={expenseRows}
-            emptyAction={() => openForm("create", null)}
-            onView={(category) => openForm("view", category)}
-            onEdit={(category) => openForm("edit", category)}
-            onDelete={setDeleting}
-          >
-            <TransactionPagination
-              page={currentExpensePage}
-              pageSize={pageSize}
-              totalItems={expenseSorted.length}
-              onPageChange={setExpensePage}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          </CategoryPanel>
+          />
+          <TransactionPagination
+            page={currentPage}
+            pageSize={pageSize}
+            totalItems={filteredCategories.length}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </section>
       )}
 
@@ -378,69 +351,5 @@ export function CategoriesPage() {
         />
       </LoadOnOpen>
     </div>
-  );
-}
-
-interface CategoryPanelProps {
-  title: string;
-  count: number;
-  empty: boolean;
-  categories: CategoryItem[];
-  emptyAction: () => void;
-  onView: (category: CategoryItem) => void;
-  onEdit: (category: CategoryItem) => void;
-  onDelete: (category: CategoryItem) => void;
-  children: React.ReactNode;
-}
-
-function CategoryPanel({
-  title,
-  count,
-  empty,
-  categories,
-  emptyAction,
-  onView,
-  onEdit,
-  onDelete,
-  children,
-}: CategoryPanelProps) {
-  return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <CardTitle>{title}</CardTitle>
-        <span className="text-sm text-muted-foreground">{count}</span>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {empty ? (
-          <EmptyState
-            title={uiText.categories.emptyTitle}
-            description={uiText.categories.emptySubtitle}
-            icon={<Tags className="size-6 text-muted-foreground" aria-hidden="true" />}
-            className="min-h-[280px] bg-transparent py-8 shadow-none ring-0"
-            actionButton={
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                onClick={emptyAction}
-              >
-                <Plus />
-                {uiText.categories.add}
-              </Button>
-            }
-          />
-        ) : (
-          <>
-            <CategoryTable
-              categories={categories}
-              onView={onView}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-            {children}
-          </>
-        )}
-      </CardContent>
-    </Card>
   );
 }

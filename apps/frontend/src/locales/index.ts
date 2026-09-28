@@ -26,7 +26,7 @@ export function readLanguageFromCookie(): LanguagePreference {
     const match = document.cookie.match(/(?:^|;\s*)cashflow\.language=(en|id)(?:;|$)/);
     if (match) return match[1] === "en" ? "en" : "id";
   } catch {}
-  return "id";
+  return document.documentElement.lang === "en" ? "en" : "id";
 }
 
 /**

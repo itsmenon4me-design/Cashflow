@@ -7,7 +7,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
@@ -28,6 +27,8 @@ interface SummaryPanelProps {
 }
 
 export function SummaryPanel({ dataset, unit, loading = false }: SummaryPanelProps) {
+  if (loading) return null;
+
   const tiles: SummaryTile[] = [
     {
       label: uiText.analytics.avgExpense,
@@ -77,18 +78,10 @@ export function SummaryPanel({ dataset, unit, loading = false }: SummaryPanelPro
               </div>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
-              {loading ? (
-                <Skeleton className="h-7 w-32" />
-              ) : (
-                <p className={cn("text-xl font-semibold tracking-tight text-foreground", tile.valueClassName)}>
-                  {tile.value}
-                </p>
-              )}
-              {loading ? (
-                <Skeleton className="h-4 w-20" />
-              ) : (
-                <p className="text-xs text-muted-foreground">{tile.sub}</p>
-              )}
+              <p className={cn("text-xl font-semibold tracking-tight text-foreground", tile.valueClassName)}>
+                {tile.value}
+              </p>
+              <p className="text-xs text-muted-foreground">{tile.sub}</p>
             </CardContent>
           </Card>
         );

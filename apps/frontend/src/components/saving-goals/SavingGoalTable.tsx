@@ -2,7 +2,6 @@
 
 import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { SavingGoalProgress } from "@/components/saving-goals/SavingGoalProgress";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,7 +112,7 @@ export function SavingGoalTable({
   onDelete,
 }: SavingGoalTableProps) {
   if (loading) {
-    return <DataLoadingState />;
+    return null;
   }
 
   return (

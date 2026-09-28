@@ -24,6 +24,18 @@ function readStored(): LanguagePreference {
   return value === "en" ? "en" : DEFAULT_LANGUAGE;
 }
 
+export function hasStoredLanguagePreference(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const cookieValue = readLanguageFromCookie();
+  return (
+    cookieValue === "en" ||
+    window.localStorage.getItem(STORAGE_KEY) === "id" ||
+    window.localStorage.getItem(STORAGE_KEY) === "en"
+  );
+}
+
 function persist(language: LanguagePreference): void {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, language);

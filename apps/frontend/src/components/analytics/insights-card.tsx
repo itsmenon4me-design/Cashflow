@@ -2,7 +2,6 @@
 
 import { Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { uiText } from "@/locales";
 
 interface InsightsCardProps {
@@ -11,6 +10,8 @@ interface InsightsCardProps {
 }
 
 export function InsightsCard({ insights, loading = false }: InsightsCardProps) {
+  if (loading) return null;
+
   const isEmpty = !loading && insights.length === 0;
 
   return (
@@ -20,12 +21,7 @@ export function InsightsCard({ insights, loading = false }: InsightsCardProps) {
         <p className="mt-1 text-xs text-muted-foreground">{uiText.analytics.insightsSubtitle}</p>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full rounded-xl" />
-            <Skeleton className="h-10 w-full rounded-xl" />
-          </div>
-        ) : isEmpty ? (
+        {isEmpty ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             {uiText.analytics.noInsights}
           </p>

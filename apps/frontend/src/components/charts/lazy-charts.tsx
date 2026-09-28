@@ -4,6 +4,8 @@ import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
+const CHART_LOAD_FALLBACK_MS = 1000;
+
 /**
  * Async wrappers around every recharts-based card.
  *
@@ -54,28 +56,39 @@ function WhenNearViewport({
     const el = ref.current;
     if (!el) return;
 
-    // No IntersectionObserver (old browsers / jsdom): render immediately.
-    // Real deferral matters on modern browsers, all of which support IO.
+    let observer: IntersectionObserver | null = null;
+    const loadChart = () => {
+      setShow(true);
+      observer?.disconnect();
+    };
+    const fallbackTimer = window.setTimeout(
+      loadChart,
+      CHART_LOAD_FALLBACK_MS,
+    );
+
     if (typeof IntersectionObserver === "undefined") {
-      const fallback = window.setTimeout(() => setShow(true), 0);
-      return () => window.clearTimeout(fallback);
+      loadChart();
+      return () => window.clearTimeout(fallbackTimer);
     }
 
-    const io = new IntersectionObserver(
+    observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setShow(true);
-          io.disconnect();
+          window.clearTimeout(fallbackTimer);
+          loadChart();
         }
       },
       { rootMargin: "256px" },
     );
-    io.observe(el);
-    return () => io.disconnect();
+    observer.observe(el);
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      observer?.disconnect();
+    };
   }, []);
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="h-full">
       {show ? (
         children
       ) : (
@@ -161,6 +174,15 @@ export const LazyExpenseCategoryTrendCard = lazyChart(
   () =>
     import("@/components/analytics/expense-category-trend-card").then(
       (m) => m.ExpenseCategoryTrendCard,
+    ),
+  "h-[380px]",
+);
+
+/** Analytics: budget and spending comparison by category. */
+export const LazyBudgetVsExpenseChartCard = lazyChart(
+  () =>
+    import("@/components/analytics/budget-vs-expense-chart-card").then(
+      (m) => m.BudgetVsExpenseChartCard,
     ),
   "h-[380px]",
 );

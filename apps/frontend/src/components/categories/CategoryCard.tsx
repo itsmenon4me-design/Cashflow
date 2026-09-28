@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -55,7 +56,7 @@ export function CategoryRowActions({
                 variant="ghost"
                 aria-label={`${action.label} ${category.name}`}
                 className={cn(
-                  "size-11 md:size-8",
+                  "size-11 xl:size-8",
                   action.destructive
                     ? "hover:bg-destructive/10 hover:text-destructive"
                     : "hover:text-foreground"
@@ -78,6 +79,34 @@ interface CategoryCardProps {
   onView: (category: CategoryItem) => void;
   onEdit: (category: CategoryItem) => void;
   onDelete: (category: CategoryItem) => void;
+}
+
+export function CategoryTypeBadge({ type }: { type: CategoryItem["type"] }) {
+  return (
+    <Badge
+      variant="outline"
+      className="rounded-lg border-border bg-muted text-foreground"
+    >
+      {type === "INCOME"
+        ? uiText.transactions.typeIncome
+        : uiText.transactions.typeExpense}
+    </Badge>
+  );
+}
+
+export function CategoryStatusBadge({ isActive }: { isActive: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={
+        isActive
+          ? "rounded-lg border-transparent bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
+          : "rounded-lg border-transparent bg-muted text-foreground"
+      }
+    >
+      {isActive ? uiText.categories.active : uiText.categories.inactive}
+    </Badge>
+  );
 }
 
 export function CategoryCard({
@@ -105,18 +134,21 @@ export function CategoryCard({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-foreground">{categoryLabel(category.name)}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {category.isSystem && category.isActive
-                ? uiText.categories.system
-                : category.isActive
-                  ? uiText.categories.active
-                  : uiText.categories.inactive}
-            </p>
+            {category.isSystem && (
+              <p className="truncate text-xs text-muted-foreground">
+                {uiText.categories.system}
+              </p>
+            )}
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <CategoryTypeBadge type={category.type} />
+          <CategoryStatusBadge isActive={category.isActive} />
+        </div>
+
         {category.description && (
-          <p className="text-xs text-muted-foreground">{category.description}</p>
+          <p className="break-words text-sm text-muted-foreground">{category.description}</p>
         )}
 
         <div className="border-t pt-3">

@@ -6,7 +6,6 @@ import { uiText } from "@/locales";
 
 interface BudgetToolbarProps {
   count: number;
-  loading?: boolean;
   onAdd: () => void;
 }
 

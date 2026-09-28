@@ -2,7 +2,6 @@
 
 import { Eye, Pencil, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { BudgetProgress } from "@/components/budgets/BudgetProgress";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,7 +103,7 @@ export function BudgetTable({
   onDelete,
 }: BudgetTableProps) {
   if (loading) {
-    return <DataLoadingState />;
+    return null;
   }
 
   return (

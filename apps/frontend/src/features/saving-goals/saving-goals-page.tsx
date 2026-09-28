@@ -245,9 +245,7 @@ export function SavingGoalsPage() {
           description={uiText.states.errorDescription}
           onRetry={() => setRefreshKey((key) => key + 1)}
         />
-      ) : initialLoading ? (
-        <SavingGoalResultState loading onAdd={() => openForm("create", null)} />
-      ) : isEmpty ? (
+      ) : initialLoading ? null : isEmpty ? (
         <SavingGoalResultState onAdd={() => openForm("create", null)} />
       ) : (
         <>
@@ -293,10 +291,8 @@ export function SavingGoalsPage() {
 }
 
 function SavingGoalResultState({
-  loading = false,
   onAdd,
 }: {
-  loading?: boolean;
   onAdd: () => void;
 }) {
   return (
@@ -312,21 +308,15 @@ function SavingGoalResultState({
         <Target className="size-8 text-muted-foreground" />
       </div>
       <div className="space-y-1">
-        <h2 className="min-h-6 text-base font-semibold text-foreground">
-          {loading ? uiText.common.loading : uiText.savingGoals.emptyTitle}
-        </h2>
-        <p className="mx-auto flex min-h-[60px] max-w-sm items-center justify-center text-sm text-muted-foreground">
-          {loading ? "" : uiText.savingGoals.emptySubtitle}
+        <h2 className="text-base font-semibold text-foreground">{uiText.savingGoals.emptyTitle}</h2>
+        <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+          {uiText.savingGoals.emptySubtitle}
         </p>
       </div>
-      <div className="flex min-h-11 items-center">
-        {!loading && (
-          <Button type="button" className="rounded-xl" onClick={onAdd}>
-            <Plus />
-            {uiText.savingGoals.add}
-          </Button>
-        )}
-      </div>
+      <Button type="button" className="rounded-xl" onClick={onAdd}>
+        <Plus />
+        {uiText.savingGoals.add}
+      </Button>
     </div>
   );
 }

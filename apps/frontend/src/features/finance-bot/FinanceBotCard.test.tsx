@@ -47,7 +47,7 @@ describe("FinanceBotCard", () => {
     vi.useRealTimers();
   });
 
-  it("shows a loading skeleton without requesting settings again", () => {
+  it("does not show a loading placeholder or request settings again", () => {
     const onSettingsChange = vi.fn();
     render(
       <FinanceBotCard
@@ -57,7 +57,7 @@ describe("FinanceBotCard", () => {
       />,
     );
 
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(settingsService.getSettings).not.toHaveBeenCalled();
   });
 

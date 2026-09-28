@@ -1,5 +1,6 @@
 import { PrismaService } from '../../database/prisma.service';
 import { PrismaTransactionsRepository } from './repositories/prisma-transactions.repository';
+import { assertIsolatedTestDatabase } from '../../test-utils/assert-isolated-test-database';
 
 // Integration test: verifies user-scoped transaction isolation
 // Skips if DATABASE_URL is not configured (common in local dev)
@@ -11,9 +12,9 @@ const describeIfDatabase = hasDatabase ? describe : describe.skip;
 describeIfDatabase('Transactions Integration - user isolation (DB-level)', () => {
   let prisma: PrismaService | null = null;
   let repo: PrismaTransactionsRepository | null = null;
-  let userAId: string;
-  let userBId: string;
-  let incomeCategoryId: string;
+  let userAId: string | undefined;
+  let userBId: string | undefined;
+  let incomeCategoryId: string | undefined;
 
   beforeAll(async () => {
     if (!hasDatabase) {
@@ -21,6 +22,7 @@ describeIfDatabase('Transactions Integration - user isolation (DB-level)', () =>
       return;
     }
 
+    assertIsolatedTestDatabase(dbUrl);
     prisma = new PrismaService();
     await prisma.$connect();
     repo = new PrismaTransactionsRepository(prisma as any);
@@ -67,13 +69,17 @@ describeIfDatabase('Transactions Integration - user isolation (DB-level)', () =>
   afterAll(async () => {
     if (!hasDatabase || !prisma) return;
     try {
-      await prisma.transaction.deleteMany({
-        where: { user_id: { in: [userAId, userBId] } },
-      });
-      await prisma.category.deleteMany({ where: { id: incomeCategoryId } });
-      await prisma.user.deleteMany({
-        where: { id: { in: [userAId, userBId] } },
-      });
+      if (userAId && userBId) {
+        await prisma.transaction.deleteMany({
+          where: { user_id: { in: [userAId, userBId] } },
+        });
+        await prisma.user.deleteMany({
+          where: { id: { in: [userAId, userBId] } },
+        });
+      }
+      if (incomeCategoryId) {
+        await prisma.category.deleteMany({ where: { id: incomeCategoryId } });
+      }
     } catch (err) {
       console.warn('Cleanup failed', err);
     } finally {

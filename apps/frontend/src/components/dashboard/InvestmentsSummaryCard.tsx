@@ -1,18 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { TrendingUp } from "lucide-react";
-// AllocationPieCard pulls in recharts; load it async so this card stays
-// chart-free in the eager bundle (fallback reserves its height, no CLS).
 const AllocationPieCard = dynamic(
   () => import("@/components/investments/AllocationPieCard").then((m) => m.AllocationPieCard),
   {
     ssr: false,
-    loading: () => <div className="h-40 w-full" aria-hidden="true" />,
+    loading: () => null,
   },
 );
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrencyCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
@@ -34,7 +30,7 @@ export function InvestmentsSummaryCard({ data, loading = false }: InvestmentsSum
         <p className="text-sm text-muted-foreground">{uiText.investments.dashboardSubtitle}</p>
       </CardHeader>
       <CardContent className="p-4 pt-0 space-y-3">
-        {loading || !data ? (
+        {loading ? null : !data ? (
           <div className="h-32 w-full">
             <CenteredEmptyState title={uiText.investments.emptyTitle || uiText.common.noDataAvailable} description={uiText.investments.emptySubtitle} />
           </div>

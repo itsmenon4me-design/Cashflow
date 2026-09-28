@@ -1,13 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../apps/backend/src/generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../apps/backend/src/generated/prisma"
   previewFeatures = ["driverAdapters"]
 }
 
-  datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 // Base model convention: UUID primary key, createdAt, updatedAt
 // Initial placeholder model only
@@ -18,97 +18,98 @@ model SystemHealth {
 }
 
 model User {
-  id              String   @id @default(uuid()) @db.Uuid
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  deleted_at      DateTime? @db.Timestamptz
+  id         String    @id @default(uuid()) @db.Uuid
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? @db.Timestamptz
 
-  email           String   @unique
-  username        String   @unique
-  full_name       String
-  password_hash   String
+  email               String    @unique
+  username            String    @unique
+  full_name           String
+  password_hash       String
   has_manual_password Boolean?
-  avatar_url      String?  
-  phone_number    String?
-  status          String
-  email_verified_at DateTime? @db.Timestamptz
-  last_login_at   DateTime? @db.Timestamptz
+  avatar_url          String?
+  phone_number        String?
+  status              String
+  email_verified_at   DateTime? @db.Timestamptz
+  last_login_at       DateTime? @db.Timestamptz
 
   // Email verification fields
-  verification_token_hash String?  
+  verification_token_hash       String?
   verification_token_expires_at DateTime? @db.Timestamptz
 
   // Password reset fields
-  password_reset_token_hash String? 
-  password_reset_expires_at DateTime? @db.Timestamptz
+  password_reset_token_hash   String?
+  password_reset_expires_at   DateTime? @db.Timestamptz
   password_reset_requested_at DateTime? @db.Timestamptz
 
- role_id String? @db.Uuid
- role            Role?    @relation(fields: [role_id], references: [id])
+  role_id String? @db.Uuid
+  role    Role?   @relation(fields: [role_id], references: [id])
 
- refresh_tokens  RefreshToken[]
- sessions        Session[]
- oauth_accounts  OAuthAccount[]
+  refresh_tokens RefreshToken[]
+  sessions       Session[]
+  oauth_accounts OAuthAccount[]
 
   // Finance modules
-  categories      Category[]
-  transactions    Transaction[]
-  bills           Bill[]
- audit_logs      AuditLog[]
- budgets         Budget[]
- savingGoals     SavingGoal[]
- investments     Investment[]
- notifications   Notification[]
- userSettings    UserSettings?
+  categories        Category[]
+  transactions      Transaction[]
+  bills             Bill[]
+  audit_logs        AuditLog[]
+  budgets           Budget[]
+  savingGoals       SavingGoal[]
+  investments       Investment[]
+  notifications     Notification[]
+  userSettings      UserSettings?
+  pushSubscriptions PushSubscription[]
 
- @@map("users")
+  @@map("users")
 }
 
 model OAuthAccount {
- id                 String   @id @default(uuid()) @db.Uuid
- user_id            String   @db.Uuid
- provider           String
- provider_account_id String
- email              String
- email_verified     Boolean  @default(false)
- created_at         DateTime @default(now())
- updated_at         DateTime @updatedAt
+  id                  String   @id @default(uuid()) @db.Uuid
+  user_id             String   @db.Uuid
+  provider            String
+  provider_account_id String
+  email               String
+  email_verified      Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
- user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
- @@unique([provider, provider_account_id])
- @@unique([user_id, provider])
- @@index([user_id])
- @@index([provider_account_id])
- @@index([email])
- @@map("oauth_accounts")
+  @@unique([provider, provider_account_id])
+  @@unique([user_id, provider])
+  @@index([user_id])
+  @@index([provider_account_id])
+  @@index([email])
+  @@map("oauth_accounts")
 }
 
 model Role {
-  id         String   @id @default(uuid()) @db.Uuid
-  code       String   @unique
-  name       String
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
   description String?
-  is_system  Boolean  @default(false)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  users User[]
+  users           User[]
   rolePermissions RolePermission[]
 
   @@map("roles")
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @db.Uuid
   token_hash String
   expires_at DateTime
   revoked_at DateTime? @db.Timestamptz
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   sessions Session[]
 
   @@index([user_id])
@@ -116,9 +117,9 @@ model RefreshToken {
 }
 
 model Session {
-  id               String   @id @default(uuid()) @db.Uuid
-  user_id          String   @db.Uuid
-  refresh_token_id String   @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  user_id          String    @db.Uuid
+  refresh_token_id String    @db.Uuid
   device_name      String?
   device_type      String?
   browser          String?
@@ -130,10 +131,10 @@ model Session {
   last_activity_at DateTime
   expires_at       DateTime
   revoked_at       DateTime? @db.Timestamptz
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
   refreshToken RefreshToken @relation(fields: [refresh_token_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
@@ -142,13 +143,13 @@ model Session {
 }
 
 model Permission {
-  id         String   @id @default(uuid()) @db.Uuid
-  code       String   @unique
-  name       String
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
   description String?
-  module     String
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  module      String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   rolePermissions RolePermission[]
 
@@ -161,7 +162,7 @@ model RolePermission {
   permission_id String   @db.Uuid
   created_at    DateTime @default(now())
 
-  role Role @relation(fields: [role_id], references: [id])
+  role       Role       @relation(fields: [role_id], references: [id])
   permission Permission @relation(fields: [permission_id], references: [id])
 
   @@index([role_id])
@@ -170,21 +171,21 @@ model RolePermission {
 }
 
 model AuditLog {
-  id              String    @id @default(uuid()) @db.Uuid
-  user_id         String?   @db.Uuid
-  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String?  @db.Uuid
+  user            User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   action          String
   module          String
   description     String?
   entity_type     String?
-  entity_id       String?   @db.Uuid
+  entity_id       String?  @db.Uuid
   ip_address      String?
   user_agent      String?
   request_method  String?
   request_path    String?
   response_status Int?
   metadata        Json?
-  created_at      DateTime  @default(now())
+  created_at      DateTime @default(now())
 
   @@index([user_id])
   @@index([action])
@@ -195,31 +196,31 @@ model AuditLog {
 
 // Category model
 model Category {
-  id                 String   @id @default(uuid()) @db.Uuid
-  user_id            String   @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
+  user_id            String    @db.Uuid
   name               String
   type               String
   icon               String?
   color              String?
   description        String?
-  parent_category_id String?  @db.Uuid
-  is_system          Boolean  @default(false)
-  is_active          Boolean  @default(true)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  parent_category_id String?   @db.Uuid
+  is_system          Boolean   @default(false)
+  is_active          Boolean   @default(true)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
   deleted_at         DateTime? @db.Timestamptz
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  parent Category? @relation("CategoryToParent", fields: [parent_category_id], references: [id], onDelete: SetNull)
+  user     User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent   Category?  @relation("CategoryToParent", fields: [parent_category_id], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryToParent")
 
   transactions Transaction[]
-  bills Bill[]
-  budgets Budget[]
-  savingGoals SavingGoal[]
+  bills        Bill[]
+  budgets      Budget[]
+  savingGoals  SavingGoal[]
 
-  @@index([user_id])
   @@unique([user_id, name, type])
+  @@index([user_id])
   @@map("categories")
 }
 
@@ -233,58 +234,58 @@ enum BillRecurrence {
 }
 
 model Bill {
-  id                   String          @id @default(uuid()) @db.Uuid
-  user_id              String          @db.Uuid
+  id                   String         @id @default(uuid()) @db.Uuid
+  user_id              String         @db.Uuid
   payee                String
-  amount_cents         BigInt          @db.BigInt
-  currency             String          @default("IDR")
-  category_id          String?         @db.Uuid
+  amount_cents         BigInt         @db.BigInt
+  currency             String         @default("IDR")
+  category_id          String?        @db.Uuid
   due_date             DateTime
   due_date_timezone    String?
-  is_paid              Boolean         @default(false)
-  paid_at              DateTime?       @db.Timestamptz
-  transaction_id       String?         @db.Uuid
-  status               String          @default("OPEN")
-  recurrence_type      BillRecurrence  @default(NONE)
+  is_paid              Boolean        @default(false)
+  paid_at              DateTime?      @db.Timestamptz
+  transaction_id       String?        @db.Uuid
+  status               String         @default("OPEN")
+  recurrence_type      BillRecurrence @default(NONE)
   recurrence_interval  Int?
   recurrence_ends_at   DateTime?
-  series_id            String?         @db.Uuid
-  is_template          Boolean         @default(false)
-  reminder_enabled     Boolean         @default(false)
+  series_id            String?        @db.Uuid
+  is_template          Boolean        @default(false)
+  reminder_enabled     Boolean        @default(false)
   reminder_days_before Int?
   reminder_time        String?
   reminder_config      Json?
-  created_at           DateTime        @default(now())
-  updated_at           DateTime        @updatedAt
-  deleted_at           DateTime?       @db.Timestamptz
+  created_at           DateTime       @default(now())
+  updated_at           DateTime       @updatedAt
+  deleted_at           DateTime?      @db.Timestamptz
 
-  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  transaction Transaction? @relation(fields: [transaction_id], references: [id], onDelete: SetNull)
-  series Bill? @relation("BillSeries", fields: [series_id], references: [id], onDelete: SetNull)
-  seriesMembers Bill[] @relation("BillSeries")
+  user          User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category      Category?    @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  transaction   Transaction? @relation(fields: [transaction_id], references: [id], onDelete: SetNull)
+  series        Bill?        @relation("BillSeries", fields: [series_id], references: [id], onDelete: SetNull)
+  seriesMembers Bill[]       @relation("BillSeries")
 
+  @@unique([transaction_id])
+  @@unique([series_id, due_date])
   @@index([user_id])
   @@index([user_id, due_date])
   @@index([user_id, is_paid])
   @@index([series_id])
   @@index([category_id])
-  @@unique([transaction_id])
-  @@unique([series_id, due_date])
   @@map("Bill")
 }
 
 model Budget {
-  id                 String   @id @default(uuid()) @db.Uuid
-  user_id            String   @db.Uuid
-  category_id        String   @db.Uuid
-  currency           String?
-  budget_amount_cents BigInt  @db.BigInt
-  month              Int
-  year               Int
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  deleted_at         DateTime? @db.Timestamptz
+  id                  String    @id @default(uuid()) @db.Uuid
+  user_id             String    @db.Uuid
+  category_id         String    @db.Uuid
+  currency            String?
+  budget_amount_cents BigInt    @db.BigInt
+  month               Int
+  year                Int
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  deleted_at          DateTime? @db.Timestamptz
 
   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
@@ -295,20 +296,20 @@ model Budget {
 }
 
 model SavingGoal {
-  id                 String   @id @default(uuid()) @db.Uuid
-  user_id            String   @db.Uuid
-  category_id        String?  @db.Uuid
-  currency           String?
-  name               String
-  description        String?
-  target_amount_cents BigInt  @db.BigInt
-  current_amount_cents BigInt @default(0) @db.BigInt
-  start_date         DateTime
-  target_date        DateTime
-  status             String   @default("ACTIVE")
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  deleted_at         DateTime? @db.Timestamptz
+  id                   String    @id @default(uuid()) @db.Uuid
+  user_id              String    @db.Uuid
+  category_id          String?   @db.Uuid
+  currency             String?
+  name                 String
+  description          String?
+  target_amount_cents  BigInt    @db.BigInt
+  current_amount_cents BigInt    @default(0) @db.BigInt
+  start_date           DateTime
+  target_date          DateTime
+  status               String    @default("ACTIVE")
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  deleted_at           DateTime? @db.Timestamptz
 
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
@@ -319,71 +320,86 @@ model SavingGoal {
 }
 
 model Investment {
-  id                    String   @id @default(uuid()) @db.Uuid
-  user_id               String   @db.Uuid
-  currency              String?
-  investment_type       String
-  platform              String
-  name                  String
-  symbol                String?
-  quantity              Decimal  @db.Decimal(20, 8)
-  average_buy_price     Decimal  @db.Decimal(20, 6)
-  current_price         Decimal  @db.Decimal(20, 6)
-  invested_amount_cents BigInt   @db.BigInt
-  current_value_cents   BigInt   @db.BigInt
-  profit_loss_cents     BigInt   @db.BigInt
-  profit_loss_percentage Decimal @db.Decimal(10, 2)
-  purchase_date         DateTime
-  notes                 String?
-  status                String   @default("ACTIVE")
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
-  deleted_at            DateTime? @db.Timestamptz
+  id                     String    @id @default(uuid()) @db.Uuid
+  user_id                String    @db.Uuid
+  currency               String?
+  investment_type        String
+  platform               String
+  name                   String
+  symbol                 String?
+  quantity               Decimal   @db.Decimal(20, 8)
+  average_buy_price      Decimal   @db.Decimal(20, 6)
+  current_price          Decimal   @db.Decimal(20, 6)
+  invested_amount_cents  BigInt    @db.BigInt
+  current_value_cents    BigInt    @db.BigInt
+  profit_loss_cents      BigInt    @db.BigInt
+  profit_loss_percentage Decimal   @db.Decimal(10, 2)
+  purchase_date          DateTime
+  notes                  String?
+  status                 String    @default("ACTIVE")
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  deleted_at             DateTime? @db.Timestamptz
 
-  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@map("investments")
 }
 
 model Notification {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @db.Uuid
   type       String
   title      String
   message    String
-  is_read    Boolean  @default(false)
+  is_read    Boolean   @default(false)
   read_at    DateTime? @db.Timestamptz
   dedupe_key String?
   metadata   Json?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@unique([user_id, dedupe_key])
   @@index([user_id])
   @@index([user_id, is_read])
   @@index([created_at])
-  @@unique([user_id, dedupe_key])
   @@map("notifications")
 }
 
 model UserSettings {
-  id                     String   @id @default(uuid()) @db.Uuid
-  user_id                String   @db.Uuid
-  theme                  String   @default("system")
-  language               String   @default("id")
-  currency               String   @default("IDR")
-  timezone               String?
+  id                       String   @id @default(uuid()) @db.Uuid
+  user_id                  String   @db.Uuid
+  theme                    String   @default("system")
+  language                 String   @default("id")
+  currency                 String   @default("IDR")
+  timezone                 String?
   notification_preferences Json?
-  created_at             DateTime @default(now())
-  updated_at             DateTime @updatedAt
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id])
   @@index([user_id])
   @@map("user_settings")
+}
+
+model PushSubscription {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  endpoint   String   @unique @db.Text
+  p256dh     String   @db.Text
+  auth       String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("push_subscriptions")
 }
 
 // Transaction model
@@ -393,20 +409,20 @@ enum TransactionType {
 }
 
 model Transaction {
-  id                String   @id @default(uuid()) @db.Uuid
-  user_id           String   @db.Uuid
-  category_id       String   @db.Uuid
+  id          String @id @default(uuid()) @db.Uuid
+  user_id     String @db.Uuid
+  category_id String @db.Uuid
 
-  transaction_type  TransactionType
+  transaction_type TransactionType
 
-  amount_cents      BigInt   @db.BigInt
-  transaction_date  DateTime
-  note              String?
-  reference_number  String?
-  location          String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-  deleted_at        DateTime? @db.Timestamptz
+  amount_cents     BigInt    @db.BigInt
+  transaction_date DateTime
+  note             String?
+  reference_number String?
+  location         String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime? @db.Timestamptz
 
   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)

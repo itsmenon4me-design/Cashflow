@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { BellRing, CheckCheck, Trash2 } from "lucide-react";
 import { NotificationListItem } from "@/components/notifications/notification-list-item";
-import { NotificationListSkeleton } from "@/components/notifications/notification-list-skeleton";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
@@ -218,7 +217,7 @@ export function NotificationsPage() {
           icon={<BellRing className="size-8 text-muted-foreground" aria-hidden="true" />}
         />
       ) : loading && !hasLoadedOnce ? (
-        <NotificationListSkeleton rows={Math.min(pageSize, 6)} />
+        null
       ) : (
         <>
           <ul className="space-y-3">

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { uiText } from "@/locales";
 
 interface CardSkeletonProps {
   className?: string;
@@ -17,7 +18,7 @@ export function CardSkeleton({ className, variant = "stat" }: CardSkeletonProps)
         className
       )}
     >
-      Memuat data...
+      {uiText.common.loading}
     </div>
   );
 }

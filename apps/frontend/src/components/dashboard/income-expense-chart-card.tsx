@@ -15,7 +15,7 @@ interface IncomeExpenseChartCardProps {
 
 export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCardProps) {
   return (
-    <Card className="shadow-sm">
+    <Card className="flex h-full flex-col shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 px-5">
         <div>
           <CardTitle className="text-base font-semibold">{uiText.dashboard.incomeVsExpense}</CardTitle>
@@ -28,13 +28,13 @@ export function IncomeExpenseChartCard({ data, currency }: IncomeExpenseChartCar
           {uiText.dashboard.expense}
         </div>
       </CardHeader>
-      <CardContent className="p-5 pt-0">
+      <CardContent className="flex flex-1 flex-col p-5 pt-0">
         {(!data || data.length === 0) ? (
-          <div className="h-[200px] md:h-[260px] w-full">
+          <div className="h-[200px] min-h-[200px] w-full flex-1 md:h-[260px] md:min-h-[260px]">
             <CenteredEmptyState title={uiText.common.noDataAvailable} />
           </div>
         ) : (
-          <div className="h-[200px] md:h-[260px] w-full">
+          <div className="h-[200px] min-h-[200px] w-full flex-1 md:h-[260px] md:min-h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
                 <CartesianGrid stroke="var(--border)" vertical={false} />

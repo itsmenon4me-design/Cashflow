@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { categoryLabel, type CategoryGroup } from "@/lib/categories";
+import { formatInputDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionFiltersState } from "@/features/transactions/types";
@@ -42,7 +43,7 @@ export function TransactionFilters({
   const update = (patch: Partial<TransactionFiltersState>) => onChange({ ...filters, ...patch });
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm @container/transaction-filters">
       <CardContent className="space-y-3">
         <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -57,14 +58,9 @@ export function TransactionFilters({
 
         <div
           data-slot="transaction-filter-controls"
-          className="grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]"
+          className="grid grid-cols-1 items-end gap-3 @lg/transaction-filters:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]"
         >
-          <div
-            className={cn(
-              "min-w-0 max-w-40",
-              !showTypeFilter && "min-[360px]:col-span-2 lg:col-span-1",
-            )}
-          >
+          <div className="min-w-0 max-w-40">
             <Select
               value={filters.category}
               onValueChange={(category) => update({ category })}
@@ -107,63 +103,55 @@ export function TransactionFilters({
           )}
 
           <div className="flex w-full min-w-0 max-w-40 flex-col gap-1.5">
-            <Label htmlFor="filter-from-date" className="pl-2 text-xs text-muted-foreground font-normal">
+            <Label htmlFor="filter-from-date" className="translate-x-1 text-center text-xs text-muted-foreground font-normal">
               {uiText.transactions.fromDate}
             </Label>
-            <div className="relative min-w-0">
+            <div className="relative flex min-h-11 w-full min-w-0 items-center justify-center rounded-xl border border-border bg-input/30 px-2 text-sm text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
+              <span className={cn("pointer-events-none w-full text-center", !filters.startDate && "text-muted-foreground")} aria-hidden="true">
+                {formatInputDate(filters.startDate) || uiText.transactions.selectDate}
+              </span>
               <Input
                 id="filter-from-date"
                 type="date"
-                className={cn(
-                  "min-h-11 w-full min-w-0 rounded-xl border-border bg-background px-2 text-sm",
-                  !filters.startDate && "[&::-webkit-datetime-edit]:text-transparent",
-                )}
+                className="date-input-no-indicator absolute inset-0 h-full w-full cursor-pointer border-0 bg-transparent opacity-0"
                 aria-label={uiText.transactions.fromDate}
                 value={filters.startDate}
+                onClick={(event) => event.currentTarget.showPicker?.()}
                 onChange={(event) => update({ startDate: event.target.value })}
               />
-              {!filters.startDate && (
-                <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">
-                  {uiText.transactions.selectDate}
-                </span>
-              )}
             </div>
           </div>
 
           <div className="flex w-full min-w-0 max-w-40 flex-col gap-1.5">
-            <Label htmlFor="filter-to-date" className="pl-2 text-xs text-muted-foreground font-normal">
+            <Label htmlFor="filter-to-date" className="translate-x-1 text-center text-xs text-muted-foreground font-normal">
               {uiText.transactions.toDate}
             </Label>
-            <div className="relative min-w-0">
+            <div className="relative flex min-h-11 w-full min-w-0 items-center justify-center rounded-xl border border-border bg-input/30 px-2 text-sm text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
+              <span className={cn("pointer-events-none w-full text-center", !filters.endDate && "text-muted-foreground")} aria-hidden="true">
+                {formatInputDate(filters.endDate) || uiText.transactions.selectDate}
+              </span>
               <Input
                 id="filter-to-date"
                 type="date"
-                className={cn(
-                  "min-h-11 w-full min-w-0 rounded-xl border-border bg-background px-2 text-sm",
-                  !filters.endDate && "[&::-webkit-datetime-edit]:text-transparent",
-                )}
+                className="date-input-no-indicator absolute inset-0 h-full w-full cursor-pointer border-0 bg-transparent opacity-0"
                 aria-label={uiText.transactions.toDate}
                 value={filters.endDate}
+                onClick={(event) => event.currentTarget.showPicker?.()}
                 onChange={(event) => update({ endDate: event.target.value })}
               />
-              {!filters.endDate && (
-                <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">
-                  {uiText.transactions.selectDate}
-                </span>
-              )}
             </div>
           </div>
 
           <div
             className={cn(
-              "col-span-full flex min-w-0 justify-center min-[360px]:justify-end",
-              "lg:col-span-1 lg:justify-start",
+              "flex min-w-0 justify-center",
+              "@lg/transaction-filters:justify-start",
             )}
           >
             <Button
               type="button"
               variant="outline"
-              className="min-h-11 w-full rounded-xl min-[360px]:w-auto min-[360px]:min-w-36"
+              className="min-h-11 w-full rounded-xl @lg/transaction-filters:w-auto @lg/transaction-filters:min-w-36"
               onClick={onReset}
             >
               <RotateCcw />

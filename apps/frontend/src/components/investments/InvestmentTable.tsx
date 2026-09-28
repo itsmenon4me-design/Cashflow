@@ -1,7 +1,6 @@
 "use client";
 
 import { Eye, Pencil, Trash2, type LucideIcon } from "lucide-react";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,7 +121,7 @@ export function InvestmentTable({
   onDelete,
 }: InvestmentTableProps) {
   if (loading) {
-    return <DataLoadingState />;
+    return null;
   }
 
   return (

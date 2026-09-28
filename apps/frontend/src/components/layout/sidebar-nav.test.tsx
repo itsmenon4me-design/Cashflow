@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { locales } from "@/locales";
+import { useLanguageStore } from "@/stores/language.store";
 
 let pathname = "/dashboard";
 
@@ -13,6 +14,7 @@ describe("SidebarNav", () => {
   beforeEach(() => {
     pathname = "/dashboard";
     window.localStorage.clear();
+    useLanguageStore.getState().setLanguage("id");
   });
 
   it("keeps standalone items visible and collapses inactive groups by default", () => {
@@ -38,6 +40,32 @@ describe("SidebarNav", () => {
     pathname = "/dashboard";
     render(<SidebarNav />);
     expect(screen.getByRole("link", { name: locales.id.navigation.budgets })).toBeInTheDocument();
+  });
+
+  it("updates menu labels immediately when the interface language changes", () => {
+    render(<SidebarNav />);
+
+    expect(screen.getByRole("button", { name: "Transaksi" })).toBeInTheDocument();
+
+    act(() => {
+      useLanguageStore.getState().setLanguage("en");
+    });
+
+    expect(screen.getByRole("button", { name: "Transactions" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+  });
+
+  it("shows every destination without accordions in the mobile drawer", () => {
+    render(<SidebarNav alwaysExpanded />);
+
+    expect(screen.queryByRole("button", { name: "Laporan" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: locales.id.navigation.income })).toBeVisible();
+    expect(screen.getByRole("link", { name: locales.id.navigation.budgets })).toBeVisible();
+    expect(screen.getByRole("link", { name: locales.id.navigation.investments })).toBeVisible();
+    expect(screen.getByRole("link", { name: locales.id.navigation.reports })).toBeVisible();
+    expect(screen.getByRole("link", { name: locales.id.navigation.analytics })).toBeVisible();
+    expect(screen.getByRole("link", { name: locales.id.navigation.forecast })).toBeVisible();
   });
 
   it("renders an icon stack and removes accordion controls when collapsed", () => {

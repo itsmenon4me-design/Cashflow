@@ -6,7 +6,6 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatTransactionDate } from "@/lib/format";
 import { getAccessToken } from "@/lib/auth-token";
 import { sessionService } from "@/services/session.service";
@@ -76,7 +75,7 @@ export function AuditLogPage() {
         </Button>
       </div>
       {error ? <ErrorState title="Sesi tidak dapat dimuat" onRetry={() => void load()} /> : loading ? (
-        <div className="space-y-3">{Array.from({ length: 3 }).map((_, index) => <div key={index} className="rounded-xl border border-border p-4"><Skeleton className="h-5 w-48" /><Skeleton className="mt-3 h-4 w-64" /></div>)}</div>
+        null
       ) : items.length === 0 ? <EmptyState title="Tidak ada sesi aktif" icon={<ShieldCheck className="size-8 text-muted-foreground" />} /> : (
         <ul className="space-y-3">
           {items.map((session) => {

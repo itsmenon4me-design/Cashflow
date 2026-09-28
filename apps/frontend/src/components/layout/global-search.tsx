@@ -7,7 +7,7 @@ import { Compass, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { matchAppMenuItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -20,6 +20,7 @@ interface GlobalSearchProps {
 
 export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = false }: GlobalSearchProps) {
   const router = useRouter();
+  const text = useUiText();
   const resultsId = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -29,8 +30,8 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
   const wrapRef = useRef<HTMLDivElement>(null);
   const normalizedQuery = query.trim();
   const results = useMemo(
-    () => matchAppMenuItems(normalizedQuery),
-    [normalizedQuery],
+    () => matchAppMenuItems(normalizedQuery, 6, text),
+    [normalizedQuery, text],
   );
   const showPanel = open && normalizedQuery.length >= MIN_QUERY_LENGTH;
 
@@ -85,8 +86,8 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
         aria-haspopup="listbox"
         aria-autocomplete="list"
         className="rounded-xl bg-card pl-9"
-        placeholder={uiText.common.searchPlaceholder}
-        aria-label={uiText.common.searchAriaLabel}
+        placeholder={text.common.searchPlaceholder}
+        aria-label={text.common.searchAriaLabel}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -119,18 +120,18 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
             <div
               id={resultsId}
               role="listbox"
-              aria-label={uiText.common.searchResultsMenu}
+              aria-label={text.common.searchResultsMenu}
               className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
               style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
             >
               {results.length === 0 ? (
                 <p className="px-4 py-4 text-sm text-muted-foreground">
-                  {uiText.common.noSearchResults}
+                  {text.common.noSearchResults}
                 </p>
               ) : (
                 <div>
                   <p className="px-4 pt-2.5 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    {uiText.common.searchResultsMenu}
+                    {text.common.searchResultsMenu}
                   </p>
                   {results.map((menu) => (
                     <button

@@ -7,13 +7,12 @@ import { FinancialHealthCard } from "@/components/analytics/financial-health-car
 import { InsightsCard } from "@/components/analytics/insights-card";
 import { SpendingAnalysisCard } from "@/components/analytics/spending-analysis-card";
 // recharts-based charts load via async chunks after first paint (low-CPU friendly)
-import { type CategorySlice } from "@/components/reports/category-breakdown-card";
-import { LazyCategoryBreakdownCard as CategoryBreakdownCard } from "@/components/charts/lazy-charts";
 import { LazyExpenseCategoryTrendCard as ExpenseCategoryTrendCard } from "@/components/charts/lazy-charts";
 import { ReportPeriodFilter } from "@/components/reports/report-period-filter";
 import { SummaryCard } from "@/components/reports/summary-card";
 import { TopCategoriesCard, type TopCategoryItem } from "@/components/reports/top-categories-card";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
+import { LazyBudgetVsExpenseChartCard as BudgetVsExpenseChartCard } from "@/components/charts/lazy-charts";
 import { ErrorState } from "@/components/states/ErrorState";
 import {
   computeRange,
@@ -23,7 +22,6 @@ import {
   type ReportRange,
 } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
-import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import {
   analyticsService,
@@ -191,16 +189,6 @@ export function AnalyticsPage() {
     [cashflow]
   );
 
-  const expenseSlices = useMemo<CategorySlice[]>(
-    () =>
-      (expenses?.categories ?? []).map((c) => ({
-        name: categoryLabel(c.categoryName ?? "-"),
-        value: c.percentage,
-      amount: fromCents(c.totalAmount),
-      })),
-    [expenses]
-  );
-
   const topExpense = useMemo<TopCategoryItem[]>(
     () =>
       (expenses?.top ?? []).map((t) => ({
@@ -313,25 +301,21 @@ export function AnalyticsPage() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <IncomeExpenseChartCard data={cashFlowData} />
-            <CategoryBreakdownCard
-              title={uiText.analytics.categoryTitle}
-              subtitle={uiText.analytics.categorySubtitle}
-              data={expenseSlices}
-              loading={initialLoading}
+            <BudgetVsExpenseChartCard
+              range={range}
+              loading={loading}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <TopCategoriesCard
               title={uiText.reports.topExpense}
-              subtitle={uiText.analytics.categorySubtitle}
               data={topExpense}
               total={expenseValue}
               loading={initialLoading}
             />
             <TopCategoriesCard
               title={uiText.reports.topIncome}
-              subtitle={uiText.analytics.categorySubtitle}
               data={topIncome}
               total={incomeValue}
               loading={initialLoading}

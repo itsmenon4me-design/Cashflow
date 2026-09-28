@@ -6,13 +6,13 @@ import { RequireAuth } from "@/components/auth/require-auth";
 import { HeaderBar } from "@/components/layout/header-bar";
 import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { PageTransition, RouteFallback } from "@/components/layout/page-transition";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import { QuickAddTransaction } from "@/components/transactions/quick-add-transaction";
+import { useUiText } from "@/hooks/useUiText";
 
 // Near-realtime global data refresh: bumps the shared refresh store on window
 // focus/visibility so every page subscribed to dataVersion stays up to date
@@ -60,6 +60,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, initialExpanded, initialCollapsed }: DashboardLayoutProps) {
   const { mobileOpen, setMobileOpen } = useSidebarStore();
+  const text = useUiText();
   const mainRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
 
@@ -73,7 +74,7 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
     <TooltipProvider delayDuration={200}>
       <div className="relative mx-auto flex h-dvh w-full max-w-[1600px] overflow-hidden bg-background text-foreground">
         <Sidebar initialExpanded={initialExpanded} initialCollapsed={initialCollapsed} />
-        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} initialExpanded={initialExpanded} />
+        <MobileDrawer open={mobileOpen} onOpenChange={setMobileOpen} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <HeaderBar />
@@ -88,11 +89,20 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
               <div className="min-h-full min-w-0 space-y-6">
                 {/* Sidebar, header, and mobile navigation stay mounted while
                     only this route content changes. */}
-                <PageTransition>
-                  <RequireAuth fallback={<RouteFallback pathname={pathname} />}>
-                    {children}
-                  </RequireAuth>
-                </PageTransition>
+                <RequireAuth
+                  fallback={
+                    <div
+                      role="status"
+                      aria-label={text.common.preparingPage}
+                      aria-busy="true"
+                      className="min-h-[calc(100dvh-8rem)]"
+                    >
+                      <span className="sr-only">{text.common.preparingPage}</span>
+                    </div>
+                  }
+                >
+                  {children}
+                </RequireAuth>
               </div>
             </div>
           </main>

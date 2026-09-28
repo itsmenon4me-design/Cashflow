@@ -25,7 +25,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_FINANCE_BOT_SETTINGS,
@@ -33,8 +32,9 @@ import {
 } from "@/features/finance-bot/FinanceBotCard";
 import { ActiveSessionsTable } from "@/features/settings/active-sessions-table";
 import { ProfileFormInline } from "@/features/settings/profile-form-inline";
+import { PushNotificationSettings } from "@/features/notifications/push-notification-settings";
 import { ErrorState } from "@/components/states/ErrorState";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 import { APP_VERSION } from "@/lib/version";
 import { authService } from "@/services/auth.service";
 import { settingsService } from "@/services/settings.service";
@@ -60,11 +60,11 @@ const DEFAULT_PREFS: NotificationPreferences = {
 
 type SettingsTabId = "general" | "account" | "finance-bot" | "notifications" | "about";
 
-const getSettingsTabs = () => [
+const getSettingsTabs = (text: ReturnType<typeof useUiText>) => [
   {
     id: "general" as const,
-    label: uiText.settingsPage.tabGeneral,
-    summary: uiText.settingsPage.tabGeneralSummary,
+    label: text.settingsPage.tabGeneral,
+    summary: text.settingsPage.tabGeneralSummary,
     keywords: [
       "umum",
       "general",
@@ -83,8 +83,8 @@ const getSettingsTabs = () => [
   },
   {
     id: "account" as const,
-    label: uiText.settingsPage.tabAccount,
-    summary: uiText.settingsPage.tabAccountSummary,
+    label: text.settingsPage.tabAccount,
+    summary: text.settingsPage.tabAccountSummary,
     keywords: [
       "akun",
       "account",
@@ -102,8 +102,8 @@ const getSettingsTabs = () => [
   },
   {
     id: "finance-bot" as const,
-    label: uiText.settingsPage.tabFinanceBot,
-    summary: uiText.settingsPage.tabFinanceBotSummary,
+    label: text.settingsPage.tabFinanceBot,
+    summary: text.settingsPage.tabFinanceBotSummary,
     keywords: [
       "finance bot",
       "bot",
@@ -120,8 +120,8 @@ const getSettingsTabs = () => [
   },
   {
     id: "notifications" as const,
-    label: uiText.settingsPage.tabNotifications,
-    summary: uiText.settingsPage.tabNotificationsSummary,
+    label: text.settingsPage.tabNotifications,
+    summary: text.settingsPage.tabNotificationsSummary,
     keywords: [
       "notifikasi",
       "notifications",
@@ -136,8 +136,8 @@ const getSettingsTabs = () => [
   },
   {
     id: "about" as const,
-    label: uiText.settingsPage.tabAbout,
-    summary: uiText.settingsPage.tabAboutSummary,
+    label: text.settingsPage.tabAbout,
+    summary: text.settingsPage.tabAboutSummary,
     keywords: [
       "about",
       "tentang",
@@ -194,6 +194,7 @@ function SettingsGroup({
 }
 
 export function SettingsPage() {
+  const uiText = useUiText();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme, setTheme } = useThemeStore();
@@ -208,7 +209,7 @@ export function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
     const tab = searchParams.get("tab");
-    return getSettingsTabs().some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
+    return getSettingsTabs(uiText).some((item) => item.id === tab) ? (tab as SettingsTabId) : "general";
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
@@ -218,7 +219,7 @@ export function SettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const language = currentLanguage;
-  const settingsTabs = useMemo(() => getSettingsTabs(), [language]);
+  const settingsTabs = useMemo(() => getSettingsTabs(uiText), [uiText]);
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [financeBotSettings, setFinanceBotSettings] =
     useState<FinanceBotSettings>(DEFAULT_FINANCE_BOT_SETTINGS);
@@ -279,13 +280,11 @@ export function SettingsPage() {
       try {
         const settings = await settingsService.getSettings();
         if (cancelled) return;
-        setUiLanguage(settings.language);
         setPreferences(settings.notificationPreferences);
         setFinanceBotSettings({
           ...DEFAULT_FINANCE_BOT_SETTINGS,
           ...(settings.financeBotSettings ?? {}),
         });
-        document.documentElement.lang = settings.language;
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -333,15 +332,15 @@ export function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (!user?.email) {
-      setDeleteError("Sesi Anda tidak valid. Silakan login kembali.");
+      setDeleteError(uiText.settingsPage.invalidSession);
       return;
     }
     if (deleteEmail.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
-      setDeleteError("Email konfirmasi tidak cocok dengan akun Anda.");
+      setDeleteError(uiText.settingsPage.emailConfirmationMismatch);
       return;
     }
     if (user.has_manual_password !== false && !deletePassword.trim()) {
-      setDeleteError("Masukkan password Anda untuk konfirmasi final.");
+      setDeleteError(uiText.settingsPage.passwordConfirmationRequired);
       return;
     }
 
@@ -354,13 +353,14 @@ export function SettingsPage() {
         ...(user.has_manual_password !== false ? { password: deletePassword } : {}),
       });
       if (!result.success) {
-        throw new Error(result.message ?? "Hapus akun gagal.");
+        throw new Error(result.message ?? uiText.settingsPage.deleteAccountFailed);
       }
       useAuthStore.getState().logout();
       setUser(null);
       router.push("/login");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Hapus akun gagal.";
+      const message =
+        error instanceof Error ? error.message : uiText.settingsPage.deleteAccountFailed;
       setDeleteError(message);
     } finally {
       setIsDeleting(false);
@@ -471,20 +471,16 @@ export function SettingsPage() {
                       <SectionHeading icon={Globe} title={uiText.settingsPage.language} subtitle={uiText.settingsPage.languageSubtitle} />
                     </CardHeader>
                     <CardContent>
-                      {loading ? (
-                        <Skeleton className="h-[100px] w-full rounded-xl" />
-                      ) : (
-                        <RadioGroup value={language} onValueChange={(value) => handleLanguageChange(value as LanguagePreference)}>
-                          <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
-                            <Label htmlFor="lang-id" className="flex min-h-11 flex-1 cursor-pointer items-center">Indonesia</Label>
-                            <RadioGroupItem value="id" id="lang-id" data-testid="lang-id" />
-                          </div>
-                          <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
-                            <Label htmlFor="lang-en" className="flex min-h-11 flex-1 cursor-pointer items-center">English</Label>
-                            <RadioGroupItem value="en" id="lang-en" data-testid="lang-en" />
-                          </div>
-                        </RadioGroup>
-                      )}
+                      <RadioGroup value={language} onValueChange={(value) => handleLanguageChange(value as LanguagePreference)}>
+                        <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
+                          <Label htmlFor="lang-id" className="flex min-h-11 flex-1 cursor-pointer items-center">Indonesia</Label>
+                          <RadioGroupItem value="id" id="lang-id" data-testid="lang-id" />
+                        </div>
+                        <div className="flex min-h-11 items-center justify-between rounded-xl border border-border px-4 py-2">
+                          <Label htmlFor="lang-en" className="flex min-h-11 flex-1 cursor-pointer items-center">English</Label>
+                          <RadioGroupItem value="en" id="lang-en" data-testid="lang-en" />
+                        </div>
+                      </RadioGroup>
                     </CardContent>
                   </Card>
                 </div>
@@ -495,13 +491,13 @@ export function SettingsPage() {
           {activeSettingsTab.id === "account" && (
             <div className="space-y-6">
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Akun</h2>
-                <p className="text-sm text-muted-foreground">Kelola profil, sesi, dan penghapusan akun.</p>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">{uiText.settingsPage.groupAccount}</h2>
+                <p className="text-sm text-muted-foreground">{uiText.settingsPage.accountSectionSubtitle}</p>
               </div>
 
               <Card className="shadow-sm">
                 <CardHeader>
-                  <SectionHeading icon={UserIcon} title="Profil" subtitle="Informasi akun Anda" />
+                  <SectionHeading icon={UserIcon} title={uiText.settingsPage.profileTitle} subtitle={uiText.settingsPage.profileSubtitle} />
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <ProfileFormInline />
@@ -513,8 +509,8 @@ export function SettingsPage() {
                 <CardHeader>
                   <SectionHeading
                     icon={Laptop}
-                    title="Sesi Aktif"
-                    subtitle="Perangkat yang sedang login dengan akun Anda"
+                    title={uiText.settingsPage.activeSessionsTitle}
+                    subtitle={uiText.settingsPage.activeSessionsSubtitle}
                   />
                 </CardHeader>
                 <CardContent>
@@ -528,14 +524,14 @@ export function SettingsPage() {
                     <AlertTriangle className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-red-700 dark:text-red-300">Zona Berbahaya</h3>
-                    <p className="text-sm text-red-600/80 dark:text-red-400/90">Aksi ini menghapus semua data Anda secara permanen.</p>
+                    <h3 className="font-semibold text-red-700 dark:text-red-300">{uiText.settingsPage.dangerZoneTitle}</h3>
+                    <p className="text-sm text-red-600/80 dark:text-red-400/90">{uiText.settingsPage.deleteAccountDescription}</p>
                   </div>
                 </div>
                 <div className="mt-4">
                   <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} className="gap-2">
                     <Trash2 className="size-4" />
-                    Hapus Akun
+                    {uiText.settingsPage.deleteAccountDialogTitle}
                   </Button>
                 </div>
               </div>
@@ -546,7 +542,7 @@ export function SettingsPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">Finance Bot</h2>
-                <p className="text-sm text-muted-foreground">Pindahan dari pengaturan bot yang sudah ada.</p>
+                <p className="text-sm text-muted-foreground">{uiText.settingsPage.financeBotSubtitle}</p>
               </div>
               <FinanceBotCard
                 settings={financeBotSettings}
@@ -559,16 +555,15 @@ export function SettingsPage() {
           {activeSettingsTab.id === "notifications" && (
             <div className="space-y-6">
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Notifikasi</h2>
-                <p className="text-sm text-muted-foreground">Atur pengingat dan notifikasi penting.</p>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">{uiText.settingsPage.tabNotifications}</h2>
+                <p className="text-sm text-muted-foreground">{uiText.settingsPage.notificationSectionSubtitle}</p>
               </div>
 
-              <Card className="shadow-sm">
-                <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {loading ? (
-                    <Skeleton className="h-32 w-full rounded-xl" />
-                  ) : (
-                    notificationKeys.map((item) => (
+              {!loading && (
+                <Card className="shadow-sm">
+                  <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <PushNotificationSettings />
+                    {notificationKeys.map((item) => (
                       <div key={item.key} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
                         <Label htmlFor={`notif-${item.key}`} className="cursor-pointer">{item.label}</Label>
                         <Switch
@@ -577,10 +572,10 @@ export function SettingsPage() {
                           onCheckedChange={(checked) => handlePreferenceChange(item.key, checked)}
                         />
                       </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
@@ -617,15 +612,15 @@ export function SettingsPage() {
             <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
               <Trash2 className="size-5" />
             </div>
-            <DialogTitle>Hapus Akun</DialogTitle>
+            <DialogTitle>{uiText.settingsPage.deleteAccountDialogTitle}</DialogTitle>
             <DialogDescription>
-              Semua transaksi, kategori, target tabungan, investasi, notifikasi, serta data terkait akun Anda akan hilang permanen.
+              {uiText.settingsPage.deleteAccountDialogDescription}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="delete-account-email">Ketik ulang email Anda</Label>
+              <Label htmlFor="delete-account-email">{uiText.settingsPage.confirmEmailLabel}</Label>
               <Input
                 id="delete-account-email"
                 value={deleteEmail}
@@ -637,18 +632,18 @@ export function SettingsPage() {
 
             {user?.has_manual_password === false ? (
               <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
-                Akun Anda menggunakan login Google/GitHub, konfirmasi email sudah cukup.
+                {uiText.settingsPage.socialLoginDeleteNote}
               </p>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="delete-account-password">Password saat ini</Label>
+                <Label htmlFor="delete-account-password">{uiText.settingsPage.currentPasswordLabel}</Label>
                 <div className="relative">
                   <Input
                     id="delete-account-password"
                     type={showDeletePassword ? "text" : "password"}
                     value={deletePassword}
                     onChange={(event) => setDeletePassword(event.target.value)}
-                    placeholder="Masukkan password Anda"
+                    placeholder={uiText.settingsPage.passwordPlaceholder}
                     autoComplete="current-password"
                     className="pr-10"
                   />
@@ -656,7 +651,7 @@ export function SettingsPage() {
                     type="button"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
                     onClick={() => setShowDeletePassword((visible) => !visible)}
-                    aria-label={showDeletePassword ? "Sembunyikan password" : "Tampilkan password"}
+                    aria-label={showDeletePassword ? uiText.settingsPage.hidePassword : uiText.settingsPage.showPassword}
                   >
                     {showDeletePassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
@@ -673,7 +668,7 @@ export function SettingsPage() {
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
-              Batal
+              {uiText.settingsPage.cancel}
             </Button>
             <Button
               type="button"
@@ -681,7 +676,9 @@ export function SettingsPage() {
               onClick={handleDeleteAccount}
               disabled={isDeleting || !deleteEmail || (user?.has_manual_password !== false && !deletePassword)}
             >
-              {isDeleting ? "Menghapus..." : "Yakin, hapus akun"}
+              {isDeleting
+                ? uiText.settingsPage.deletingAccount
+                : uiText.settingsPage.confirmDeleteAccount}
             </Button>
           </DialogFooter>
         </DialogContent>

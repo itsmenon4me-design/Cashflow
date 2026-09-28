@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { uiText } from "@/locales";
 import { settingsService } from "@/services/settings.service";
 import type { FinanceBotSettings } from "@/types/settings";
@@ -78,19 +77,12 @@ export function FinanceBotCard({
     }
   };
 
+  if (loading) return null;
+
   return (
     <Card className="shadow-sm">
       <CardContent>
-        {loading ? (
-          <div role="status" aria-live="polite" aria-busy="true" className="space-y-4">
-            <Skeleton className="h-12 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-14 w-full rounded-xl" />
-            <Skeleton className="h-14 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-          </div>
-        ) : (
-          <div className="space-y-4">
+        <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
               <Label htmlFor="fb-enabled" className="cursor-pointer">{uiText.financeBot.enabled}</Label>
               <Switch id="fb-enabled" checked={settings.enabled} onCheckedChange={(v) => apply({ enabled: Boolean(v) })} />
@@ -151,8 +143,7 @@ export function FinanceBotCard({
               )}
               <p className="mt-2 text-xs text-muted-foreground">{uiText.financeBot.timezoneNote}</p>
             </div>
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

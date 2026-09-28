@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { uiText } from "@/locales";
 import type { ReactNode } from "react";
 
 interface DataLoadingStateProps {
@@ -11,7 +12,7 @@ interface DataLoadingStateProps {
 
 export function DataLoadingState({
   className,
-  label = "Memuat data...",
+  label = uiText.common.loading,
   title,
   description,
   icon,

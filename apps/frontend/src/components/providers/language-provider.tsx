@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useLanguageStore } from "@/stores/language.store";
+import {
+  hasStoredLanguagePreference,
+  useLanguageStore,
+} from "@/stores/language.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { settingsService } from "@/services/settings.service";
 
@@ -12,33 +15,8 @@ interface LanguageProviderProps {
 /**
  * Global language root.
  *
- * Sources of truth, in order:
- * 1. localStorage (persisted choice) — applied synchronously on store
- *    creation, so the UI renders in the persisted language on first paint.
- * 2. backend settings (authoritative) — reconciled once for authenticated
- *    sessions.
- *
- * This provider subscribes to the language store so it re-renders when the
- * language changes without remounting the whole app tree. That keeps live user
- * state (header, auth session, dashboard widgets, etc.) intact while the text
- * bundle switches over to the new locale.
- */
-/**
- * Global language root.
- *
- * Sources of truth, in order:
- * 1. localStorage (persisted choice) — applied synchronously on store
- *    creation, so the UI renders in the persisted language on first paint.
- * 2. backend settings (authoritative) — reconciled once for authenticated
- *    sessions.
- *
- * Reactivity fix: components read labels from the shared `uiText` module
- * binding during render, so they only show a new language when they actually
- * RE-RENDER. Re-rendering this provider alone is not enough — `{children}`'s
- * element identity never changes, so React bails out and nothing below
- * updates. Keying the subtree by the active language forces a remount of
- * everything below whenever the preference changes, making every label
- * (sidebar, page titles, tables, ...) reactive globally.
+ * Local preference wins over backend settings, and the keyed subtree updates
+ * consumers of the shared locale bundle whenever the language changes.
  */
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const language = useLanguageStore((state) => state.language);
@@ -48,11 +26,17 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   // Reconcile with the authoritative backend settings once authenticated.
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (hasStoredLanguagePreference()) return;
+    const languageAtRequest = useLanguageStore.getState().language;
     let cancelled = false;
     void settingsService
       .getSettings()
       .then((settings) => {
-        if (!cancelled && settings.language) {
+        if (
+          !cancelled &&
+          settings.language &&
+          useLanguageStore.getState().language === languageAtRequest
+        ) {
           setLanguage(settings.language);
         }
       })

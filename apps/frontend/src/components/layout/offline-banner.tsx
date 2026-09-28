@@ -49,7 +49,7 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-0 top-0 z-toast flex items-center justify-center gap-2 bg-warning/95 px-4 py-2 text-sm font-medium text-background backdrop-blur"
+      className="fixed inset-x-0 top-0 z-toast flex items-center justify-center gap-2 bg-amber-100 px-4 py-2 text-sm font-medium text-amber-950 backdrop-blur dark:bg-amber-950 dark:text-amber-100"
     >
       <WifiOff className="size-4 shrink-0" aria-hidden="true" />
       <span>{uiText.states.offlineTitle}</span>

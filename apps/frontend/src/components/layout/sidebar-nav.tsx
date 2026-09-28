@@ -10,9 +10,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 import { getAppMenuItems, type AppMenuItem } from "@/lib/navigation";
-import { warmRouteData } from "@/lib/route-data-prefetch";
 
 const STORAGE_KEY = "cashflow:sidebar-groups";
 const COOKIE_NAME = "cashflow_sidebar_expanded";
@@ -52,6 +51,7 @@ function setCookieValue(name: string, value: Record<string, boolean>) {
 
 interface SidebarNavProps {
   collapsed?: boolean;
+  alwaysExpanded?: boolean;
   onNavigate?: () => void;
   initialExpanded?: Partial<Record<GroupKey, boolean>>;
 }
@@ -62,8 +62,9 @@ declare global {
   }
 }
 
-export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNavigate, initialExpanded = {} }: SidebarNavProps) {
+export const SidebarNav = memo(function SidebarNav({ collapsed = false, alwaysExpanded = false, onNavigate, initialExpanded = {} }: SidebarNavProps) {
   const pathname = usePathname();
+  const text = useUiText();
   const [tooltipsSuppressed, setTooltipsSuppressed] = useState(false);
   const pointerHoveringLink = useRef(false);
   const tooltipResetTimer = useRef<number | undefined>(undefined);
@@ -76,7 +77,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     }
     return {};
   });
-  const items = getAppMenuItems();
+  const items = getAppMenuItems(text);
   const findByHref = (href: string) => items.find((item) => item.href === href);
 
   useEffect(() => () => window.clearTimeout(tooltipResetTimer.current), []);
@@ -103,24 +104,24 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
     { items: [findByHref("/dashboard")].filter(Boolean) as AppMenuItem[] },
     {
       key: "transactions",
-      title: "Transaksi",
+      title: text.navigation.groupTransactions,
       items: ["/incomes", "/expenses", "/transactions", "/categories"]
       .map(findByHref)
       .filter(Boolean) as AppMenuItem[],
     },
     {
       key: "planning",
-      title: "Perencanaan",
+      title: text.navigation.groupPlanning,
       items: ["/budgets", "/goals", "/investments"].map(findByHref).filter(Boolean) as AppMenuItem[],
     },
     {
       key: "reports",
-      title: "Laporan",
+      title: text.navigation.groupReports,
       items: ["/reports", "/analytics", "/forecast"].map(findByHref).filter(Boolean) as AppMenuItem[],
     },
     {
       key: "system",
-      title: "Sistem",
+      title: text.navigation.groupSystem,
       items: [].map(findByHref).filter(Boolean) as AppMenuItem[],
     },
     { items: [findByHref("/settings")].filter(Boolean) as AppMenuItem[] },
@@ -145,19 +146,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       <Link
       key={item.href}
       href={item.href}
-      onPointerDown={() => {
-        if (item.href !== pathname) {
-          window.dispatchEvent(
-            new CustomEvent("cashflow:navigate", { detail: item.href }),
-          );
-        }
-      }}
-      onClick={(event) => {
-        if (event.detail === 0 && item.href !== pathname) {
-          window.dispatchEvent(
-            new CustomEvent("cashflow:navigate", { detail: item.href }),
-          );
-        }
+      onClick={() => {
         if (collapsed) {
           setTooltipsSuppressed(true);
           window.clearTimeout(tooltipResetTimer.current);
@@ -173,9 +162,6 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       prefetch
       aria-label={item.label}
       aria-current={isActive ? "page" : undefined}
-      onMouseEnter={() => warmRouteData(item.href)}
-      onFocus={() => warmRouteData(item.href)}
-      onTouchStart={() => warmRouteData(item.href)}
       onPointerEnter={(event) => {
         pointerHoveringLink.current = event.pointerType === "mouse";
       }}
@@ -208,19 +194,19 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
   };
 
   return (
-    <nav className={cn("flex flex-col", collapsed ? "gap-1" : "gap-3")} aria-label={uiText.common.openMenuAriaLabel}>
+    <nav className={cn("flex flex-col", collapsed ? "gap-1" : "gap-3")} aria-label={text.common.openMenuAriaLabel}>
       {groups
       .filter((group) => group.items.length > 0)
       .map((group, index) => {
         const active = group.items.some((item) => isActivePath(item.href, pathname));
-        const isOpen = collapsed || !group.key || active || expanded[group.key];
+        const isOpen = alwaysExpanded || collapsed || !group.key || active || expanded[group.key];
 
         return (
           <div
             key={group.key ?? `standalone-${index}`}
             className={cn("flex flex-col gap-1", collapsed && index > 0 && "border-t border-sidebar-border pt-1")}
           >
-            {group.key && !collapsed && (
+            {group.key && !collapsed && !alwaysExpanded && (
               <button
                 type="button"
                 onClick={() => toggleGroup(group.key as GroupKey)}

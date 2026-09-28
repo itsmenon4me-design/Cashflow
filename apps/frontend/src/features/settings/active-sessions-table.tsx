@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatTransactionDate } from "@/lib/format";
+import { useUiText } from "@/hooks/useUiText";
 import { getAccessToken } from "@/lib/auth-token";
 import { sessionService } from "@/services/session.service";
 import type { SessionItem } from "@/types/session";
@@ -38,8 +38,8 @@ function currentSessionId(): string | null {
   }
 }
 
-function location(session: SessionItem) {
-  return [session.city, session.country].filter(Boolean).join(", ") || "Lokasi tidak diketahui";
+function location(session: SessionItem, unknownLabel: string) {
+  return [session.city, session.country].filter(Boolean).join(", ") || unknownLabel;
 }
 
 function DeviceIcon({ deviceType }: { deviceType: string | null }) {
@@ -61,6 +61,7 @@ function formatSessionTimestamp(date: string) {
 }
 
 export function ActiveSessionsTable() {
+  const uiText = useUiText();
   const [items, setItems] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -85,43 +86,32 @@ export function ActiveSessionsTable() {
   }, [load]);
 
   const revoke = async (id: string) => {
-    if (!window.confirm("Logout perangkat ini?")) return;
+    if (!window.confirm(uiText.settingsPage.revokeSessionConfirm)) return;
     await sessionService.revoke(id);
     await load();
   };
 
   const revokeOthers = async () => {
-    if (!window.confirm("Logout semua perangkat lain?")) return;
+    if (!window.confirm(uiText.settingsPage.revokeOtherSessionsConfirm)) return;
     await sessionService.revokeOthers();
     await load();
   };
 
   if (error) {
-    return <ErrorState title="Sesi tidak dapat dimuat" onRetry={() => void load()} />;
+    return <ErrorState title={uiText.settingsPage.sessionLoadError} onRetry={() => void load()} />;
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-border p-4">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="mt-3 h-4 w-64" />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (loading) return null;
 
   if (items.length === 0) {
-    return <EmptyState title="Tidak ada sesi aktif" icon={<ShieldCheck className="size-8 text-muted-foreground" />} />;
+    return <EmptyState title={uiText.settingsPage.noActiveSessions} icon={<ShieldCheck className="size-8 text-muted-foreground" />} />;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">
-          {items.length} sesi aktif
+          {uiText.settingsPage.activeSessionCount.replace("{count}", String(items.length))}
         </p>
         <Button
           type="button"
@@ -132,18 +122,18 @@ export function ActiveSessionsTable() {
           disabled={loading || items.filter((item) => item.id !== currentId).length === 0}
         >
           <LogOut className="size-4" />
-          Logout Perangkat Lain
+          {uiText.settingsPage.logoutOtherDevices}
         </Button>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Perangkat</th>
-              <th scope="col" className="px-4 py-3 font-medium">Lokasi</th>
-              <th scope="col" className="px-4 py-3 font-medium">Dibuat</th>
-              <th scope="col" className="px-4 py-3 font-medium">Diperbarui</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Aksi</th>
+              <th scope="col" className="px-4 py-3 font-medium">{uiText.settingsPage.sessionDevice}</th>
+              <th scope="col" className="px-4 py-3 font-medium">{uiText.settingsPage.sessionLocation}</th>
+              <th scope="col" className="px-4 py-3 font-medium">{uiText.settingsPage.sessionCreated}</th>
+              <th scope="col" className="px-4 py-3 font-medium">{uiText.settingsPage.sessionUpdated}</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">{uiText.settingsPage.sessionAction}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -151,17 +141,19 @@ export function ActiveSessionsTable() {
               const current = session.id === currentId;
               const device = [session.operating_system, session.browser].filter(Boolean).join(", ")
                 || session.device_name
-                || "Perangkat tidak diketahui";
+                || uiText.settingsPage.unknownDevice;
               return (
                 <tr key={session.id} className="align-middle">
                   <td className="px-4 py-3">
                     <div className="flex min-w-[180px] items-center gap-2">
                       <DeviceIcon deviceType={session.device_type} />
                       <span className="font-medium text-foreground">{device}</span>
-                      {current && <Badge className="shrink-0 text-xs">Perangkat ini</Badge>}
+                      {current && <Badge className="shrink-0 text-xs">{uiText.settingsPage.thisDevice}</Badge>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{location(session)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {location(session, uiText.settingsPage.unknownLocation)}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {formatSessionTimestamp(session.created_at)}
                   </td>
@@ -170,7 +162,7 @@ export function ActiveSessionsTable() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {current ? (
-                      <span className="text-muted-foreground" aria-label="Perangkat ini">
+                      <span className="text-muted-foreground" aria-label={uiText.settingsPage.thisDevice}>
                         —
                       </span>
                     ) : (
@@ -181,7 +173,7 @@ export function ActiveSessionsTable() {
                             variant="ghost"
                             size="icon"
                             className="min-h-11 min-w-11 rounded-xl"
-                            aria-label="Buka menu aksi perangkat"
+                            aria-label={uiText.settingsPage.openDeviceActions}
                           >
                             <MoreVertical className="size-4" />
                           </Button>
@@ -192,7 +184,7 @@ export function ActiveSessionsTable() {
                             onClick={() => void revoke(session.id)}
                           >
                             <LogOut className="size-4" />
-                            Log out
+                            {uiText.settingsPage.signOut}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

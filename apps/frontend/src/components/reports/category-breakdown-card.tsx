@@ -31,10 +31,11 @@ export function CategoryBreakdownCard({
       subtitle={subtitle}
       loading={loading}
       empty={!data || data.length === 0}
-      contentClassName="h-72"
+      stretch
+      contentClassName="h-auto min-h-[200px] overflow-visible"
     >
-      <div className="flex h-full flex-col gap-4">
-        <div className="h-[200px] w-full">
+      <div className="flex flex-col gap-4">
+        <div className="h-[200px] w-full shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -59,13 +60,18 @@ export function CategoryBreakdownCard({
         </div>
         <div className="grid w-full grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {data.map((item, index) => (
-            <div key={item.name} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2">
+            <div
+              key={item.name}
+              className="flex min-w-0 items-center gap-2 rounded-xl bg-muted px-3 py-2"
+            >
               <span
                 className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
               />
-              <span className="truncate text-muted-foreground">{item.name}</span>
-              <span className="ml-auto truncate font-medium text-foreground">
+              <span className="min-w-0 flex-1 break-words text-muted-foreground">
+                {item.name}
+              </span>
+              <span className="shrink-0 whitespace-nowrap font-medium text-foreground">
                 {formatCurrency(item.amount)}
               </span>
             </div>

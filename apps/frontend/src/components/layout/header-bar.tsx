@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { formatFullDate } from "@/lib/format";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
@@ -45,6 +45,8 @@ import {
   isFinanceBotNotification,
 } from "@/features/notifications/notification-config";
 
+const DEMO_DATA_MODE = process.env.NEXT_PUBLIC_DEMO_DATA_MODE === "true";
+
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -55,6 +57,7 @@ function getInitials(name: string): string {
 }
 
 export function HeaderBar() {
+  const uiText = useUiText();
   const { mode, toggleMode } = useThemeStore();
   const { unreadCount, recent, initialized, fetch, markAllRead } = useNotificationStore();
   const user = useAuthStore((state) => state.user);
@@ -279,7 +282,7 @@ export function HeaderBar() {
           </Button>
 
           {!authHydrated || !safeUser ? (
-            <div className="size-9" aria-label="Memuat profil" />
+            <div className="size-9" aria-label={uiText.common.profileLoading} />
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -329,6 +332,14 @@ export function HeaderBar() {
         </div>
       </div>
 
+      {DEMO_DATA_MODE && (
+        <div
+          role="status"
+          className="border-t border-amber-300 bg-amber-100 px-3 py-1.5 text-center text-xs font-medium text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+        >
+          {uiText.common.demoModeNotice}
+        </div>
+      )}
     </header>
   );
 }

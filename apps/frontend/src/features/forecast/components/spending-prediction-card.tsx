@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/states/EmptyState';
 import { ErrorState } from '@/components/states/ErrorState';
 import { formatCurrencyCents } from '@/lib/format';
@@ -71,18 +70,7 @@ export function SpendingPredictionCard({
   }
 
   if (loading) {
-    return (
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>{text.title}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-12 w-full rounded-xl" />
-          <Skeleton className="h-12 w-full rounded-xl" />
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   if (!data) {

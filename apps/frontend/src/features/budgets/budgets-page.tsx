@@ -24,7 +24,6 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import {
   DEFAULT_PAGE_SIZE,
@@ -321,7 +320,6 @@ export function BudgetsPage() {
 
       <BudgetToolbar
         count={visible.length}
-        loading={initialLoading}
         onAdd={() => openForm("create", null)}
       />
 
@@ -334,31 +332,29 @@ export function BudgetsPage() {
         onReset={handleResetFilters}
       />
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {!initialLoading && (
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <BudgetStat
             label={uiText.budgets.totalBudget}
             value={overallBudgetDisplay}
-            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.totalSpent}
             value={overallSpentDisplay}
-            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.remaining}
             value={overallRemainingDisplay}
-            loading={initialLoading}
           />
           <BudgetStat
             label={uiText.budgets.usage}
             value={`${overall.percentageUsed.toFixed(0)}%`}
-            loading={initialLoading}
             progress={overall.percentageUsed}
           />
-      </section>
+        </section>
+      )}
 
-      {error ? (
+      {initialLoading ? null : error ? (
         <ErrorState
           title={uiText.states.errorTitle}
           description={uiText.states.errorDescription}
@@ -426,24 +422,18 @@ export function BudgetsPage() {
 function BudgetStat({
   label,
   value,
-  loading,
   progress,
 }: {
   label: string;
   value: string;
-  loading: boolean;
   progress?: number;
 }) {
   return (
     <Card className="min-h-[116px] shadow-sm">
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground">{label}</p>
-        {loading ? (
-          <Skeleton className="h-7 w-24" />
-        ) : (
-          <p className="text-lg font-semibold tracking-tight">{value}</p>
-        )}
-        {progress !== undefined && !loading && <BudgetProgress percentage={progress} />}
+        <p className="text-lg font-semibold tracking-tight">{value}</p>
+        {progress !== undefined && <BudgetProgress percentage={progress} />}
       </CardContent>
     </Card>
   );

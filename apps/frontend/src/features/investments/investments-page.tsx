@@ -27,7 +27,6 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { DEFAULT_PAGE_SIZE, EMPTY_FILTERS } from "@/features/investments/constants";
 import type { InvestmentFiltersState } from "@/features/investments/types";
@@ -245,30 +244,28 @@ export function InvestmentsPage() {
         onReset={handleResetFilters}
       />
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {hasLoadedOnce && !error && (
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <InvestmentStat
             label={uiText.investments.totalInvested}
             value={formatCurrencyCents(overview?.totalInvested ?? "0")}
-            loading={!hasLoadedOnce}
           />
           <InvestmentStat
             label={uiText.investments.currentValue}
             value={formatCurrencyCents(overview?.totalValue ?? "0")}
-            loading={!hasLoadedOnce}
           />
           <InvestmentStat
             label={uiText.investments.profitLoss}
             value={formatCurrencyCents(profitLoss)}
-            loading={!hasLoadedOnce}
             tone={plPositive ? "profit" : "loss"}
           />
           <InvestmentStat
             label={uiText.investments.roi}
             value={`${roi.toFixed(1)}%`}
-            loading={!hasLoadedOnce}
             tone={roi >= 0 ? "profit" : "loss"}
           />
-      </section>
+        </section>
+      )}
 
       {error ? (
           <ErrorState
@@ -340,31 +337,25 @@ export function InvestmentsPage() {
 function InvestmentStat({
   label,
   value,
-  loading,
   tone,
 }: {
   label: string;
   value: string;
-  loading: boolean;
   tone?: "profit" | "loss";
 }) {
   return (
     <Card className="min-h-[116px] shadow-sm">
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground">{label}</p>
-        {loading ? (
-          <Skeleton className="h-7 w-24" />
-        ) : (
-          <p
-            className={cn(
-              "text-lg font-semibold tracking-tight",
-              tone === "profit" && "text-emerald-500",
-              tone === "loss" && "text-red-500"
-            )}
-          >
-            {value}
-          </p>
-        )}
+        <p
+          className={cn(
+            "text-lg font-semibold tracking-tight",
+            tone === "profit" && "text-emerald-500",
+            tone === "loss" && "text-red-500"
+          )}
+        >
+          {value}
+        </p>
       </CardContent>
     </Card>
   );

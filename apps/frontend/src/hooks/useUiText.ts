@@ -1,4 +1,5 @@
-import { uiText, type LocaleText } from "@/locales";
+import { useSyncExternalStore } from "react";
+import { getUiText, type LocaleText } from "@/locales";
 import { useLanguageStore } from "@/stores/language.store";
 
 /**
@@ -10,6 +11,10 @@ import { useLanguageStore } from "@/stores/language.store";
  * `setUiTextLanguage()` swaps.
  */
 export function useUiText(): LocaleText {
-  useLanguageStore((state) => state.language);
-  return uiText;
+  const language = useSyncExternalStore(
+    useLanguageStore.subscribe,
+    () => useLanguageStore.getState().language,
+    () => "id",
+  );
+  return getUiText(language);
 }

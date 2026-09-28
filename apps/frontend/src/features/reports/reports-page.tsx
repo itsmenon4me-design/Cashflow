@@ -13,7 +13,6 @@ import { TransactionSummaryCard } from "@/components/reports/transaction-summary
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { DataLoadingState } from "@/components/states/DataLoadingState";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
 import { computeRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
@@ -88,8 +87,6 @@ export function ReportsPage() {
     let cancelled = false;
 
     const run = async () => {
-      await Promise.resolve();
-      if (cancelled) return;
       setLoading(true);
       setError(false);
 
@@ -270,13 +267,7 @@ export function ReportsPage() {
         )}
       </div>
 
-      {loading ? (
-        <DataLoadingState
-          title={uiText.reports.emptyTitle}
-          description={uiText.reports.emptySubtitle}
-          icon={<ArrowUpRight className="size-8 text-muted-foreground" aria-hidden="true" />}
-        />
-      ) : error ? (
+      {loading ? null : error ? (
         <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} />
       ) : isEmpty ? (
         <EmptyState

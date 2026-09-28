@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { ErrorService } from '../../../common/errors/error.service';
 import { NotificationEntity } from '../entities/notification.entity';
@@ -6,6 +6,7 @@ import { toNotificationResponse } from '../mappers/notification.mapper';
 import { NotificationQueryDto } from '../dto/notification-query.dto';
 import { NotificationResponseDto } from '../dto/notification-response.dto';
 import { PrismaNotificationsRepository } from '../repositories/prisma-notifications.repository';
+import { PushNotificationsService } from './push-notifications.service';
 
 export interface NotificationListResultDto {
   data: NotificationResponseDto[];
@@ -21,7 +22,12 @@ export interface NotificationListResultDto {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly repository: PrismaNotificationsRepository) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private readonly repository: PrismaNotificationsRepository,
+    private readonly pushNotifications: PushNotificationsService,
+  ) {}
 
   async list(
     userId: string,
@@ -91,13 +97,26 @@ export class NotificationsService {
     message: string,
     metadata?: unknown,
   ): Promise<NotificationEntity> {
-    return this.repository.create({
+    const notification = await this.repository.create({
       user_id: userId,
       type,
       title,
       message,
       metadata,
     });
+    this.dispatchPush(notification);
+    return notification;
+  }
+
+  private dispatchPush(notification: NotificationEntity): void {
+    void this.pushNotifications
+      .sendForNotification(notification)
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Failed to dispatch Web Push for notification ${notification.id}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
   }
 
   /**

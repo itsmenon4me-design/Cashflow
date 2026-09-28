@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { getSafeReturnPath, TransactionsPage } from "./transactions-page";
 import { transactionService } from "@/services/transaction.service";
 import { categoryService } from "@/services/category.service";
 import { uiText } from "@/locales";
 import { ApiTimeoutError } from "@/lib/axios";
+import { toInputDate } from "@/lib/date";
 
 const searchParamsMock = vi.hoisted(() => ({ value: new URLSearchParams() }));
 
@@ -70,23 +71,63 @@ describe("TransactionsPage", () => {
     { page: "income", transactionType: "income" as const },
     { page: "expense", transactionType: "expense" as const },
     { page: "history", transactionType: undefined },
-  ])("keeps native date controls visible on the $page page", async ({ transactionType }) => {
+  ])("defaults both date filters to today on the $page page", async ({ transactionType }) => {
     vi.spyOn(categoryService, "list").mockResolvedValue([]);
-    vi.spyOn(transactionService, "list").mockResolvedValue({
+    const listSpy = vi.spyOn(transactionService, "list").mockResolvedValue({
       data: [],
       pagination: { totalItems: 0, totalPages: 0, page: 1 },
     } as any);
 
     const { container } = render(<TransactionsPage transactionType={transactionType} />);
+    const today = toInputDate(new Date());
 
     const dateFilters = container.querySelectorAll('input[type="date"]');
     expect(dateFilters).toHaveLength(2);
     dateFilters.forEach((filter) => {
       expect(filter).not.toHaveClass("appearance-none");
-      expect(filter).toHaveClass("border-border", "bg-background");
-      expect(filter).toHaveClass("[&::-webkit-datetime-edit]:text-transparent");
+      expect(filter).toHaveClass("date-input-no-indicator");
+      expect(filter).toHaveValue(today);
+      expect(filter.parentElement).toHaveClass(
+        "justify-center",
+        "border-border",
+        "bg-input/30",
+        "text-foreground",
+      );
+      expect(filter.parentElement?.querySelector("span")).toHaveClass(
+        "w-full",
+        "text-center",
+      );
     });
-    expect(screen.getAllByText(uiText.transactions.selectDate)).toHaveLength(2);
+    expect(screen.queryByText(uiText.transactions.selectDate)).not.toBeInTheDocument();
+    const [year, month, day] = today.split("-");
+    expect(screen.getAllByText(`${day}/${month}/${year}`, { exact: true })).toHaveLength(2);
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({
+        fromDate: today,
+        toDate: today,
+      }));
+    });
+  });
+
+  it("resets the date range to today", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      data: [],
+      pagination: { totalItems: 0, totalPages: 0, page: 1 },
+    } as any);
+    render(<TransactionsPage />);
+
+    fireEvent.change(screen.getByLabelText(uiText.transactions.fromDate), {
+      target: { value: "2020-01-01" },
+    });
+    fireEvent.change(screen.getByLabelText(uiText.transactions.toDate), {
+      target: { value: "2020-01-31" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: uiText.transactions.resetFilters }));
+
+    const today = toInputDate(new Date());
+    expect(screen.getByLabelText(uiText.transactions.fromDate)).toHaveValue(today);
+    expect(screen.getByLabelText(uiText.transactions.toDate)).toHaveValue(today);
   });
 
   it("keeps desktop filters compact and lets them wrap by available width", async () => {
@@ -117,7 +158,7 @@ describe("TransactionsPage", () => {
     ).toHaveClass("max-w-40");
   });
 
-  it("shows a loading skeleton instead of an empty-state message before transactions load", async () => {
+  it("shows no placeholder before transactions load, then renders the data", async () => {
     let resolveTransactions!: (
       result: Awaited<ReturnType<typeof transactionService.list>>,
     ) => void;
@@ -130,9 +171,8 @@ describe("TransactionsPage", () => {
 
     render(<TransactionsPage transactionType="income" />);
 
-    const loadingState = screen.getByRole("status", { name: uiText.common.loading });
-    expect(loadingState).toBeInTheDocument();
-    expect(loadingState).toHaveClass("min-h-[360px]", "bg-card");
+    expect(screen.queryByRole("status", { name: uiText.common.loading })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="table"]')).not.toBeInTheDocument();
     expect(
       screen.queryByText(uiText.transactions.count.replace("{count}", "0")),
     ).not.toBeInTheDocument();

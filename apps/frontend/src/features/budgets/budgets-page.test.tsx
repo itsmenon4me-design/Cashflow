@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { BudgetsPage } from "./budgets-page";
 import { budgetService } from "@/services/budget.service";
 import { categoryService } from "@/services/category.service";
@@ -80,5 +80,25 @@ describe("BudgetsPage period from search params", () => {
     const now = new Date();
     expect(analysisSpy.mock.calls[0][0]).toBe(now.getMonth() + 1);
     expect(analysisSpy.mock.calls[0][1]).toBe(now.getFullYear());
+  });
+
+  it("does not render placeholder stat cards while budgets are initially loading", async () => {
+    let resolveBudgets!: (budgets: Awaited<ReturnType<typeof budgetService.list>>) => void;
+    const pendingBudgets = new Promise<Awaited<ReturnType<typeof budgetService.list>>>(
+      (resolve) => {
+        resolveBudgets = resolve;
+      },
+    );
+
+    vi.spyOn(budgetService, "list").mockReturnValue(pendingBudgets);
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(budgetService, "analysis").mockResolvedValue(analysisResponse(1, 2026));
+
+    render(<BudgetsPage />);
+
+    expect(screen.queryByText("Total Anggaran")).not.toBeInTheDocument();
+
+    resolveBudgets([]);
+    expect(await screen.findByText("Total Anggaran")).toBeInTheDocument();
   });
 });

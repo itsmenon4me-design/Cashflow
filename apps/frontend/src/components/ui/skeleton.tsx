@@ -1,14 +1,8 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import type { ComponentProps } from "react";
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn("pointer-events-none rounded-md bg-muted", className)}
-      {...props}
-    />
-  );
+function Skeleton(props: ComponentProps<"div">) {
+  void props;
+  return null;
 }
 
 export { Skeleton }

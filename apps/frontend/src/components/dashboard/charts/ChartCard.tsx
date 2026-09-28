@@ -12,6 +12,7 @@ interface ChartCardProps {
   empty?: boolean;
   contentClassName?: string;
   className?: string;
+  stretch?: boolean;
   children: ReactNode;
 }
 
@@ -23,12 +24,13 @@ export function ChartCard({
   empty = false,
   contentClassName,
   className,
+  stretch = false,
   children,
 }: ChartCardProps) {
   const showEmpty = !loading && empty;
 
   return (
-    <Card className={cn("shadow-sm", className)}>
+    <Card className={cn("shadow-sm", stretch && "flex h-full flex-col", className)}>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>{title}</CardTitle>
@@ -36,14 +38,16 @@ export function ChartCard({
         </div>
         {actions}
       </CardHeader>
-      <CardContent>
+      <CardContent className={stretch ? "flex flex-1 flex-col" : undefined}>
         {/* overflow-hidden prevents transient SVG overshoot during
             ResponsiveContainer mount/resize (recharts measures parent
             asynchronously — without clip the SVG can leak outside the
             Card border for 1–2 frames on initial render and data swaps). */}
         <div
           className={cn(
-            "h-72 overflow-hidden rounded-lg bg-muted/20",
+            stretch
+              ? "h-auto min-h-72 flex-1 overflow-hidden rounded-lg bg-muted/20"
+              : "h-72 overflow-hidden rounded-lg bg-muted/20",
             contentClassName,
           )}
         >

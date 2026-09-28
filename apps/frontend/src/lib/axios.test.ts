@@ -49,6 +49,33 @@ describe("apiClient request timeout and refresh handling", () => {
     vi.restoreAllMocks();
   });
 
+  it("reuses a fresh GET response while the access token stays the same", async () => {
+    authState.accessTokenAgeMs = 0;
+    let responseNumber = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(jsonResponse(200, { responseNumber: ++responseNumber })),
+    );
+
+    await expect(apiClient.get("/uncached")).resolves.toEqual({ responseNumber: 1 });
+    await expect(apiClient.get("/uncached")).resolves.toEqual({ responseNumber: 1 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reuse cached GET data for a different access token", async () => {
+    authState.accessTokenAgeMs = 0;
+    let responseNumber = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(jsonResponse(200, { responseNumber: ++responseNumber })),
+    );
+
+    await expect(apiClient.get("/user-scoped")).resolves.toEqual({ responseNumber: 1 });
+    authState.accessToken = "another-user-access-token";
+    await expect(apiClient.get("/user-scoped")).resolves.toEqual({ responseNumber: 2 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("shares one refresh among simultaneous requests after an expired access token", async () => {
     let releaseRefresh!: (response: Response) => void;
     const refreshResponse = new Promise<Response>((resolve) => {

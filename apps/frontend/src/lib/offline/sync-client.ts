@@ -16,6 +16,7 @@ import { isoToInputDate } from "@/lib/date";
 import { toMajorUnits } from "@/lib/money";
 import type { TransactionItem } from "@/types/dashboard";
 import { useAuthStore } from "@/stores/auth.store";
+import { isDemoDataMode } from "@/lib/demo-api";
 
 const TRANSACTIONS_ENTITY = "transactions" as const;
 
@@ -74,6 +75,10 @@ export async function resolveServerId(tempId: string): Promise<string | undefine
 }
 
 async function executor(item: SyncQueueItem): Promise<void> {
+  if (isDemoDataMode()) {
+    throw new SyncError("transient", "Mode data dummy aktif. Antrean tetap lokal.");
+  }
+
   let createdServerId: string | undefined;
   try {
     switch (item.action) {
@@ -155,6 +160,11 @@ export interface TransactionMutationResult {
 export async function syncCreateTransaction(
   payload: CreateTransactionPayload,
 ): Promise<TransactionMutationResult> {
+  if (isDemoDataMode()) {
+    const created = await transactionService.create(payload);
+    return { queued: false, id: created.id };
+  }
+
   const tempId = makeTempId();
   const body = { ...payload, reference_number: tempId };
 
@@ -190,6 +200,11 @@ export async function syncUpdateTransaction(
   id: string,
   payload: UpdateTransactionPayload,
 ): Promise<TransactionMutationResult> {
+  if (isDemoDataMode()) {
+    await transactionService.update(id, payload);
+    return { queued: false };
+  }
+
   if (typeof window === "undefined" || !navigator.onLine) {
     await syncController.enqueue({
       entityType: "transaction",
@@ -221,6 +236,11 @@ export async function syncUpdateTransaction(
 export async function syncDeleteTransaction(
   id: string,
 ): Promise<TransactionMutationResult> {
+  if (isDemoDataMode()) {
+    await transactionService.remove(id);
+    return { queued: false };
+  }
+
   if (typeof window === "undefined" || !navigator.onLine) {
     await syncController.enqueue({
       entityType: "transaction",

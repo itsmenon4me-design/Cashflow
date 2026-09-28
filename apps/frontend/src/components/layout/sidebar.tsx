@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { cn } from "@/lib/utils";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 
 interface SidebarProps {
   initialExpanded: Partial<Record<"transactions" | "planning" | "reports" | "system", boolean>>;
@@ -16,6 +16,7 @@ interface SidebarProps {
 const COLLAPSED_COOKIE = "cashflow_sidebar_collapsed";
 
 export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed }: SidebarProps) {
+  const text = useUiText();
   const [collapsed, setCollapsed] = useState(() => initialCollapsed);
   const toggleCollapsed = () => {
     setCollapsed((current) => {
@@ -44,7 +45,7 @@ export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-sidebar-foreground">CashFlow</p>
-            <p className="truncate text-xs text-muted-foreground">{uiText.common.dashboardSubtitle}</p>
+            <p className="truncate text-xs text-muted-foreground">{text.common.dashboardSubtitle}</p>
           </div>
         )}
       </div>
@@ -58,11 +59,11 @@ export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed
           variant="ghost"
           size={collapsed ? "icon" : "default"}
           onClick={toggleCollapsed}
-          aria-label={uiText.common.collapseMenu}
+          aria-label={text.common.collapseMenu}
           className={cn("text-muted-foreground hover:text-foreground", collapsed ? "mx-auto flex" : "w-full justify-start gap-2")}
         >
           {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          {!collapsed && <span>{uiText.common.collapseMenu}</span>}
+          {!collapsed && <span>{text.common.collapseMenu}</span>}
         </Button>
       </div>
     </aside>

@@ -1,7 +1,11 @@
 "use client";
 
-import { CategoryCard, CategoryRowActions } from "@/components/categories/CategoryCard";
-import { Badge } from "@/components/ui/badge";
+import {
+  CategoryCard,
+  CategoryRowActions,
+  CategoryStatusBadge,
+  CategoryTypeBadge,
+} from "@/components/categories/CategoryCard";
 import {
   Table,
   TableBody,
@@ -12,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { categoryIconInfo } from "@/features/categories/constants";
 import { categoryLabel } from "@/lib/categories";
-import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { CategoryItem } from "@/services/category.service";
 
@@ -31,15 +34,14 @@ export function CategoryTable({
 }: CategoryTableProps) {
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden xl:block">
         <div className="overflow-x-auto rounded-xl border border-border">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>{uiText.categories.fieldName}</TableHead>
-                <TableHead className="hidden sm:table-cell">
-                  {uiText.categories.fieldDescription}
-                </TableHead>
+                <TableHead>{uiText.categories.fieldType}</TableHead>
+                <TableHead>{uiText.categories.fieldDescription}</TableHead>
                 <TableHead>{uiText.table.status}</TableHead>
                 <TableHead className="text-right">{uiText.common.actionLabel}</TableHead>
               </TableRow>
@@ -63,22 +65,17 @@ export function CategoryTable({
                         </span>
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate font-medium">{categoryLabel(category.name)}</span>
-                          <span className="text-xs text-muted-foreground">{category.type}</span>
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="hidden max-w-64 truncate text-muted-foreground sm:table-cell">
-                      {category.description ?? "-"}
+                    <TableCell>
+                      <CategoryTypeBadge type={category.type} />
+                    </TableCell>
+                    <TableCell className="max-w-64 truncate text-muted-foreground">
+                      {category.description || "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={category.isActive ? "success" : "neutral"}
-                        className={cn("rounded-lg")}
-                      >
-                        {category.isActive
-                          ? uiText.categories.active
-                          : uiText.categories.inactive}
-                      </Badge>
+                      <CategoryStatusBadge isActive={category.isActive} />
                     </TableCell>
                     <TableCell className="text-right">
                       <CategoryRowActions
@@ -97,7 +94,7 @@ export function CategoryTable({
         </div>
       </div>
 
-      <div className="grid gap-4 md:hidden">
+      <div className="grid gap-4 xl:hidden">
         {categories.map((category) => (
           <CategoryCard
             key={category.id}

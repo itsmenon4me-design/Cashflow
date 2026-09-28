@@ -18,7 +18,6 @@ import {
 import { useNotificationStore } from "@/stores/notification.store";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
-import { NotificationListSkeleton } from "@/components/notifications/notification-list-skeleton";
 
 export function NotificationCard() {
   const { unreadCount, recent, initialized, loading, error, fetch, markRead } = useNotificationStore();
@@ -46,7 +45,7 @@ export function NotificationCard() {
       </CardHeader>
       <CardContent className="p-5 pt-0 space-y-3">
         {loading ? (
-          <NotificationListSkeleton rows={3} />
+          null
         ) : error ? (
           <ErrorState
             title={uiText.states.errorTitle}

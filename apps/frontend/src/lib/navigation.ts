@@ -3,7 +3,6 @@ import {
   ArrowUpFromLine,
   BarChart3,
   Bell,
-  CreditCard,
   FileText,
   Folder,
   Home,
@@ -17,7 +16,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { uiText } from "@/locales";
+import { uiText, type LocaleText } from "@/locales";
 
 export interface AppMenuItem {
   label: string;
@@ -31,94 +30,94 @@ export interface AppMenuItem {
  * Single source of truth for the app's page navigation: consumed by the
  * sidebar and by the global search quick-nav (Menu group).
  */
-export function getAppMenuItems(): AppMenuItem[] {
+export function getAppMenuItems(text: LocaleText = uiText): AppMenuItem[] {
   return [
     {
-      label: uiText.navigation.dashboard,
+      label: text.navigation.dashboard,
       href: "/dashboard",
       icon: Home,
       aliases: ["home", "ringkasan", "summary", "beranda", "dashboard"],
     },
     {
-      label: uiText.navigation.income,
+      label: text.navigation.income,
       href: "/incomes",
       icon: ArrowDownToLine,
       aliases: ["income", "pemasukan", "pendapatan", "incomes"],
     },
     {
-      label: uiText.navigation.expense,
+      label: text.navigation.expense,
       href: "/expenses",
       icon: ArrowUpFromLine,
       aliases: ["expense", "pengeluaran", "biaya", "expenses"],
     },
     {
-      label: uiText.navigation.transactions,
+      label: text.navigation.transactions,
       href: "/transactions",
       icon: ReceiptText,
       aliases: ["transaction", "transaksi", "mutasi", "transactions"],
     },
     {
-      label: uiText.navigation.categories,
+      label: text.navigation.categories,
       href: "/categories",
       icon: Folder,
       aliases: ["category", "kategori", "categories"],
     },
     {
-      label: uiText.navigation.budgets,
+      label: text.navigation.budgets,
       href: "/budgets",
       icon: PieChart,
       aliases: ["budget", "anggaran", "budgets"],
     },
     {
-      label: uiText.navigation.goals,
+      label: text.navigation.goals,
       href: "/goals",
       icon: Target,
       aliases: ["goal", "target tabungan", "tabungan", "saving", "goals", "target"],
     },
     {
-      label: uiText.navigation.investments,
+      label: text.navigation.investments,
       href: "/investments",
       icon: TrendingUp,
       aliases: ["investment", "investasi", "investments"],
     },
     {
-      label: uiText.navigation.forecast,
+      label: text.navigation.forecast,
       href: "/forecast",
       icon: Sparkles,
       aliases: ["forecast", "perkiraan", "proyeksi", "prediksi"],
     },
     {
-      label: uiText.navigation.reports,
+      label: text.navigation.reports,
       href: "/reports",
       icon: FileText,
       aliases: ["report", "laporan", "reports"],
     },
     {
-      label: uiText.navigation.analytics,
+      label: text.navigation.analytics,
       href: "/analytics",
       icon: BarChart3,
       aliases: ["analytic", "analitik", "analisis", "statistik"],
     },
     {
-      label: uiText.navigation.notifications,
+      label: text.navigation.notifications,
       href: "/notifications",
       icon: Bell,
       aliases: ["notification", "notifikasi", "pemberitahuan"],
     },
     {
-      label: "Log Aktivitas",
+      label: text.navigation.auditLog,
       href: "/log-aktivitas",
       icon: ShieldCheck,
       aliases: ["audit", "audit log", "log", "riwayat aktivitas"],
     },
     {
-      label: uiText.navigation.settings,
+      label: text.navigation.settings,
       href: "/settings",
       icon: Settings,
       aliases: ["setting", "pengaturan", "settings", "konfigurasi"],
     },
     {
-      label: uiText.navigation.profile,
+      label: text.navigation.profile,
       href: "/profile",
       icon: UserRound,
       aliases: ["profile", "profil", "akun saya", "user"],
@@ -130,10 +129,14 @@ export function getAppMenuItems(): AppMenuItem[] {
  * Case-insensitive quick-nav matching: a menu matches when the query is a
  * substring of its label, one of its aliases, or its route path.
  */
-export function matchAppMenuItems(query: string, limit = 6): AppMenuItem[] {
+export function matchAppMenuItems(
+  query: string,
+  limit = 6,
+  text: LocaleText = uiText,
+): AppMenuItem[] {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return [];
-  const items = getAppMenuItems();
+  const items = getAppMenuItems(text);
   const starts: AppMenuItem[] = [];
   const contains: AppMenuItem[] = [];
   for (const item of items) {

@@ -1,5 +1,6 @@
 import { PrismaService } from '../../database/prisma.service';
 import { TransactionType } from '../../generated/prisma/client';
+import { assertIsolatedTestDatabase } from '../../test-utils/assert-isolated-test-database';
 import { BudgetAnalyticsService } from './services/budget-analytics.service';
 import { CashflowTrendService } from './services/cashflow-trend.service';
 import { CategoryBreakdownService } from './services/category-breakdown.service';
@@ -16,7 +17,7 @@ describe('Reports integration - currency isolation (DB-level)', () => {
   let cashflowTrend: CashflowTrendService | null = null;
   let budgetAnalytics: BudgetAnalyticsService | null = null;
   let insights: FinancialInsightsService | null = null;
-  let userId: string;
+  let userId: string | undefined;
   let usdCategoryId: string;
   let usdIncomeCategoryId: string;
   let idrCategoryId: string;
@@ -29,6 +30,7 @@ describe('Reports integration - currency isolation (DB-level)', () => {
       return;
     }
 
+    assertIsolatedTestDatabase(dbUrl);
     prisma = new PrismaService();
     await prisma.$connect();
 
@@ -181,11 +183,13 @@ describe('Reports integration - currency isolation (DB-level)', () => {
     if (!hasDatabase || !prisma) return;
 
     try {
-      await prisma.budget.deleteMany({ where: { user_id: userId } });
-      await prisma.transaction.deleteMany({ where: { user_id: userId } });
-      await prisma.category.deleteMany({ where: { user_id: userId } });
-      await prisma.account.deleteMany({ where: { user_id: userId } });
-      await prisma.user.delete({ where: { id: userId } });
+      if (userId) {
+        await prisma.budget.deleteMany({ where: { user_id: userId } });
+        await prisma.transaction.deleteMany({ where: { user_id: userId } });
+        await prisma.category.deleteMany({ where: { user_id: userId } });
+        await prisma.account.deleteMany({ where: { user_id: userId } });
+        await prisma.user.delete({ where: { id: userId } });
+      }
     } catch (err) {
       console.warn('Reports cleanup failed', err);
     } finally {

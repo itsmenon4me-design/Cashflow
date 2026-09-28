@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Cloud, CloudOff, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { uiText } from "@/locales";
+import { useUiText } from "@/hooks/useUiText";
 import { useSyncStore, type SyncUiStatus } from "@/stores/sync.store";
 import { syncController } from "@/lib/offline/sync-client";
 
@@ -32,6 +32,7 @@ export function SyncStatusIndicator({
   className?: string;
   showLabel?: boolean;
 }) {
+  const uiText = useUiText();
   const status = useSyncStore((state) => state.status);
   const online = useSyncStore((state) => state.online);
   const pendingCount = useSyncStore((state) => state.pendingCount);

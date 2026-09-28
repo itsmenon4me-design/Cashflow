@@ -68,6 +68,7 @@ export const CATEGORY_SORT_OPTIONS: { value: CategorySortKey; label: string }[] 
 export const EMPTY_FILTERS: CategoryFiltersState = {
   search: "",
   sort: "name_asc",
+  type: "all",
 };
 
 export const EMPTY_FORM_VALUES: CategoryFormValues = {

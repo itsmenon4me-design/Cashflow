@@ -6,6 +6,7 @@ import type {
 import { PrismaNotificationsRepository } from '../repositories/prisma-notifications.repository';
 import { NotificationEntity } from '../entities/notification.entity';
 import { NotificationsService } from './notifications.service';
+import { PushNotificationsService } from './push-notifications.service';
 
 const makeMockRepository = () => {
   return {
@@ -57,6 +58,9 @@ describe('NotificationsService.createIfNotExists', () => {
 
     const service = new NotificationsService(
       repository as unknown as PrismaNotificationsRepository,
+      {
+        sendForNotification: jest.fn().mockResolvedValue(undefined),
+      } as unknown as PushNotificationsService,
     );
 
     const results = await Promise.all([

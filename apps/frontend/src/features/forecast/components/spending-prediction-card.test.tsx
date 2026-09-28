@@ -226,7 +226,7 @@ describe("SpendingPredictionCard", () => {
     expect(screen.getAllByText((_, element) => (element?.textContent ?? "").includes(formatCurrencyCents("123", currency))).length).toBeGreaterThan(0);
   });
 
-  it("shows a skeleton while loading and never a partial prediction", () => {
+  it("shows no placeholder while loading and never a partial prediction", () => {
     render(
       <SpendingPredictionCard
         data={null}
@@ -254,7 +254,7 @@ describe("SpendingPredictionCard", () => {
       />,
     );
 
-    expect(screen.getByText(locales.id.forecast.spendingTitle)).toBeInTheDocument();
+    expect(screen.queryByText(locales.id.forecast.spendingTitle)).not.toBeInTheDocument();
     expect(screen.queryByText(locales.id.forecast.spendingTotalLabel)).not.toBeInTheDocument();
   });
 

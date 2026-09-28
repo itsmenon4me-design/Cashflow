@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { OfflineBanner } from "@/components/layout/offline-banner";
@@ -24,17 +24,16 @@ export function AppProviders({ children }: AppProvidersProps) {
   const router = useRouter();
   const [oauthWelcome, setOauthWelcome] = useState<string | null>(null);
 
+  useLayoutEffect(() => {
+    try {
+      useAuthStore.getState().hydrateFromStorage();
+    } catch (error) {
+      console.warn("[app-providers] auth hydration failed", error);
+      useAuthStore.setState({ hydrated: true, isAuthenticated: false, user: null });
+    }
+  }, []);
+
   useEffect(() => {
-    const hydrateAuth = () => {
-      try {
-        useAuthStore.getState().hydrateFromStorage();
-      } catch {
-        // ignore
-      }
-    };
-
-    hydrateAuth();
-
     const pendingWelcome = window.sessionStorage.getItem(
       "cashflow.oauth-welcome",
     );

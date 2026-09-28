@@ -19,14 +19,12 @@ export function TransactionToolbar({
 }: TransactionToolbarProps) {
   return (
     <div className="flex min-h-9 items-center justify-between gap-3">
-      {loading ? (
-        <span aria-hidden="true" className="h-4 w-20 rounded-md bg-muted" />
-      ) : typeof count === "number" ? (
+      {!loading && typeof count === "number" ? (
         <p className="text-sm text-muted-foreground">
           {uiText.transactions.count.replace("{count}", String(count))}
         </p>
       ) : null}
-      <div className="flex items-center justify-end gap-2">
+      <div className="ml-auto flex items-center justify-end gap-2">
         {showAdd && (
           <Button type="button" className="w-fit rounded-xl" onClick={onAdd}>
             <Plus />

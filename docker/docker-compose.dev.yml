@@ -20,6 +20,9 @@ services:
         NODE_ENV: development
     environment:
       NODE_ENV: development
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - ../apps/backend:/app/apps/backend:cached
       - ./backend/entrypoint.sh:/app/entrypoint.sh:ro
@@ -41,6 +44,7 @@ services:
         NODE_ENV: development
     environment:
       NODE_ENV: development
+      NEXT_PUBLIC_DEMO_DATA_MODE: ${NEXT_PUBLIC_DEMO_DATA_MODE:-false}
     volumes:
       - ../apps/frontend:/app/apps/frontend:cached
       - /app/node_modules
