@@ -68,6 +68,20 @@ export function MobileNav() {
                 href={item.href}
                 prefetch
                 aria-current={isActive ? "page" : undefined}
+                onPointerDown={() => {
+                  if (!isCurrentPath) {
+                    window.dispatchEvent(
+                      new CustomEvent("cashflow:navigate", { detail: itemPath }),
+                    );
+                  }
+                }}
+                onClick={(event) => {
+                  if (event.detail === 0 && !isCurrentPath) {
+                    window.dispatchEvent(
+                      new CustomEvent("cashflow:navigate", { detail: itemPath }),
+                    );
+                  }
+                }}
                 onMouseEnter={() => warmRouteData(item.href)}
                 onFocus={() => warmRouteData(item.href)}
                 onTouchStart={() => warmRouteData(item.href)}

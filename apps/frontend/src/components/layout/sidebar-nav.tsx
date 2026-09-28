@@ -145,7 +145,19 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, onNaviga
       <Link
       key={item.href}
       href={item.href}
-      onClick={() => {
+      onPointerDown={() => {
+        if (item.href !== pathname) {
+          window.dispatchEvent(
+            new CustomEvent("cashflow:navigate", { detail: item.href }),
+          );
+        }
+      }}
+      onClick={(event) => {
+        if (event.detail === 0 && item.href !== pathname) {
+          window.dispatchEvent(
+            new CustomEvent("cashflow:navigate", { detail: item.href }),
+          );
+        }
         if (collapsed) {
           setTooltipsSuppressed(true);
           window.clearTimeout(tooltipResetTimer.current);
