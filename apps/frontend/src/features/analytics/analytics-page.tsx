@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, PieChart, ReceiptText } from "lucide-react";
 import { FinancialHealthCard } from "@/components/analytics/financial-health-card";
@@ -16,6 +16,8 @@ import { LazyBudgetVsExpenseChartCard as BudgetVsExpenseChartCard } from "@/comp
 import { ErrorState } from "@/components/states/ErrorState";
 import {
   computeRange,
+  dateInputRange,
+  normalizeTimezone,
   PERIOD_KEYS,
   pickTrendType,
   type PeriodKey,
@@ -32,24 +34,47 @@ import {
   type AnalyticsTypeResult,
 } from "@/services/analytics.service";
 import { fromCents } from "@/services/report.service";
+import { settingsService } from "@/services/settings.service";
 import type { FlowPoint } from "@/types/dashboard";
 
-function toDateInputValue(iso: string): string {
+function toDateInputValue(iso: string, timeZone: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
+  const parts: Record<string, string> = {};
+  for (const part of new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date)) {
+    if (part.type !== "literal") parts[part.type] = part.value;
+  }
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function formatChange(value: number | null): { text: string; positive: boolean } | null {
-  if (value === null) return null;
+function formatChange(
+  value: number | null,
+  current: number,
+): { text: string; positive: boolean } {
+  if (value === null) {
+    return current > 0
+      ? { text: uiText.reports.newComparison, positive: true }
+      : { text: uiText.reports.unavailableComparison, positive: false };
+  }
   const sign = value >= 0 ? "+" : "−";
   return { text: `${sign}${Math.abs(value).toFixed(1)}%`, positive: value >= 0 };
 }
 
-function formatPoints(value: number | null): { text: string; positive: boolean } | null {
-  if (value === null) return null;
+function formatPoints(
+  value: number | null,
+  current: number,
+): { text: string; positive: boolean } {
+  if (value === null) {
+    return current > 0
+      ? { text: uiText.reports.newComparison, positive: true }
+      : { text: uiText.reports.unavailableComparison, positive: false };
+  }
   const sign = value >= 0 ? "+" : "−";
   return { text: `${sign}${Math.abs(value).toFixed(1)} pp`, positive: value >= 0 };
 }
@@ -67,8 +92,12 @@ export function AnalyticsPage() {
     new URLSearchParams(searchParams.toString()),
   );
   const [periodKey, setPeriodKey] = useState<PeriodKey>(initialPeriod ?? "thisMonth");
+  const periodKeyRef = useRef(periodKey);
+  periodKeyRef.current = periodKey;
+  const [timeZone, setTimeZone] = useState("Asia/Jakarta");
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [range, setRange] = useState<ReportRange>(() =>
-    computeRange(initialPeriod ?? "thisMonth"),
+    computeRange(initialPeriod ?? "thisMonth", new Date(), "Asia/Jakarta"),
   );
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -88,11 +117,12 @@ export function AnalyticsPage() {
 
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
+    periodKeyRef.current = key;
     if (key !== "custom") {
-      setRange(computeRange(key));
+      setRange(computeRange(key, new Date(), timeZone));
     } else {
-      setCustomStart(toDateInputValue(range.startDate));
-      setCustomEnd(toDateInputValue(range.endDate));
+      setCustomStart(toDateInputValue(range.startDate, timeZone));
+      setCustomEnd(toDateInputValue(range.endDate, timeZone));
     }
   };
 
@@ -102,25 +132,51 @@ export function AnalyticsPage() {
     if (next) {
       startTransition(() => {
         setPeriodKey(next);
-        setRange(computeRange(next));
+        periodKeyRef.current = next;
+        setRange(computeRange(next, new Date(), timeZone));
       });
     }
-  }, [searchParams]);
+  }, [searchParams, timeZone]);
 
   const applyCustom = () => {
     if (!customStart || !customEnd) return;
-    const start = new Date(customStart);
-    const end = new Date(customEnd);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-    if (start.getTime() > end.getTime()) return;
-    end.setHours(23, 59, 59, 999);
-    setRange({ startDate: start.toISOString(), endDate: end.toISOString() });
+    if (!dateInputRange(customStart, customEnd, timeZone)) return;
+    setRange({ startDate: customStart, endDate: customEnd });
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    setSettingsLoaded(false);
+    settingsService
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const nextTimeZone = normalizeTimezone(
+          settings.timezone || "Asia/Jakarta",
+        );
+        setTimeZone(nextTimeZone);
+        if (periodKeyRef.current !== "custom") {
+          setRange(
+            computeRange(periodKeyRef.current, new Date(), nextTimeZone),
+          );
+        }
+        setSettingsLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
+      if (!settingsLoaded) return;
       await Promise.resolve();
       if (cancelled) return;
       setLoading(true);
@@ -159,7 +215,7 @@ export function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range]);
+  }, [refreshKey, range, settingsLoaded]);
 
   const hasAnyData =
     (overview?.transactions ?? 0) > 0 ||
@@ -174,10 +230,22 @@ export function AnalyticsPage() {
   const savingRate = overview?.savingRate ?? 0;
   const txCount = overview?.transactions ?? 0;
 
-  const incomeChange = formatChange(overview?.comparison.income ?? null);
-  const expenseChange = formatChange(overview?.comparison.expense ?? null);
-  const netChange = formatChange(overview?.comparison.netCashFlow ?? null);
-  const savingChange = formatPoints(overview?.comparison.savingRate ?? null);
+  const incomeChange = formatChange(
+    overview?.comparison.income ?? null,
+    incomeValue,
+  );
+  const expenseChange = formatChange(
+    overview?.comparison.expense ?? null,
+    expenseValue,
+  );
+  const netChange = formatChange(
+    overview?.comparison.netCashFlow ?? null,
+    netValue,
+  );
+  const savingChange = formatPoints(
+    overview?.comparison.savingRate ?? null,
+    savingRate,
+  );
 
   const cashFlowData = useMemo<FlowPoint[]>(
     () =>

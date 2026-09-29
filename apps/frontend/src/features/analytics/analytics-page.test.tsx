@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AnalyticsPage } from "./analytics-page";
@@ -21,14 +21,33 @@ vi.mock("@/components/reports/report-period-filter", () => ({
     loading,
     refreshingLabel,
     onPeriodChange,
+    onCustomStartChange,
+    onCustomEndChange,
+    onApplyCustom,
   }: {
     loading: boolean;
     refreshingLabel?: string;
     onPeriodChange: (period: PeriodKey) => void;
+    onCustomStartChange: (value: string) => void;
+    onCustomEndChange: (value: string) => void;
+    onApplyCustom: () => void;
   }) => (
     <div>
       <button type="button" onClick={() => onPeriodChange("lastMonth")}>
         Ganti periode
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onPeriodChange("custom");
+          onCustomStartChange("2026-09-10");
+          onCustomEndChange("2026-09-20");
+        }}
+      >
+        Pilih rentang khusus
+      </button>
+      <button type="button" onClick={onApplyCustom}>
+        Terapkan rentang
       </button>
       {loading && refreshingLabel && (
         <p role="status" aria-live="polite">
@@ -50,13 +69,26 @@ vi.mock("@/components/analytics/spending-analysis-card", () => ({
 }));
 vi.mock("@/components/charts/lazy-charts", () => ({
   LazyCategoryBreakdownCard: () => null,
-  LazyBudgetVsExpenseChartCard: () => <div>Anggaran vs Pengeluaran per Kategori</div>,
+  LazyBudgetVsExpenseChartCard: () => (
+    <div>Anggaran vs Pengeluaran per Kategori</div>
+  ),
   LazyExpenseCategoryTrendCard: () => null,
   LazyIncomeExpenseChartCard: () => null,
 }));
 vi.mock("@/components/reports/summary-card", () => ({
-  SummaryCard: ({ label, value }: { label: string; value: string }) => (
-    <div data-testid={label}>{value}</div>
+  SummaryCard: ({
+    label,
+    value,
+    change,
+  }: {
+    label: string;
+    value: string;
+    change?: string;
+  }) => (
+    <div data-testid={label}>
+      {value}
+      {change && <span>{change}</span>}
+    </div>
   ),
 }));
 vi.mock("@/components/reports/top-categories-card", () => ({
@@ -72,6 +104,20 @@ vi.mock("@/lib/format", async (importOriginal) => {
 vi.mock("@/lib/categories", () => ({
   categoryLabel: (value: string) => value,
 }));
+vi.mock("@/services/settings.service", () => ({
+  settingsService: {
+    getSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Jakarta" }),
+  },
+}));
+
+import { settingsService } from "@/services/settings.service";
+import { computeRange } from "@/features/reports/period";
+
+beforeAll(() => {
+  console.log(
+    `timezone-test TZ=${process.env.TZ}; offset=${new Date().getTimezoneOffset()}`,
+  );
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -158,7 +204,9 @@ describe("AnalyticsPage", () => {
     mockSupportingData();
 
     render(<AnalyticsPage />);
-    expect(await screen.findByTestId("Total Pemasukan")).toHaveTextContent("10000");
+    expect(await screen.findByTestId("Total Pemasukan")).toHaveTextContent(
+      "10000",
+    );
     expect(
       screen.getByText("Anggaran vs Pengeluaran per Kategori"),
     ).toBeInTheDocument();
@@ -178,19 +226,29 @@ describe("AnalyticsPage", () => {
   });
 
   it("shows the empty state after a successful response with no data", async () => {
-    vi.spyOn(analyticsService, "getOverview").mockResolvedValue(overview("0", 0));
+    vi.spyOn(analyticsService, "getOverview").mockResolvedValue(
+      overview("0", 0),
+    );
     vi.spyOn(analyticsService, "getIncome").mockResolvedValue({
       ...typeResult,
       total: "0",
       transactionCount: 0,
     });
+
     vi.spyOn(analyticsService, "getExpenses").mockResolvedValue({
       ...typeResult,
       total: "0",
       transactionCount: 0,
     });
-    vi.spyOn(analyticsService, "getCashflow").mockResolvedValue({ ...cashflow, trend: [], surplusPeriods: 0 });
-    vi.spyOn(analyticsService, "getSpending").mockResolvedValue({ ...spending, totalTransactions: 0 });
+    vi.spyOn(analyticsService, "getCashflow").mockResolvedValue({
+      ...cashflow,
+      trend: [],
+      surplusPeriods: 0,
+    });
+    vi.spyOn(analyticsService, "getSpending").mockResolvedValue({
+      ...spending,
+      totalTransactions: 0,
+    });
     vi.spyOn(analyticsService, "getFinancialHealth").mockResolvedValue(health);
     vi.spyOn(analyticsService, "getInsights").mockResolvedValue([]);
 
@@ -201,12 +259,104 @@ describe("AnalyticsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows an error state when the analytics request fails", async () => {
-    vi.spyOn(analyticsService, "getOverview").mockRejectedValue(new Error("Request failed"));
+  it("renders nullable comparisons as localized new or unavailable labels", async () => {
+    vi.spyOn(analyticsService, "getOverview").mockResolvedValue({
+      ...overview("10000"),
+      comparison: {
+        income: null,
+        expense: null,
+        netCashFlow: null,
+        savingRate: null,
+      },
+    });
     mockSupportingData();
 
     render(<AnalyticsPage />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Terjadi kesalahan.");
+    expect(await screen.findAllByText("Baru")).toHaveLength(4);
+    cleanup();
+    vi.spyOn(analyticsService, "getOverview").mockResolvedValue({
+      ...overview("0"),
+      savingRate: 0,
+      comparison: {
+        income: null,
+        expense: null,
+        netCashFlow: null,
+        savingRate: null,
+      },
+    });
+    mockSupportingData();
+    render(<AnalyticsPage />);
+    await screen.findByTestId("Total Pemasukan");
+    expect(screen.getByTestId("Total Pemasukan")).toHaveTextContent("-");
+    expect(screen.getByTestId("Total Pengeluaran")).toHaveTextContent("Baru");
+    expect(screen.getByTestId("Arus Kas Bersih")).toHaveTextContent("Baru");
+    expect(screen.getByTestId("Saving Rate")).toHaveTextContent("-");
   });
+
+  it("shows an error state when the analytics request fails", async () => {
+    vi.spyOn(analyticsService, "getOverview").mockRejectedValue(
+      new Error("Request failed"),
+    );
+    mockSupportingData();
+
+    render(<AnalyticsPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Terjadi kesalahan.",
+    );
+  });
+
+  it.each(["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"])(
+    "sends the preset range for the saved %s timezone",
+    async (timeZone) => {
+      vi.mocked(settingsService.getSettings).mockResolvedValue({
+        timezone: timeZone,
+      } as Awaited<ReturnType<typeof settingsService.getSettings>>);
+      vi.spyOn(analyticsService, "getOverview").mockResolvedValue(
+        overview("10000"),
+      );
+      mockSupportingData();
+
+      render(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(analyticsService.getOverview).toHaveBeenCalledWith(
+          computeRange("thisMonth", new Date(), timeZone),
+        );
+      });
+    },
+  );
+
+  it.each(["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"])(
+    "sends custom dates as calendar dates for %s without browser-zone conversion",
+    async (timeZone) => {
+      const user = userEvent.setup();
+      vi.mocked(settingsService.getSettings).mockResolvedValue({
+        timezone: timeZone,
+      } as Awaited<ReturnType<typeof settingsService.getSettings>>);
+      vi.spyOn(analyticsService, "getOverview").mockResolvedValue(
+        overview("10000"),
+      );
+      mockSupportingData();
+
+      render(<AnalyticsPage />);
+      await waitFor(() =>
+        expect(analyticsService.getOverview).toHaveBeenCalled(),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Pilih rentang khusus" }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Terapkan rentang" }),
+      );
+
+      await waitFor(() => {
+        expect(analyticsService.getOverview).toHaveBeenLastCalledWith({
+          startDate: "2026-09-10",
+          endDate: "2026-09-20",
+        });
+      });
+    },
+  );
 });

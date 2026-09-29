@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Download, Loader2, ReceiptText } from "lucide-react";
 import { type CategorySlice } from "@/components/reports/category-breakdown-card";
 // recharts-based charts load via async chunks after first paint (low-CPU friendly)
@@ -14,39 +14,55 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
-import { computeRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
+import { computeRange, dateInputRange, normalizeTimezone, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
+import { settingsService } from "@/services/settings.service";
 import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
 import type { CategoryResponse } from "@/types/backend";
 import type { FlowPoint, TransactionItem } from "@/types/dashboard";
 
-function toDateInputValue(iso: string): string {
+function toDateInputValue(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
+  const parts: Record<string, string> = {};
+  for (const part of new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date)) {
+    if (part.type !== "literal") parts[part.type] = part.value;
+  }
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function pctChange(
   current: number,
   previous: number | null | undefined
 ): { text: string; positive: boolean } | null {
-  if (previous === null || previous === undefined || previous <= 0) {
-    return current > 0 ? { text: "baru", positive: true } : null;
+  if (previous === null || previous === undefined || previous === 0) {
+    return current > 0
+      ? { text: uiText.reports.newComparison, positive: true }
+      : { text: uiText.reports.unavailableComparison, positive: false };
   }
-  const diff = (current - previous) / previous * 100;
+  const diff = (current - previous) / Math.abs(previous) * 100;
   const sign = diff >= 0 ? "+" : "−";
   return { text: `${sign}${Math.abs(diff).toFixed(1)}%`, positive: diff >= 0 };
 }
 
 export function ReportsPage() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
-  const [range, setRange] = useState<ReportRange>(() => computeRange("thisMonth"));
+  const periodKeyRef = useRef(periodKey);
+  periodKeyRef.current = periodKey;
+  const [timeZone, setTimeZone] = useState("Asia/Jakarta");
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [range, setRange] = useState<ReportRange>(() =>
+    computeRange("thisMonth", new Date(), "Asia/Jakarta"),
+  );
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
@@ -66,24 +82,51 @@ export function ReportsPage() {
   const applyPeriod = (key: PeriodKey) => {
     setPeriodKey(key);
     if (key !== "custom") {
-      setRange(computeRange(key));
+      setRange(computeRange(key, new Date(), timeZone));
     } else {
-      setCustomStart(toDateInputValue(range.startDate));
-      setCustomEnd(toDateInputValue(range.endDate));
+      setCustomStart(toDateInputValue(range.startDate, timeZone));
+      setCustomEnd(toDateInputValue(range.endDate, timeZone));
     }
   };
 
   const applyCustom = () => {
     if (!customStart || !customEnd) return;
-    const start = new Date(customStart);
-    const end = new Date(customEnd);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-    if (start.getTime() > end.getTime()) return;
-    end.setHours(23, 59, 59, 999);
-    setRange({ startDate: start.toISOString(), endDate: end.toISOString() });
+    const nextRange = dateInputRange(customStart, customEnd, timeZone);
+    if (nextRange) setRange(nextRange);
   };
 
   useEffect(() => {
+    let cancelled = false;
+    setSettingsLoaded(false);
+    setError(false);
+    setLoading(true);
+    settingsService
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const nextTimeZone = normalizeTimezone(
+          settings.timezone || "Asia/Jakarta",
+        );
+        setTimeZone(nextTimeZone);
+        if (periodKeyRef.current !== "custom") {
+          setRange(
+            computeRange(periodKeyRef.current, new Date(), nextTimeZone),
+          );
+        }
+        setSettingsLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
     let cancelled = false;
 
     const run = async () => {
@@ -92,7 +135,7 @@ export function ReportsPage() {
 
       try {
         const trendType = pickTrendType(range);
-        const prev = previousRange(range);
+        const prev = previousRange(range, timeZone);
 
         const [summaryRes, incomeRes, expenseRes, trendRes, txRes, categories] =
           await Promise.all([
@@ -138,7 +181,7 @@ export function ReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range]);
+  }, [range, settingsLoaded, timeZone]);
 
   const hasAnyData = (summary?.summary.transactions ?? 0) > 0 || trend.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;

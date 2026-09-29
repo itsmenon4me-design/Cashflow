@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { computeRange } from "@/features/reports/period";
+import { reportService } from "@/services/report.service";
 import { ReportsPage } from "./reports-page";
 
 const { exportReportMock, downloadExportMock } = vi.hoisted(() => ({
@@ -34,6 +35,12 @@ vi.mock("@/services/category.service", () => ({
   categoryService: { list: vi.fn().mockResolvedValue([]) },
 }));
 
+vi.mock("@/services/settings.service", () => ({
+  settingsService: {
+    getSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Jakarta" }),
+  },
+}));
+
 vi.mock("@/services/transaction.service", () => ({
   toTransactionItem: vi.fn(),
   transactionService: { list: vi.fn().mockResolvedValue({ data: [] }) },
@@ -50,7 +57,7 @@ vi.mock("@/components/reports/report-period-filter", () => ({
 }));
 
 vi.mock("@/components/reports/summary-card", () => ({
-  SummaryCard: () => null,
+  SummaryCard: ({ change }: { change?: string }) => <span>{change}</span>,
 }));
 
 vi.mock("@/components/reports/top-categories-card", () => ({
@@ -68,6 +75,13 @@ vi.mock("@/components/reports/category-breakdown-card", () => ({
 describe("ReportsPage export actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(reportService.getSummary).mockResolvedValue({
+      month: 8,
+      year: 2026,
+      summary: { income: "0", expense: "0", netCashFlow: "0", transactions: 0 },
+      topExpenseCategories: [],
+      topIncomeCategories: [],
+    });
     exportReportMock.mockResolvedValue({
       filename: "report.xlsx",
       contentType:
@@ -79,6 +93,73 @@ describe("ReportsPage export actions", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("does not label a negative previous net cashflow as new", async () => {
+    vi.mocked(reportService.getSummary)
+      .mockResolvedValueOnce({
+        month: 9,
+        year: 2026,
+        summary: {
+          income: "1500",
+          expense: "500",
+          netCashFlow: "1000",
+          transactions: 5,
+        },
+        topExpenseCategories: [],
+        topIncomeCategories: [],
+      })
+      .mockResolvedValueOnce({
+        month: 8,
+        year: 2026,
+        summary: {
+          income: "1000",
+          expense: "1500",
+          netCashFlow: "-500",
+          transactions: 2,
+        },
+        topExpenseCategories: [],
+        topIncomeCategories: [],
+      });
+
+    render(<ReportsPage />);
+
+    expect(await screen.findByText("+300.0%")).toBeInTheDocument();
+    expect(screen.queryByText("baru")).not.toBeInTheDocument();
+  });
+
+  it("labels a positive current value as new and a zero value as unavailable", async () => {
+    vi.mocked(reportService.getSummary)
+      .mockResolvedValueOnce({
+        month: 9,
+        year: 2026,
+        summary: {
+          income: "100",
+          expense: "0",
+          netCashFlow: "100",
+          transactions: 1,
+        },
+        topExpenseCategories: [],
+        topIncomeCategories: [],
+      })
+      .mockResolvedValueOnce({
+        month: 8,
+        year: 2026,
+        summary: {
+          income: "0",
+          expense: "0",
+          netCashFlow: "0",
+          transactions: 0,
+        },
+        topExpenseCategories: [],
+        topIncomeCategories: [],
+      });
+
+    render(<ReportsPage />);
+
+    expect(await screen.findAllByText("Baru")).toHaveLength(3);
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/NaN|null|0\.0%/)).not.toBeInTheDocument();
   });
 
   it("offers one XLSX download for the selected report range", async () => {
