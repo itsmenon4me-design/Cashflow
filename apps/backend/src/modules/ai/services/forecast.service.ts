@@ -8,6 +8,9 @@ import {
 } from '../dto/forecast-query.dto';
 import { ForecastEngine } from '../engines/forecast.engine';
 import { FIXED_CURRENCY } from '../../../common/currencies';
+import { toMinorUnitsExact } from '../../../common/types/money';
+import { DateHelper } from '../../../common/utils/date.util';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 export interface ForecastOptions {
   horizon?: number;
@@ -34,9 +37,13 @@ export class ForecastService {
         )
       : DEFAULT_FORECAST_HORIZON;
 
-    const timezone = await this.resolveTimeZone(userId);
+    const timezone = await resolveUserTimezone(this.prisma, userId);
     const now = this.clock();
     const window = this.engine.buildHistoryWindow(now, timezone, options);
+    const balanceCutoff = DateHelper.startOfNextMonthInTimezone(
+      now,
+      timezone,
+    );
 
     const recs =
       window.months.length === 0
@@ -65,35 +72,40 @@ export class ForecastService {
       horizon,
       now,
       timezone,
-       loadCurrentBalance: async () => 0n,
-
+      loadCurrentBalance: () => this.loadCurrentBalance(userId, balanceCutoff),
     });
     return { ...result, currency: FIXED_CURRENCY };
   }
 
-  private async resolveTimeZone(userId: string): Promise<string> {
-    const settings = await this.prisma.userSettings.findUnique({
-      where: { user_id: userId },
-      select: { timezone: true },
-    });
-    const candidates = [
-      settings?.timezone,
-      process.env.APP_DEFAULT_TIMEZONE,
-      'UTC',
-    ].filter((v): v is string => typeof v === 'string' && v.length > 0);
-    for (const tz of candidates) {
-      if (this.isValidTimeZone(tz)) return tz;
-    }
-    return 'UTC';
-  }
+  private async loadCurrentBalance(
+    userId: string,
+    beforeDate: Date,
+  ): Promise<bigint> {
+    const [income, expense] = await Promise.all([
+      this.prisma.transaction.aggregate({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+          transaction_type: TransactionType.INCOME,
+          transaction_date: { lt: beforeDate },
+        },
+        _sum: { amount_cents: true },
+      }),
+      this.prisma.transaction.aggregate({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+          transaction_type: TransactionType.EXPENSE,
+          transaction_date: { lt: beforeDate },
+        },
+        _sum: { amount_cents: true },
+      }),
+    ]);
 
-  private isValidTimeZone(tz: string): boolean {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
+    return (
+      toMinorUnitsExact(income._sum?.amount_cents) -
+      toMinorUnitsExact(expense._sum?.amount_cents)
+    );
   }
 
 }
