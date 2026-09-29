@@ -73,10 +73,11 @@ describe('AnalyticsController (security)', () => {
 
     expect(analyticsServiceMock.getAnalytics).toHaveBeenCalled();
     const [userId, start, end] = analyticsServiceMock.getAnalytics.mock
-      .calls[0] as [string, Date, Date];
+      .calls[0] as [string, string, string];
     expect(userId).toBe('user-auth');
-    expect(start).toBeInstanceOf(Date);
-    expect(end).toBeInstanceOf(Date);
+    // The dashboard service owns timezone-aware conversion of date-only strings.
+    expect(start).toBe('2026-08-01');
+    expect(end).toBe('2026-08-31');
   });
 
   it('getAnalytics: identity comes from AuthUser context, not arbitrary request data', async () => {

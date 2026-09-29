@@ -39,7 +39,12 @@ describe('PrismaDashboardRepository', () => {
     category.count.mockResolvedValue(5);
     transaction.count.mockResolvedValue(38);
 
-    const result = await repository.getSummary('user-1', monthStart, monthEnd);
+    const result = await repository.getSummary(
+      'user-1',
+      monthStart,
+      monthEnd,
+      'Asia/Jakarta',
+    );
 
     expect(result.total_assets_cents).toBe('76900');
     expect(result.total_income_cents).toBe('1200');

@@ -29,11 +29,6 @@ export class AnalyticsController {
     @CurrentUser('sub') userId: string,
     @Query() query: AnalyticsQueryDto,
   ) {
-    let s: Date | undefined;
-    let e: Date | undefined;
-    if (query.startDate) s = new Date(query.startDate);
-    if (query.endDate) e = new Date(query.endDate);
-
-    return this.service.getAnalytics(userId, s, e);
+    return this.service.getAnalytics(userId, query.startDate, query.endDate);
   }
 }

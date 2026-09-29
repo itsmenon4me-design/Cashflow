@@ -9,6 +9,7 @@ import request from 'supertest';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from '../services/analytics.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { PrismaService } from '../../../database/prisma.service';
 
 describe('AnalyticsController (security)', () => {
   let app: INestApplication;
@@ -63,6 +64,16 @@ describe('AnalyticsController (security)', () => {
       controllers: [AnalyticsController],
       providers: [
         { provide: AnalyticsService, useValue: analyticsServiceMock },
+        {
+          provide: PrismaService,
+          useValue: {
+            userSettings: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({ timezone: 'Asia/Jakarta' }),
+            },
+          },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -90,6 +101,16 @@ describe('AnalyticsController (security)', () => {
 
     expect(analyticsServiceMock.overview).toHaveBeenCalled();
     expect(firstArgOf(analyticsServiceMock.overview)).toBe('user-auth');
+    const query = analyticsServiceMock.overview.mock.calls[0][1] as {
+      startDate: Date;
+      endDate: Date;
+      timeZone: string;
+    };
+    expect(query).toEqual({
+      startDate: new Date('2025-12-31T17:00:00.000Z'),
+      endDate: new Date('2026-01-31T16:59:59.999Z'),
+      timeZone: 'Asia/Jakarta',
+    });
   });
 
   it('income: passes authenticated userId, ignores attacker userId', async () => {

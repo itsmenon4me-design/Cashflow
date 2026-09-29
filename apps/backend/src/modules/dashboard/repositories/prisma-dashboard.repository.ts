@@ -15,9 +15,13 @@ export class PrismaDashboardRepository implements IDashboardRepository {
     userId: string,
     monthStart: Date,
     monthEnd: Date,
+    timeZone: string,
   ): Promise<DashboardSummaryResponseDto> {
     const previousMonthEnd = new Date(monthStart.getTime() - 1);
-    const previousMonthStart = DateHelper.startOfMonth(previousMonthEnd);
+    const previousMonthStart = DateHelper.startOfMonthInTimezone(
+      previousMonthEnd,
+      timeZone,
+    );
     const [txIncome, txExpense, allTimeIncome, allTimeExpense, previousIncome, previousExpense, catsCount, txTotalCount] =
       await Promise.all([
         this.prisma.transaction.findMany({

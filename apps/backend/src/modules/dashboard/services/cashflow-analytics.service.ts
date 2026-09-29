@@ -3,6 +3,7 @@ import { DateHelper } from '../../../common/utils/date.util';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 export interface AnalyticsResult {
   /** Exact minor units as strings (BigInt-safe at the API boundary). */
@@ -10,9 +11,9 @@ export interface AnalyticsResult {
   expense: string;
   netCashFlow: string;
   comparison: {
-    income: number;
-    expense: number;
-    netCashFlow: number;
+    income: number | null;
+    expense: number | null;
+    netCashFlow: number | null;
   };
 }
 
@@ -26,27 +27,39 @@ export class CashflowAnalyticsService {
    */
   async getAnalytics(
     userId: string,
-    startDate?: Date,
-    endDate?: Date,
+    startDate?: Date | string,
+    endDate?: Date | string,
   ): Promise<AnalyticsResult> {
     const now = new Date();
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
 
     let rangeStart: Date;
     let rangeEnd: Date;
 
     if (startDate && endDate) {
-      rangeStart = startDate;
-      rangeEnd = endDate;
+      rangeStart =
+        startDate instanceof Date
+          ? startDate
+          : /^\d{4}-\d{2}-\d{2}$/.test(startDate)
+            ? DateHelper.startOfDayInTimezone(startDate, timeZone)
+            : new Date(startDate);
+      rangeEnd =
+        endDate instanceof Date
+          ? endDate
+          : /^\d{4}-\d{2}-\d{2}$/.test(endDate)
+            ? DateHelper.endOfDayInTimezone(endDate, timeZone)
+            : new Date(endDate);
     } else {
       // current month
-      rangeStart = DateHelper.startOfMonth();
-      rangeEnd = DateHelper.endOfMonth();
+      rangeStart = DateHelper.startOfMonthInTimezone(now, timeZone);
+      rangeEnd = DateHelper.endOfMonthInTimezone(now, timeZone);
     }
 
-    // previous range of same length
-    const lenMs = rangeEnd.getTime() - rangeStart.getTime() + 1;
-    const prevEnd = new Date(rangeStart.getTime() - 1);
-    const prevStart = new Date(prevEnd.getTime() - lenMs + 1);
+    const previousRange = DateHelper.previousPeriodInTimezone(
+      rangeStart,
+      rangeEnd,
+      timeZone,
+    );
 
     // helper to aggregate
     const aggFor = async (start: Date, end: Date) => {
@@ -76,16 +89,16 @@ export class CashflowAnalyticsService {
     };
 
     const current = await aggFor(rangeStart, rangeEnd);
-    const previous = await aggFor(prevStart, prevEnd);
+    const previous = await aggFor(previousRange.start, previousRange.end);
 
     const income = current.inc;
     const expense = current.exp;
     const net = income - expense;
 
-    const calcPct = (curr: bigint, prev: bigint): number => {
-      if (prev === 0n) return 0;
+    const calcPct = (curr: bigint, prev: bigint): number | null => {
+      if (prev === 0n) return null;
       const diff = Number(curr - prev);
-      const denominator = Number(prev);
+      const denominator = Number(prev < 0n ? -prev : prev);
       const rawPct = (diff / denominator) * 100;
       return Math.round(rawPct * 100) / 100;
     };

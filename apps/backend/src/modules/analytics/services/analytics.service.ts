@@ -16,7 +16,17 @@ interface ResolvedRange {
   start: Date;
   end: Date;
   granularity: TrendType;
+  timeZone: string;
 }
+
+export type AnalyticsRangeQuery = Omit<
+  AnalyticsQueryDto,
+  'startDate' | 'endDate'
+> & {
+  startDate: Date;
+  endDate: Date;
+  timeZone: string;
+};
 
 export interface AnalyticsComparison {
   income: number | null;
@@ -151,14 +161,20 @@ export class AnalyticsService {
   }
 
   private percentChange(current: number, previous: number): number | null {
-    if (previous <= 0) return null;
-    return this.round(((current - previous) / previous) * 100);
+    if (previous === 0) return null;
+    return this.round(
+      ((current - previous) / Math.abs(previous)) * 100,
+    );
   }
 
-  private resolveRange(query: AnalyticsQueryDto): ResolvedRange {
-    const start = DateHelper.startOfDay(query.startDate);
-    const end = DateHelper.endOfDay(query.endDate);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+  private resolveRange(query: AnalyticsRangeQuery): ResolvedRange {
+    const { startDate: start, endDate: end, timeZone } = query;
+    if (
+      !(start instanceof Date) ||
+      !(end instanceof Date) ||
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime())
+    ) {
       throw new BadRequestException('Invalid date range');
     }
     if (start.getTime() > end.getTime()) {
@@ -170,17 +186,19 @@ export class AnalyticsService {
     if (!granularity) {
       granularity = days <= 45 ? 'daily' : days <= 200 ? 'weekly' : 'monthly';
     }
-    return { start, end, granularity };
+    return { start, end, granularity, timeZone };
   }
 
   private previousRange(range: ResolvedRange): ResolvedRange {
-    const duration = range.end.getTime() - range.start.getTime();
-    const prevEnd = new Date(range.start.getTime() - 1);
-    const prevStart = new Date(prevEnd.getTime() - duration);
+    const previous = DateHelper.previousPeriodInTimezone(
+      range.start,
+      range.end,
+      range.timeZone,
+    );
     return {
-      start: prevStart,
-      end: prevEnd,
+      ...previous,
       granularity: range.granularity,
+      timeZone: range.timeZone,
     };
   }
 
@@ -242,7 +260,7 @@ export class AnalyticsService {
 
   async overview(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsOverviewResult> {
     const range = this.resolveRange(query);
     const [summary, prev] = await Promise.all([
@@ -285,7 +303,7 @@ export class AnalyticsService {
         expense: this.percentChange(expenseNumber, prevExpenseNumber),
         netCashFlow: this.percentChange(netCashFlowNumber, prevNetNumber),
         savingRate:
-          prevIncomeNumber > 0 || incomeNumber > 0
+          prevIncomeNumber > 0
             ? this.round(savingRate - prevSaving)
             : null,
       },
@@ -294,7 +312,7 @@ export class AnalyticsService {
 
   async income(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsTypeResult> {
     const range = this.resolveRange(query);
     const [summary, prev, trend, breakdown] = await Promise.all([
@@ -327,7 +345,7 @@ export class AnalyticsService {
 
   async expenses(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsTypeResult> {
     const range = this.resolveRange(query);
     const [summary, prev, trend, breakdown] = await Promise.all([
@@ -360,7 +378,7 @@ export class AnalyticsService {
 
   async cashflow(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsCashflowResult> {
     const range = this.resolveRange(query);
     const [summary, trend] = await Promise.all([
@@ -398,7 +416,7 @@ export class AnalyticsService {
 
   async spending(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsSpendingResult> {
     const range = this.resolveRange(query);
     const [summary, breakdown, expAgg, incomeCount, expenseCount, totalCount] =
@@ -462,7 +480,7 @@ export class AnalyticsService {
 
   async financialHealth(
     userId: string,
-    query: AnalyticsQueryDto,
+    query: AnalyticsRangeQuery,
   ): Promise<AnalyticsHealthResult> {
     const range = this.resolveRange(query);
 
@@ -559,7 +577,10 @@ export class AnalyticsService {
     };
   }
 
-  async insights(userId: string, query: AnalyticsQueryDto): Promise<string[]> {
+  async insights(
+    userId: string,
+    query: AnalyticsRangeQuery,
+  ): Promise<string[]> {
     const range = this.resolveRange(query);
     const [summary, prev, breakdown] = await Promise.all([
       this.getSummary(userId, range),
