@@ -2,44 +2,33 @@ import { PrismaService } from '../../database/prisma.service';
 import { TransactionType } from '../../generated/prisma/client';
 import { assertIsolatedTestDatabase } from '../../test-utils/assert-isolated-test-database';
 import { BudgetAnalyticsService } from './services/budget-analytics.service';
-import { CashflowTrendService } from './services/cashflow-trend.service';
-import { CategoryBreakdownService } from './services/category-breakdown.service';
 import { FinancialInsightsService } from './services/financial-insights.service';
 import { MonthlyReportService } from './services/monthly-report.service';
 
 const dbUrl = process.env.DATABASE_URL || '';
-const hasDatabase = dbUrl.trim().length > 0;
 
-describe('Reports integration - currency isolation (DB-level)', () => {
-  let prisma: PrismaService | null = null;
-  let monthly: MonthlyReportService | null = null;
-  let categoryBreakdown: CategoryBreakdownService | null = null;
-  let cashflowTrend: CashflowTrendService | null = null;
-  let budgetAnalytics: BudgetAnalyticsService | null = null;
-  let insights: FinancialInsightsService | null = null;
-  let userId: string | undefined;
-  let usdCategoryId: string;
-  let usdIncomeCategoryId: string;
-  let idrCategoryId: string;
-  let usdAccountId: string;
-  let idrAccountId: string;
+describe('Reports integration - IDR reports', () => {
+  let prisma: PrismaService;
+  let monthly: MonthlyReportService;
+  let budgetAnalytics: BudgetAnalyticsService;
+  let insights: FinancialInsightsService;
+  let userId: string;
+  let categoryIds: Record<'food' | 'transport' | 'utilities' | 'salary' | 'freelance', string>;
+  let month: number;
+  let year: number;
 
   beforeAll(async () => {
-    if (!hasDatabase) {
-      console.log('Skipping reports integration tests: DATABASE_URL not configured');
-      return;
+    if (!dbUrl.trim()) {
+      throw new Error('DATABASE_URL is required for reports integration tests');
     }
 
     assertIsolatedTestDatabase(dbUrl);
     prisma = new PrismaService();
     await prisma.$connect();
 
-    if (!(prisma as any).account) {
-      console.log(
-        'Skipping reports integration tests: current Prisma schema does not include the legacy account model used by this suite.',
-      );
-      return;
-    }
+    const now = new Date();
+    month = now.getUTCMonth() + 1;
+    year = now.getUTCFullYear();
 
     const user = await prisma.user.create({
       data: {
@@ -52,93 +41,83 @@ describe('Reports integration - currency isolation (DB-level)', () => {
     });
     userId = user.id;
 
-    const usdExpenseCategory = await prisma.category.create({
-      data: {
-        user_id: userId,
-        name: `USD Expense Cat ${Date.now()}`,
-        type: 'expense',
-      },
-    });
-    const usdIncomeCategory = await prisma.category.create({
-      data: {
-        user_id: userId,
-        name: `USD Income Cat ${Date.now() + 1}`,
-        type: 'income',
-      },
-    });
-    const idrExpenseCategory = await prisma.category.create({
-      data: {
-        user_id: userId,
-        name: `IDR Expense Cat ${Date.now() + 2}`,
-        type: 'expense',
-      },
-    });
-    const legacyBudgetCategory = await prisma.category.create({
-      data: {
-        user_id: userId,
-        name: `Legacy Budget Cat ${Date.now() + 3}`,
-        type: 'expense',
-      },
-    });
-    usdCategoryId = usdExpenseCategory.id;
-    usdIncomeCategoryId = usdIncomeCategory.id;
-    idrCategoryId = idrExpenseCategory.id;
+    const categories = await Promise.all([
+      prisma.category.create({
+        data: { user_id: userId, name: 'Food', type: 'expense' },
+      }),
+      prisma.category.create({
+        data: { user_id: userId, name: 'Transport', type: 'expense' },
+      }),
+      prisma.category.create({
+        data: { user_id: userId, name: 'Utilities', type: 'expense' },
+      }),
+      prisma.category.create({
+        data: { user_id: userId, name: 'Salary', type: 'income' },
+      }),
+      prisma.category.create({
+        data: { user_id: userId, name: 'Freelance', type: 'income' },
+      }),
+    ]);
+    categoryIds = {
+      food: categories[0].id,
+      transport: categories[1].id,
+      utilities: categories[2].id,
+      salary: categories[3].id,
+      freelance: categories[4].id,
+    };
 
-    const usdAccount = await prisma.account.create({
-      data: {
-        user_id: userId,
-        name: 'USD Ledger',
-        account_type: 'cash',
-        currency: 'USD',
-        current_balance_cents: BigInt(250000),
-        is_default: true,
-      },
-    });
-    const idrAccount = await prisma.account.create({
-      data: {
-        user_id: userId,
-        name: 'IDR Ledger',
-        account_type: 'cash',
-        currency: 'IDR',
-        current_balance_cents: BigInt(3000000),
-      },
-    });
-    usdAccountId = usdAccount.id;
-    idrAccountId = idrAccount.id;
-
-    const month = new Date();
-    const monthDate = new Date(
-      Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 15, 12, 0, 0),
+    const transactionDate = new Date(
+      Date.UTC(year, month - 1, 15, 12, 0, 0),
     );
-
     await prisma.transaction.createMany({
       data: [
         {
           user_id: userId,
-          account_id: usdAccountId,
-          category_id: usdExpenseCategory.id,
+          category_id: categoryIds.food,
           transaction_type: TransactionType.EXPENSE,
-          amount_cents: BigInt(42500),
-          transaction_date: monthDate,
-          note: 'USD expense',
+          amount_cents: 42_500n,
+          transaction_date: transactionDate,
+          note: 'Food purchase',
         },
         {
           user_id: userId,
-          account_id: usdAccountId,
-          category_id: usdIncomeCategory.id,
+          category_id: categoryIds.food,
+          transaction_type: TransactionType.EXPENSE,
+          amount_cents: 7_500n,
+          transaction_date: transactionDate,
+          note: 'Food purchase',
+        },
+        {
+          user_id: userId,
+          category_id: categoryIds.transport,
+          transaction_type: TransactionType.EXPENSE,
+          amount_cents: 10_000n,
+          transaction_date: transactionDate,
+          note: 'Transport',
+        },
+        {
+          user_id: userId,
+          category_id: categoryIds.utilities,
+          transaction_type: TransactionType.EXPENSE,
+          amount_cents: 5_000n,
+          transaction_date: transactionDate,
+          note: 'Utilities',
+        },
+        {
+          user_id: userId,
+          category_id: categoryIds.salary,
           transaction_type: TransactionType.INCOME,
-          amount_cents: BigInt(100000),
-          transaction_date: monthDate,
-          note: 'USD income',
+          amount_cents: 1_000_000n,
+          transaction_date: transactionDate,
+          note: 'Salary',
         },
         {
           user_id: userId,
-          account_id: idrAccountId,
-          category_id: idrExpenseCategory.id,
-          transaction_type: TransactionType.EXPENSE,
-          amount_cents: BigInt(6000000),
-          transaction_date: monthDate,
-          note: 'IDR expense',
+          category_id: categoryIds.freelance,
+          transaction_type: TransactionType.INCOME,
+          amount_cents: 200_000n,
+          transaction_date: transactionDate,
+          note: 'Freelance',
         },
       ],
     });
@@ -147,138 +126,103 @@ describe('Reports integration - currency isolation (DB-level)', () => {
       data: [
         {
           user_id: userId,
-          category_id: usdExpenseCategory.id,
-          currency: 'USD',
-          budget_amount_cents: BigInt(100000),
-          month: month.getMonth() + 1,
-          year: month.getFullYear(),
+          category_id: categoryIds.food,
+          budget_amount_cents: 100_000n,
+          month,
+          year,
         },
         {
           user_id: userId,
-          category_id: idrExpenseCategory.id,
-          currency: 'IDR',
-          budget_amount_cents: BigInt(15000000),
-          month: month.getMonth() + 1,
-          year: month.getFullYear(),
-        },
-        {
-          user_id: userId,
-          category_id: legacyBudgetCategory.id,
-          currency: null,
-          budget_amount_cents: BigInt(5000000),
-          month: month.getMonth() + 1,
-          year: month.getFullYear(),
+          category_id: categoryIds.transport,
+          budget_amount_cents: 30_000n,
+          month,
+          year,
         },
       ],
     });
 
-    monthly = new MonthlyReportService(prisma as any);
-    categoryBreakdown = new CategoryBreakdownService(prisma as any);
-    cashflowTrend = new CashflowTrendService(prisma as any);
-    budgetAnalytics = new BudgetAnalyticsService(prisma as any);
-    insights = new FinancialInsightsService(prisma as any);
+    monthly = new MonthlyReportService(prisma);
+    budgetAnalytics = new BudgetAnalyticsService(prisma);
+    insights = new FinancialInsightsService(prisma);
   }, 20000);
 
   afterAll(async () => {
-    if (!hasDatabase || !prisma) return;
-
-    try {
-      if (userId) {
-        await prisma.budget.deleteMany({ where: { user_id: userId } });
-        await prisma.transaction.deleteMany({ where: { user_id: userId } });
-        await prisma.category.deleteMany({ where: { user_id: userId } });
-        await prisma.account.deleteMany({ where: { user_id: userId } });
-        await prisma.user.delete({ where: { id: userId } });
+    if (prisma) {
+      try {
+        if (userId) {
+          await prisma.budget.deleteMany({ where: { user_id: userId } });
+          await prisma.transaction.deleteMany({ where: { user_id: userId } });
+          await prisma.category.deleteMany({ where: { user_id: userId } });
+          await prisma.user.delete({ where: { id: userId } });
+        }
+      } finally {
+        await prisma.$disconnect();
       }
-    } catch (err) {
-      console.warn('Reports cleanup failed', err);
-    } finally {
-      await prisma.$disconnect();
     }
   });
 
-  test('Monthly report for USD excludes IDR-only totals', async () => {
-    if (!hasDatabase || !prisma || !(prisma as any).account || !monthly) return;
+  test('monthly report returns fixture income, expense, and transaction totals', async () => {
+    const result = await monthly.getMonthlyReport(userId, month, year);
 
-    const month = new Date();
-    const result = await monthly.getMonthlyReport(
-      userId,
-      month.getMonth() + 1,
-      month.getFullYear(),
-      undefined,
-      'USD',
-    );
-
-    expect(result.summary.income).toBe('100000');
-    expect(result.summary.expense).toBe('42500');
-    expect(result.summary.netCashFlow).toBe('57500');
-    expect(result.topExpenseCategories.every((row) => row.name !== 'IDR Expense Cat')).toBe(true);
+    expect(result.summary).toEqual({
+      income: '1200000',
+      expense: '65000',
+      netCashFlow: '1135000',
+      transactions: 6,
+    });
   });
 
-  test('Category breakdown for USD excludes IDR categories and totals', async () => {
-    if (!hasDatabase || !prisma || !(prisma as any).account || !categoryBreakdown) return;
+  test('monthly report aggregates expense totals by category', async () => {
+    const result = await monthly.getMonthlyReport(userId, month, year);
 
-    const month = new Date();
-    const result = await categoryBreakdown.getBreakdown(
-      userId,
-      'expense',
-      month.getMonth() + 1,
-      month.getFullYear(),
-      undefined,
-      'USD',
-    );
-
-    expect(result.total).toBe('42500');
-    expect(result.categories.every((row) => row.categoryName !== 'IDR Expense Cat')).toBe(true);
-    expect(result.categories.some((row) => row.categoryName?.startsWith('USD Expense'))).toBe(true);
+    expect(
+      result.topExpenseCategories.map(({ name, total }) => [name, total]),
+    ).toEqual([
+      ['Food', '50000'],
+      ['Transport', '10000'],
+      ['Utilities', '5000'],
+    ]);
   });
 
-  test('Cashflow trend for USD excludes IDR series', async () => {
-    if (!hasDatabase || !prisma || !(prisma as any).account || !cashflowTrend) return;
+  test('monthly report aggregates income totals by category', async () => {
+    const result = await monthly.getMonthlyReport(userId, month, year);
 
-    const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
-    const end = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0, 23, 59, 59, 999));
-
-    const result = await cashflowTrend.getTrend(userId, 'monthly', start, end, 'USD');
-
-    expect(result.data.length).toBeGreaterThan(0);
-    expect(result.data.every((row) => BigInt(row.income) >= 0n)).toBe(true);
-    expect(result.data.every((row) => BigInt(row.expense) <= BigInt('42500'))).toBe(true);
+    expect(
+      result.topIncomeCategories.map(({ name, total }) => [name, total]),
+    ).toEqual([
+      ['Salary', '1000000'],
+      ['Freelance', '200000'],
+    ]);
   });
 
-  test('Budget analysis for USD excludes legacy NULL and IDR budgets', async () => {
-    if (!hasDatabase || !prisma || !(prisma as any).account || !budgetAnalytics) return;
+  test('budget analysis totals fixture budgets and their matching expenses', async () => {
+    const result = await budgetAnalytics.analyzeMonth(userId, month, year);
 
-    const month = new Date();
-    const result = await budgetAnalytics.analyzeMonth(
-      userId,
-      month.getMonth() + 1,
-      month.getFullYear(),
-      'USD',
-    );
-
-    expect(result.overall.budget).toBe('100000');
-    expect(result.overall.spent).toBe('42500');
-    expect(result.categories.every((row) => row.categoryName !== 'IDR Expense Cat')).toBe(true);
-    expect(result.categories.every((row) => row.categoryName !== 'Legacy Budget Cat')).toBe(true);
-    expect(result.categories.every((row) => row.budgetAmount === '100000')).toBe(true);
+    expect(result.overall).toEqual({
+      budget: '130000',
+      spent: '60000',
+      remaining: '70000',
+      percentageUsed: 46.15,
+    });
+    expect(
+      result.categories.map(({ categoryName, budgetAmount, spentAmount }) => [
+        categoryName,
+        budgetAmount,
+        spentAmount,
+      ]),
+    ).toEqual([
+      ['Food', '100000', '50000'],
+      ['Transport', '30000', '10000'],
+    ]);
   });
 
-  test('Financial insights for USD excludes IDR expense and income aggregates', async () => {
-    if (!hasDatabase || !prisma || !(prisma as any).account || !insights) return;
+  test('financial insights identify fixture categories and largest transaction', async () => {
+    const result = await insights.getInsights(userId, month, year);
 
-    const month = new Date();
-    const result = await insights.getInsights(
-      userId,
-      month.getMonth() + 1,
-      month.getFullYear(),
-      'USD',
+    expect(result.summary).toContain('Highest expense category is Food.');
+    expect(result.summary).toContain(
+      'Lowest expense category is Utilities.',
     );
-
-    expect(result).toBeDefined();
-    expect(Array.isArray(result.summary)).toBe(true);
-    expect(result.summary.length).toBeGreaterThan(0);
-    expect(result.statistics).toBeDefined();
-    expect(result.statistics.largestTransactionAmount).toBeGreaterThanOrEqual(0);
+    expect(result.statistics.largestTransactionAmount).toBe(1_000_000);
   });
 });
