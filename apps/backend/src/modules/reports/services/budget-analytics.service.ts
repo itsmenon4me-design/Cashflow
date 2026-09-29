@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { Prisma, TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { DateHelper } from '../../../common/utils/date.util';
 
 export interface BudgetCategoryItem {
   categoryId: string;
@@ -85,33 +86,31 @@ export class BudgetAnalyticsService {
     const y = Number(year);
     this.validateMonthYear(m, y);
 
-    const start = new Date(y, m - 1, 1);
-    const end = new Date(y, m, 0, 23, 59, 59, 999);
+    const start = DateHelper.startOfMonth(y, m);
+    const end = DateHelper.endOfMonth(y, m);
 
     // budgets
     const budgets = await this.fetchBudgets(userId, m, y);
 
     // transactions
-    const groups = await this.prisma.transaction
-      .groupBy({
-        by: ['category_id'],
-        where: {
-          user_id: userId,
-          deleted_at: null,
-          transaction_type: TransactionType.EXPENSE,
-          transaction_date: {
-            gte: start,
-            lte: end,
-          },
+    const groups = await this.prisma.transaction.groupBy({
+      by: ['category_id'],
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        transaction_type: TransactionType.EXPENSE,
+        transaction_date: {
+          gte: start,
+          lte: end,
         },
-        _sum: {
-          amount_cents: true,
-        },
-        _count: {
-          id: true,
-        },
-      })
-      .catch(() => []);
+      },
+      _sum: {
+        amount_cents: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
 
     const spentByCategory: Record<string, bigint> = {};
 
@@ -126,15 +125,13 @@ export class BudgetAnalyticsService {
     const categoriesById: Record<string, string | null> = {};
 
     if (categoryIds.length) {
-      const cats = await this.prisma.category
-        .findMany({
-          where: {
-            id: {
-              in: categoryIds,
-            },
+      const cats = await this.prisma.category.findMany({
+        where: {
+          id: {
+            in: categoryIds,
           },
-        })
-        .catch(() => []);
+        },
+      });
 
       for (const c of cats as CategoryRow[]) {
         categoriesById[c.id] = c.name ?? null;

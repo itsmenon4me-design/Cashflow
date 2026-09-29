@@ -4,6 +4,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import type { Category } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 interface CategoryGroup {
   category_id?: string | null;
@@ -64,6 +65,7 @@ export class MonthlyReportService {
   ): Promise<MonthlyReportResult> {
     let start: Date;
     let end: Date;
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
 
     // Parse month/year from string if needed
     const monthNum = month !== undefined ? Number(month) : undefined;
@@ -77,8 +79,16 @@ export class MonthlyReportService {
       if (monthNum === undefined || yearNum === undefined)
         throw new BadRequestException('Month and year are required');
       this.validateMonthYear(monthNum, yearNum);
-      start = DateHelper.startOfMonth(yearNum, monthNum);
-      end = DateHelper.endOfMonth(yearNum, monthNum);
+      start = DateHelper.startOfCalendarMonthInTimezone(
+        yearNum,
+        monthNum,
+        timeZone,
+      );
+      end = DateHelper.endOfCalendarMonthInTimezone(
+        yearNum,
+        monthNum,
+        timeZone,
+      );
     }
 
     // aggregates income and expense
@@ -187,8 +197,8 @@ export class MonthlyReportService {
     const topIncomeCategories = toCategoryTotals(incomeGroups ?? []);
 
     return {
-      month: start.getMonth() + 1,
-      year: start.getFullYear(),
+      month: DateHelper.monthInNamedTimezone(start, timeZone),
+      year: DateHelper.yearInNamedTimezone(start, timeZone),
       summary: {
         income: income.toString(),
         expense: expense.toString(),

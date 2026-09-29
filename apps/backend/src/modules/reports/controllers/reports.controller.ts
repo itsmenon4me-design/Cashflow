@@ -6,6 +6,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DateHelper } from '../../../common/utils/date.util';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
+import { PrismaService } from '../../../database/prisma.service';
 import {
   ApiTags,
   ApiOperation,
@@ -38,24 +40,28 @@ interface DateRange {
   end: Date;
 }
 
-function buildRange(
+async function buildRange(
+  userId: string,
+  prisma: PrismaService,
   startDate?: string,
   endDate?: string,
-): DateRange | undefined {
+): Promise<DateRange | undefined> {
   if (!startDate && !endDate) return undefined;
   if (!startDate || !endDate) {
     const date = startDate || endDate;
     if (!date) return undefined;
+    const timeZone = await resolveUserTimezone(prisma, userId);
     return {
-      start: DateHelper.startOfDay(date),
-      end: DateHelper.endOfDay(date),
+      start: DateHelper.startOfDayInTimezone(date, timeZone),
+      end: DateHelper.endOfDayInTimezone(date, timeZone),
     };
   }
+  const timeZone = await resolveUserTimezone(prisma, userId);
   const parseBoundary = (value: string, boundary: 'start' | 'end') => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return boundary === 'start'
-        ? DateHelper.startOfDay(value)
-        : DateHelper.endOfDay(value);
+        ? DateHelper.startOfDayInTimezone(value, timeZone)
+        : DateHelper.endOfDayInTimezone(value, timeZone);
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
@@ -74,6 +80,7 @@ function buildRange(
 @ApiBearerAuth('jwt')
 export class ReportsController {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly monthly: MonthlyReportService,
     private readonly categoryBreakdown: CategoryBreakdownService,
     private readonly cashflowTrend: CashflowTrendService,
@@ -98,7 +105,12 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: MonthlyReportQueryDto,
   ) {
-    const range = buildRange(query.startDate, query.endDate);
+    const range = await buildRange(
+      userId,
+      this.prisma,
+      query.startDate,
+      query.endDate,
+    );
     return this.monthly.getMonthlyReport(
       userId,
       query.month,
@@ -125,7 +137,12 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: CategoryBreakdownQueryDto,
   ) {
-    const range = buildRange(query.startDate, query.endDate);
+    const range = await buildRange(
+      userId,
+      this.prisma,
+      query.startDate,
+      query.endDate,
+    );
     return this.categoryBreakdown.getBreakdown(
       userId,
       query.type,
@@ -151,9 +168,23 @@ export class ReportsController {
     @CurrentUser('sub') userId: string,
     @Query() query: TrendQueryDto,
   ) {
-    const start = new Date(query.startDate);
-    const end = new Date(query.endDate);
-    return this.cashflowTrend.getTrend(userId, query.type, start, end);
+    const range = await buildRange(
+      userId,
+      this.prisma,
+      query.startDate,
+      query.endDate,
+    );
+    if (!range) {
+      throw new BadRequestException(
+        'Both startDate and endDate are required for a date range',
+      );
+    }
+    return this.cashflowTrend.getTrend(
+      userId,
+      query.type,
+      range.start,
+      range.end,
+    );
   }
 
   @Get('budget-analysis')
@@ -194,7 +225,12 @@ export class ReportsController {
     const month = query.month;
     const year = query.year;
     const range = query.startDate
-      ? buildRange(query.startDate, query.endDate)
+      ? await buildRange(
+          userId,
+          this.prisma,
+          query.startDate,
+          query.endDate,
+        )
       : undefined;
 
     const res = await this.exporter.export({

@@ -1,10 +1,22 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { DateHelper } from '../../../common/utils/date.util';
 import { ReportExportService } from './report-export.service';
+import {
+  buildReportWorkbook,
+  type WorkbookTransaction,
+} from './report-workbook.builder';
+import { CashflowTrendService } from './cashflow-trend.service';
 import type { MonthlyReportService } from './monthly-report.service';
 import type { CategoryBreakdownService } from './category-breakdown.service';
 import type { CashflowTrendService } from './cashflow-trend.service';
 import type { PrismaService } from '../../../database/prisma.service';
+
+beforeAll(() => {
+  console.log(
+    `timezone-test TZ=${process.env.TZ}; offset=${new Date().getTimezoneOffset()}`,
+  );
+});
 
 const makeMocks = (): {
   monthlySvc: MonthlyReportService;
@@ -60,6 +72,9 @@ const makeMocks = (): {
       ),
     } as unknown as CashflowTrendService,
     prisma: {
+      userSettings: {
+        findUnique: jest.fn().mockResolvedValue({ timezone: 'Asia/Jakarta' }),
+      },
       transaction: {
         findMany: jest.fn(() => Promise.resolve([])),
         count: jest.fn(() => Promise.resolve(0)),
@@ -69,6 +84,430 @@ const makeMocks = (): {
 };
 
 describe('ReportExportService', () => {
+  it('keeps user-zone transaction dates, trend buckets, and formula caches aligned', async () => {
+    const transactions = [
+      {
+        id: 'august-income',
+        transaction_date: new Date('2026-08-31T23:59:00+07:00'),
+        transaction_type: 'INCOME',
+        amount_cents: 1_000n,
+        category_id: 'income',
+        category: { name: 'Income' },
+        note: '',
+      },
+      {
+        id: 'september-expense',
+        transaction_date: new Date('2026-09-01T03:00:00+07:00'),
+        transaction_type: 'EXPENSE',
+        amount_cents: 200n,
+        category_id: 'expense',
+        category: { name: 'Expense' },
+        note: '',
+      },
+      {
+        id: 'monday-income',
+        transaction_date: new Date('2026-09-07T00:30:00+07:00'),
+        transaction_type: 'INCOME',
+        amount_cents: 300n,
+        category_id: 'income',
+        category: { name: 'Income' },
+        note: '',
+      },
+    ];
+    const dailyMilliseconds = 86_400_000;
+    const excelSerialForDay = (date: Date) =>
+      Math.floor(date.getTime() / dailyMilliseconds) + 25_569;
+    const formulaBounds = (formula: string): [number, number] => {
+      const dates = Array.from(
+        formula.matchAll(/DATE\((\d+),(\d+),(\d+)\)/g),
+        (match) =>
+          Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) /
+            dailyMilliseconds +
+          25_569,
+      );
+      expect(dates).toHaveLength(2);
+      return [dates[0], dates[1]];
+    };
+    const cachedCellValue = (xml: string, address: string): number => {
+      const cell = xml.match(
+        new RegExp(`<c\\b[^>]*\\br="${address}"[^>]*>([\\s\\S]*?)</c>`),
+      );
+      const value = cell?.[1].match(/<v>([\s\S]*?)<\/v>/)?.[1];
+      if (value === undefined) {
+        throw new Error(`Missing cached formula value for ${address}`);
+      }
+      return Number(value);
+    };
+
+    const cases = [
+      {
+        type: 'daily' as const,
+        start: DateHelper.startOfDay('2026-08-31'),
+        end: DateHelper.endOfDay('2026-09-07'),
+        expected: [
+          ['2026-08-31', '1000', '0'],
+          ['2026-09-01', '0', '200'],
+          ['2026-09-07', '300', '0'],
+        ],
+      },
+      {
+        type: 'weekly' as const,
+        start: DateHelper.startOfDay('2026-08-01'),
+        end: DateHelper.endOfDay('2026-09-30'),
+        expected: [
+          ['2026-W36', '1000', '200'],
+          ['2026-W37', '300', '0'],
+        ],
+      },
+      {
+        type: 'monthly' as const,
+        start: DateHelper.startOfDay('2026-01-01'),
+        end: DateHelper.endOfDay('2026-09-30'),
+        expected: [
+          ['2026-08', '1000', '0'],
+          ['2026-09', '300', '200'],
+        ],
+      },
+    ];
+
+    for (const { type, start, end, expected } of cases) {
+      const mocks = makeMocks();
+      (mocks.prisma.transaction.count as jest.Mock)
+        .mockResolvedValueOnce(transactions.length)
+        .mockResolvedValueOnce(0);
+      (mocks.prisma.transaction.findMany as jest.Mock)
+        .mockResolvedValueOnce(transactions)
+        .mockResolvedValueOnce([]);
+      const trendPrisma = {
+        userSettings: {
+          findUnique: jest.fn().mockResolvedValue({ timezone: 'Asia/Jakarta' }),
+        },
+        transaction: {
+          findMany: jest.fn().mockResolvedValue(transactions),
+        },
+      };
+      const trendSvc = new CashflowTrendService(
+        trendPrisma as unknown as PrismaService,
+      );
+      const exporter = new ReportExportService(
+        mocks.monthlySvc,
+        mocks.categorySvc,
+        trendSvc,
+        mocks.prisma,
+      );
+      const result = await exporter.export({
+        type: 'monthly',
+        format: 'xlsx',
+        startDate: start,
+        endDate: end,
+        userId: 'user-1',
+      });
+
+      if (type === 'daily') {
+        const mocks = makeMocks();
+        const exporter = new ReportExportService(
+          mocks.monthlySvc,
+          mocks.categorySvc,
+          mocks.trendSvc,
+          mocks.prisma,
+        );
+        const start = DateHelper.startOfCalendarMonthInTimezone(
+          2026,
+          9,
+          'Asia/Jakarta',
+        );
+        const end = DateHelper.endOfCalendarMonthInTimezone(
+          2026,
+          9,
+          'Asia/Jakarta',
+        );
+
+        await exporter.export({
+          type: 'monthly',
+          format: 'xlsx',
+          startDate: start,
+          endDate: end,
+          userId: 'user-1',
+        });
+
+        for (const [timeZone, offset] of [
+          ['Asia/Jakarta', '+07:00'],
+          ['Asia/Makassar', '+08:00'],
+          ['Asia/Jayapura', '+09:00'],
+        ] as const) {
+          const transactions: WorkbookTransaction[] = [
+            {
+              id: 'before-september',
+              transactionDate: new Date(`2026-08-31T23:59:00${offset}`),
+              type: 'INCOME',
+              amount: 1_000n,
+              categoryId: 'income',
+              categoryName: 'Income',
+              note: '',
+              period: 'Laporan',
+            },
+            {
+              id: 'september-first',
+              transactionDate: new Date(`2026-09-01T03:00:00${offset}`),
+              type: 'EXPENSE',
+              amount: 200n,
+              categoryId: 'expense',
+              categoryName: 'Expense',
+              note: '',
+              period: 'Laporan',
+            },
+            {
+              id: 'monday-0030',
+              transactionDate: new Date(`2026-09-07T00:30:00${offset}`),
+              type: 'INCOME',
+              amount: 300n,
+              categoryId: 'income',
+              categoryName: 'Income',
+              note: '',
+              period: 'Laporan',
+            },
+          ];
+          const startDate = DateHelper.startOfDayInTimezone(
+            '2026-08-31',
+            timeZone,
+          );
+          const endDate = DateHelper.endOfDayInTimezone('2026-09-07', timeZone);
+          const expectedByType = {
+            daily: [
+              ['2026-08-31', 1_000, 0],
+              ['2026-09-01', 0, 200],
+              ['2026-09-07', 300, 0],
+            ],
+            weekly: [
+              ['2026-W36', 1_000, 200],
+              ['2026-W37', 300, 0],
+            ],
+            monthly: [
+              ['2026-08', 1_000, 0],
+              ['2026-09', 300, 200],
+            ],
+          } as const;
+
+          for (const trendType of ['daily', 'weekly', 'monthly'] as const) {
+            const trend = expectedByType[trendType].map(
+              ([period, income, expense]) => ({
+                period,
+                income: String(income),
+                expense: String(expense),
+                netCashFlow: String(income - expense),
+              }),
+            );
+            const content = await buildReportWorkbook({
+              startDate,
+              endDate,
+              previousStartDate: DateHelper.startOfDayInTimezone(
+                '2026-08-01',
+                timeZone,
+              ),
+              previousEndDate: DateHelper.endOfDayInTimezone(
+                '2026-08-30',
+                timeZone,
+              ),
+              generatedAt: new Date('2026-09-15T05:00:00.000Z'),
+              transactions,
+              trendType,
+              trend,
+              timeZone,
+            });
+            const workbookZip = await JSZip.loadAsync(content);
+            const trendXml = await workbookZip
+              .file('xl/worksheets/sheet2.xml')
+              ?.async('string');
+            const summaryXml = await workbookZip
+              .file('xl/worksheets/sheet1.xml')
+              ?.async('string');
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(content);
+            const details = workbook.getWorksheet('Rincian Transaksi');
+            const trendSheet = workbook.getWorksheet('Tren Arus Kas');
+            const summary = workbook.getWorksheet('Ringkasan');
+            expect(details).toBeDefined();
+            expect(trendSheet).toBeDefined();
+            expect(summary).toBeDefined();
+            if (!trendXml || !summaryXml) {
+              throw new Error('Missing workbook worksheet XML');
+            }
+            expect(
+              [2, 3, 4].map((row) => {
+                const date = details?.getCell(row, 2).value;
+                return date instanceof Date
+                  ? date.toISOString().slice(0, 10)
+                  : date;
+              }),
+            ).toEqual(['2026-08-31', '2026-09-01', '2026-09-07']);
+            expect(
+              trendSheet
+                ?.getColumn(1)
+                .values.slice(2, 2 + expectedByType[trendType].length),
+            ).toEqual(expectedByType[trendType].map(([period]) => period));
+            expect(summary?.getCell('A2').text).toContain('31 Agustus 2026');
+            expect(summary?.getCell('A2').text).toContain('07 September 2026');
+            expect(cachedCellValue(summaryXml, 'A5')).toBe(1_300);
+            expect(cachedCellValue(summaryXml, 'D5')).toBe(200);
+
+            for (
+              let index = 0;
+              index < expectedByType[trendType].length;
+              index += 1
+            ) {
+              const row = index + 2;
+              const point = expectedByType[trendType][index];
+              for (const [column, transactionType, expected] of [
+                [2, 'INCOME', point[1]],
+                [3, 'EXPENSE', point[2]],
+              ] as const) {
+                const formulaValue = trendSheet?.getCell(row, column)
+                  .value as ExcelJS.CellFormulaValue;
+                expect(
+                  cachedCellValue(
+                    trendXml,
+                    `${String.fromCharCode(64 + column)}${row}`,
+                  ),
+                ).toBe(expected);
+                const formulaDates = Array.from(
+                  formulaValue.formula.matchAll(/DATE\((\d+),(\d+),(\d+)\)/g),
+                  (match) =>
+                    Date.UTC(
+                      Number(match[1]),
+                      Number(match[2]) - 1,
+                      Number(match[3]),
+                    ) /
+                      86_400_000 +
+                    25_569,
+                );
+                expect(formulaDates).toHaveLength(2);
+                const recomputed = transactions
+                  .filter((transaction) => {
+                    const transactionRow =
+                      transactions.indexOf(transaction) + 2;
+                    const date = details?.getCell(transactionRow, 2).value;
+                    const serial =
+                      date instanceof Date
+                        ? Math.floor(date.getTime() / 86_400_000) + 25_569
+                        : Number.NaN;
+                    const type = details?.getCell(transactionRow, 10).value;
+                    const period = details?.getCell(transactionRow, 11).value;
+                    return (
+                      type === transactionType &&
+                      period === 'Laporan' &&
+                      serial >= formulaDates[0] &&
+                      serial < formulaDates[1]
+                    );
+                  })
+                  .reduce(
+                    (sum, transaction) => sum + Number(transaction.amount),
+                    0,
+                  );
+                expect(recomputed).toBe(expected);
+              }
+              const netValue = trendSheet?.getCell(row, 4)
+                .value as ExcelJS.CellFormulaValue;
+              expect(netValue.formula).toBe(`B${row}-C${row}`);
+              expect(cachedCellValue(trendXml, `D${row}`)).toBe(
+                point[1] - point[2],
+              );
+            }
+          }
+        }
+
+        const queries = (mocks.prisma.transaction.findMany as jest.Mock).mock
+          .calls;
+        expect(queries[0][0].where.transaction_date).toEqual({
+          gte: start,
+          lte: end,
+        });
+        expect(queries[1][0].where.transaction_date).toEqual({
+          gte: DateHelper.startOfCalendarMonthInTimezone(
+            2026,
+            8,
+            'Asia/Jakarta',
+          ),
+          lte: new Date(start.getTime() - 1),
+        });
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(result.content);
+      const workbookZip = await JSZip.loadAsync(result.content);
+      const trendXml = await workbookZip
+        .file('xl/worksheets/sheet2.xml')
+        ?.async('string');
+      const details = workbook.getWorksheet('Rincian Transaksi');
+      const trend = workbook.getWorksheet('Tren Arus Kas');
+      const summary = workbook.getWorksheet('Ringkasan');
+      expect(details).toBeDefined();
+      expect(trend).toBeDefined();
+      expect(summary).toBeDefined();
+      if (!trendXml) throw new Error('Missing cashflow trend worksheet XML');
+      expect(
+        [2, 3, 4].map((row) => {
+          const value = details?.getCell(row, 2).value;
+          return value instanceof Date
+            ? new Date(value.getTime()).toISOString().slice(0, 10)
+            : value;
+        }),
+      ).toEqual(['2026-08-31', '2026-09-01', '2026-09-07']);
+
+      const actualTrend = await trendSvc.getTrend('user-1', type, start, end);
+      expect(
+        actualTrend.data.map(({ period, income, expense }) => [
+          period,
+          income,
+          expense,
+        ]),
+      ).toEqual(expected);
+      expect(summary?.getCell('A5').value).toMatchObject({ result: 1_300 });
+      expect(summary?.getCell('D5').value).toMatchObject({ result: 200 });
+
+      expected.forEach(([period], index) => {
+        const row = index + 2;
+        expect(trend?.getCell(row, 1).value).toBe(period);
+
+        for (const [column, typeName] of [
+          [2, 'INCOME'],
+          [3, 'EXPENSE'],
+        ] as const) {
+          const formulaValue = trend?.getCell(row, column).value as {
+            formula: string;
+            result: number;
+          };
+          const [lower, upper] = formulaBounds(formulaValue.formula);
+          const cached = cachedCellValue(
+            trendXml,
+            `${String.fromCharCode(64 + column)}${row}`,
+          );
+          const formulaType = formulaValue.formula.includes('"INCOME"')
+            ? 'INCOME'
+            : 'EXPENSE';
+          expect(formulaType).toBe(typeName);
+          const recalculated = [2, 3, 4].reduce((sum, detailRow) => {
+            const date = details?.getCell(detailRow, 2).value;
+            const amount = details?.getCell(detailRow, 6).value;
+            const rowType = details?.getCell(detailRow, 10).value;
+            const dataPeriod = details?.getCell(detailRow, 11).value;
+            if (
+              date instanceof Date &&
+              typeof amount === 'number' &&
+              rowType === formulaType &&
+              dataPeriod === 'Laporan' &&
+              excelSerialForDay(date) >= lower &&
+              excelSerialForDay(date) < upper
+            ) {
+              return sum + amount;
+            }
+            return sum;
+          }, 0);
+          expect(cached).toBe(recalculated);
+        }
+      });
+    }
+  });
+
   it('exports monthly report as CSV', async () => {
     const mocks = makeMocks();
     const svc = new ReportExportService(
@@ -129,6 +568,36 @@ describe('ReportExportService', () => {
       userId: 'user-1',
     });
     expect(resCsv.contentType).toContain('text/csv');
+  });
+
+  it('starts a default trend export in the current WIB year under TZ=UTC', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-12-31T18:00:00.000Z'));
+    try {
+      const mocks = makeMocks();
+      const svc = new ReportExportService(
+        mocks.monthlySvc,
+        mocks.categorySvc,
+        mocks.trendSvc,
+        mocks.prisma,
+      );
+
+      await svc.export({
+        type: 'trend',
+        format: 'csv',
+        userId: 'user-1',
+      });
+
+      const trendRequest = Reflect.get(mocks.trendSvc, 'getTrend') as jest.Mock;
+      expect(trendRequest).toHaveBeenCalledWith(
+        'user-1',
+        'monthly',
+        new Date('2026-12-31T17:00:00.000Z'),
+        new Date('2027-01-01T16:59:59.999Z'),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('handles empty dataset (category CSV has only headers)', async () => {
@@ -277,14 +746,18 @@ describe('ReportExportService', () => {
       result: 100_000,
     });
     expect(
-      (workbook.getWorksheet('Ringkasan')?.getCell('A5').value as {
-        formula: string;
-      }).formula,
+      (
+        workbook.getWorksheet('Ringkasan')?.getCell('A5').value as {
+          formula: string;
+        }
+      ).formula,
     ).toContain("'Rincian Transaksi'!$J$2:$J$11");
     expect(
-      (workbook.getWorksheet('Ringkasan')?.getCell('A5').value as {
-        formula: string;
-      }).formula,
+      (
+        workbook.getWorksheet('Ringkasan')?.getCell('A5').value as {
+          formula: string;
+        }
+      ).formula,
     ).toContain("'Rincian Transaksi'!$K$2:$K$11");
     expect(
       workbook.getWorksheet('Ringkasan')?.getCell('G5').value,
@@ -305,14 +778,18 @@ describe('ReportExportService', () => {
       result: 100_000,
     });
     expect(
-      (workbook.getWorksheet('Tren Arus Kas')?.getCell('B2').value as {
-        formula: string;
-      }).formula,
+      (
+        workbook.getWorksheet('Tren Arus Kas')?.getCell('B2').value as {
+          formula: string;
+        }
+      ).formula,
     ).toContain("'Rincian Transaksi'!$J$2:$J$11");
     expect(
-      (workbook.getWorksheet('Tren Arus Kas')?.getCell('B2').value as {
-        formula: string;
-      }).formula,
+      (
+        workbook.getWorksheet('Tren Arus Kas')?.getCell('B2').value as {
+          formula: string;
+        }
+      ).formula,
     ).toContain("'Rincian Transaksi'!$K$2:$K$11");
     expect(
       workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('C2').value,
@@ -322,16 +799,14 @@ describe('ReportExportService', () => {
     });
     expect(
       (
-        workbook
-          .getWorksheet('Pengeluaran per Kategori')
-          ?.getCell('B2').value as { formula: string }
+        workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('B2')
+          .value as { formula: string }
       ).formula,
     ).toContain("'Rincian Transaksi'!$K$2:$K$11");
     expect(
       (
-        workbook
-          .getWorksheet('Pengeluaran per Kategori')
-          ?.getCell('B2').value as { formula: string }
+        workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('B2')
+          .value as { formula: string }
       ).formula,
     ).toContain("'Rincian Transaksi'!$J$2:$J$11");
     const expenseSheet = workbook.getWorksheet('Pengeluaran per Kategori');
@@ -376,12 +851,12 @@ describe('ReportExportService', () => {
     ).toMatchObject({
       argb: expect.stringMatching(/586575$/),
     });
-    expect(workbook.getWorksheet('Rincian Transaksi')?.getColumn(10).hidden).toBe(
-      true,
-    );
-    expect(workbook.getWorksheet('Rincian Transaksi')?.getColumn(11).hidden).toBe(
-      true,
-    );
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getColumn(10).hidden,
+    ).toBe(true);
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getColumn(11).hidden,
+    ).toBe(true);
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getCell('J2').value,
     ).toBe('INCOME');

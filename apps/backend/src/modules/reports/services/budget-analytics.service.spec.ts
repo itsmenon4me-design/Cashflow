@@ -140,4 +140,66 @@ describe('BudgetAnalyticsService', () => {
       res.categories[1].percentageUsed,
     );
   });
+
+  it('uses WIB month boundaries under TZ=UTC', async () => {
+    const ranges: Array<{ gte: Date; lte: Date }> = [];
+    const groupBy = jest.fn(
+      (args: { where: { transaction_date: { gte: Date; lte: Date } } }) => {
+        ranges.push(args.where.transaction_date);
+        return Promise.resolve([]);
+      },
+    );
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      transaction: { groupBy },
+      category: { findMany: jest.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+    const service = new BudgetAnalyticsService(prisma);
+    const transactions = [
+      new Date('2026-09-01T03:00:00+07:00'),
+      new Date('2026-08-31T23:59:00+07:00'),
+    ];
+
+    await service.analyzeMonth('user-1', 9, 2026);
+    expect(
+      transactions.filter(
+        (date) => date >= ranges[0].gte && date <= ranges[0].lte,
+      ),
+    ).toEqual([transactions[0]]);
+
+    await service.analyzeMonth('user-1', 8, 2026);
+    expect(
+      transactions.filter(
+        (date) => date >= ranges[1].gte && date <= ranges[1].lte,
+      ),
+    ).toEqual([transactions[1]]);
+  });
+
+  it('propagates transaction groupBy failures', async () => {
+    const failure = new Error('groupBy unavailable');
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      transaction: {
+        groupBy: jest.fn().mockRejectedValue(failure),
+      },
+      category: { findMany: jest.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+    const service = new BudgetAnalyticsService(prisma);
+
+    await expect(service.analyzeMonth('user-1', 8, 2026)).rejects.toBe(failure);
+  });
+
+  it('propagates category lookup failures', async () => {
+    const failure = new Error('category lookup unavailable');
+    const prisma = {
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ category_id: 'c1', budget_amount_cents: 1000 }]),
+      transaction: { groupBy: jest.fn().mockResolvedValue([]) },
+      category: { findMany: jest.fn().mockRejectedValue(failure) },
+    } as unknown as PrismaService;
+    const service = new BudgetAnalyticsService(prisma);
+
+    await expect(service.analyzeMonth('user-1', 8, 2026)).rejects.toBe(failure);
+  });
 });

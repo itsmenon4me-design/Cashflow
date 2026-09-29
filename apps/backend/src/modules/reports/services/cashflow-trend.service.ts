@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 export type TrendType = 'daily' | 'weekly' | 'monthly';
 
@@ -30,16 +31,23 @@ export class CashflowTrendService {
       throw new BadRequestException('startDate must be before endDate');
   }
 
-  private getPeriodKey(date: Date, type: TrendType): string {
-    const y = date.getUTCFullYear();
-    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
+  private getPeriodKey(date: Date, type: TrendType, timeZone: string): string {
+    const values: Record<string, number> = {};
+    for (const part of new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date)) {
+      if (part.type !== 'literal') values[part.type] = Number(part.value);
+    }
+    const y = values.year;
+    const m = String(values.month).padStart(2, '0');
+    const d = String(values.day).padStart(2, '0');
     if (type === 'daily') return `${y}-${m}-${d}`;
     if (type === 'monthly') return `${y}-${m}`;
     // weekly: compute ISO week number
-    const tmp = new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
+    const tmp = new Date(Date.UTC(y, values.month - 1, values.day));
     // ISO week date weeks start on Monday
     const dayNum = tmp.getUTCDay() || 7; // Sunday is 0 -> 7
     tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
@@ -59,6 +67,7 @@ export class CashflowTrendService {
     if (type !== 'daily' && type !== 'weekly' && type !== 'monthly')
       throw new BadRequestException('Invalid type');
     this.validateDates(startDate, endDate);
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
 
     // fetch transactions in range
     const recs = await this.prisma.transaction.findMany({
@@ -83,7 +92,7 @@ export class CashflowTrendService {
 
     for (const r of recs) {
       const dt = r.transaction_date;
-      const key = this.getPeriodKey(new Date(dt), type);
+      const key = this.getPeriodKey(new Date(dt), type, timeZone);
       const entry = map.get(key) ?? { income: 0n, expense: 0n, count: 0 };
       const amt = toMinorUnitsExact(r.amount_cents);
       if (String(r.transaction_type).toUpperCase() === 'INCOME')

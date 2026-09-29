@@ -1,6 +1,12 @@
 import { CashflowTrendService } from './cashflow-trend.service';
 import type { PrismaService } from '../../../database/prisma.service';
 
+beforeAll(() => {
+  console.log(
+    `timezone-test TZ=${process.env.TZ}; offset=${new Date().getTimezoneOffset()}`,
+  );
+});
+
 const makePrismaMock = (
   recs: Array<{
     transaction_date: Date;
@@ -9,6 +15,9 @@ const makePrismaMock = (
   }> = [],
 ): PrismaService => {
   return {
+    userSettings: {
+      findUnique: jest.fn().mockResolvedValue({ timezone: 'Asia/Jakarta' }),
+    },
     transaction: {
       findMany: jest.fn(() =>
         Promise.resolve(recs),
@@ -55,6 +64,62 @@ describe('CashflowTrendService', () => {
     expect(p1?.income).toBe('100');
     expect(p1?.expense).toBe('40');
   });
+
+  it.each([
+    ['Asia/Jakarta', '+07:00'],
+    ['Asia/Makassar', '+08:00'],
+    ['Asia/Jayapura', '+09:00'],
+  ])(
+    'keeps local midnight and Monday buckets in %s',
+    async (timeZone, offset) => {
+      const recs = [
+        {
+          transaction_date: new Date(`2026-08-31T23:59:59${offset}`),
+          transaction_type: 'INCOME',
+          amount_cents: 100,
+        },
+        {
+          transaction_date: new Date(`2026-09-01T00:00:01${offset}`),
+          transaction_type: 'INCOME',
+          amount_cents: 200,
+        },
+        {
+          transaction_date: new Date(`2026-09-07T00:30:00${offset}`),
+          transaction_type: 'EXPENSE',
+          amount_cents: 300,
+        },
+      ];
+      const prisma = makePrismaMock(recs);
+      prisma.userSettings!.findUnique = jest
+        .fn()
+        .mockResolvedValue({ timezone: timeZone });
+      const service = new CashflowTrendService(prisma);
+
+      const daily = await service.getTrend(
+        'user-1',
+        'daily',
+        new Date('2026-08-31T00:00:00.000Z'),
+        new Date('2026-09-08T00:00:00.000Z'),
+      );
+      expect(daily.data.map((item) => item.period)).toEqual([
+        '2026-08-31',
+        '2026-09-01',
+        '2026-09-07',
+      ]);
+
+      const weekly = await service.getTrend(
+        'user-1',
+        'weekly',
+        new Date('2026-08-31T00:00:00.000Z'),
+        new Date('2026-09-08T00:00:00.000Z'),
+      );
+      expect(weekly.data.map((item) => item.period)).toEqual([
+        '2026-W36',
+        '2026-W37',
+      ]);
+      expect(weekly.data[1].expense).toBe('300');
+    },
+  );
 
   it('weekly trend aggregates correctly', async () => {
     // Dates chosen to fall in same ISO week
@@ -113,6 +178,51 @@ describe('CashflowTrendService', () => {
     expect(res.type).toBe('monthly');
     expect(res.data.some((d) => d.period === '2026-07')).toBe(true);
     expect(res.data.some((d) => d.period === '2026-08')).toBe(true);
+  });
+
+  it('buckets offset timestamps by WIB day, ISO week, and month', async () => {
+    const recs = [
+      {
+        transaction_date: new Date('2026-09-01T03:00:00+07:00'),
+        transaction_type: 'INCOME',
+        amount_cents: 100,
+      },
+      {
+        transaction_date: new Date('2026-08-31T23:59:00+07:00'),
+        transaction_type: 'EXPENSE',
+        amount_cents: 40,
+      },
+    ];
+    const from = new Date('2026-08-31T00:00:00+07:00');
+    const to = new Date('2026-09-01T23:59:59+07:00');
+
+    const daily = await new CashflowTrendService(
+      makePrismaMock(recs),
+    ).getTrend('user-1', 'daily', from, to);
+    expect(daily.data.map((point) => point.period)).toEqual([
+      '2026-08-31',
+      '2026-09-01',
+    ]);
+
+    const weekly = await new CashflowTrendService(
+      makePrismaMock(recs),
+    ).getTrend('user-1', 'weekly', from, to);
+    expect(weekly.data).toEqual([
+      {
+        period: '2026-W36',
+        income: '100',
+        expense: '40',
+        netCashFlow: '60',
+      },
+    ]);
+
+    const monthly = await new CashflowTrendService(
+      makePrismaMock(recs),
+    ).getTrend('user-1', 'monthly', from, to);
+    expect(monthly.data.map((point) => point.period)).toEqual([
+      '2026-08',
+      '2026-09',
+    ]);
   });
 
   it('returns empty data when no transactions', async () => {

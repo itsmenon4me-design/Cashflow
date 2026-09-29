@@ -1,8 +1,10 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { DateHelper } from '../../../common/utils/date.util';
 import { PrismaService } from '../../../database/prisma.service';
 import type { Transaction, Category } from '../../../generated/prisma/client';
 import { TransactionType } from '../../../generated/prisma/client';
 import { FIXED_CURRENCY } from '../../../common/currencies';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 import { formatMoneyFromMinorUnits } from '../../../common/utils/money.utils';
 
 export interface FinancialStatistics {
@@ -62,15 +64,16 @@ export class FinancialInsightsService {
       throw new BadRequestException('Invalid year');
     }
     const now = new Date();
-    const m = month ?? now.getMonth() + 1;
-    const y = year ?? now.getFullYear();
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
+    const m = month ?? DateHelper.monthInNamedTimezone(now, timeZone);
+    const y = year ?? DateHelper.yearInNamedTimezone(now, timeZone);
 
-    const start = new Date(y, m - 1, 1);
-    const end = new Date(y, m, 0, 23, 59, 59, 999);
+    const start = DateHelper.startOfCalendarMonthInTimezone(y, m, timeZone);
+    const end = DateHelper.endOfCalendarMonthInTimezone(y, m, timeZone);
 
     // previous month
     const prevEnd = new Date(start.getTime() - 1);
-    const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), 1);
+    const prevStart = DateHelper.startOfMonthInTimezone(prevEnd, timeZone);
 
     const insights: string[] = [];
     const stats: FinancialStatistics = {
@@ -255,10 +258,15 @@ export class FinancialInsightsService {
         days > 0 ? Number((exp / days).toFixed(2)) : 0;
 
       // average monthly spending over last 6 months
-      const monthsStart = new Date(
-        start.getFullYear(),
-        start.getMonth() - 5,
-        1,
+      const monthIndex =
+        DateHelper.yearInNamedTimezone(start, timeZone) * 12 +
+        DateHelper.monthInNamedTimezone(start, timeZone) -
+        1 -
+        5;
+      const monthsStart = DateHelper.startOfCalendarMonthInTimezone(
+        Math.floor(monthIndex / 12),
+        (monthIndex % 12) + 1,
+        timeZone,
       );
       const monthsEnd = end;
       // monthlyGroups grouped by exact date; instead compute month buckets
@@ -282,7 +290,7 @@ export class FinancialInsightsService {
         );
       for (const r of recs) {
         const dt = new Date(r.transaction_date);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+        const key = `${DateHelper.yearInNamedTimezone(dt, timeZone)}-${String(DateHelper.monthInNamedTimezone(dt, timeZone)).padStart(2, '0')}`;
         monthBuckets[key] =
           (monthBuckets[key] ?? 0) +
           this.normalizeToNumber(r.amount_cents ?? 0);

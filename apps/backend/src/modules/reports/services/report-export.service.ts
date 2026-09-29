@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { TransactionType } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { DateHelper } from '../../../common/utils/date.util';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 import { CategoryBreakdownService } from './category-breakdown.service';
 import { CashflowTrendService, type TrendType } from './cashflow-trend.service';
 import { MonthlyReportService } from './monthly-report.service';
@@ -49,24 +50,25 @@ export class ReportExportService {
     return /^[\s\u0000-\u001f]*[=+\-@]/.test(text) ? `'${text}` : text;
   }
 
-  private formatFileDate(date: Date): string {
+  private formatFileDate(date: Date, timeZone: string): string {
     const parts = new Intl.DateTimeFormat('en-CA', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-      timeZone: 'Asia/Jakarta',
+      timeZone,
     }).formatToParts(date);
     const part = (type: Intl.DateTimeFormatPartTypes) =>
       parts.find((value) => value.type === type)?.value ?? '';
     return `${part('year')}-${part('month')}-${part('day')}`;
   }
 
-  private formatFileMonth(date: Date): string {
-    return this.formatFileDate(date).slice(0, 7);
+  private formatFileMonth(date: Date, timeZone: string): string {
+    return this.formatFileDate(date, timeZone).slice(0, 7);
   }
 
   private resolveRange(
     type: ExportType,
+    timeZone: string,
     params: {
       month?: number;
       year?: number;
@@ -105,23 +107,40 @@ export class ReportExportService {
         throw new BadRequestException('A valid month and year are required');
       }
       return {
-        start: DateHelper.startOfMonth(year, month),
-        end: DateHelper.endOfMonth(year, month),
+        start: DateHelper.startOfCalendarMonthInTimezone(
+          year,
+          month,
+          timeZone,
+        ),
+        end: DateHelper.endOfCalendarMonthInTimezone(year, month, timeZone),
       };
     }
 
     const now = new Date();
     if (type === 'trend') {
+      const currentYear = DateHelper.yearInNamedTimezone(now, timeZone);
       return {
-        start: DateHelper.startOfMonth(now.getFullYear(), 1),
-        end: DateHelper.endOfDay(now),
+        start: DateHelper.startOfCalendarMonthInTimezone(
+          currentYear,
+          1,
+          timeZone,
+        ),
+        end: DateHelper.endOfDayInTimezone(now, timeZone),
       };
     }
-    const currentMonth = DateHelper.monthInTimezone(now);
-    const currentYear = DateHelper.yearInTimezone(now);
+    const currentMonth = DateHelper.monthInNamedTimezone(now, timeZone);
+    const currentYear = DateHelper.yearInNamedTimezone(now, timeZone);
     return {
-      start: DateHelper.startOfMonth(currentYear, currentMonth),
-      end: DateHelper.endOfMonth(currentYear, currentMonth),
+      start: DateHelper.startOfCalendarMonthInTimezone(
+        currentYear,
+        currentMonth,
+        timeZone,
+      ),
+      end: DateHelper.endOfCalendarMonthInTimezone(
+        currentYear,
+        currentMonth,
+        timeZone,
+      ),
     };
   }
 
@@ -224,10 +243,13 @@ export class ReportExportService {
   private async exportWorkbook(
     userId: string,
     range: ReportRange,
+    timeZone: string,
   ): Promise<ExportResult> {
-    const previousEnd = new Date(range.start.getTime() - 1);
-    const previousStart = new Date(
-      previousEnd.getTime() - (range.end.getTime() - range.start.getTime()),
+    const { start: previousStart, end: previousEnd } =
+      DateHelper.previousPeriodInTimezone(
+        range.start,
+        range.end,
+        timeZone,
     );
     const previousRange = { start: previousStart, end: previousEnd };
     const trendType = this.getTrendType(range);
@@ -266,10 +288,11 @@ export class ReportExportService {
       transactions,
       trendType,
       trend: trend.data,
+      timeZone,
     };
     const content = await buildReportWorkbook(workbookInput);
     return {
-      filename: `laporan-keuangan-${this.formatFileDate(range.start)}-sampai-${this.formatFileDate(range.end)}.xlsx`,
+      filename: `laporan-keuangan-${this.formatFileDate(range.start, timeZone)}-sampai-${this.formatFileDate(range.end, timeZone)}.xlsx`,
       contentType: XLSX_CONTENT_TYPE,
       content,
     };
@@ -297,13 +320,15 @@ export class ReportExportService {
       );
     }
 
-    const range = this.resolveRange(type, {
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
+    const range = this.resolveRange(type, timeZone, {
       month,
       year,
       startDate,
       endDate,
     });
-    if (format === 'xlsx') return this.exportWorkbook(userId, range);
+    if (format === 'xlsx')
+      return this.exportWorkbook(userId, range, timeZone);
 
     if (type === 'monthly') {
       const report = await this.monthlySvc.getMonthlyReport(
@@ -313,7 +338,7 @@ export class ReportExportService {
         range,
       );
       if (startDate === undefined && endDate === undefined) {
-        const month = this.formatFileMonth(range.start);
+        const month = this.formatFileMonth(range.start, timeZone);
         const [year, monthNumber] = month.split('-');
         return {
           filename: `monthly-report-${year}-${monthNumber}.csv`,
@@ -348,8 +373,8 @@ export class ReportExportService {
           'transactions',
         ],
         [
-          this.formatFileDate(range.start),
-          this.formatFileDate(range.end),
+          this.formatFileDate(range.start, timeZone),
+          this.formatFileDate(range.end, timeZone),
           report.summary.income,
           report.summary.expense,
           report.summary.netCashFlow,
@@ -357,7 +382,7 @@ export class ReportExportService {
         ],
       ];
       return {
-        filename: `laporan-keuangan-${this.formatFileDate(range.start)}-sampai-${this.formatFileDate(range.end)}.csv`,
+        filename: `laporan-keuangan-${this.formatFileDate(range.start, timeZone)}-sampai-${this.formatFileDate(range.end, timeZone)}.csv`,
         contentType: 'text/csv; charset=utf-8',
         content: this.toCSV(rows),
       };
@@ -372,7 +397,7 @@ export class ReportExportService {
         range,
       );
       if (startDate === undefined && endDate === undefined) {
-        const month = this.formatFileMonth(range.start);
+        const month = this.formatFileMonth(range.start, timeZone);
         return {
           filename: `category-breakdown-${month}.csv`,
           contentType: 'text/csv; charset=utf-8',
@@ -411,7 +436,7 @@ export class ReportExportService {
         ]),
       ];
       return {
-        filename: `category-breakdown-${this.formatFileDate(range.start)}-sampai-${this.formatFileDate(range.end)}.csv`,
+        filename: `category-breakdown-${this.formatFileDate(range.start, timeZone)}-sampai-${this.formatFileDate(range.end, timeZone)}.csv`,
         contentType: 'text/csv; charset=utf-8',
         content: this.toCSV(rows),
       };
@@ -435,7 +460,7 @@ export class ReportExportService {
     const trendFilename =
       startDate === undefined && endDate === undefined
         ? 'cashflow-trend.csv'
-        : `cashflow-trend-${this.formatFileDate(range.start)}-sampai-${this.formatFileDate(range.end)}.csv`;
+        : `cashflow-trend-${this.formatFileDate(range.start, timeZone)}-sampai-${this.formatFileDate(range.end, timeZone)}.csv`;
     return {
       filename: trendFilename,
       contentType: 'text/csv; charset=utf-8',

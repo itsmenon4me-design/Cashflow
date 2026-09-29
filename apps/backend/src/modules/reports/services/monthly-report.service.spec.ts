@@ -9,6 +9,7 @@ const makePrismaMock = (opts?: {
   expenseGroups?: Prisma.TransactionGroupByOutputType[];
   incomeGroups?: Prisma.TransactionGroupByOutputType[];
   categories?: Array<{ id: string; name: string }>;
+  timezone?: string;
 }): PrismaService => {
   const {
     inc = 12000000,
@@ -17,9 +18,12 @@ const makePrismaMock = (opts?: {
     expenseGroups = [],
     incomeGroups = [],
     categories = [],
+    timezone = 'Asia/Jakarta',
   } = opts ?? {};
-
   const mock: Partial<PrismaService> = {
+    userSettings: {
+      findUnique: jest.fn().mockResolvedValue({ timezone }),
+    } as unknown as PrismaService['userSettings'],
     transaction: {
       aggregate: jest
         .fn()
@@ -56,6 +60,12 @@ const makePrismaMock = (opts?: {
 };
 
 describe('MonthlyReportService', () => {
+  beforeAll(() => {
+    console.log(
+      `timezone-test TZ=${process.env.TZ}; offset=${new Date().getTimezoneOffset()}`,
+    );
+  });
+
   it('returns monthly report with top categories', async () => {
     const expenseGroups: Prisma.TransactionGroupByOutputType[] = [
       {
@@ -87,6 +97,24 @@ describe('MonthlyReportService', () => {
       incomeGroups,
       categories: cats,
     });
+
+    for (const [timezone, start, end] of [
+      ['Asia/Jakarta', '2026-08-31T17:00:00.000Z', '2026-09-30T16:59:59.999Z'],
+      ['Asia/Makassar', '2026-08-31T16:00:00.000Z', '2026-09-30T15:59:59.999Z'],
+      ['Asia/Jayapura', '2026-08-31T15:00:00.000Z', '2026-09-30T14:59:59.999Z'],
+    ] as const) {
+      const prisma = makePrismaMock({ timezone });
+      const service = new MonthlyReportService(prisma);
+      const result = await service.getMonthlyReport('user-1', 9, 2026);
+
+      expect(result.month).toBe(9);
+      expect(result.year).toBe(2026);
+      const aggregate = prisma.transaction!.aggregate as jest.Mock;
+      expect(aggregate.mock.calls[0][0].where.transaction_date).toEqual({
+        gte: new Date(start),
+        lte: new Date(end),
+      });
+    }
     const svc = new MonthlyReportService(prisma);
     const res = await svc.getMonthlyReport('user-1', 8, 2026);
 
@@ -118,6 +146,36 @@ describe('MonthlyReportService', () => {
     expect(res.summary.transactions).toBe(0);
     expect(res.topExpenseCategories).toEqual([]);
     expect(res.topIncomeCategories).toEqual([]);
+  });
+
+  it('returns report metadata using the WIB month of the range start', async () => {
+    const cases = [
+      {
+        transactionDate: new Date('2026-09-01T03:00:00+07:00'),
+        month: 9,
+      },
+      {
+        transactionDate: new Date('2026-08-31T23:59:00+07:00'),
+        month: 8,
+      },
+    ];
+
+    for (const { transactionDate, month } of cases) {
+      const prisma = makePrismaMock({ inc: 0, exp: 0, txCount: 0 });
+      const aggregate = jest.spyOn(prisma.transaction, 'aggregate');
+      const result = await new MonthlyReportService(prisma).getMonthlyReport(
+        'user-1',
+        undefined,
+        undefined,
+        { start: transactionDate, end: transactionDate },
+      );
+      expect(result.month).toBe(month);
+      expect(result.year).toBe(2026);
+      expect(result.year).toBe(2026);
+      expect(aggregate.mock.calls[0][0].where.transaction_date.gte).toEqual(
+        transactionDate,
+      );
+    }
   });
 
   it('rejects invalid month', async () => {

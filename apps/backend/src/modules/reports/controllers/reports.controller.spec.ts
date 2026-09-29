@@ -4,6 +4,7 @@ import {
   INestApplication,
   ValidationPipe,
 } from '@nestjs/common';
+import { beforeAll } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import type { Server } from 'net';
@@ -16,6 +17,13 @@ import { BudgetAnalyticsService } from '../services/budget-analytics.service';
 import { ReportExportService } from '../services/report-export.service';
 import { FinancialInsightsService } from '../services/financial-insights.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { PrismaService } from '../../../database/prisma.service';
+
+beforeAll(() => {
+  console.log(
+    `timezone-test TZ=${process.env.TZ}; offset=${new Date().getTimezoneOffset()}`,
+  );
+});
 
 type ReportsServiceMocks = {
   getMonthlyReport: jest.MockedFunction<
@@ -31,6 +39,7 @@ type ReportsServiceMocks = {
 describe('ReportsController (security)', () => {
   let app: INestApplication;
   let mocks: ReportsServiceMocks;
+  let timezoneLookup: jest.Mock;
 
   const authGuard: CanActivate & {
     isAuthenticated: boolean;
@@ -56,6 +65,9 @@ describe('ReportsController (security)', () => {
   };
 
   beforeEach(async () => {
+    timezoneLookup = jest
+      .fn()
+      .mockResolvedValue({ timezone: 'Asia/Jakarta' });
     mocks = {
       getMonthlyReport: jest.fn().mockResolvedValue({ report: [] }),
       getBreakdown: jest.fn().mockResolvedValue({ items: [] }),
@@ -72,6 +84,14 @@ describe('ReportsController (security)', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ReportsController],
       providers: [
+        {
+          provide: PrismaService,
+          useValue: {
+            userSettings: {
+              findUnique: timezoneLookup,
+            },
+          },
+        },
         {
           provide: MonthlyReportService,
           useValue: { getMonthlyReport: mocks.getMonthlyReport },
@@ -143,6 +163,76 @@ describe('ReportsController (security)', () => {
     expect(mocks.getTrend).toHaveBeenCalled();
     const calledWithUserId = mocks.getTrend.mock.calls[0][0];
     expect(calledWithUserId).toBe('user-auth');
+  });
+
+  it('cashflow-trend: expands date-only inputs to full WIB days', async () => {
+    await request(app.getHttpServer() as Server)
+      .get(
+        '/reports/cashflow-trend?type=daily&startDate=2026-08-31&endDate=2026-09-01',
+      )
+      .expect(200);
+
+    const [userId, , start, end] = mocks.getTrend.mock.calls[0];
+    expect(userId).toBe('user-auth');
+    expect(start).toEqual(new Date('2026-08-30T17:00:00.000Z'));
+    expect(end).toEqual(new Date('2026-09-01T16:59:59.999Z'));
+
+    const transactions = [
+      new Date('2026-09-01T03:00:00+07:00'),
+      new Date('2026-08-31T23:59:00+07:00'),
+    ];
+    expect(transactions.every((date) => date >= start && date <= end)).toBe(
+      true,
+    );
+    const endOfDate = new Date('2026-09-01T23:59:00+07:00');
+    expect(endOfDate >= start && endOfDate <= end).toBe(true);
+  });
+
+  it.each([
+    ['Asia/Jakarta', '2026-08-31T17:00:00.000Z', '2026-09-30T16:59:59.999Z'],
+    ['Asia/Makassar', '2026-08-31T16:00:00.000Z', '2026-09-30T15:59:59.999Z'],
+    ['Asia/Jayapura', '2026-08-31T15:00:00.000Z', '2026-09-30T14:59:59.999Z'],
+  ])(
+    'uses date-only month bounds in %s and preserves equivalent ISO instants',
+    async (timeZone, startIso, endIso) => {
+      timezoneLookup.mockResolvedValue({ timezone: timeZone });
+      await request(app.getHttpServer() as Server)
+        .get(
+          '/reports/cashflow-trend?type=daily&startDate=2026-09-01&endDate=2026-09-30',
+        )
+        .expect(200);
+      const first = mocks.getTrend.mock.calls[0];
+      expect(first[2]).toEqual(new Date(startIso));
+      expect(first[3]).toEqual(new Date(endIso));
+
+      mocks.getTrend.mockClear();
+      await request(app.getHttpServer() as Server)
+        .get('/reports/cashflow-trend')
+        .query({
+          type: 'daily',
+          startDate: startIso,
+          endDate: endIso,
+        })
+        .expect(200);
+      const second = mocks.getTrend.mock.calls[0];
+      expect(second[2]).toEqual(first[2]);
+      expect(second[3]).toEqual(first[3]);
+    },
+  );
+
+  it('cashflow-trend: preserves ISO timestamp instants', async () => {
+    const startDate = '2026-08-31T23:59:00+07:00';
+    const endDate = '2026-09-01T03:00:00+07:00';
+    await request(app.getHttpServer() as Server)
+      .get('/reports/cashflow-trend')
+      .query({ type: 'daily', startDate, endDate })
+      .expect(200);
+
+    const [, , start, end] = mocks.getTrend.mock.calls[0];
+    expect(start).toEqual(new Date(startDate));
+    expect(end).toEqual(new Date(endDate));
+    expect(start.toISOString()).toBe('2026-08-31T16:59:00.000Z');
+    expect(end.toISOString()).toBe('2026-08-31T20:00:00.000Z');
   });
 
   it('budget-analysis: passes authenticated userId', async () => {

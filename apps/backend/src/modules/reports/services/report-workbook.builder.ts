@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { DateHelper } from '../../../common/utils/date.util';
 import {
   applyWorkbookBaseFont,
   REPORT_WORKBOOK_STYLE,
@@ -38,6 +39,7 @@ export interface ReportWorkbookInput {
   transactions: WorkbookTransaction[];
   trendType: WorkbookTrendType;
   trend: WorkbookTrendPoint[];
+  timeZone?: string;
 }
 
 const COLORS = REPORT_WORKBOOK_STYLE.colors;
@@ -50,7 +52,23 @@ function excelFormula(
   formula: string,
   result: number | string,
 ): ExcelJS.CellValue {
-  return { formula, result } as ExcelJS.CellFormulaValue;
+  return { formula, result };
+}
+
+function setFormulaCache(cell: ExcelJS.Cell, result: number): void {
+  // ExcelJS's formula value copy drops numeric zero results.
+  const value: unknown = Reflect.get(cell, '_value');
+  const model: unknown =
+    typeof value === 'object' && value !== null
+      ? Reflect.get(value, 'model')
+      : undefined;
+  if (
+    typeof model !== 'object' ||
+    model === null ||
+    !Reflect.set(model, 'result', result)
+  ) {
+    throw new Error('Unable to set XLSX formula cache');
+  }
 }
 
 function sumRange(
@@ -79,8 +97,9 @@ function sumByDateFormula(
 
 function periodBounds(period: string, type: WorkbookTrendType): [Date, Date] {
   if (type === 'daily') {
-    const start = new Date(`${period}T00:00:00.000Z`);
-    return [start, new Date(start.getTime() + 86_400_000)];
+    const [year, month, day] = period.split('-').map(Number);
+    const start = new Date(Date.UTC(year, month - 1, day));
+    return [start, new Date(Date.UTC(year, month - 1, day + 1))];
   }
 
   if (type === 'monthly') {
@@ -138,18 +157,19 @@ function setupSummarySheet(
   };
   sheet.getRow(1).height = 32;
 
+  const timeZone = input.timeZone ?? 'Asia/Jakarta';
   const dateOptions: Intl.DateTimeFormatOptions = {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
-    timeZone: 'Asia/Jakarta',
+    timeZone,
   };
   const periodText = `${input.startDate.toLocaleDateString('id-ID', dateOptions)} - ${input.endDate.toLocaleDateString('id-ID', dateOptions)}`;
   const comparisonText = `${input.previousStartDate.toLocaleDateString('id-ID', dateOptions)} - ${input.previousEndDate.toLocaleDateString('id-ID', dateOptions)}`;
   const generatedText = input.generatedAt.toLocaleString('id-ID', {
     dateStyle: 'long',
     timeStyle: 'short',
-    timeZone: 'Asia/Jakarta',
+    timeZone,
   });
   sheet.mergeCells('A2:L2');
   sheet.getCell('A2').value =
@@ -267,21 +287,16 @@ function setupSummarySheet(
     label.value = card.label;
     value.value = excelFormula(card.formula.slice(1), Number(card.result));
     change.value = excelFormula(
-      `IF(${comparisonCountFormula}=0,"Belum ada data pembanding",IF(${card.previous}=0,IF(ABS(${card.start}5)>0,"Baru","0.0%"),TEXT((${card.start}5-${card.previous})/ABS(${card.previous}),"+0.0%;-0.0%;0.0%")))`,
-      input.transactions.some((row) => row.period === 'Pembanding')
-        ? card.previous.includes('COUNTIF')
-          ? calculateChange(
-              BigInt(card.result),
-              BigInt(
-                input.transactions.filter((row) => row.period === 'Pembanding')
-                  .length,
-              ),
+      `IF(${card.previous}=0,IF(ABS(${card.start}5)>0,"Baru","-"),TEXT((${card.start}5-${card.previous})/ABS(${card.previous}),"+0.0%;-0.0%;0.0%"))`,
+      calculateChange(
+        BigInt(card.result),
+        card.previous.includes('COUNTIF')
+          ? BigInt(
+              input.transactions.filter((row) => row.period === 'Pembanding')
+                .length,
             )
-          : calculateChange(
-              BigInt(card.result),
-              getPreviousAmount(input.transactions, card.label),
-            )
-        : 'Belum ada data pembanding',
+          : getPreviousAmount(input.transactions, card.label),
+      ),
     );
     for (let rowNumber = 4; rowNumber <= 7; rowNumber += 1) {
       for (
@@ -433,7 +448,7 @@ function getPreviousAmount(
 }
 
 function calculateChange(current: bigint, previous: bigint): string {
-  if (previous === 0n) return current !== 0n ? 'Baru' : '0.0%';
+  if (previous === 0n) return current !== 0n ? 'Baru' : '-';
   const change =
     Number(
       ((current - previous) * 10000n) / (previous < 0n ? -previous : previous),
@@ -489,6 +504,12 @@ function setupTrendSheet(
         Number(BigInt(point.netCashFlow)),
       ),
     ]);
+    setFormulaCache(sheet.getCell(rowNumber, 2), Number(BigInt(point.income)));
+    setFormulaCache(sheet.getCell(rowNumber, 3), Number(BigInt(point.expense)));
+    setFormulaCache(
+      sheet.getCell(rowNumber, 4),
+      Number(BigInt(point.netCashFlow)),
+    );
   });
 
   const totalRowNumber = sheet.rowCount + 1;
@@ -713,7 +734,10 @@ function setupTransactionSheet(
   styleTableHeader(sheet.getRow(1), COLORS.navy);
   const transactionRows = input.transactions.map((row) => [
     row.id,
-    row.transactionDate,
+    DateHelper.calendarDateInTimezone(
+      row.transactionDate,
+      input.timeZone ?? 'Asia/Jakarta',
+    ),
     row.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
     row.categoryName,
     row.note,

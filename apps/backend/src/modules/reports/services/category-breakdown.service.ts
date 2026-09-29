@@ -2,6 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionType } from '../../../generated/prisma/client';
 import { toMinorUnitsExact } from '../../../common/types/money';
+import { DateHelper } from '../../../common/utils/date.util';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 export interface CategoryBreakdownItem {
   categoryId: string;
@@ -61,6 +63,7 @@ export class CategoryBreakdownService {
 
     const txType =
       type === 'income' ? TransactionType.INCOME : TransactionType.EXPENSE;
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
 
     let start: Date;
     let end: Date;
@@ -77,8 +80,16 @@ export class CategoryBreakdownService {
       if (monthNum === undefined || yearNum === undefined)
         throw new BadRequestException('Month and year are required');
       this.validateMonthYear(monthNum, yearNum);
-      start = new Date(yearNum, monthNum - 1, 1);
-      end = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+      start = DateHelper.startOfCalendarMonthInTimezone(
+        yearNum,
+        monthNum,
+        timeZone,
+      );
+      end = DateHelper.endOfCalendarMonthInTimezone(
+        yearNum,
+        monthNum,
+        timeZone,
+      );
     }
 
     const totalAgg = await this.prisma.transaction.aggregate({
