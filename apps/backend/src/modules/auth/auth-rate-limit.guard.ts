@@ -88,7 +88,9 @@ export class AuthRateLimitGuard implements CanActivate {
     const count = await this.incrIp(key, windowSec);
     if (count === null) {
       const failOpen = cfg.failOpenOnRedisError === true;
-      const status = failOpen ? 'allowing request (fail-open)' : 'rejecting request (fail-closed)';
+      const status = failOpen
+        ? 'allowing request (fail-open)'
+        : 'rejecting request (fail-closed)';
       this.logger.warn(
         `Redis unavailable in auth rate limiter; ${status} endpoint=${path} ip=${ip} key=${key}`,
       );

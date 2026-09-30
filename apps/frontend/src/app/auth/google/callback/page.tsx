@@ -29,7 +29,15 @@ export default function GoogleOAuthCallbackPage() {
     let cancelled = false;
     setAuthTokens(accessToken, refreshToken);
     void apiClient
-      .get<{ success: boolean; data?: { full_name?: string; name?: string; email?: string } }>(
+      .get<{
+        success: boolean;
+        data?: {
+          full_name?: string;
+          name?: string;
+          email?: string;
+          avatar_url?: string | null;
+        };
+      }>(
         "/auth/me",
       )
       .then((response) => {
@@ -50,7 +58,11 @@ export default function GoogleOAuthCallbackPage() {
         useAuthStore.getState().loginSession({
           accessToken,
           refreshToken,
-          user: { name, email: profile.email || userEmail || "" },
+          user: {
+            name,
+            email: profile.email || userEmail || "",
+            avatar_url: profile.avatar_url ?? null,
+          },
         });
         if (welcome === "new" || welcome === "returning") {
           const welcomeDetail = { type: welcome, name };

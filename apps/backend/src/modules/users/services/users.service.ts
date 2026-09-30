@@ -24,7 +24,7 @@ export class UsersService {
 
   async create(
     create: CreateUserDto,
-    options: { hasManualPassword?: boolean } = {},
+    options: { hasManualPassword?: boolean; avatarUrl?: string | null } = {},
   ): Promise<UserEntity> {
     // Hash password before storing
     const hashed = await this.passwordService.hashPassword(create.password);
@@ -41,7 +41,7 @@ export class UsersService {
       full_name: create.full_name,
       password_hash: hashed, // DO NOT LOG THIS VALUE
       has_manual_password: options.hasManualPassword ?? true,
-      avatar_url: create.avatar_url ?? null,
+      avatar_url: options.avatarUrl ?? null,
       phone_number: create.phone_number ?? null,
       status: 'PENDING_VERIFICATION',
     };
@@ -129,11 +129,21 @@ export class UsersService {
   async update(id: string, input: UpdateUserDto): Promise<UserEntity> {
     const updates: Partial<UserEntity> = {
       full_name: input.full_name,
-      avatar_url: input.avatar_url,
       phone_number: input.phone_number,
     };
     const updated = await this.repo.update(id, updates);
     this.loggerService.log('User Updated', 'UsersService', {
+      userId: updated.id,
+    });
+    return updated;
+  }
+
+  async updateOAuthAvatar(
+    id: string,
+    avatarUrl: string | null,
+  ): Promise<UserEntity> {
+    const updated = await this.repo.update(id, { avatar_url: avatarUrl });
+    this.loggerService.log('OAuth Avatar Synchronized', 'UsersService', {
       userId: updated.id,
     });
     return updated;

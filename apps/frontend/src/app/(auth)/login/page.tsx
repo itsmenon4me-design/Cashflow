@@ -114,12 +114,18 @@ export default function Page() {
         return;
       }
 
-      let user: { id?: string; name: string; email: string };
+      let user: {
+        id?: string;
+        name: string;
+        email: string;
+        avatar_url?: string | null;
+      };
       if (response.user) {
         user = {
           id: response.user.id,
           name: response.user.full_name || response.user.username,
           email: response.user.email,
+          avatar_url: response.user.avatar_url,
         };
       } else {
         try {
@@ -130,6 +136,7 @@ export default function Page() {
               full_name?: string;
               name?: string;
               email?: string;
+              avatar_url?: string | null;
             };
           }>("/auth/me");
           const d = me.data;
@@ -137,6 +144,7 @@ export default function Page() {
             id: d?.id,
             name: d?.full_name || d?.name || email.split("@")[0],
             email: d?.email || email.trim(),
+            avatar_url: d?.avatar_url ?? null,
           };
         } catch {
           user = { name: email.split("@")[0], email: email.trim() };

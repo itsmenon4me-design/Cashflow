@@ -10,9 +10,14 @@ import { PrismaService } from '../../database/prisma.service';
 
 describe('UsersService (create)', () => {
   let service: UsersService;
-  const mockRepo: { count: jest.Mock; create: jest.Mock } = {
+  const mockRepo: {
+    count: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+  } = {
     count: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   };
   const mockLoggerService = { log: jest.fn() };
   const mockPasswordService = { hashPassword: jest.fn() };
@@ -27,6 +32,7 @@ describe('UsersService (create)', () => {
   beforeEach(async () => {
     mockRepo.count.mockReset();
     mockRepo.create.mockReset();
+    mockRepo.update.mockReset();
     mockPasswordService.hashPassword.mockReset();
     mockPrisma.user.findUnique.mockReset();
     mockRoleRepo.ensureSuperAdmin.mockReset();
@@ -99,5 +105,14 @@ expect(mockRepo.create).toHaveBeenCalledWith(
     await expect(service.create(dto)).rejects.toMatchObject({
       errorCode: ErrorCode.CONFLICT,
     });
+  });
+
+  it('only synchronizes avatars through the OAuth-specific update path', async () => {
+    const updated = { id: 'u1', avatar_url: null };
+    mockRepo.update.mockResolvedValue(updated);
+
+    await expect(service.updateOAuthAvatar('u1', null)).resolves.toEqual(updated);
+
+    expect(mockRepo.update).toHaveBeenCalledWith('u1', { avatar_url: null });
   });
 });

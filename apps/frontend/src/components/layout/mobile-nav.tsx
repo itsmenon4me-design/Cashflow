@@ -33,7 +33,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="absolute inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       aria-label={text.common.primaryNavigationAriaLabel}
     >
       <div className="grid grid-cols-5">

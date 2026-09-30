@@ -8,7 +8,12 @@ describe('GoogleAuthService', () => {
   const provider: any = { getConfigurationStatus: jest.fn(), validateProviderUser: jest.fn() };
   const oauthAccountService: any = { findProviderAccount: jest.fn(), linkProviderAccount: jest.fn() };
   const authService: any = { issueSessionForUser: jest.fn() };
-  const usersService: any = { findByEmail: jest.fn(), findById: jest.fn(), create: jest.fn() };
+  const usersService: any = {
+    findByEmail: jest.fn(),
+    findById: jest.fn(),
+    create: jest.fn(),
+    updateOAuthAvatar: jest.fn(),
+  };
   const passwordService: any = { hashPassword: jest.fn() };
   const prisma: any = { user: { findUnique: jest.fn(), update: jest.fn() } };
   const redis: any = { set: jest.fn().mockResolvedValue(true), get: jest.fn().mockResolvedValue('state'), del: jest.fn().mockResolvedValue(1) };
@@ -67,7 +72,7 @@ describe('GoogleAuthService', () => {
       providerUserId: 'google-123',
       email: 'user@example.com',
       fullName: 'Google Provider Name',
-      avatarUrl: null,
+      avatarUrl: 'https://google.example/avatar-current.png',
       verifiedEmail: true,
     });
     oauthAccountService.findProviderAccount.mockResolvedValue({ user_id: 'user-1' });
@@ -75,6 +80,15 @@ describe('GoogleAuthService', () => {
       id: 'user-1',
       email: 'user@example.com',
       full_name: 'Manual Custom Name',
+      avatar_url: 'https://google.example/avatar-old.png',
+      status: 'ACTIVE',
+      role_code: 'USER',
+    });
+    usersService.updateOAuthAvatar.mockResolvedValue({
+      id: 'user-1',
+      email: 'user@example.com',
+      full_name: 'Manual Custom Name',
+      avatar_url: 'https://google.example/avatar-current.png',
       status: 'ACTIVE',
       role_code: 'USER',
     });
@@ -92,13 +106,20 @@ describe('GoogleAuthService', () => {
     expect(new URL(result.redirectUrl).searchParams.get('userName')).toBe(
       'Manual Custom Name',
     );
+    expect(usersService.updateOAuthAvatar).toHaveBeenCalledWith(
+      'user-1',
+      'https://google.example/avatar-current.png',
+    );
     expect(prisma.user.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ full_name: expect.anything() }),
       }),
     );
     expect(authService.issueSessionForUser).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'user-1' }),
+      expect.objectContaining({
+        id: 'user-1',
+        avatar_url: 'https://google.example/avatar-current.png',
+      }),
       'google',
       undefined,
     );
@@ -157,7 +178,10 @@ describe('GoogleAuthService', () => {
         email: 'newuser@example.com',
         full_name: 'New User',
       }),
-      { hasManualPassword: false },
+      {
+        hasManualPassword: false,
+        avatarUrl: 'https://example.com/avatar.png',
+      },
     );
     expect(oauthAccountService.linkProviderAccount).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'google' }),

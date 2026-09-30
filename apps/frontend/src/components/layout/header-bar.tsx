@@ -14,7 +14,7 @@ import {
   SunMedium,
   UserRound,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { isOAuthAvatarUrl } from "@/lib/oauth-avatar";
 import { formatFullDate } from "@/lib/format";
 import { useUiText } from "@/hooks/useUiText";
 import { authService } from "@/services/auth.service";
@@ -293,6 +294,10 @@ export function HeaderBar() {
                   )}
                 >
                   <Avatar className="size-8">
+                    {safeUser.avatar_url &&
+                      isOAuthAvatarUrl(safeUser.avatar_url) && (
+                      <AvatarImage src={safeUser.avatar_url} alt="" />
+                    )}
                     <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
                       {getInitials(safeUser.name)}
                     </AvatarFallback>

@@ -1,32 +1,49 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Pencil, Save, Mail, User as UserIcon } from "lucide-react";
+import { useState } from "react";
+import { Pencil, Save, Mail, User as UserIcon, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { uiText } from "@/locales";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { apiClient } from "@/lib/axios";
-import { setStoredUser } from "@/lib/auth-token";
+import { useUiText } from "@/hooks/useUiText";
+import type { UserResponse } from "@/types/backend";
+
+function SectionHeading({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="size-4" />
+      </div>
+      <div>
+        <p className="text-base font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
-  const router = useRouter();
+  const uiText = useUiText();
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(user?.name ?? "");
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const name = draftName ?? user?.name ?? "";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Re-sync local name when the store user changes (e.g. after hydration)
-  useEffect(() => {
-    setName(user?.name ?? "");
-  }, [user?.name]);
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -38,25 +55,35 @@ export default function ProfilePage() {
         const updatedFromPatch = res.data;
         if (updatedFromPatch) {
           setUser({
-            name: updatedFromPatch.full_name || updatedFromPatch.name || name.trim(),
+            name: updatedFromPatch.full_name || name.trim(),
             email: updatedFromPatch.email || user?.email || "",
+            has_manual_password: user?.has_manual_password,
+            avatar_url: updatedFromPatch.avatar_url ?? user?.avatar_url ?? null,
           });
         }
         // Refresh user data via /me + update localStorage/authStore supaya konsisten setelah reload
         try {
           // apiClient already unwraps HTTP body: response IS { success, data }
-          const meRes = await apiClient.get<{ success: boolean; data: any }>("/auth/me");
+          const meRes = await apiClient.get<{
+            success: boolean;
+            data?: UserResponse;
+          }>("/auth/me");
           const meData = meRes?.data;
           if (meData) {
-            const updated = { name: meData.full_name || meData.name, email: meData.email || user?.email };
+            const updated = {
+              name: meData.full_name,
+              email: meData.email || user?.email || "",
+              has_manual_password: meData.has_manual_password ?? null,
+              avatar_url: meData.avatar_url ?? null,
+            };
             setUser(updated);
-            setStoredUser(updated);
           }
         } catch (refreshError) {
           console.warn("[profile-page] profile refresh failed after update", refreshError);
           setError("Nama tersimpan, tetapi profil terbaru gagal dimuat. Silakan refresh halaman.");
         }
         setIsEditing(false);
+        setDraftName(null);
       } else {
         setError(res?.message ?? "Failed to update profile");
       }
@@ -68,22 +95,10 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    setName(user?.name ?? "");
+    setDraftName(null);
     setError(null);
     setIsEditing(false);
   };
-
-  const SectionHeading = ({ icon: Icon, title, subtitle }: { icon: typeof UserIcon; title: string; subtitle: string }) => (
-    <div className="flex items-center gap-3">
-      <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="size-4" />
-      </div>
-      <div>
-        <p className="text-base font-semibold">{title}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-8">
@@ -109,7 +124,7 @@ export default function ProfilePage() {
                 <Input
                   id="profile-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => setDraftName(e.target.value)}
                   className="sm:w-72"
                   autoFocus
                 />

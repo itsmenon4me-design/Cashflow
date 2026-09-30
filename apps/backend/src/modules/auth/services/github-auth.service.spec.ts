@@ -81,7 +81,7 @@ describe('GithubAuthService', () => {
         email: 'profile@example.com',
         full_name: 'Profile Name',
       }),
-      { hasManualPassword: false },
+      { hasManualPassword: false, avatarUrl: null },
     );
   });
 
@@ -102,6 +102,7 @@ describe('GithubAuthService', () => {
           login: 'provider-login',
           name: 'GitHub Provider Name',
           email: 'profile@example.com',
+          avatar_url: 'https://github.example/avatar-current.png',
         }),
       });
     (global as any).fetch = mockedFetch;
@@ -115,11 +116,20 @@ describe('GithubAuthService', () => {
         id: 'user-1',
         email: 'profile@example.com',
         full_name: 'Manual Custom Name',
+        avatar_url: 'https://github.example/avatar-old.png',
         status: 'ACTIVE',
         role_code: 'USER',
       }),
       findByEmail: jest.fn(),
       create: jest.fn(),
+      updateOAuthAvatar: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        email: 'profile@example.com',
+        full_name: 'Manual Custom Name',
+        avatar_url: 'https://github.example/avatar-current.png',
+        status: 'ACTIVE',
+        role_code: 'USER',
+      }),
     };
     const linkedAuthService = {
       issueSessionForUser: jest.fn().mockResolvedValue({
@@ -146,8 +156,15 @@ describe('GithubAuthService', () => {
       'Manual Custom Name',
     );
     expect(linkedUsersService.create).not.toHaveBeenCalled();
+    expect(linkedUsersService.updateOAuthAvatar).toHaveBeenCalledWith(
+      'user-1',
+      'https://github.example/avatar-current.png',
+    );
     expect(linkedAuthService.issueSessionForUser).toHaveBeenCalledWith(
-      expect.objectContaining({ full_name: 'Manual Custom Name' }),
+      expect.objectContaining({
+        full_name: 'Manual Custom Name',
+        avatar_url: 'https://github.example/avatar-current.png',
+      }),
       'github',
       undefined,
     );

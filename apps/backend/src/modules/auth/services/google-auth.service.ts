@@ -147,9 +147,8 @@ export class GoogleAuthService {
         username,
         full_name: fullName,
         password: randomPassword,
-        avatar_url: profile.avatarUrl ?? undefined,
       },
-      { hasManualPassword: false },
+      { hasManualPassword: false, avatarUrl: profile.avatarUrl },
     );
 
     await this.prisma.user.update({
@@ -378,6 +377,13 @@ export class GoogleAuthService {
         throw ErrorService.create(
           ErrorCode.UNAUTHORIZED,
           'Google-linked user could not be resolved after activation.',
+        );
+      }
+
+      if (user.avatar_url !== providerUser.avatarUrl) {
+        user = await this.usersService.updateOAuthAvatar(
+          user.id,
+          providerUser.avatarUrl ?? null,
         );
       }
 

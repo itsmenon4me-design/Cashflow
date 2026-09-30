@@ -1,5 +1,8 @@
 ﻿import { apiClient } from "@/lib/axios";
-import type { LoginResponse } from "@/types/backend";
+import type {
+  LoginResponse,
+  UserResponse,
+} from "@/types/backend";
 
 export interface LoginPayload {
   email: string;
@@ -63,9 +66,12 @@ export const authService = {
 
   updateProfile: async (payload: {
     full_name?: string;
-  }): Promise<{ success: boolean; data?: any; message?: string }> => {
+  }): Promise<{ success: boolean; data?: UserResponse; message?: string }> => {
     try {
-      const res = await apiClient.patch<{ success: boolean; data?: any }>(
+      const res = await apiClient.patch<{
+        success: boolean;
+        data?: UserResponse;
+      }>(
         "/auth/profile",
         payload,
       );
@@ -74,32 +80,24 @@ export const authService = {
       // If the endpoint doesn't exist in the backend (404), try a fallback to /users/:id
       if (err instanceof ApiError && err.status === 404) {
         try {
-          const stored = getStoredUser() as any;
-          let maybeId =
-            stored?.id ??
-            stored?.user_id ??
-            stored?.sub ??
-            stored?.uuid ??
-            null;
+          const stored = getStoredUser();
+          let maybeId = stored?.id ?? null;
           if (!maybeId) {
             // Stored user may lack an id (login response ships no user object) — resolve via /auth/me.
-            const me = await apiClient.get<{ success: boolean; data?: any }>(
-              "/auth/me",
-            );
+            const me = await apiClient.get<{
+              success: boolean;
+              data?: UserResponse;
+            }>("/auth/me");
             maybeId = me?.data?.id ?? null;
           }
           if (maybeId) {
-            const userPatch: Record<string, unknown> = {};
-            if (payload.full_name) userPatch["full_name"] = payload.full_name;
-            const r = await apiClient.patch<{ success: boolean; data?: any }>(
+            const userPatch: { full_name?: string } = {};
+            if (payload.full_name) userPatch.full_name = payload.full_name;
+            const updated = await apiClient.patch<UserResponse>(
               `/users/${maybeId}`,
               userPatch,
             );
-            // PATCH /users/:id balik raw user object tanpa wrapper {success} — normalize
-            if (r && typeof r === "object" && "id" in r) {
-              return { success: true, data: r };
-            }
-            return r;
+            return { success: true, data: updated };
           }
         } catch (e) {
           console.error("[auth-service] profile fallback update failed", e);

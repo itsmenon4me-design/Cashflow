@@ -30,6 +30,7 @@ describe("MobileNav", () => {
     render(<MobileNav />);
 
     const navigation = screen.getByRole("navigation", { name: "Navigasi utama" });
+    expect(navigation.className).toContain("fixed");
     expect(navigation.className).toContain("lg:hidden");
     expect(navigation.className).not.toContain("md:hidden");
   });

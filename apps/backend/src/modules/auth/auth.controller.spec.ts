@@ -22,7 +22,10 @@ describe('AuthController', () => {
   let app: INestApplication;
   const mockAuthService = {};
   const mockSessionService = { logoutCurrent: jest.fn() };
-  const mockUsersService = { create: jest.fn(), findById: jest.fn() };
+  const mockUsersService = {
+    create: jest.fn(),
+    findById: jest.fn(),
+  };
   const mockVerificationService = { sendVerificationEmail: jest.fn() };
   const mockRedisService = { incr: jest.fn().mockResolvedValue(1) };
   const mockAuthConfigService = {
@@ -95,7 +98,10 @@ describe('AuthController', () => {
         { provide: AuthService, useValue: mockAuthService },
         { provide: SessionService, useValue: mockSessionService },
         { provide: UsersService, useValue: mockUsersService },
-        { provide: EmailVerificationService, useValue: mockVerificationService },
+        {
+          provide: EmailVerificationService,
+          useValue: mockVerificationService,
+        },
         { provide: RedisService, useValue: mockRedisService },
         { provide: AuthConfigService, useValue: mockAuthConfigService },
         { provide: LoggerService, useValue: mockLoggerService },
@@ -106,13 +112,15 @@ describe('AuthController', () => {
       .compile();
 
     controller = module.get<AuthController>(AuthController);
-
+    app = module.createNestApplication();
     app = module.createNestApplication();
     await app.init();
   });
 
   afterEach(async () => {
     await app.close();
+    authGuard.isAuthenticated = true;
+    authGuard.shouldAttachUser = true;
   });
 
   it('register delegates to UsersService and returns safe response', async () => {
@@ -140,7 +148,9 @@ describe('AuthController', () => {
     const res = await controller.register(dto);
 
     expect(mockUsersService.create).toHaveBeenCalledWith(dto);
-    expect(mockVerificationService.sendVerificationEmail).toHaveBeenCalledWith('u1');
+    expect(mockVerificationService.sendVerificationEmail).toHaveBeenCalledWith(
+      'u1',
+    );
     expect(res.success).toBe(true);
     expect(
       (res.data as unknown as { password_hash?: unknown }).password_hash,
@@ -162,7 +172,9 @@ describe('AuthController', () => {
       email: dto.email,
       username: dto.username,
     };
-    const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const loggerSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation();
     mockUsersService.create.mockResolvedValue(created);
     mockVerificationService.sendVerificationEmail.mockRejectedValue(
       new Error('SMTP unavailable'),

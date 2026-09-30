@@ -134,9 +134,8 @@ export class GithubAuthService {
         username: await this.uniqueUsername(fullName),
         full_name: fullName,
         password,
-        avatar_url: profile.avatarUrl ?? undefined,
       },
-      { hasManualPassword: false },
+      { hasManualPassword: false, avatarUrl: profile.avatarUrl },
     );
     await this.prisma.user.update({
       where: { id: user.id },
@@ -239,6 +238,12 @@ export class GithubAuthService {
         email: providerUser.email,
         emailVerified: true,
       });
+    }
+    if (user && user.avatar_url !== providerUser.avatarUrl) {
+      user = await this.usersService.updateOAuthAvatar(
+        user.id,
+        providerUser.avatarUrl ?? null,
+      );
     }
     const session = await this.authService.issueSessionForUser(
       user,

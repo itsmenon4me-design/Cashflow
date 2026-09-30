@@ -34,10 +34,6 @@ export class CreateUserDto {
   @Length(8, 128)
   password!: string;
 
-  @ApiProperty({ description: 'Avatar URL', required: false })
-  @IsOptional()
-  avatar_url?: string;
-
   @ApiProperty({ description: 'Phone number', required: false })
   @IsOptional()
   phone_number?: string;

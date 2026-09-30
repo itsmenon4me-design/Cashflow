@@ -20,6 +20,7 @@ export interface AuthUser {
   name: string;
   email: string;
   has_manual_password?: boolean | null;
+  avatar_url?: string | null;
 }
 
 interface AuthState {

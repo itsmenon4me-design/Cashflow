@@ -84,6 +84,7 @@ export function AppProviders({ children }: AppProvidersProps) {
             name?: string;
             email?: string;
             has_manual_password?: boolean | null;
+            avatar_url?: string | null;
           };
         }>("/auth/me")
         .then((response) => {
@@ -94,6 +95,7 @@ export function AppProviders({ children }: AppProvidersProps) {
             name: profile.full_name || profile.name || "Pengguna",
             email: profile.email || useAuthStore.getState().user?.email || "",
             has_manual_password: profile.has_manual_password ?? null,
+            avatar_url: profile.avatar_url ?? null,
           });
         })
         .catch((error: unknown) => {
