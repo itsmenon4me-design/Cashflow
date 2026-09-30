@@ -268,7 +268,13 @@ export class ReportExportService {
     const [currentRows, comparisonRows, trend] = await Promise.all([
       this.getTransactions(userId, range, 'Laporan'),
       this.getTransactions(userId, previousRange, 'Pembanding'),
-      this.trendSvc.getTrend(userId, trendType, range.start, range.end),
+      this.trendSvc.getTrend(
+        userId,
+        trendType,
+        range.start,
+        range.end,
+        timeZone,
+      ),
     ]);
     if (currentRows.length + comparisonRows.length + 1 > MAX_EXCEL_ROWS) {
       throw new BadRequestException(
@@ -306,8 +312,18 @@ export class ReportExportService {
     startDate?: Date;
     endDate?: Date;
     userId: string;
+    timeZone?: string;
   }): Promise<ExportResult> {
-    const { type, format, month, year, startDate, endDate, userId } = params;
+    const {
+      type,
+      format,
+      month,
+      year,
+      startDate,
+      endDate,
+      userId,
+      timeZone: requestedTimeZone,
+    } = params;
     if (!['monthly', 'category', 'trend'].includes(type)) {
       throw new BadRequestException('Invalid type');
     }
@@ -320,7 +336,8 @@ export class ReportExportService {
       );
     }
 
-    const timeZone = await resolveUserTimezone(this.prisma, userId);
+    const timeZone =
+      requestedTimeZone ?? (await resolveUserTimezone(this.prisma, userId));
     const range = this.resolveRange(type, timeZone, {
       month,
       year,
@@ -447,6 +464,7 @@ export class ReportExportService {
       'monthly',
       range.start,
       range.end,
+      timeZone,
     );
     const rows = [
       ['period', 'income', 'expense', 'netCashFlow'],

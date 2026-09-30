@@ -260,6 +260,8 @@ describe('ReportsController (security)', () => {
     const exportOpts = mocks.export.mock.calls[0][0];
     expect(exportOpts.userId).toBe('user-auth');
     expect(exportOpts.format).toBe('xlsx');
+    expect(exportOpts.timeZone).toBe('Asia/Jakarta');
+    expect(timezoneLookup).toHaveBeenCalledTimes(1);
     expect(exportOpts.startDate).toEqual(new Date('2026-08-01T00:00:00.000Z'));
     expect(exportOpts.endDate).toEqual(new Date('2026-08-31T23:59:59.999Z'));
   });

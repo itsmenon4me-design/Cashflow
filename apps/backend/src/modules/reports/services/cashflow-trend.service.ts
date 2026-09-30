@@ -63,11 +63,13 @@ export class CashflowTrendService {
     type: TrendType,
     startDate: Date,
     endDate: Date,
+    resolvedTimeZone?: string,
   ): Promise<TrendResult> {
     if (type !== 'daily' && type !== 'weekly' && type !== 'monthly')
       throw new BadRequestException('Invalid type');
     this.validateDates(startDate, endDate);
-    const timeZone = await resolveUserTimezone(this.prisma, userId);
+    const timeZone =
+      resolvedTimeZone ?? (await resolveUserTimezone(this.prisma, userId));
 
     // fetch transactions in range
     const recs = await this.prisma.transaction.findMany({

@@ -45,18 +45,21 @@ async function buildRange(
   prisma: PrismaService,
   startDate?: string,
   endDate?: string,
+  resolvedTimeZone?: string,
 ): Promise<DateRange | undefined> {
   if (!startDate && !endDate) return undefined;
   if (!startDate || !endDate) {
     const date = startDate || endDate;
     if (!date) return undefined;
-    const timeZone = await resolveUserTimezone(prisma, userId);
+    const timeZone =
+      resolvedTimeZone ?? (await resolveUserTimezone(prisma, userId));
     return {
       start: DateHelper.startOfDayInTimezone(date, timeZone),
       end: DateHelper.endOfDayInTimezone(date, timeZone),
     };
   }
-  const timeZone = await resolveUserTimezone(prisma, userId);
+  const timeZone =
+    resolvedTimeZone ?? (await resolveUserTimezone(prisma, userId));
   const parseBoundary = (value: string, boundary: 'start' | 'end') => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return boundary === 'start'
@@ -224,12 +227,14 @@ export class ReportsController {
     }
     const month = query.month;
     const year = query.year;
+    const timeZone = await resolveUserTimezone(this.prisma, userId);
     const range = query.startDate
       ? await buildRange(
           userId,
           this.prisma,
           query.startDate,
           query.endDate,
+          timeZone,
         )
       : undefined;
 
@@ -241,6 +246,7 @@ export class ReportsController {
       startDate: range?.start,
       endDate: range?.end,
       userId,
+      timeZone,
     });
 
     return {
