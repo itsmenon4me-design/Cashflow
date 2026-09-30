@@ -79,7 +79,7 @@ describe("TransactionsPage", () => {
     } as any);
 
     const { container } = render(<TransactionsPage transactionType={transactionType} />);
-    const today = toInputDate(new Date());
+    const today = toInputDate(new Date(), "Asia/Jakarta");
 
     const dateFilters = container.querySelectorAll('input[type="date"]');
     expect(dateFilters).toHaveLength(2);
@@ -125,7 +125,7 @@ describe("TransactionsPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: uiText.transactions.resetFilters }));
 
-    const today = toInputDate(new Date());
+    const today = toInputDate(new Date(), "Asia/Jakarta");
     expect(screen.getByLabelText(uiText.transactions.fromDate)).toHaveValue(today);
     expect(screen.getByLabelText(uiText.transactions.toDate)).toHaveValue(today);
   });
