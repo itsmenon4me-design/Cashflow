@@ -1,9 +1,10 @@
 "use client";
 
 import { memo, useState } from "react";
-import { PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { cn } from "@/lib/utils";
 import { useUiText } from "@/hooks/useUiText";
 
@@ -49,12 +50,10 @@ export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed
           collapsed ? "justify-center px-2" : "px-5"
         )}
       >
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Wallet className="size-4" />
-        </div>
+        <BrandLogo variant="mark" alt="" className="size-9 shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-sidebar-foreground">CashFlow</p>
+            <p className="truncate text-sm font-semibold text-sidebar-foreground">neraca</p>
             <p className="truncate text-xs text-muted-foreground">{text.common.dashboardSubtitle}</p>
           </div>
         )}

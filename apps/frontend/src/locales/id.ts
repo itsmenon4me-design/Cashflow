@@ -343,7 +343,7 @@ export const idText = {
     pushSaving: "Memproses...",
     pushEnabled: "Notifikasi perangkat aktif di browser ini.",
     pushDenied:
-      "Izin diblokir. Ubah izin notifikasi CashFlow di pengaturan situs browser.",
+      "Izin diblokir. Ubah izin notifikasi neraca di pengaturan situs browser.",
     pushUnsupported: "Browser ini belum mendukung Web Push.",
     pushUnavailable:
       "Notifikasi perangkat belum bisa diaktifkan saat ini. Silakan coba lagi nanti.",

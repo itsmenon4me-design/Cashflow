@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Wallet } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { GoogleIcon, GithubIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -180,10 +181,9 @@ export default function Page() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Wallet className="size-6" />
-          </div>
-          <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
+          <h1>
+            <BrandLogo variant="lockup" alt="neraca" className="h-auto w-40" />
+          </h1>
           <p className="text-sm text-muted-foreground">{t.loginSubtitle}</p>
         </div>
 

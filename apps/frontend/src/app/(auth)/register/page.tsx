@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { GoogleIcon, GithubIcon } from "@/components/icons";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -162,7 +163,9 @@ export default function Page() {
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <UserPlus className="size-6" />
           </div>
-          <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
+          <h1>
+            <BrandLogo variant="lockup" alt="neraca" className="h-auto w-40" />
+          </h1>
           <p className="text-sm text-muted-foreground">{t.registerSubtitle}</p>
         </div>
 

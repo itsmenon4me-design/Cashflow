@@ -46,7 +46,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         };
         if (parsed.type === "new") {
           setOauthWelcome(
-            "Akun baru berhasil dibuat, selamat datang di CashFlow!",
+            "Akun baru berhasil dibuat, selamat datang di neraca!",
           );
         } else if (parsed.type === "returning") {
           setOauthWelcome(
@@ -64,7 +64,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         .detail;
       if (detail?.type === "new") {
         setOauthWelcome(
-          "Akun baru berhasil dibuat, selamat datang di CashFlow!",
+          "Akun baru berhasil dibuat, selamat datang di neraca!",
         );
       } else if (detail?.type === "returning") {
         setOauthWelcome(

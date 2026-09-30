@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { Mail, KeyRound } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,7 +63,9 @@ export default function Page() {
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <KeyRound className="size-6" />
           </div>
-          <h1 className="font-heading text-2xl font-semibold">CashFlow</h1>
+          <h1>
+            <BrandLogo variant="lockup" alt="neraca" className="h-auto w-40" />
+          </h1>
           <p className="text-sm text-muted-foreground">{t.forgotSubtitle}</p>
         </div>
 

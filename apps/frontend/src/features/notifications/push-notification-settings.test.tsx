@@ -137,7 +137,7 @@ describe("PushNotificationSettings", () => {
     expect(enableSwitch).toBeInTheDocument();
     expect(
       screen.queryByText(
-        "Tampilkan pengingat umum CashFlow di perangkat. Detail tetap hanya terlihat di aplikasi.",
+        "Tampilkan pengingat umum neraca di perangkat. Detail tetap hanya terlihat di aplikasi.",
       ),
     ).not.toBeInTheDocument();
     expect(

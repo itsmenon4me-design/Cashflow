@@ -3,15 +3,15 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "CashFlow Enterprise",
-    short_name: "CashFlow",
-    description: "Production-first CashFlow enterprise platform blueprint",
+    name: "neraca",
+    short_name: "neraca",
+    description: "Pencatatan dan perencanaan keuangan pribadi.",
     start_url: "/",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
-    background_color: "#020202",
-    theme_color: "#020202",
+    background_color: "#0B2A4A",
+    theme_color: "#0B2A4A",
     lang: "id",
     categories: ["finance", "business", "productivity"],
     icons: [
@@ -32,7 +32,7 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
       {
-        src: "/icon.svg",
+        src: "/brand/neraca-mark.svg",
         sizes: "any",
         type: "image/svg+xml",
       },

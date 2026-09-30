@@ -342,7 +342,7 @@ export const enText = {
     pushSaving: "Processing...",
     pushEnabled: "Device notifications are active in this browser.",
     pushDenied:
-      "Permission is blocked. Change CashFlow notification permission in your browser site settings.",
+      "Permission is blocked. Change neraca notification permission in your browser site settings.",
     pushUnsupported: "This browser does not support Web Push.",
     pushUnavailable:
       "Device notifications cannot be enabled right now. Please try again later.",

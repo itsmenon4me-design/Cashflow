@@ -10,9 +10,9 @@ export interface SwaggerConfig {
 
 export const swaggerConfig = registerAs<SwaggerConfig>('swagger', () => ({
   enabled: process.env.SWAGGER_ENABLED === 'true',
-  title: process.env.SWAGGER_TITLE ?? 'CashFlow Enterprise API',
+  title: process.env.SWAGGER_TITLE ?? 'neraca API',
   description:
-    process.env.SWAGGER_DESCRIPTION ?? 'CashFlow Enterprise API documentation',
+    process.env.SWAGGER_DESCRIPTION ?? 'Dokumentasi API neraca',
   version: process.env.SWAGGER_VERSION ?? '1.0.0',
   path: process.env.SWAGGER_PATH ?? 'docs',
 }));

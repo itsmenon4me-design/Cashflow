@@ -1,4 +1,4 @@
-export const APP_NAME = 'CashFlow Enterprise API';
+export const APP_NAME = 'neraca API';
 
 export const API_PREFIX = 'api';
 

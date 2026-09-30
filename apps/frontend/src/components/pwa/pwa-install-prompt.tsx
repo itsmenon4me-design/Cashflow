@@ -61,7 +61,7 @@ export function PwaInstallPrompt() {
         <Download className="size-5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">Pasang CashFlow</p>
+        <p className="text-sm font-medium text-foreground">Pasang neraca</p>
         <p className="truncate text-xs text-muted-foreground">
           Buka tanpa koneksi internet, lebih cepat.
         </p>

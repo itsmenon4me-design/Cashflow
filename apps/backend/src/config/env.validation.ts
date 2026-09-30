@@ -27,7 +27,7 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
-  APP_NAME: string = 'CashFlow Enterprise';
+  APP_NAME: string = 'neraca';
 
   @IsInt()
   @Min(1)
@@ -138,11 +138,11 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
-  SWAGGER_TITLE: string = 'CashFlow Enterprise API';
+  SWAGGER_TITLE: string = 'neraca API';
 
   @IsString()
   @IsOptional()
-  SWAGGER_DESCRIPTION: string = 'CashFlow Enterprise API documentation';
+  SWAGGER_DESCRIPTION: string = 'Dokumentasi API neraca';
 
   @IsString()
   @IsOptional()

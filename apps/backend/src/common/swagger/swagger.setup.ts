@@ -17,16 +17,16 @@ export function setupSwagger(
     env === Environment.Test;
   if (!enabled) return;
 
-  const title = config.swagger.title || 'CashFlow Enterprise API';
+  const title = config.swagger.title || 'neraca API';
 
   const documentBuilder = new DocumentBuilder()
     .setTitle(title)
     .setDescription(
-      config.swagger.description || 'Enterprise CashFlow Management System',
+      config.swagger.description || 'Dokumentasi API neraca',
     )
     .setVersion(config.swagger.version || 'v1')
     .setTermsOfService('https://example.com/terms')
-    .setContact('CashFlow Team', 'https://example.com', 'support@example.com')
+    .setContact('Tim neraca', 'https://example.com', 'support@example.com')
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },

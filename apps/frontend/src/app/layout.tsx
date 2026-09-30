@@ -12,16 +12,19 @@ import { cn } from "@/lib/utils";
 // font-mono) and only added font downloads for low-end/mobile devices.
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 export const metadata: Metadata = {
-  title: "CashFlow Enterprise",
-  description: "Production-first CashFlow enterprise platform blueprint for secure multi-platform financial operations.",
+  title: "neraca",
+  description: "Pencatatan dan perencanaan keuangan pribadi.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "CashFlow",
+    title: "neraca",
   },
   icons: {
-    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/brand/neraca-mark.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
@@ -30,7 +33,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#020202",
+  themeColor: "#0B2A4A",
   colorScheme: "dark light",
   viewportFit: "cover",
 };

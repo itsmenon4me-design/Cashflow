@@ -32,7 +32,7 @@ export interface Configuration {
 
 export const appConfig = registerAs<AppConfig>('app', () => ({
   environment: (process.env.NODE_ENV as Environment) ?? Environment.Development,
-  name: process.env.APP_NAME ?? 'CashFlow Enterprise',
+  name: process.env.APP_NAME ?? 'neraca',
   port: Number.parseInt(process.env.APP_PORT ?? process.env.PORT ?? '3001', 10),
   url: process.env.APP_URL ?? 'http://localhost:3001',
   prefix: process.env.API_PREFIX ?? 'api',
