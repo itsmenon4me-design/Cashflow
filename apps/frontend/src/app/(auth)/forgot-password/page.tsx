@@ -85,7 +85,7 @@ export default function Page() {
                     type="email"
                     inputMode="email"
                     autoComplete="email"
-                    placeholder="nama@email.com"
+                    placeholder={t.email}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     disabled={submitting}

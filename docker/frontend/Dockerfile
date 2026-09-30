@@ -18,6 +18,7 @@ COPY apps/frontend/package.json ./apps/frontend/package.json
 RUN npm ci
 
 COPY apps/frontend ./apps/frontend
+COPY apps/backend/src/common/utils/indonesian-timezone.ts ./apps/backend/src/common/utils/indonesian-timezone.ts
 
 # Bake the public API URL at build time
 ARG NEXT_PUBLIC_API_URL
