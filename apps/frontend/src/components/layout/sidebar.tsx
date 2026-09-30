@@ -4,7 +4,6 @@ import { memo, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
-import { BrandLogo } from "@/components/brand/brand-logo";
 import { cn } from "@/lib/utils";
 import { useUiText } from "@/hooks/useUiText";
 
@@ -46,17 +45,19 @@ export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border",
+          "flex h-16 shrink-0 items-center border-b border-sidebar-border",
           collapsed ? "justify-center px-2" : "px-5"
         )}
       >
-        <BrandLogo variant="mark" alt="" className="size-9 shrink-0" />
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-sidebar-foreground">neraca</p>
-            <p className="truncate text-xs text-muted-foreground">{text.common.dashboardSubtitle}</p>
-          </div>
-        )}
+        <span
+          aria-label="Neraca"
+          className={cn(
+            "truncate font-semibold text-sidebar-foreground",
+            collapsed ? "text-base" : "text-lg tracking-tight",
+          )}
+        >
+          {collapsed ? "N" : "Neraca"}
+        </span>
       </div>
 
       <div
