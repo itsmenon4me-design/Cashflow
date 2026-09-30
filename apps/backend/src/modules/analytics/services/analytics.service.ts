@@ -115,6 +115,7 @@ export interface AnalyticsSpendingResult {
 export interface AnalyticsHealthResult {
   score: number;
   label: 'healthy' | 'moderate' | 'risk';
+  insufficientData?: boolean;
   savingRate: number;
   expenseRatio: number;
   incomeVsExpense: number | null;
@@ -499,6 +500,7 @@ export class AnalyticsService {
       return {
         score: 0,
         label: 'risk',
+        insufficientData: true,
         savingRate: 0,
         expenseRatio: 0,
         incomeVsExpense: null,
@@ -530,6 +532,7 @@ export class AnalyticsService {
       return {
         score: 0,
         label: 'risk',
+        insufficientData: true,
         savingRate: 0,
         expenseRatio: 0,
         incomeVsExpense: null,

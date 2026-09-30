@@ -50,9 +50,54 @@ describe('AnalyticsService', () => {
 
     expect(result.score).toBe(0);
     expect(result.label).toBe('risk');
+    expect(result.insufficientData).toBe(true);
     expect(result.netCashFlow).toBe('0');
     expect(result.spendingConcentration).toBe(0);
     expect(categoryBreakdown.getBreakdown).not.toHaveBeenCalled();
+  });
+
+  it('marks a zero health score as insufficient when downstream data is empty', async () => {
+    const service = new AnalyticsService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    jest.spyOn(service, 'overview').mockResolvedValue({
+      income: '1',
+      expense: '0',
+      netCashFlow: '1',
+      savingRate: 100,
+      transactions: 1,
+      comparison: {
+        income: null,
+        expense: null,
+        netCashFlow: null,
+        savingRate: null,
+      },
+    });
+    jest.spyOn(service, 'getSummary').mockResolvedValue({
+      summary: {
+        income: '0',
+        expense: '0',
+        netCashFlow: '0',
+        transactions: 0,
+      },
+    } as any);
+    jest.spyOn(service, 'getBreakdown').mockResolvedValue({
+      total: '0',
+      categories: [],
+    } as any);
+
+    const result = await service.financialHealth('user-1', {
+      startDate: new Date('2025-01-01T00:00:00.000Z'),
+      endDate: new Date('2025-01-31T23:59:59.999Z'),
+      timeZone: 'Asia/Jakarta',
+    });
+
+    expect(result.insufficientData).toBe(true);
+    expect(result.score).toBe(0);
+    expect(result.label).toBe('risk');
   });
 
   it('keeps the normal formula for non-empty data', async () => {
@@ -88,6 +133,7 @@ describe('AnalyticsService', () => {
 
     expect(result.score).toBeGreaterThan(0);
     expect(result.score).toBeLessThan(100);
+    expect(result.insufficientData).toBeUndefined();
     expect(result.netCashFlow).toBe('50000');
   });
 

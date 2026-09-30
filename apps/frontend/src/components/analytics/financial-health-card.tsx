@@ -51,7 +51,16 @@ export function FinancialHealthCard({ health, loading = false }: FinancialHealth
         <p className="mt-1 text-sm text-muted-foreground">{uiText.analytics.healthSubtitle}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {health ? (
+        {health?.insufficientData ? (
+          <div className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-4 py-6 text-center">
+            <p className="text-sm font-medium text-foreground">
+              {uiText.analytics.healthInsufficientDataTitle}
+            </p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              {uiText.analytics.healthInsufficientDataDescription}
+            </p>
+          </div>
+        ) : health ? (
           <>
             <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
               <div>

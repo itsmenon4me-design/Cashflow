@@ -539,6 +539,9 @@ export const idText = {
     deficitPeriods: "{count} periode defisit",
     healthTitle: "Kesehatan Keuangan",
     healthSubtitle: "Indikator sederhana dari data transaksi Anda.",
+    healthInsufficientDataTitle: "Belum cukup data",
+    healthInsufficientDataDescription:
+      "Tambahkan transaksi untuk melihat skor kesehatan keuangan Anda.",
     score: "Skor",
     labelHealthy: "Sehat",
     labelModerate: "Cukup",

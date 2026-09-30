@@ -537,6 +537,9 @@ export const enText = {
     deficitPeriods: "{count} deficit periods",
     healthTitle: "Financial Health",
     healthSubtitle: "Simple indicators from your transaction data.",
+    healthInsufficientDataTitle: "Not enough data",
+    healthInsufficientDataDescription:
+      "Add transactions to see your financial health score.",
     score: "Score",
     labelHealthy: "Healthy",
     labelModerate: "Fair",

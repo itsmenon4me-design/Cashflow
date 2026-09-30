@@ -59,6 +59,7 @@ export interface AnalyticsSpending {
 export interface AnalyticsHealth {
   score: number;
   label: "healthy" | "moderate" | "risk";
+  insufficientData?: boolean;
   savingRate: number;
   expenseRatio: number;
   incomeVsExpense: number | null;
