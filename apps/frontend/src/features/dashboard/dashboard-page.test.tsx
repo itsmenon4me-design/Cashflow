@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "./dashboard-page";
 import { dashboardService } from "@/services/dashboard.service";
@@ -196,6 +196,41 @@ describe("DashboardPage simplified layout", () => {
     expect(screen.getByText(uiText.common.vsLastMonth)).toBeInTheDocument();
   });
 
+  it("shows a retryable error instead of zero KPIs when summary loading fails", async () => {
+    vi.spyOn(dashboardService, "getSummary")
+      .mockRejectedValueOnce(new Error("Summary unavailable"))
+      .mockResolvedValueOnce({
+        currency: "IDR",
+        total_assets_cents: "0",
+        total_income_cents: "0",
+        total_expense_cents: "0",
+        net_cash_flow_cents: "0",
+        previous_net_cash_flow_cents: "0",
+        total_accounts: 0,
+        total_categories: 0,
+        total_transactions: 0,
+        last_updated_at: null,
+      } as any);
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      uiText.dashboard.summaryLoadError,
+    );
+    expect(
+      screen.queryByText(uiText.dashboard.currentBalance),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(formatCurrencyCents("0")),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: uiText.common.tryAgain }));
+
+    expect(
+      await screen.findByText(uiText.dashboard.currentBalance),
+    ).toBeInTheDocument();
+  });
+
   it("keeps non-cash-flow KPIs without comparisons and shows the real zero cash-flow delta", async () => {
     vi.spyOn(dashboardService, "getSummary").mockResolvedValue({
       currency: "IDR",
@@ -368,5 +403,32 @@ describe("DashboardPage simplified layout", () => {
       await screen.findByText(uiText.dashboard.recentTransactionsLoadError),
     ).toBeInTheDocument();
     expect(screen.getByText("Gaji Bulanan")).toBeInTheDocument();
+    expect(screen.getByText("Aug:3500000")).toBeInTheDocument();
+  });
+
+  it("shows a retryable chart error when the trend widget fails", async () => {
+    const getFlowSeries = vi
+      .spyOn(dashboardService, "getFlowSeries")
+      .mockRejectedValueOnce(new Error("Dashboard trend widget failed"))
+      .mockResolvedValueOnce({
+        cashFlow: [{ month: "Sep", balance: 2500 }],
+        flow: [],
+      });
+
+    render(<DashboardPage />);
+
+    expect(
+      await screen.findByText(uiText.dashboard.flowLoadError),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(uiText.common.noDataAvailable)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: uiText.common.tryAgain }));
+
+    await waitFor(() => {
+      expect(getFlowSeries).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByText("Sep:2500")).toBeInTheDocument();
+    expect(
+      screen.queryByText(uiText.dashboard.flowLoadError),
+    ).not.toBeInTheDocument();
   });
 });

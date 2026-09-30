@@ -441,6 +441,8 @@ export const idText = {
     totalExpense: "Total Pengeluaran",
     cashFlow: "Arus Kas",
     cashFlowMonthly: "Arus Kas Bulanan",
+    summaryLoadError: "Ringkasan keuangan gagal dimuat. Coba lagi.",
+    budgetAnalysisLoadError: "Analisis anggaran gagal dimuat. Coba lagi.",
     flowLoadError:
       "Data arus kas gagal diperbarui. Data sebelumnya tetap ditampilkan.",
     recentTransactionsLoadError:
@@ -860,6 +862,8 @@ export const idText = {
     netCashFlow: "Arus Kas Bersih",
     totalTransactions: "Jumlah Transaksi",
     previousPeriod: "vs periode sebelumnya",
+    newComparison: "Baru",
+    unavailableComparison: "-",
     cashFlowTrend: "Tren Arus Kas",
     cashFlowTrendSubtitle:
       "Pemasukan, pengeluaran, dan arus kas bersih per periode.",

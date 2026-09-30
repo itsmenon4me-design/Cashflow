@@ -1,6 +1,7 @@
 ﻿import { apiClient } from "@/lib/axios";
 import { categoryService } from "@/services/category.service";
 import { transactionService, toTransactionItem } from "@/services/transaction.service";
+import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
 import type { DashboardSummaryResponse } from "@/types/backend";
 import type {
   CashFlowPoint,
@@ -57,7 +58,11 @@ export interface DashboardWidgetsResponse {
     income: number;
     expense: number;
     netCashFlow: number;
-    comparison: Record<string, unknown> | null;
+    comparison: {
+      income: number | null;
+      expense: number | null;
+      netCashFlow: number | null;
+    } | null;
   } | null;
   monthlyReport: {
     month: number;
@@ -137,9 +142,11 @@ function parseMonth(period: string): { year: number; index: number } | null {
     : null;
 }
 
-function currentPeriodInJakarta(): { year: number; month: number } {
+function currentPeriodInTimezone(
+  timeZone: string,
+): { year: number; month: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jakarta",
+    timeZone,
     year: "numeric",
     month: "numeric",
   }).formatToParts(new Date());
@@ -157,14 +164,15 @@ export const dashboardService = {
     apiClient.get<DashboardWidgetsResponse>("/dashboard/widgets"),
 
 
-  getFlowSeries: async (): Promise<FlowSeries> => {
+  getFlowSeries: async (
+    timeZone = DEFAULT_USER_TIMEZONE,
+  ): Promise<FlowSeries> => {
     const widgets = await dashboardService.getWidgets();
-    const points = widgets.trend?.data;
-    if (!points) {
-      return { cashFlow: [], flow: [] };
-    }
+    if (!widgets.trend) throw new Error("Dashboard trend widget failed");
+    const points = widgets.trend.data;
+    if (points.length === 0) return { cashFlow: [], flow: [] };
 
-    const currentPeriod = currentPeriodInJakarta();
+    const currentPeriod = currentPeriodInTimezone(timeZone);
     const year = (points[0] && parseMonth(points[0].period)?.year) ?? currentPeriod.year;
     const monthlyPoints = Array.from({ length: 12 }, (_, index) => ({
       month: MONTH_LABELS[index],
@@ -202,13 +210,18 @@ export const dashboardService = {
   },
 
 
-  getRecentTransactions: async (limit = 5): Promise<TransactionItem[]> => {
+  getRecentTransactions: async (
+    limit = 5,
+    timeZone = DEFAULT_USER_TIMEZONE,
+  ): Promise<TransactionItem[]> => {
     const [page, categories] = await Promise.all([
       transactionService.list({ page: 1, limit }),
       categoryService.list().catch(() => []),
     ]);
     const categoryNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
-    return (page.data ?? []).map((dto) => toTransactionItem(dto, categoryNames));
+    return (page.data ?? []).map((dto) =>
+      toTransactionItem(dto, categoryNames, timeZone),
+    );
   },
 
   getBudgetStatus: async (): Promise<BudgetWidget | null> => {

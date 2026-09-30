@@ -65,7 +65,7 @@ describe("dashboard.service", () => {
     }
   });
 
-  it("getFlowSeries returns empty series when trend is null (widget failure)", async () => {
+  it("getFlowSeries rejects when trend is null (widget failure)", async () => {
     mockedApi.get.mockResolvedValue({
       summary: {},
       cashFlow: {},
@@ -75,13 +75,12 @@ describe("dashboard.service", () => {
       budget: null,
     });
 
-    const series = await dashboardService.getFlowSeries();
-
-    expect(series.cashFlow).toEqual([]);
-    expect(series.flow).toEqual([]);
+    await expect(dashboardService.getFlowSeries()).rejects.toThrow(
+      "Dashboard trend widget failed",
+    );
   });
 
-  it("getFlowSeries returns twelve zero-value months when the trend is empty", async () => {
+  it("getFlowSeries returns an empty series when the trend has no points", async () => {
     mockedApi.get.mockResolvedValue({
       summary: {},
       cashFlow: {},
@@ -97,12 +96,7 @@ describe("dashboard.service", () => {
     try {
       const series = await dashboardService.getFlowSeries();
 
-      expect(series.cashFlow).toHaveLength(12);
-      expect(series.cashFlow.slice(0, 9).every(({ balance }) => balance === 0)).toBe(true);
-      expect(series.cashFlow.slice(9).every(({ balance }) => balance === null)).toBe(true);
-      expect(series.flow).toHaveLength(12);
-      expect(series.flow.slice(0, 9).every(({ income, expense }) => income === 0 && expense === 0)).toBe(true);
-      expect(series.flow.slice(9).every(({ income, expense }) => income === null && expense === null)).toBe(true);
+      expect(series).toEqual({ cashFlow: [], flow: [] });
     } finally {
       vi.useRealTimers();
     }

@@ -440,6 +440,8 @@ export const enText = {
     totalExpense: "Total Expense",
     cashFlow: "Cash Flow",
     cashFlowMonthly: "Monthly Cash Flow",
+    summaryLoadError: "The financial summary could not be loaded. Please try again.",
+    budgetAnalysisLoadError: "Budget analysis could not be loaded. Please try again.",
     flowLoadError:
       "Cash flow could not be refreshed. The last loaded data is still shown.",
     recentTransactionsLoadError:
@@ -858,6 +860,8 @@ export const enText = {
     netCashFlow: "Net Cash Flow",
     totalTransactions: "Total Transactions",
     previousPeriod: "vs previous period",
+    newComparison: "New",
+    unavailableComparison: "-",
     cashFlowTrend: "Cash Flow Trend",
     cashFlowTrendSubtitle: "Income, expense, and net cash flow per period.",
     trendNotEnoughTitle: "Not enough data to show a trend",

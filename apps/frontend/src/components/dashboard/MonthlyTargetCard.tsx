@@ -12,9 +12,17 @@ import type { MonthlyTargetItem } from "@/types/dashboard";
 
 interface MonthlyTargetCardProps {
   items: MonthlyTargetItem[];
+  loading?: boolean;
+  loadFailed?: boolean;
+  onRetry?: () => void;
 }
 
-export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
+export function MonthlyTargetCard({
+  items,
+  loading = false,
+  loadFailed = false,
+  onRetry,
+}: MonthlyTargetCardProps) {
   const [expanded, setExpanded] = useState(true);
 
   const totalTarget = items.reduce((sum, item) => sum + item.target, 0);
@@ -49,7 +57,22 @@ export function MonthlyTargetCard({ items }: MonthlyTargetCardProps) {
         id="monthly-target-content"
         className={cn(expanded ? "p-3 pt-0 space-y-3" : "p-3 pt-0 space-y-2")}
       >
-        {items.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-muted-foreground" role="status">
+            {uiText.common.loading}
+          </p>
+        ) : loadFailed ? (
+          <div className="space-y-3" role="alert">
+            <p className="text-sm text-destructive">
+              {uiText.dashboard.budgetAnalysisLoadError}
+            </p>
+            {onRetry && (
+              <Button type="button" variant="secondary" onClick={onRetry}>
+                {uiText.common.tryAgain}
+              </Button>
+            )}
+          </div>
+        ) : items.length === 0 ? (
           <p className="text-sm text-muted-foreground">{uiText.common.noDataAvailable}</p>
         ) : expanded ? (
           items.map((item) => {
