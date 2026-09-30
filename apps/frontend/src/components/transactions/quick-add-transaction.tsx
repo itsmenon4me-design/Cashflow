@@ -14,6 +14,7 @@ import {
 } from "@/services/transaction.service";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import { useAddTransactionStore } from "@/stores/add-transaction.store";
+import { useTimezoneStore } from "@/stores/timezone.store";
 import type { CategoryResponse } from "@/types/backend";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 
@@ -45,6 +46,7 @@ export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionP
   const [lookupStatus, setLookupStatus] = useState<"loading" | "ready" | "error">("loading");
   const [lookupAttempt, setLookupAttempt] = useState(0);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
+  const timeZone = useTimezoneStore((state) => state.timezone);
 
   useEffect(() => {
     if (!open || lookupStatus === "ready" || lookupStatus === "error") return;
@@ -69,13 +71,6 @@ export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionP
   const retryCategoryLookup = useCallback(() => {
     setLookupStatus("loading");
     setLookupAttempt((attempt) => attempt + 1);
-  }, []);
-
-  const initialValues = useMemo<Partial<TransactionFormValues>>(() => {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return { date: `${d.getFullYear()}-${mm}-${dd}` };
   }, []);
 
   const handleOpenChange = useCallback(
@@ -106,6 +101,7 @@ export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionP
         values,
         categoryNames,
         controlledType,
+        timeZone,
       ) as CreateTransactionPayload | null;
       if (!payload) {
         throw new Error("Invalid category");
@@ -113,7 +109,7 @@ export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionP
       await syncCreateTransaction(payload);
       bumpRefresh();
     },
-    [categoryNames, controlledType, bumpRefresh],
+    [categoryNames, controlledType, bumpRefresh, timeZone],
   );
 
   return (
@@ -139,10 +135,10 @@ export function QuickAddTransaction({ showTrigger = true }: QuickAddTransactionP
         transaction={null}
         categories={categoryOptions}
         categoryTypes={categoryTypes}
-        initialValues={initialValues}
         transactionType={controlledType}
         categoryLookupStatus={lookupStatus === "loading" ? "loading" : lookupStatus === "error" ? "error" : undefined}
         onRetryCategories={retryCategoryLookup}
+        timeZone={timeZone}
         onSubmit={handleSubmit}
       />
     </>

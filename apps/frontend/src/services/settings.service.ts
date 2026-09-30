@@ -6,6 +6,8 @@ import type {
   UserSettings,
   UserSettingsPatch,
 } from "@/types/settings";
+import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
+import { useTimezoneStore } from "@/stores/timezone.store";
 
 interface UserSettingsDTO {
   id: string;
@@ -113,7 +115,13 @@ export const settingsService = {
       "/settings",
       payload
     );
-    return toUserSettings(body.data);
+    const settings = toUserSettings(body.data);
+    if (patch.timezone !== undefined) {
+      useTimezoneStore
+        .getState()
+        .setTimezone(settings.timezone ?? DEFAULT_USER_TIMEZONE);
+    }
+    return settings;
   },
 
 };

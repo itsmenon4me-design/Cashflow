@@ -17,6 +17,7 @@ import { toMajorUnits } from "@/lib/money";
 import type { TransactionItem } from "@/types/dashboard";
 import { useAuthStore } from "@/stores/auth.store";
 import { isDemoDataMode } from "@/lib/demo-api";
+import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
 
 const TRANSACTIONS_ENTITY = "transactions" as const;
 
@@ -286,6 +287,7 @@ export async function getPendingTransactionRecords(): Promise<SyncQueueRecord[]>
  */
 export async function pendingRecordsToItems(
   categoryNames: Record<string, string>,
+  timeZone = DEFAULT_USER_TIMEZONE,
 ): Promise<TransactionItem[]> {
   const records = await getPendingTransactionRecords();
   const items: TransactionItem[] = [];
@@ -301,7 +303,7 @@ export async function pendingRecordsToItems(
     }
     items.push({
       id: record.entityId,
-      date: isoToInputDate(payload.transaction_date),
+      date: isoToInputDate(payload.transaction_date, timeZone),
       dateTime: payload.transaction_date,
       category: categoryNames[payload.category_id] ?? "-",
       description: payload.note ?? "",

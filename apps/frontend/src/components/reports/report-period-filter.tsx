@@ -17,6 +17,7 @@ import { uiText } from "@/locales";
 interface ReportPeriodFilterProps {
   value: PeriodKey;
   range: ReportRange;
+  timeZone?: string;
   loading?: boolean;
   refreshingLabel?: string;
   customStart: string;
@@ -30,6 +31,7 @@ interface ReportPeriodFilterProps {
 export function ReportPeriodFilter({
   value,
   range,
+  timeZone,
   loading = false,
   refreshingLabel,
   customStart,
@@ -39,8 +41,9 @@ export function ReportPeriodFilter({
   onCustomEndChange,
   onApplyCustom,
 }: ReportPeriodFilterProps) {
-  const rangeLabel = `${formatTransactionDate(range.startDate)} – ${formatTransactionDate(
-    range.endDate
+  const rangeLabel = `${formatTransactionDate(range.startDate, timeZone)} – ${formatTransactionDate(
+    range.endDate,
+    timeZone,
   )}`;
 
   return (

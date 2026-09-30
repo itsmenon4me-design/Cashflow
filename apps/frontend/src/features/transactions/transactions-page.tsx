@@ -24,6 +24,7 @@ import type { CategoryGroup } from "@/lib/categories";
 import { useDataRefreshStore } from "@/stores/refresh.store";
 import { syncCreateTransaction, syncDeleteTransaction, syncUpdateTransaction } from "@/lib/offline/sync-client";
 import { usePendingTransactions } from "@/hooks/use-pending-transactions";
+import { useTimezoneStore } from "@/stores/timezone.store";
 import { categoryService } from "@/services/category.service";
 import { findIdByName, toCreateTransactionPayload, toTransactionItem, toUpdateTransactionPayload, transactionService, type TransactionListParams } from "@/services/transaction.service";
 import type { CategoryResponse } from "@/types/backend";
@@ -65,13 +66,14 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataVersion = useDataRefreshStore((state) => state.version);
   const bumpRefresh = useDataRefreshStore((state) => state.bump);
+  const timeZone = useTimezoneStore((state) => state.timezone);
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlQuery = searchParams.get("q") ?? "";
   const addQuery = searchParams.get("add");
   const returnTo = searchParams.get("returnTo");
   const [filters, setFilters] = useState<TransactionFiltersState>(() =>
-    createDefaultTransactionFilters(transactionType ?? "all"),
+    createDefaultTransactionFilters(transactionType ?? "all", timeZone),
   );
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -96,7 +98,6 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
 
   useEffect(() => { setFilters((current) => ({ ...current, search: urlQuery, type: transactionType ?? "all" })); setPage(1); }, [urlQuery, transactionType]);
   useEffect(() => { const id = setTimeout(() => setSearch(filters.search.trim()), SEARCH_DEBOUNCE_MS); return () => clearTimeout(id); }, [filters.search]);
-
   const queryConfig = useMemo(() => ({
     categoryId: filters.category === "all" ? undefined : findIdByName(categoryNames, filters.category),
     type: transactionType === "income" ? "INCOME" as const : transactionType === "expense" ? "EXPENSE" as const : filters.type === "income" ? "INCOME" as const : filters.type === "expense" ? "EXPENSE" as const : undefined,
@@ -112,12 +113,12 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
     if (search) params.q = search;
     void transactionService.list(params).then((result) => {
       if (cancelled) return;
-      setTransactions(result.data.map((dto) => toTransactionItem(dto, categoryNames)));
+      setTransactions(result.data.map((dto) => toTransactionItem(dto, categoryNames, timeZone)));
       setTotalItems(result.pagination.totalItems);
       setHasLoadedOnce(true);
     }).catch(() => { if (!cancelled) setError(true); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [lookupsReady, refreshKey, dataVersion, page, pageSize, sort, search, queryConfig, categoryNames]);
+  }, [lookupsReady, refreshKey, dataVersion, page, pageSize, sort, search, queryConfig, categoryNames, timeZone]);
 
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
     const types = transactionType === "income" ? ["INCOME"] : transactionType === "expense" ? ["EXPENSE"] : ["INCOME", "EXPENSE"];
@@ -136,11 +137,11 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   };
   const handleSubmit = async (values: TransactionFormValues) => {
     if (formState.mode === "edit" && formState.transaction) {
-      const payload = toUpdateTransactionPayload(values, categoryNames);
+      const payload = toUpdateTransactionPayload(values, categoryNames, timeZone);
       if (!payload) throw new Error("Invalid category");
       await syncUpdateTransaction(formState.transaction.id, payload);
     } else {
-      const payload = toCreateTransactionPayload(values, categoryNames, transactionType);
+      const payload = toCreateTransactionPayload(values, categoryNames, transactionType, timeZone);
       if (!payload) throw new Error("Invalid category");
       await syncCreateTransaction(payload);
     }
@@ -148,16 +149,16 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
     if (addQuery === "1") router.replace(getReturnPath());
   };
   const handleDuplicate = async (transaction: TransactionItem) => {
-    const payload = toCreateTransactionPayload({ date: transaction.date, time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "", type: transaction.type, category: transaction.category, amount: transaction.amount, description: transaction.description, notes: "" }, categoryNames, transactionType);
+    const payload = toCreateTransactionPayload({ date: transaction.date, time: transaction.dateTime ? isoToLocalTime(transaction.dateTime, timeZone) : "", type: transaction.type, category: transaction.category, amount: transaction.amount, description: transaction.description, notes: "" }, categoryNames, transactionType, timeZone);
     if (!payload) return;
     await syncCreateTransaction(payload); setPage(1); refresh(); bumpRefresh();
   };
-  const { items: pendingItems, pendingIds } = usePendingTransactions(categoryNames);
+  const { items: pendingItems, pendingIds } = usePendingTransactions(categoryNames, timeZone);
   const visibleTransactions = useMemo(() => [...pendingItems.filter((item) => !transactionType || item.type === transactionType), ...transactions.map((item) => pendingIds.has(item.id) ? { ...item, pendingSync: true } : item)], [pendingItems, pendingIds, transactions, transactionType]);
   const title = transactionType === "income" ? uiText.navigation.income : transactionType === "expense" ? uiText.navigation.expense : uiText.transactions.title;
   const subtitle = transactionType === "income" ? uiText.transactions.incomeSubtitle : transactionType === "expense" ? uiText.transactions.expenseSubtitle : uiText.transactions.subtitle;
 
   const showAddButton = true;
 
-  return <div className="space-y-6"><div className="min-h-[72px]"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div><TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters(createDefaultTransactionFilters(transactionType ?? "all")); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={setDeleting} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={closeCreateForm} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { if (!deleting) return; void syncDeleteTransaction(deleting.id).finally(() => { setDeleting(null); refresh(); bumpRefresh(); }); }} /></LoadOnOpen></div>;
+  return <div className="space-y-6"><div className="min-h-[72px]"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div><TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters(createDefaultTransactionFilters(transactionType ?? "all", timeZone)); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} timeZone={timeZone} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={setDeleting} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={closeCreateForm} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} timeZone={timeZone} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { if (!deleting) return; void syncDeleteTransaction(deleting.id).finally(() => { setDeleting(null); refresh(); bumpRefresh(); }); }} /></LoadOnOpen></div>;
 }

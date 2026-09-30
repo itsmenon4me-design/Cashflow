@@ -2,6 +2,7 @@
 import { withOfflineCache } from "@/lib/offline/read-cache";
 import { inputDateTimeToIso, isoToInputDate } from "@/lib/date";
 import { toMajorUnits, toMinorUnits } from "@/lib/money";
+import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
 import type {
   PaginatedTransactionResponse,
   TransactionDTO,
@@ -40,10 +41,14 @@ export function findIdByName(lookup: NameLookup, name: string): string | undefin
   return Object.entries(lookup).find(([, value]) => value === name)?.[0];
 }
 
-export function toTransactionItem(dto: TransactionDTO, categoryNames: NameLookup): TransactionItem {
+export function toTransactionItem(
+  dto: TransactionDTO,
+  categoryNames: NameLookup,
+  timeZone = DEFAULT_USER_TIMEZONE,
+): TransactionItem {
   return {
     id: dto.id,
-    date: isoToInputDate(dto.transaction_date),
+    date: isoToInputDate(dto.transaction_date, timeZone),
     dateTime: dto.transaction_date,
     category: findNameById(categoryNames, dto.category_id),
     description: dto.note ?? "",
@@ -68,6 +73,7 @@ export function toCreateTransactionPayload(
   values: CreateFormValues,
   categoryNames: NameLookup,
   forcedType?: "income" | "expense",
+  timeZone = DEFAULT_USER_TIMEZONE,
 ): CreateTransactionPayload | null {
   const categoryId = findIdByName(categoryNames, values.category);
   if (!categoryId) return null;
@@ -77,7 +83,7 @@ export function toCreateTransactionPayload(
     category_id: categoryId,
     transaction_type: (forcedType ?? values.type) === "income" ? "INCOME" : "EXPENSE",
     amount_cents: toMinorUnits(values.amount, "IDR"),
-    transaction_date: inputDateTimeToIso(values.date, values.time),
+    transaction_date: inputDateTimeToIso(values.date, values.time, timeZone),
     ...(note ? { note } : {}),
   };
 }
@@ -85,8 +91,9 @@ export function toCreateTransactionPayload(
 export function toUpdateTransactionPayload(
   values: CreateFormValues,
   categoryNames: NameLookup,
+  timeZone = DEFAULT_USER_TIMEZONE,
 ): UpdateTransactionPayload | null {
-  return toCreateTransactionPayload(values, categoryNames);
+  return toCreateTransactionPayload(values, categoryNames, undefined, timeZone);
 }
 
 export const transactionService = {

@@ -1,7 +1,10 @@
 import { PrismaTransactionsRepository } from './prisma-transactions.repository';
 
-const makePrismaMock = () => {
+const makePrismaMock = (timezone = 'Asia/Jakarta') => {
   return {
+    userSettings: {
+      findUnique: jest.fn().mockResolvedValue({ timezone }),
+    },
     transaction: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
@@ -23,19 +26,52 @@ describe('PrismaTransactionsRepository date handling', () => {
     const calledWhere = prisma.transaction.findMany.mock.calls[0][0].where;
     expect(calledWhere.transaction_date.lte).toBeInstanceOf(Date);
     const dt: Date = calledWhere.transaction_date.lte;
-    expect(dt.getFullYear()).toBe(2026);
-    expect(dt.getMonth()).toBe(7); // August is month 7 zero-based
-    expect(dt.getDate()).toBe(31);
-    expect(dt.getHours()).toBe(23);
-    expect(dt.getMinutes()).toBe(59);
-    expect(dt.getSeconds()).toBe(59);
-    expect(dt.getMilliseconds()).toBe(999);
+    expect(dt.toISOString()).toBe('2026-08-31T16:59:59.999Z');
+  });
+
+  it.each([
+    ['Asia/Jakarta', '2026-08-30T17:00:00.000Z', '2026-08-31T16:59:59.999Z'],
+    ['Asia/Makassar', '2026-08-30T16:00:00.000Z', '2026-08-31T15:59:59.999Z'],
+    ['Asia/Jayapura', '2026-08-30T15:00:00.000Z', '2026-08-31T14:59:59.999Z'],
+  ])(
+    'applies date-only filters in the user timezone %s',
+    async (timezone, startIso, endIso) => {
+      const prisma = makePrismaMock(timezone);
+      const repo = new PrismaTransactionsRepository(prisma as any);
+
+      await repo.findByUserWithFilter(
+        'user-1',
+        { fromDate: '2026-08-31', toDate: '2026-08-31' } as any,
+        { page: 1, limit: 10 },
+      );
+
+      const range =
+        prisma.transaction.findMany.mock.calls[0][0].where.transaction_date;
+      expect(range.gte.toISOString()).toBe(startIso);
+      expect(range.lte.toISOString()).toBe(endIso);
+    },
+  );
+
+  it('uses the DST-adjusted length of a local day', async () => {
+    const prisma = makePrismaMock('America/New_York');
+    const repo = new PrismaTransactionsRepository(prisma as any);
+
+    await repo.findByUserWithFilter(
+      'user-1',
+      { fromDate: '2026-03-08', toDate: '2026-03-08' } as any,
+      { page: 1, limit: 10 },
+    );
+
+    const range =
+      prisma.transaction.findMany.mock.calls[0][0].where.transaction_date;
+    expect(range.gte.toISOString()).toBe('2026-03-08T05:00:00.000Z');
+    expect(range.lte.toISOString()).toBe('2026-03-09T03:59:59.999Z');
   });
 });
 
 describe('PrismaTransactionsRepository keyword (q) safety', () => {
-  const makeRepo = () => {
-    const prisma = makePrismaMock();
+  const makeRepo = (timezone = 'Asia/Jakarta') => {
+    const prisma = makePrismaMock(timezone);
     const repo = new PrismaTransactionsRepository(prisma as any);
     return { prisma, repo };
   };
@@ -159,6 +195,28 @@ describe('PrismaTransactionsRepository keyword (q) safety', () => {
     dateClauses = or.filter((c: any) => c.transaction_date);
     expect(dateClauses.length).toBe(3); // current year and its neighbours
   });
+
+  it.each([
+    ['Asia/Makassar', '2026-08-24T16:00:00.000Z', '2026-08-25T15:59:59.999Z'],
+    ['Asia/Jayapura', '2026-08-24T15:00:00.000Z', '2026-08-25T14:59:59.999Z'],
+  ])(
+    'applies date-keyword boundaries in %s',
+    async (timezone, startIso, endIso) => {
+      const { prisma, repo } = makeRepo(timezone);
+
+      await repo.findByUserWithFilter(
+        'user-1',
+        { q: '25 Agu 2026' } as any,
+        { page: 1, limit: 10 },
+      );
+
+      const or = whereOf(prisma).AND.find((part: any) => part.OR).OR;
+      const range = or.find((clause: any) => clause.transaction_date)
+        .transaction_date;
+      expect(range.gte.toISOString()).toBe(startIso);
+      expect(range.lte.toISOString()).toBe(endIso);
+    },
+  );
 
   it('type words in Indonesian match transaction_type', async () => {
     const { prisma, repo } = makeRepo();

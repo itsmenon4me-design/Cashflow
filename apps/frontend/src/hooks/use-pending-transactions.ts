@@ -18,6 +18,7 @@ const EMPTY: PendingTransactionsState = { items: [], pendingIds: new Set() };
 
 export function usePendingTransactions(
   categoryNames: Record<string, string>,
+  timeZone: string,
 ): PendingTransactionsState {
   const queueVersion = useSyncStore((state) => state.queueVersion);
   const isOnline = useSyncStore((state) => state.online);
@@ -33,7 +34,7 @@ export function usePendingTransactions(
         const pendingIds = new Set(records.map((record) => record.entityId));
         const items =
           records.length > 0
-            ? await pendingRecordsToItems(categoryNames)
+            ? await pendingRecordsToItems(categoryNames, timeZone)
             : [];
         if (!cancelled) setState({ items, pendingIds });
       } catch {
@@ -44,7 +45,7 @@ export function usePendingTransactions(
     return () => {
       cancelled = true;
     };
-  }, [queueVersion, isOnline, categoryNames]);
+  }, [queueVersion, isOnline, categoryNames, timeZone]);
 
   return state;
 }

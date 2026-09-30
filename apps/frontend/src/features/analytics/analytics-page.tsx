@@ -17,7 +17,6 @@ import { ErrorState } from "@/components/states/ErrorState";
 import {
   computeRange,
   dateInputRange,
-  normalizeTimezone,
   PERIOD_KEYS,
   pickTrendType,
   type PeriodKey,
@@ -34,7 +33,7 @@ import {
   type AnalyticsTypeResult,
 } from "@/services/analytics.service";
 import { fromCents } from "@/services/report.service";
-import { settingsService } from "@/services/settings.service";
+import { useTimezoneStore } from "@/stores/timezone.store";
 import type { FlowPoint } from "@/types/dashboard";
 
 function toDateInputValue(iso: string, timeZone: string): string {
@@ -94,10 +93,10 @@ export function AnalyticsPage() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>(initialPeriod ?? "thisMonth");
   const periodKeyRef = useRef(periodKey);
   periodKeyRef.current = periodKey;
-  const [timeZone, setTimeZone] = useState("Asia/Jakarta");
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const timeZone = useTimezoneStore((state) => state.timezone);
+  const previousTimeZone = useRef(timeZone);
   const [range, setRange] = useState<ReportRange>(() =>
-    computeRange(initialPeriod ?? "thisMonth", new Date(), "Asia/Jakarta"),
+    computeRange(initialPeriod ?? "thisMonth", new Date(), timeZone),
   );
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -145,38 +144,16 @@ export function AnalyticsPage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    setSettingsLoaded(false);
-    settingsService
-      .getSettings()
-      .then((settings) => {
-        if (cancelled) return;
-        const nextTimeZone = normalizeTimezone(
-          settings.timezone || "Asia/Jakarta",
-        );
-        setTimeZone(nextTimeZone);
-        if (periodKeyRef.current !== "custom") {
-          setRange(
-            computeRange(periodKeyRef.current, new Date(), nextTimeZone),
-          );
-        }
-        setSettingsLoaded(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setError(true);
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
+    if (previousTimeZone.current === timeZone) return;
+    previousTimeZone.current = timeZone;
+    if (periodKeyRef.current === "custom") return;
+    setRange(computeRange(periodKeyRef.current, new Date(), timeZone));
+  }, [timeZone]);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      if (!settingsLoaded) return;
       await Promise.resolve();
       if (cancelled) return;
       setLoading(true);
@@ -215,7 +192,7 @@ export function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, range, settingsLoaded]);
+  }, [refreshKey, range, timeZone]);
 
   const hasAnyData =
     (overview?.transactions ?? 0) > 0 ||

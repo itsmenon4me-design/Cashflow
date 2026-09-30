@@ -104,14 +104,9 @@ vi.mock("@/lib/format", async (importOriginal) => {
 vi.mock("@/lib/categories", () => ({
   categoryLabel: (value: string) => value,
 }));
-vi.mock("@/services/settings.service", () => ({
-  settingsService: {
-    getSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Jakarta" }),
-  },
-}));
 
-import { settingsService } from "@/services/settings.service";
 import { computeRange } from "@/features/reports/period";
+import { useTimezoneStore } from "@/stores/timezone.store";
 
 beforeAll(() => {
   console.log(
@@ -193,6 +188,7 @@ describe("AnalyticsPage", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    useTimezoneStore.setState({ timezone: "Asia/Jakarta" });
   });
 
   it("keeps the current figures visible and labels them while another period loads", async () => {
@@ -308,11 +304,9 @@ describe("AnalyticsPage", () => {
   });
 
   it.each(["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"])(
-    "sends the preset range for the saved %s timezone",
+    "sends the preset range for the shared %s timezone",
     async (timeZone) => {
-      vi.mocked(settingsService.getSettings).mockResolvedValue({
-        timezone: timeZone,
-      } as Awaited<ReturnType<typeof settingsService.getSettings>>);
+      useTimezoneStore.setState({ timezone: timeZone });
       vi.spyOn(analyticsService, "getOverview").mockResolvedValue(
         overview("10000"),
       );
@@ -332,9 +326,7 @@ describe("AnalyticsPage", () => {
     "sends custom dates as calendar dates for %s without browser-zone conversion",
     async (timeZone) => {
       const user = userEvent.setup();
-      vi.mocked(settingsService.getSettings).mockResolvedValue({
-        timezone: timeZone,
-      } as Awaited<ReturnType<typeof settingsService.getSettings>>);
+      useTimezoneStore.setState({ timezone: timeZone });
       vi.spyOn(analyticsService, "getOverview").mockResolvedValue(
         overview("10000"),
       );

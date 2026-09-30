@@ -7,6 +7,7 @@ import { TransactionFilterDto } from '../dto/transaction-filter.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { buildKeywordOr } from '../utils/search-keyword.utils';
 import { DateHelper } from '../../../common/utils/date.util';
+import { resolveUserTimezone } from '../../../common/utils/user-timezone.util';
 
 type TxRec = Transaction;
 
@@ -95,6 +96,10 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     filter: TransactionFilterDto,
     pagination: PaginationDto,
   ) {
+    const timezone =
+      filter?.fromDate || filter?.toDate || filter?.q
+        ? await resolveUserTimezone(this.prisma, userId)
+        : undefined;
     const where: Prisma.TransactionWhereInput = {
       user_id: userId,
       deleted_at: null,
@@ -106,10 +111,16 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
       where.transaction_date = {};
       if (filter.fromDate)
         (where.transaction_date as Prisma.DateTimeFilter).gte =
-          DateHelper.startOfDay(filter.fromDate);
+          DateHelper.startOfDayInTimezone(
+            filter.fromDate,
+            timezone ?? 'Asia/Jakarta',
+          );
       if (filter.toDate) {
         (where.transaction_date as Prisma.DateTimeFilter).lte =
-          DateHelper.endOfDay(filter.toDate);
+          DateHelper.endOfDayInTimezone(
+            filter.toDate,
+            timezone ?? 'Asia/Jakarta',
+          );
       }
     }
     if (filter?.minAmount !== undefined || filter?.maxAmount !== undefined) {
@@ -125,7 +136,7 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
     }
     // Search keyword (combines with filters via AND)
     const qWhere: Prisma.TransactionWhereInput | undefined = filter?.q
-      ? { OR: buildKeywordOr(filter.q) }
+      ? { OR: buildKeywordOr(filter.q, timezone ?? 'Asia/Jakarta') }
       : undefined;
 
     // Sorting
@@ -163,13 +174,14 @@ export class PrismaTransactionsRepository implements ITransactionsRepository {
   }
 
   async searchByUser(userId: string, q: string, pagination: PaginationDto) {
+    const timezone = await resolveUserTimezone(this.prisma, userId);
     const where: Prisma.TransactionWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     const query = q.trim();
-    const or: Prisma.TransactionWhereInput[] = buildKeywordOr(query);
+    const or: Prisma.TransactionWhereInput[] = buildKeywordOr(query, timezone);
 
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;

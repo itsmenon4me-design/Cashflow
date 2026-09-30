@@ -4,9 +4,24 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CURRENCIES, LANGUAGES, THEMES } from '../constants/settings.constants';
+import { isAllowedUserTimezone } from '../../../common/utils/user-timezone.util';
+
+@ValidatorConstraint({ name: 'isIanaTimezone', async: false })
+class IanaTimezoneConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return isAllowedUserTimezone(value);
+  }
+
+  defaultMessage(): string {
+    return 'timezone must be one of the supported Indonesian time zones';
+  }
+}
 
 export class UpdateUserSettingsDto {
   @ApiPropertyOptional({ enum: THEMES, description: 'Theme preference' })
@@ -28,6 +43,7 @@ export class UpdateUserSettingsDto {
   @IsOptional()
   @IsString()
   @MaxLength(64)
+  @Validate(IanaTimezoneConstraint)
   timezone?: string;
 
   @ApiPropertyOptional({

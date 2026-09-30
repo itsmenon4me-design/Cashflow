@@ -20,6 +20,7 @@ import type { TransactionItem } from "@/types/dashboard";
 
 interface TransactionCardProps {
   transaction: TransactionItem;
+  timeZone?: string;
   onView: (transaction: TransactionItem) => void;
   onEdit: (transaction: TransactionItem) => void;
   onDuplicate: (transaction: TransactionItem) => void;
@@ -94,6 +95,7 @@ export function TransactionRowActions({
 
 export function TransactionMobileRow({
   transaction,
+  timeZone,
   onView,
   onEdit,
   onDuplicate,
@@ -109,7 +111,7 @@ export function TransactionMobileRow({
     >
       <div className="min-w-0 space-y-1">
         <p className="truncate text-xs text-muted-foreground">
-          {formatTransactionDate(transaction.dateTime ?? transaction.date)}
+          {formatTransactionDate(transaction.dateTime ?? transaction.date, timeZone)}
         </p>
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="secondary" className="max-w-full truncate rounded-lg bg-muted">

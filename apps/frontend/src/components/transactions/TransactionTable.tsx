@@ -67,6 +67,7 @@ function SortButton({
 
 interface TransactionTableProps {
   transactions: TransactionItem[];
+  timeZone?: string;
   loading?: boolean;
   sortBy?: TransactionSortKey;
   sortOrder?: "asc" | "desc";
@@ -81,6 +82,7 @@ interface TransactionTableProps {
 
 export function TransactionTable({
   transactions,
+  timeZone,
   loading = false,
   sortBy,
   sortOrder,
@@ -137,7 +139,7 @@ export function TransactionTable({
                 return (
                   <TableRow key={txn.id} data-transaction-id={txn.id}>
                     <TableCell className="text-muted-foreground">
-                      {formatTransactionDate(txn.dateTime ?? txn.date)}
+                      {formatTransactionDate(txn.dateTime ?? txn.date, timeZone)}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -205,6 +207,7 @@ export function TransactionTable({
           <TransactionMobileRow
             key={txn.id}
             transaction={txn}
+            timeZone={timeZone}
             onView={onView}
             onEdit={onEdit}
             onDuplicate={onDuplicate}

@@ -38,6 +38,10 @@ import { useUiText } from "@/hooks/useUiText";
 import { APP_VERSION } from "@/lib/version";
 import { authService } from "@/services/auth.service";
 import { settingsService } from "@/services/settings.service";
+import {
+  getSettingsForSession,
+  setSettingsForSession,
+} from "@/services/settings-session";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLanguageStore } from "@/stores/language.store";
 import { useThemeStore } from "@/stores/theme.store";
@@ -202,6 +206,7 @@ export function SettingsPage() {
   const setUser = useAuthStore((state) => state.setUser);
   const setUiLanguage = useLanguageStore((state) => state.setLanguage);
   const currentLanguage = useLanguageStore((state) => state.language);
+  const sessionKey = user?.email?.trim().toLowerCase() || "authenticated";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -223,7 +228,6 @@ export function SettingsPage() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [financeBotSettings, setFinanceBotSettings] =
     useState<FinanceBotSettings>(DEFAULT_FINANCE_BOT_SETTINGS);
-
   const themeOptions: { value: ThemePreference; icon: typeof Sun; label: string }[] = [
     { value: "light", icon: Sun, label: uiText.settingsPage.themeLight },
     { value: "dark", icon: Moon, label: uiText.settingsPage.themeDark },
@@ -278,7 +282,7 @@ export function SettingsPage() {
       setError(false);
 
       try {
-        const settings = await settingsService.getSettings();
+        const settings = await getSettingsForSession(sessionKey);
         if (cancelled) return;
         setPreferences(settings.notificationPreferences);
         setFinanceBotSettings({
@@ -296,7 +300,7 @@ export function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, setUiLanguage]);
+  }, [refreshKey, sessionKey, setUiLanguage]);
 
   const refresh = () => setRefreshKey((key) => key + 1);
 
@@ -304,9 +308,12 @@ export function SettingsPage() {
     try {
       const updated = await settingsService.updateSettings(patch);
       try {
-        return await settingsService.getSettings();
+        const refreshed = await settingsService.getSettings();
+        setSettingsForSession(sessionKey, refreshed);
+        return refreshed;
       } catch (e) {
         console.warn("[settings] persist -> re-fetch failed, falling back to update result", e);
+        setSettingsForSession(sessionKey, updated);
         return updated;
       }
     } catch (err) {
@@ -483,6 +490,7 @@ export function SettingsPage() {
                       </RadioGroup>
                     </CardContent>
                   </Card>
+
                 </div>
               </SettingsGroup>
             </div>

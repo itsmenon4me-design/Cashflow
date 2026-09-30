@@ -6,7 +6,10 @@ import {
   useLanguageStore,
 } from "@/stores/language.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { settingsService } from "@/services/settings.service";
+import {
+  clearSettingsSession,
+  getSettingsForSession,
+} from "@/services/settings-session";
 
 interface LanguageProviderProps {
   children: ReactNode;
@@ -21,16 +24,20 @@ interface LanguageProviderProps {
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const language = useLanguageStore((state) => state.language);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const email = useAuthStore((state) => state.user?.email);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
 
   // Reconcile with the authoritative backend settings once authenticated.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      clearSettingsSession();
+      return;
+    }
     if (hasStoredLanguagePreference()) return;
     const languageAtRequest = useLanguageStore.getState().language;
+    const sessionKey = email?.trim().toLowerCase() || "authenticated";
     let cancelled = false;
-    void settingsService
-      .getSettings()
+    void getSettingsForSession(sessionKey)
       .then((settings) => {
         if (
           !cancelled &&
@@ -46,7 +53,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, setLanguage]);
+  }, [email, isAuthenticated, setLanguage]);
 
   return (
     <div key={language} data-language={language} className="contents">

@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { ErrorBoundary } from "@/components/states/ErrorBoundary";
 import { LanguageProvider } from "@/components/providers/language-provider";
+import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { apiClient, ApiError } from "@/lib/axios";
 import { getAccessToken } from "@/lib/auth-token";
 import { useAuthStore } from "@/stores/auth.store";
@@ -182,7 +183,9 @@ export function AppProviders({ children }: AppProvidersProps) {
     <ErrorBoundary>
       <ThemeProvider>
         <OfflineProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          <TimezoneProvider>
+            <LanguageProvider>{children}</LanguageProvider>
+          </TimezoneProvider>
         </OfflineProvider>
       </ThemeProvider>
       <OfflineBanner />

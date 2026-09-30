@@ -36,20 +36,6 @@ export const APP_TIME_ZONE = "Asia/Jakarta";
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const dateFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: APP_TIME_ZONE,
-});
-
-const timeFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: APP_TIME_ZONE,
-});
-
 const fullDateFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
   weekday: "long",
   day: "numeric",
@@ -57,6 +43,33 @@ const fullDateFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
   year: "numeric",
   timeZone: APP_TIME_ZONE,
 });
+
+const transactionFormatterCache = new Map<
+  string,
+  { date: Intl.DateTimeFormat; time: Intl.DateTimeFormat }
+>();
+
+function transactionFormatters(timeZone: string) {
+  let formatters = transactionFormatterCache.get(timeZone);
+  if (!formatters) {
+    formatters = {
+      date: new Intl.DateTimeFormat(APP_LOCALE, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone,
+      }),
+      time: new Intl.DateTimeFormat(APP_LOCALE, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone,
+      }),
+    };
+    transactionFormatterCache.set(timeZone, formatters);
+  }
+  return formatters;
+}
 
 /** "Senin, 24 Agustus 2026" — top bar / headings. */
 export function formatFullDate(date: Date = new Date()): string {
@@ -67,14 +80,20 @@ export function formatFullDate(date: Date = new Date()): string {
  * "24 Agu 2026" or "24 Agu 2026 • 19.02".
  * Date-only inputs (YYYY-MM-DD) render without a time part.
  */
-export function formatTransactionDate(date: string): string {
-  const parsed = new Date(date);
+export function formatTransactionDate(
+  date: string,
+  timeZone = APP_TIME_ZONE,
+): string {
+  const parsed = new Date(
+    DATE_ONLY_RE.test(date) ? `${date}T12:00:00.000Z` : date,
+  );
   if (Number.isNaN(parsed.getTime())) {
     return date;
   }
 
+  const formatters = transactionFormatters(timeZone);
   if (DATE_ONLY_RE.test(date)) {
-    return dateFormatter.format(parsed);
+    return formatters.date.format(parsed);
   }
-  return `${dateFormatter.format(parsed)} • ${timeFormatter.format(parsed)}`;
+  return `${formatters.date.format(parsed)} • ${formatters.time.format(parsed)}`;
 }

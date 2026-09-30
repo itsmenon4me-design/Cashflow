@@ -1,4 +1,5 @@
 import type { Prisma } from '../../../generated/prisma/client';
+import { DateHelper } from '../../../common/utils/date.util';
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -52,22 +53,27 @@ const MONTHS: Record<string, number> = {
   dec: 12,
 };
 
-// The app renders dates in Asia/Jakarta (UTC+7, no DST) — keep search
-// boundaries aligned with the displayed calendar day.
-const JKT_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DEFAULT_TIMEZONE = 'Asia/Jakarta';
+const pad2 = (value: number): string => String(value).padStart(2, '0');
 
-const dayStart = (y: number, m: number, d: number): Date =>
-  new Date(Date.UTC(y, m - 1, d) - JKT_OFFSET_MS);
-const dayEnd = (y: number, m: number, d: number): Date =>
-  new Date(Date.UTC(y, m - 1, d + 1) - JKT_OFFSET_MS - 1);
-const monthStart = (y: number, m: number): Date =>
-  new Date(Date.UTC(y, m - 1, 1) - JKT_OFFSET_MS);
-const monthEnd = (y: number, m: number): Date =>
-  new Date(Date.UTC(y, m, 1) - JKT_OFFSET_MS - 1);
-const yearStart = (y: number): Date =>
-  new Date(Date.UTC(y, 0, 1) - JKT_OFFSET_MS);
-const yearEnd = (y: number): Date =>
-  new Date(Date.UTC(y + 1, 0, 1) - JKT_OFFSET_MS - 1);
+const dayStart = (y: number, m: number, d: number, timeZone: string): Date =>
+  DateHelper.startOfDayInTimezone(
+    `${y}-${pad2(m)}-${pad2(d)}`,
+    timeZone,
+  );
+const dayEnd = (y: number, m: number, d: number, timeZone: string): Date =>
+  DateHelper.endOfDayInTimezone(
+    `${y}-${pad2(m)}-${pad2(d)}`,
+    timeZone,
+  );
+const monthStart = (y: number, m: number, timeZone: string): Date =>
+  DateHelper.startOfCalendarMonthInTimezone(y, m, timeZone);
+const monthEnd = (y: number, m: number, timeZone: string): Date =>
+  DateHelper.endOfCalendarMonthInTimezone(y, m, timeZone);
+const yearStart = (y: number, timeZone: string): Date =>
+  DateHelper.startOfCalendarMonthInTimezone(y, 1, timeZone);
+const yearEnd = (y: number, timeZone: string): Date =>
+  DateHelper.endOfCalendarMonthInTimezone(y, 12, timeZone);
 
 interface DateRange {
   gte: Date;
@@ -77,10 +83,10 @@ interface DateRange {
 // Best-effort date parsing: "25 Agu", "25 Agu 2026", "Agu 2026", "Agu",
 // "2026-08-25", "25/08/2026", bare year "2026". Without an explicit year the
 // current year and its neighbours are covered.
-function dateRanges(raw: string): DateRange[] {
+function dateRanges(raw: string, timeZone: string): DateRange[] {
   const q = raw.toLowerCase();
   const out: DateRange[] = [];
-  const nowYear = new Date().getUTCFullYear();
+  const nowYear = DateHelper.yearInNamedTimezone(new Date(), timeZone);
 
   // [day] month-name [year]
   const named = q.match(/^(\d{1,2})?\s*([a-z]+)\.?(\s+(\d{4}))?$/);
@@ -93,10 +99,14 @@ function dateRanges(raw: string): DateRange[] {
       for (const y of years) {
         if (day)
           out.push({
-            gte: dayStart(y, month, day),
-            lte: dayEnd(y, month, day),
+            gte: dayStart(y, month, day, timeZone),
+            lte: dayEnd(y, month, day, timeZone),
           });
-        else out.push({ gte: monthStart(y, month), lte: monthEnd(y, month) });
+        else
+          out.push({
+            gte: monthStart(y, month, timeZone),
+            lte: monthEnd(y, month, timeZone),
+          });
       }
       return out;
     }
@@ -114,8 +124,8 @@ function dateRanges(raw: string): DateRange[] {
     const day = parseInt(iso ? c : a, 10);
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
       out.push({
-        gte: dayStart(year, month, day),
-        lte: dayEnd(year, month, day),
+        gte: dayStart(year, month, day, timeZone),
+        lte: dayEnd(year, month, day, timeZone),
       });
       return out;
     }
@@ -124,7 +134,10 @@ function dateRanges(raw: string): DateRange[] {
   // bare year (also matched as amount — OR keeps both interpretations)
   if (/^\d{4}$/.test(q)) {
     const y = parseInt(q, 10);
-    out.push({ gte: yearStart(y), lte: yearEnd(y) });
+    out.push({
+      gte: yearStart(y, timeZone),
+      lte: yearEnd(y, timeZone),
+    });
   }
   return out;
 }
@@ -133,6 +146,7 @@ function dateRanges(raw: string): DateRange[] {
 // with their base filters via AND so search narrows instead of overriding.
 export function buildKeywordOr(
   rawQuery: string,
+  timeZone = DEFAULT_TIMEZONE,
 ): Prisma.TransactionWhereInput[] {
   const q = rawQuery.trim();
   const or: Prisma.TransactionWhereInput[] = [
@@ -200,7 +214,7 @@ export function buildKeywordOr(
   }
 
   // Dates, best-effort
-  for (const range of dateRanges(q)) {
+  for (const range of dateRanges(q, timeZone)) {
     or.push({ transaction_date: range });
   }
 

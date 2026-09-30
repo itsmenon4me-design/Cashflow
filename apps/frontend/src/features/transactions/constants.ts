@@ -18,8 +18,9 @@ export const EMPTY_FILTERS: TransactionFiltersState = {
 
 export function createDefaultTransactionFilters(
   type: TransactionType | "all" = "all",
+  timeZone?: string,
 ): TransactionFiltersState {
-  const today = toInputDate(new Date());
+  const today = toInputDate(new Date(), timeZone);
   return {
     ...EMPTY_FILTERS,
     type,

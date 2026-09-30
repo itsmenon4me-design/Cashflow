@@ -70,4 +70,56 @@ describe("TransactionForm", () => {
     expect(screen.getByLabelText(uiText.transactions.fieldNotes)).toHaveValue("Catatan lama");
     expect(screen.queryByLabelText(uiText.transactions.fieldDescription)).not.toBeInTheDocument();
   });
+
+  it("keeps entered values when the timezone changes while the dialog stays open", () => {
+    const initialValues = {
+      date: "2026-09-28",
+      time: "10:00",
+      category: "Belanja",
+      amount: 25000,
+      notes: "",
+    };
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      mode: "create" as const,
+      transaction: null,
+      categories: ["Belanja"],
+      initialValues,
+      onSubmit: vi.fn(),
+    };
+    const { rerender } = render(
+      <TransactionForm {...props} timeZone="Asia/Jakarta" />,
+    );
+
+    fireEvent.change(screen.getByLabelText(uiText.transactions.fieldNotes), {
+      target: { value: "Sudah diketik" },
+    });
+    rerender(<TransactionForm {...props} timeZone="Asia/Makassar" />);
+
+    expect(screen.getByLabelText(uiText.transactions.fieldDate)).toHaveValue(
+      "2026-09-28",
+    );
+    expect(screen.getByLabelText(uiText.transactions.fieldNotes)).toHaveValue(
+      "Sudah diketik",
+    );
+  });
+
+  it("keeps the fixed transaction type visible on income and expense pages", () => {
+    render(
+      <TransactionForm
+        open
+        onOpenChange={vi.fn()}
+        mode="create"
+        transaction={null}
+        categories={["Belanja"]}
+        transactionType="expense"
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const typeControl = screen.getByRole("combobox", { name: uiText.transactions.fieldType });
+    expect(typeControl).toBeDisabled();
+    expect(typeControl).toHaveTextContent(uiText.transactions.typeExpense);
+  });
 });

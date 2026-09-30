@@ -9,6 +9,7 @@ import { transactionTone } from "@/lib/transaction-tone";
 import { uiText } from "@/locales";
 import type { TransactionItem } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
+import { useTimezoneStore } from "@/stores/timezone.store";
 
 interface TransactionSummaryCardProps {
   data: TransactionItem[];
@@ -16,6 +17,7 @@ interface TransactionSummaryCardProps {
 }
 
 export function TransactionSummaryCard({ data, loading = false }: TransactionSummaryCardProps) {
+  const timeZone = useTimezoneStore((state) => state.timezone);
   return (
     <ChartCard
       title={uiText.reports.transactionSummary}
@@ -60,7 +62,7 @@ export function TransactionSummaryCard({ data, loading = false }: TransactionSum
                 {transactionTone(tx.type).sign}
                 {formatMoney(tx.amount)}
               </p>
-              <p className="text-xs text-muted-foreground">{formatTransactionDate(tx.dateTime ?? tx.date)}</p>
+              <p className="text-xs text-muted-foreground">{formatTransactionDate(tx.dateTime ?? tx.date, timeZone)}</p>
             </div>
           </li>
         ))}

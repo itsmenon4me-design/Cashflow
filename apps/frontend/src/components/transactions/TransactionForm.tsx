@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
-import { currentLocalTime, formatInputDate, isoToLocalTime, toInputDate } from "@/lib/date";
+import {
+  currentLocalTime,
+  formatInputDate,
+  isoToInputDate,
+  isoToLocalTime,
+  toInputDate,
+} from "@/lib/date";
+import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
 import { categoryLabel } from "@/lib/categories";
 import { EMPTY_FORM_VALUES } from "@/features/transactions/constants";
 import { transactionFormSchema, type TransactionFormValues } from "@/features/transactions/schema";
@@ -30,13 +37,16 @@ interface TransactionFormProps {
   transactionType?: TransactionType;
   categoryLookupStatus?: "loading" | "error";
   onRetryCategories?: () => void;
+  timeZone?: string;
   onSubmit: (values: TransactionFormValues) => void | Promise<void>;
 }
 
-function toFormValues(transaction: TransactionItem): TransactionFormValues {
+function toFormValues(transaction: TransactionItem, timeZone: string): TransactionFormValues {
   return {
-    date: transaction.date,
-    time: transaction.dateTime ? isoToLocalTime(transaction.dateTime) : "",
+    date: transaction.dateTime
+      ? isoToInputDate(transaction.dateTime, timeZone)
+      : transaction.date,
+    time: transaction.dateTime ? isoToLocalTime(transaction.dateTime, timeZone) : "",
     type: transaction.type,
     category: transaction.category,
     amount: transaction.amount,
@@ -49,18 +59,49 @@ function FormError({ message }: { message?: string }) {
   return message ? <p className="text-xs text-red-500">{message}</p> : null;
 }
 
-export function TransactionForm({ open, onOpenChange, mode, transaction, categories, categoryTypes, initialValues, transactionType, categoryLookupStatus, onRetryCategories, onSubmit }: TransactionFormProps) {
+export function TransactionForm({ open, onOpenChange, mode, transaction, categories, categoryTypes, initialValues, transactionType, categoryLookupStatus, onRetryCategories, timeZone = DEFAULT_USER_TIMEZONE, onSubmit }: TransactionFormProps) {
   const isView = mode === "view";
   const title = isView ? uiText.transactions.viewTitle : mode === "edit" ? uiText.transactions.editTitle : uiText.transactions.addTitle;
   const form = useForm<TransactionFormValues>({ resolver: zodResolver(transactionFormSchema), defaultValues: { ...EMPTY_FORM_VALUES, ...initialValues, type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type } });
   const selectedDate = useWatch({ control: form.control, name: "date" });
   const [selectedType, setSelectedType] = useState<TransactionType>(() => transactionType ?? transaction?.type ?? "expense");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const previousFormProps = useRef({
+    open: false,
+    transaction,
+    initialValues,
+    transactionType,
+  });
 
   useEffect(() => {
-    if (open) form.reset(transaction ? toFormValues(transaction) : { ...EMPTY_FORM_VALUES, ...initialValues, date: initialValues?.date ?? toInputDate(new Date()), time: currentLocalTime(), type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type });
-    else setSubmitError(null);
-  }, [open, transaction, form, initialValues, transactionType]);
+    const previous = previousFormProps.current;
+    const shouldReset =
+      !previous.open ||
+      previous.transaction !== transaction ||
+      previous.initialValues !== initialValues ||
+      previous.transactionType !== transactionType;
+
+    if (open && shouldReset) {
+      form.reset(transaction
+        ? toFormValues(transaction, timeZone)
+        : {
+            ...EMPTY_FORM_VALUES,
+            ...initialValues,
+            date: initialValues?.date ?? toInputDate(new Date(), timeZone),
+            time: currentLocalTime(timeZone),
+            type: transactionType ?? initialValues?.type ?? EMPTY_FORM_VALUES.type,
+          });
+    } else if (!open) {
+      setSubmitError(null);
+    }
+
+    previousFormProps.current = {
+      open,
+      transaction,
+      initialValues,
+      transactionType,
+    };
+  }, [open, transaction, form, initialValues, transactionType, timeZone]);
 
   useEffect(() => {
     if (transactionType) {
@@ -116,34 +157,32 @@ export function TransactionForm({ open, onOpenChange, mode, transaction, categor
                 </div>
                 <FormError message={errors.date?.message} />
               </div>
-              {transactionType === undefined && (
-                <div className="space-y-2">
-                  <Label>{uiText.transactions.fieldType}</Label>
-                  <Controller
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value as TransactionType);
-                          setSelectedType(value as TransactionType);
-                        }}
-                        disabled={isView}
-                      >
-                        <SelectTrigger className="h-11 min-h-11 w-full border-foreground/50" aria-label={uiText.transactions.fieldType}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
-                          <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FormError message={errors.type?.message} />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>{uiText.transactions.fieldType}</Label>
+                <Controller
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value as TransactionType);
+                        setSelectedType(value as TransactionType);
+                      }}
+                      disabled={isView || transactionType !== undefined}
+                    >
+                      <SelectTrigger className="h-11 min-h-11 w-full border-foreground/50" aria-label={uiText.transactions.fieldType}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">{uiText.transactions.typeIncome}</SelectItem>
+                        <SelectItem value="expense">{uiText.transactions.typeExpense}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FormError message={errors.type?.message} />
+              </div>
               <div className="space-y-2">
                 <Label>{uiText.transactions.fieldCategory}</Label>
                 {categoryLookupStatus === "loading" && (

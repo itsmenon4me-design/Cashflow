@@ -14,12 +14,12 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LazyIncomeExpenseChartCard as IncomeExpenseChartCard } from "@/components/charts/lazy-charts";
-import { computeRange, dateInputRange, normalizeTimezone, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
+import { computeRange, dateInputRange, pickTrendType, previousRange, type PeriodKey, type ReportRange } from "@/features/reports/period";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import { uiText } from "@/locales";
 import { categoryService } from "@/services/category.service";
-import { settingsService } from "@/services/settings.service";
+import { useTimezoneStore } from "@/stores/timezone.store";
 import { fromCents, downloadExport, reportService, type CategoryBreakdownResult, type ReportSummary, type TrendPoint } from "@/services/report.service";
 import { toTransactionItem, transactionService } from "@/services/transaction.service";
 import type { CategoryResponse } from "@/types/backend";
@@ -58,10 +58,10 @@ export function ReportsPage() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>("thisMonth");
   const periodKeyRef = useRef(periodKey);
   periodKeyRef.current = periodKey;
-  const [timeZone, setTimeZone] = useState("Asia/Jakarta");
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const timeZone = useTimezoneStore((state) => state.timezone);
+  const previousTimeZone = useRef(timeZone);
   const [range, setRange] = useState<ReportRange>(() =>
-    computeRange("thisMonth", new Date(), "Asia/Jakarta"),
+    computeRange("thisMonth", new Date(), timeZone),
   );
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -96,37 +96,13 @@ export function ReportsPage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    setSettingsLoaded(false);
-    setError(false);
-    setLoading(true);
-    settingsService
-      .getSettings()
-      .then((settings) => {
-        if (cancelled) return;
-        const nextTimeZone = normalizeTimezone(
-          settings.timezone || "Asia/Jakarta",
-        );
-        setTimeZone(nextTimeZone);
-        if (periodKeyRef.current !== "custom") {
-          setRange(
-            computeRange(periodKeyRef.current, new Date(), nextTimeZone),
-          );
-        }
-        setSettingsLoaded(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setError(true);
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
+    if (previousTimeZone.current === timeZone) return;
+    previousTimeZone.current = timeZone;
+    if (periodKeyRef.current === "custom") return;
+    setRange(computeRange(periodKeyRef.current, new Date(), timeZone));
+  }, [timeZone]);
 
   useEffect(() => {
-    if (!settingsLoaded) return;
     let cancelled = false;
 
     const run = async () => {
@@ -169,7 +145,9 @@ export function ReportsPage() {
         setIncomeBreakdown(incomeRes);
         setExpenseBreakdown(expenseRes);
         setTrend(trendRes.data ? trendRes.data : []);
-        setTransactions(txRes.data.map((dto) => toTransactionItem(dto, catNames)));
+        setTransactions(
+          txRes.data.map((dto) => toTransactionItem(dto, catNames, timeZone)),
+        );
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -181,7 +159,7 @@ export function ReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, settingsLoaded, timeZone]);
+  }, [range, refreshKey, timeZone]);
 
   const hasAnyData = (summary?.summary.transactions ?? 0) > 0 || trend.length > 0;
   const isEmpty = !loading && !error && !hasAnyData;
@@ -275,6 +253,7 @@ export function ReportsPage() {
       <ReportPeriodFilter
         value={periodKey}
         range={range}
+        timeZone={timeZone}
         loading={loading}
         customStart={customStart}
         customEnd={customEnd}

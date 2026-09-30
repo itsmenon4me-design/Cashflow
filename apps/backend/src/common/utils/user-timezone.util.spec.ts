@@ -28,6 +28,24 @@ describe('resolveUserTimezone', () => {
     ).resolves.toBe('Asia/Makassar');
   });
 
+  it.each([
+    ['Asia/Pontianak', 'Asia/Jakarta'],
+    ['Asia/Ujung_Pandang', 'Asia/Makassar'],
+  ])('canonicalizes the stored Indonesian alias %s', async (stored, resolved) => {
+    const prisma = {
+      userSettings: {
+        findUnique: jest.fn().mockResolvedValue({ timezone: stored }),
+      },
+    };
+
+    await expect(
+      resolveUserTimezone(
+        prisma as unknown as Pick<PrismaService, 'userSettings'>,
+        'user-1',
+      ),
+    ).resolves.toBe(resolved);
+  });
+
   it('uses the application timezone when the user setting is invalid', async () => {
     process.env.APP_DEFAULT_TIMEZONE = 'Asia/Jayapura';
     const prisma = {

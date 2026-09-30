@@ -30,6 +30,7 @@ import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { uiText } from "@/locales";
 import type { TransactionItem, TransactionStatus, TransactionType } from "@/types/dashboard";
+import { useTimezoneStore } from "@/stores/timezone.store";
 
 const PAGE_SIZE = 6;
 
@@ -56,6 +57,7 @@ interface RecentTransactionsCardProps {
 }
 
 export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
+  const timeZone = useTimezoneStore((state) => state.timezone);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -179,7 +181,7 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                 return (
                   <TableRow key={txn.id}>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">
-                      {formatTransactionDate(txn.dateTime ?? txn.date)}
+                      {formatTransactionDate(txn.dateTime ?? txn.date, timeZone)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-lg bg-muted">
@@ -254,7 +256,7 @@ export function RecentTransactionsCard({ items }: RecentTransactionsCardProps) {
                     {categoryLabel(txn.category)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatTransactionDate(txn.dateTime ?? txn.date)}
+                    {formatTransactionDate(txn.dateTime ?? txn.date, timeZone)}
                   </p>
                 </div>
                 <p
