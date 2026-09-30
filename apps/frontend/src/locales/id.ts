@@ -337,18 +337,16 @@ export const idText = {
     notifications: "Notifikasi",
     notificationsSubtitle: "Aktifkan atau nonaktifkan jenis notifikasi.",
     pushTitle: "Notifikasi perangkat",
-    pushDescription:
-      "Tampilkan pengingat umum CashFlow di perangkat. Detail tetap hanya terlihat di aplikasi.",
     pushEnable: "Aktifkan notifikasi perangkat",
     pushDisable: "Nonaktifkan",
     pushChecking: "Memeriksa dukungan notifikasi...",
     pushSaving: "Memproses...",
     pushEnabled: "Notifikasi perangkat aktif di browser ini.",
-    pushDisabled: "Notifikasi perangkat belum diaktifkan.",
     pushDenied:
       "Izin diblokir. Ubah izin notifikasi CashFlow di pengaturan situs browser.",
     pushUnsupported: "Browser ini belum mendukung Web Push.",
-    pushUnavailable: "Notifikasi perangkat belum dikonfigurasi di server.",
+    pushUnavailable:
+      "Notifikasi perangkat belum bisa diaktifkan saat ini. Silakan coba lagi nanti.",
     pushLoadError: "Status notifikasi perangkat gagal dimuat.",
     pushEnableError: "Notifikasi perangkat gagal diaktifkan. Coba lagi.",
     pushDisableError: "Notifikasi perangkat gagal dinonaktifkan. Coba lagi.",

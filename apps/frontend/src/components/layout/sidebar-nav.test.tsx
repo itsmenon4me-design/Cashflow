@@ -68,6 +68,17 @@ describe("SidebarNav", () => {
     expect(screen.getByRole("link", { name: locales.id.navigation.forecast })).toBeVisible();
   });
 
+  it("provides touch-sized destinations and closes the drawer after selection", () => {
+    const onNavigate = vi.fn();
+    render(<SidebarNav alwaysExpanded onNavigate={onNavigate} />);
+
+    const incomeLink = screen.getByRole("link", { name: locales.id.navigation.income });
+    expect(incomeLink).toHaveClass("min-h-11", "touch-manipulation");
+    incomeLink.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    fireEvent.click(incomeLink);
+    expect(onNavigate).toHaveBeenCalledOnce();
+  });
+
   it("renders an icon stack and removes accordion controls when collapsed", () => {
     render(<SidebarNav collapsed />);
 

@@ -104,12 +104,13 @@ describe("PushNotificationSettings", () => {
 
   it("requests browser permission only after the user activates device notifications", async () => {
     render(<PushNotificationSettings />);
-    const enableButton = await screen.findByRole("button", {
-      name: uiText.settingsPage.pushEnable,
+    const enableSwitch = await screen.findByRole("switch", {
+      name: `${uiText.settingsPage.pushTitle}: ${uiText.settingsPage.pushEnable}`,
     });
 
+    await waitFor(() => expect(enableSwitch).toBeEnabled());
     expect(requestPermission).not.toHaveBeenCalled();
-    fireEvent.click(enableButton);
+    fireEvent.click(enableSwitch);
 
     await waitFor(() => expect(requestPermission).toHaveBeenCalledOnce());
     await waitFor(() =>
@@ -120,5 +121,34 @@ describe("PushNotificationSettings", () => {
     );
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(pushManager.subscribe).toHaveBeenCalledOnce();
+  });
+
+  it("hides the explanatory text and reports an actionable error if push is unavailable", async () => {
+    vi.mocked(notificationService.pushConfig).mockResolvedValue({
+      enabled: false,
+      publicKey: null,
+    });
+    render(<PushNotificationSettings />);
+
+    const enableSwitch = await screen.findByRole("switch", {
+      name: `${uiText.settingsPage.pushTitle}: ${uiText.settingsPage.pushEnable}`,
+    });
+    await waitFor(() => expect(enableSwitch).toBeEnabled());
+    expect(enableSwitch).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Tampilkan pengingat umum CashFlow di perangkat. Detail tetap hanya terlihat di aplikasi.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Notifikasi perangkat belum dikonfigurasi di server."),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(enableSwitch);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      uiText.settingsPage.pushUnavailable,
+    );
+    expect(requestPermission).not.toHaveBeenCalled();
   });
 });

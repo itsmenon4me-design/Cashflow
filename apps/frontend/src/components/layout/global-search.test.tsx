@@ -25,13 +25,14 @@ describe("GlobalSearch", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
-  it("navigates to a matching menu entry", async () => {
+  it("renders a matching menu entry as a navigable link", async () => {
     const user = userEvent.setup();
     render(<GlobalSearch />);
     await user.type(screen.getByRole("combobox"), "kategori");
 
-    await user.click(await screen.findByRole("option", { name: /kategori/i }));
-    expect(mockPush).toHaveBeenCalledWith("/categories");
+    const option = await screen.findByRole("option", { name: /kategori/i });
+    expect(option).toHaveAttribute("href", "/categories");
+
   });
 
   it("uses Enter to navigate to the first matching menu entry", async () => {

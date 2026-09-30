@@ -84,7 +84,7 @@ export function DashboardLayout({ children, initialExpanded, initialCollapsed }:
           {/* scrollbar-gutter: main adalah scroll container (bukan html) — tanpa
               gutter stabil, scrollbar yang muncul/hilang (mis. hasil filter
               kosong -> halaman memendek) mengubah lebar semua konten di dalamnya */}
-          <main ref={mainRef} className="dashboard-main-scroll flex flex-1 flex-col overflow-y-auto px-4 pb-[calc(3.5625rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 md:pb-10 md:pt-8 lg:px-8">
+          <main ref={mainRef} className="dashboard-main-scroll flex flex-1 flex-col overflow-y-auto px-4 pb-[calc(3.5625rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 lg:pb-10 md:pt-8 lg:px-8">
             <div className="grid flex-1 gap-6">
               <div className="min-h-full min-w-0 space-y-6">
                 {/* Sidebar, header, and mobile navigation stay mounted while

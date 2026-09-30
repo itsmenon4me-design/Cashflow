@@ -171,10 +171,10 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, alwaysEx
         setTooltipsSuppressed(false);
       }}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
+        "flex min-h-11 touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 active:bg-accent",
         collapsed ? "justify-center px-0" : "px-3",
         isActive
-          ? "bg-primary text-primary-foreground"
+          ? "bg-primary text-primary-foreground active:bg-primary/90"
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
       )}
       >
@@ -211,7 +211,7 @@ export const SidebarNav = memo(function SidebarNav({ collapsed = false, alwaysEx
                 type="button"
                 onClick={() => toggleGroup(group.key as GroupKey)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+                className="flex min-h-11 w-full touch-manipulation items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 transition-colors duration-150 hover:bg-accent hover:text-foreground active:bg-accent"
               >
                 <span>{group.title}</span>
                 <ChevronRight className={cn("size-3 transition-transform duration-200", isOpen && "rotate-90")} />

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useUiText } from "@/hooks/useUiText";
 import {
   notificationService,
@@ -177,15 +177,15 @@ export function PushNotificationSettings() {
 
   const statusMessage = loading
     ? text.settingsPage.pushChecking
-    : !supported
-      ? text.settingsPage.pushUnsupported
-      : subscribed
-        ? text.settingsPage.pushEnabled
-        : permission === "denied"
-          ? text.settingsPage.pushDenied
-          : !config?.enabled
-            ? text.settingsPage.pushUnavailable
-            : text.settingsPage.pushDisabled;
+    : busy
+      ? text.settingsPage.pushSaving
+      : !supported
+        ? text.settingsPage.pushUnsupported
+        : subscribed
+          ? text.settingsPage.pushEnabled
+          : permission === "denied"
+            ? text.settingsPage.pushDenied
+            : null;
 
   return (
     <div className="col-span-full flex flex-col gap-4 rounded-xl border border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -201,41 +201,38 @@ export function PushNotificationSettings() {
           <p className="text-sm font-medium text-foreground">
             {text.settingsPage.pushTitle}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {text.settingsPage.pushDescription}
-          </p>
-          <p
-            role={error ? "alert" : "status"}
-            aria-live={error ? "assertive" : "polite"}
-            className={
-              error
-                ? "text-sm text-destructive"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            {error ?? statusMessage}
-          </p>
+          {(error || statusMessage) && (
+            <p
+              role={error ? "alert" : "status"}
+              aria-live={error ? "assertive" : "polite"}
+              className={
+                error
+                  ? "text-sm text-destructive"
+                  : "text-sm text-muted-foreground"
+              }
+            >
+              {error ?? statusMessage}
+            </p>
+          )}
         </div>
       </div>
-      <Button
-        type="button"
-        variant={subscribed ? "outline" : "default"}
-        className="min-h-11 w-full shrink-0 sm:w-auto"
+      <Switch
+        checked={subscribed}
+        aria-label={`${text.settingsPage.pushTitle}: ${
+          subscribed
+            ? text.settingsPage.pushDisable
+            : text.settingsPage.pushEnable
+        }`}
         disabled={
           loading ||
           busy ||
           !supported ||
-          (!config?.enabled && !subscribed) ||
           permission === "denied"
         }
-        onClick={() => void (subscribed ? disable() : enable())}
-      >
-        {busy
-          ? text.settingsPage.pushSaving
-          : subscribed
-            ? text.settingsPage.pushDisable
-            : text.settingsPage.pushEnable}
-      </Button>
+        onCheckedChange={(checked) =>
+          void (checked ? enable() : disable())
+        }
+      />
     </div>
   );
 }

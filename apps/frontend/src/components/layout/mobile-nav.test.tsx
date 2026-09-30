@@ -26,6 +26,14 @@ describe("MobileNav", () => {
     );
   });
 
+  it("keeps bottom navigation available until the desktop sidebar breakpoint", () => {
+    render(<MobileNav />);
+
+    const navigation = screen.getByRole("navigation", { name: "Navigasi utama" });
+    expect(navigation.className).toContain("lg:hidden");
+    expect(navigation.className).not.toContain("md:hidden");
+  });
+
   it("updates labels immediately when the interface language changes", () => {
     render(<MobileNav />);
 

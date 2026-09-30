@@ -143,7 +143,7 @@ export function HeaderBar() {
         <Button
           variant="ghost"
           className={cn(
-            "size-11 shrink-0 rounded-xl lg:hidden",
+            "size-11 touch-manipulation shrink-0 rounded-xl active:bg-accent lg:hidden",
             mobileSearchOpen && "hidden",
           )}
           onClick={() => setMobileOpen(true)}
@@ -167,7 +167,7 @@ export function HeaderBar() {
           {!mobileSearchOpen && (
             <Button
               variant="ghost"
-              className="size-11 rounded-xl md:hidden"
+              className="size-11 touch-manipulation rounded-xl active:bg-accent md:hidden"
               onClick={() => setMobileSearchState({ open: true, pathname })}
               aria-label={uiText.common.searchAriaLabel}
               aria-expanded={false}

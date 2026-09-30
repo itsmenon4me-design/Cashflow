@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Compass, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -59,16 +60,18 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
     };
   }, [showPanel]);
 
-  const navigate = (path: string) => {
+  const closeSearch = () => {
     setOpen(false);
     setQuery("");
     onNavigate?.();
-    router.push(path);
   };
 
   const submitMenuMatch = () => {
     const firstMatch = results[0];
-    if (firstMatch) navigate(firstMatch.href);
+    if (firstMatch) {
+      closeSearch();
+      router.push(firstMatch.href);
+    }
   };
 
   return (
@@ -134,13 +137,14 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
                     {text.common.searchResultsMenu}
                   </p>
                   {results.map((menu) => (
-                    <button
+                    <Link
                       key={menu.href}
-                      type="button"
                       role="option"
                       aria-selected={false}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
-                      onClick={() => navigate(menu.href)}
+                      href={menu.href}
+                      prefetch
+                      className="flex min-h-11 w-full touch-manipulation items-center gap-2.5 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-accent active:bg-accent"
+                      onClick={closeSearch}
                     >
                       <menu.icon className="size-4 shrink-0 text-primary" />
                       <span className="min-w-0 flex-1">
@@ -152,7 +156,7 @@ export function GlobalSearch({ className, onNavigate, onDismiss, autoFocus = fal
                         </span>
                       </span>
                       <Compass className="size-3.5 shrink-0 text-muted-foreground" />
-                    </button>
+                    </Link>
                   ))}
                 </div>
               )}

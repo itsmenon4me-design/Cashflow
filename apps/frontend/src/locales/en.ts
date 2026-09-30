@@ -336,18 +336,16 @@ export const enText = {
     notifications: "Notifications",
     notificationsSubtitle: "Enable or disable notification types.",
     pushTitle: "Device notifications",
-    pushDescription:
-      "Show general CashFlow alerts on this device. Details remain in the app.",
     pushEnable: "Enable device notifications",
     pushDisable: "Turn off",
     pushChecking: "Checking notification support...",
     pushSaving: "Processing...",
     pushEnabled: "Device notifications are active in this browser.",
-    pushDisabled: "Device notifications are not enabled.",
     pushDenied:
       "Permission is blocked. Change CashFlow notification permission in your browser site settings.",
     pushUnsupported: "This browser does not support Web Push.",
-    pushUnavailable: "Device notifications are not configured on the server.",
+    pushUnavailable:
+      "Device notifications cannot be enabled right now. Please try again later.",
     pushLoadError: "Could not load device notification status.",
     pushEnableError: "Could not enable device notifications. Try again.",
     pushDisableError: "Could not disable device notifications. Try again.",

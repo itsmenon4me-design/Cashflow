@@ -33,7 +33,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="absolute inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="absolute inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       aria-label={text.common.primaryNavigationAriaLabel}
     >
       <div className="grid grid-cols-5">
@@ -56,7 +56,7 @@ export function MobileNav() {
                 aria-pressed={isActive}
                 onClick={openDialog}
                 className={cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition-colors",
+                  "flex min-h-14 min-w-0 touch-manipulation flex-col items-center justify-center gap-0.5 px-1 transition-colors duration-150 active:bg-accent/70",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -70,7 +70,7 @@ export function MobileNav() {
                 prefetch
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition-colors",
+                  "flex min-h-14 min-w-0 touch-manipulation flex-col items-center justify-center gap-0.5 px-1 transition-colors duration-150 active:bg-accent/70",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
