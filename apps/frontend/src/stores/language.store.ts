@@ -5,6 +5,39 @@ import { readLanguageFromCookie, setUiTextLanguage } from "@/locales";
 const STORAGE_KEY = "cashflow.language";
 const COOKIE_KEY = "cashflow.language";
 const DEFAULT_LANGUAGE: LanguagePreference = "id";
+const PRESERVED_SCROLL_SELECTOR =
+  ".dashboard-main-scroll, [data-scroll-preserve]";
+
+function captureScrollPositions(): Array<{ top: number; left: number }> {
+  if (typeof document === "undefined") return [];
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(PRESERVED_SCROLL_SELECTOR),
+  ).map(({ scrollTop, scrollLeft }) => ({ top: scrollTop, left: scrollLeft }));
+}
+
+function restoreScrollPositions(
+  positions: Array<{ top: number; left: number }>,
+): void {
+  if (typeof document === "undefined" || positions.length === 0) return;
+
+  const restore = () => {
+    const containers = document.querySelectorAll<HTMLElement>(
+      PRESERVED_SCROLL_SELECTOR,
+    );
+    positions.forEach(({ top, left }, index) => {
+      const container = containers[index];
+      if (!container) return;
+      container.scrollTop = top;
+      container.scrollLeft = left;
+    });
+  };
+
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(restore);
+  } else {
+    window.setTimeout(restore, 0);
+  }
+}
 
 export function hydrateLanguagePreference(): LanguagePreference {
   const active = readStored();
@@ -68,8 +101,13 @@ export const useLanguageStore = create<LanguageState>((set) => ({
 
   setLanguage: (language) => {
     const active = setUiTextLanguage(language);
+    const scrollPositions =
+      active === useLanguageStore.getState().language
+        ? []
+        : captureScrollPositions();
     persist(active);
     set({ language: active });
+    restoreScrollPositions(scrollPositions);
     if (typeof document !== "undefined") {
       document.documentElement.lang = active;
     }

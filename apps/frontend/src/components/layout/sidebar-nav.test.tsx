@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { Sidebar } from "@/components/layout/sidebar";
+import { LanguageProvider } from "@/components/providers/language-provider";
 import { locales } from "@/locales";
 import { useLanguageStore } from "@/stores/language.store";
 
@@ -14,6 +16,7 @@ describe("SidebarNav", () => {
   beforeEach(() => {
     pathname = "/dashboard";
     window.localStorage.clear();
+    document.cookie = "cashflow_sidebar_collapsed=; path=/; max-age=0";
     useLanguageStore.getState().setLanguage("id");
   });
 
@@ -87,6 +90,30 @@ describe("SidebarNav", () => {
     expect(screen.getByRole("link", { name: locales.id.navigation.settings })).toBeInTheDocument();
     expect(screen.queryByText("Perencanaan")).not.toBeInTheDocument();
   });
+
+  it.each([
+    { initiallyCollapsed: true, expectedWidth: "w-[76px]" },
+    { initiallyCollapsed: false, expectedWidth: "w-64" },
+  ])(
+    "keeps the sidebar state when changing language from collapsed=$initiallyCollapsed",
+    ({ initiallyCollapsed, expectedWidth }) => {
+      document.cookie = `cashflow_sidebar_collapsed=${initiallyCollapsed}; path=/; max-age=2592000; SameSite=Lax`;
+
+      render(
+        <LanguageProvider>
+          <Sidebar initialExpanded={{}} initialCollapsed={!initiallyCollapsed} />
+        </LanguageProvider>,
+      );
+
+      expect(screen.getByRole("complementary")).toHaveClass(expectedWidth);
+
+      act(() => {
+        useLanguageStore.getState().setLanguage("en");
+      });
+
+      expect(screen.getByRole("complementary")).toHaveClass(expectedWidth);
+    },
+  );
 
   it("closes the collapsed navigation tooltip after a page is selected", async () => {
     vi.stubGlobal(

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createElement, useEffect } from "react";
 import { uiText, locales } from "@/locales";
 import { hydrateLanguagePreference, useLanguageStore } from "@/stores/language.store";
@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import { useAuthStore } from "@/stores/auth.store";
 import { settingsService } from "@/services/settings.service";
 import { SettingsPage } from "@/features/settings/settings-page";
+import { clearSettingsSession } from "@/services/settings-session";
 
 const { replaceMock, searchParamsMock } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
@@ -40,6 +41,7 @@ describe("global language store", () => {
   afterEach(() => {
     useLanguageStore.setState({ language: "id" });
     window.localStorage.removeItem("cashflow.language");
+    document.cookie = "cashflow.language=; path=/; max-age=0";
     searchParamsMock.get.mockReset();
     searchParamsMock.get.mockImplementation(() => null);
     cleanup();
@@ -90,12 +92,24 @@ describe("global language store", () => {
 describe("LanguageProvider reconciliation", () => {
   const previousAuthenticated = useAuthStore.getState().isAuthenticated;
 
+  beforeEach(() => {
+    clearSettingsSession();
+    window.localStorage.removeItem("cashflow.language");
+    document.cookie = "cashflow.language=; path=/; max-age=0";
+    useLanguageStore.getState().setLanguage("id");
+    window.localStorage.removeItem("cashflow.language");
+    document.cookie = "cashflow.language=; path=/; max-age=0";
+  });
+
   afterEach(() => {
+    cleanup();
     useAuthStore.setState({ isAuthenticated: previousAuthenticated });
-    useLanguageStore.setState({ language: "id" });
+    useLanguageStore.getState().setLanguage("id");
+    clearSettingsSession();
+    window.localStorage.removeItem("cashflow.language");
+    document.cookie = "cashflow.language=; path=/; max-age=0";
     searchParamsMock.get.mockReset();
     searchParamsMock.get.mockImplementation(() => null);
-    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -116,7 +130,7 @@ describe("LanguageProvider reconciliation", () => {
     expect(uiText).toBe(locales.en);
   });
 
-  it("does not remount the app tree when the locale changes", () => {
+  it("preserves sidebar and page scroll positions when the locale changes", async () => {
     let mountCount = 0;
 
     function MountProbe() {
@@ -124,7 +138,26 @@ describe("LanguageProvider reconciliation", () => {
         mountCount += 1;
       }, []);
 
-      return createElement("p", null, "mounted");
+      return createElement("div", null,
+        createElement(
+          "main",
+          {
+            "data-testid": "page-scroll",
+            className: "dashboard-main-scroll",
+            style: { height: "100px", overflowY: "auto" },
+          },
+          createElement("div", { style: { height: "1000px" } }, "page content"),
+        ),
+        createElement(
+          "div",
+          {
+            "data-testid": "sidebar-scroll",
+            "data-scroll-preserve": true,
+            style: { height: "100px", overflowY: "auto" },
+          },
+          createElement("div", { style: { height: "1000px" } }, "menu content"),
+        ),
+      );
     }
 
     render(
@@ -133,10 +166,19 @@ describe("LanguageProvider reconciliation", () => {
 
     expect(mountCount).toBe(1);
 
-    useLanguageStore.getState().setLanguage("en");
+    screen.getByTestId("page-scroll").scrollTop = 320;
+    screen.getByTestId("sidebar-scroll").scrollTop = 420;
 
-    expect(mountCount).toBe(1);
-    expect(screen.getByText("mounted")).toBeInTheDocument();
+    await act(async () => {
+      useLanguageStore.getState().setLanguage("en");
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+    });
+
+    expect(mountCount).toBe(2);
+    expect(screen.getByTestId("page-scroll").scrollTop).toBe(320);
+    expect(screen.getByTestId("sidebar-scroll").scrollTop).toBe(420);
   });
 
   it("does not refetch settings or remount settings content when preferences change", async () => {

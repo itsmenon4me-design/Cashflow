@@ -3,7 +3,6 @@
 import { memo, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { cn } from "@/lib/utils";
 import { useUiText } from "@/hooks/useUiText";
@@ -15,9 +14,20 @@ interface SidebarProps {
 
 const COLLAPSED_COOKIE = "cashflow_sidebar_collapsed";
 
+function getInitialCollapsedState(fallback: boolean): boolean {
+  if (typeof document === "undefined") return fallback;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${COLLAPSED_COOKIE}=(true|false)(?:;|$)`),
+  );
+  if (!match) return fallback;
+  return match[1] === "true";
+}
+
 export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed }: SidebarProps) {
   const text = useUiText();
-  const [collapsed, setCollapsed] = useState(() => initialCollapsed);
+  const [collapsed, setCollapsed] = useState(() =>
+    getInitialCollapsedState(initialCollapsed),
+  );
   const toggleCollapsed = () => {
     setCollapsed((current) => {
       const next = !current;
@@ -50,9 +60,12 @@ export const Sidebar = memo(function Sidebar({ initialExpanded, initialCollapsed
         )}
       </div>
 
-      <ScrollArea className="min-h-0 flex-1 px-3 pb-5 pt-4">
+      <div
+        data-scroll-preserve
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-5 pt-4"
+      >
         <SidebarNav collapsed={collapsed} initialExpanded={initialExpanded} />
-      </ScrollArea>
+      </div>
 
       <div className="shrink-0 border-t border-sidebar-border p-3">
         <Button

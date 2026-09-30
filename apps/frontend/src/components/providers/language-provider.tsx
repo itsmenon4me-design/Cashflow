@@ -18,8 +18,8 @@ interface LanguageProviderProps {
 /**
  * Global language root.
  *
- * Local preference wins over backend settings, and the keyed subtree updates
- * consumers of the shared locale bundle whenever the language changes.
+ * Local preference wins over backend settings. The keyed subtree refreshes
+ * consumers of the shared locale bundle when the language changes.
  */
 export function LanguageProvider({ children }: LanguageProviderProps) {
   const language = useLanguageStore((state) => state.language);
