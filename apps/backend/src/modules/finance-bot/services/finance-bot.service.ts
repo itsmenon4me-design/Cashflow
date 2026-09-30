@@ -4,6 +4,7 @@ import { NotificationsService } from '../../notifications/services/notifications
 import { UserSettingsService } from '../../settings/services/user-settings.service';
 import { BudgetAnalyticsService } from '../../reports/services/budget-analytics.service';
 import { PrismaService } from '../../../database/prisma.service';
+import { DateHelper } from '../../../common/utils/date.util';
 
 const FINANCE_BOT_TRANSLATIONS = {
   id: {
@@ -78,8 +79,8 @@ export class FinanceBotService {
         const txDate = transaction.transaction_date
           ? new Date(transaction.transaction_date)
           : new Date();
-        const month = txDate.getUTCMonth() + 1;
-        const year = txDate.getUTCFullYear();
+        const month = DateHelper.monthInTimezone(txDate);
+        const year = DateHelper.yearInTimezone(txDate);
 
         const analysis = await this.budgetAnalytics.analyzeMonth(
           userId,
@@ -93,10 +94,19 @@ export class FinanceBotService {
         );
         if (item) {
           const threshold = Number(financeBot.budgetThreshold ?? 80);
-          const percentage = Math.round(item.percentageUsed);
+          const budgetAmount = BigInt(item.budgetAmount);
+          const spentAmount = BigInt(item.spentAmount);
+          const spentPercent = spentAmount * 100n;
+          const thresholdPercent = budgetAmount * BigInt(threshold);
+          const percentage =
+            budgetAmount > 0n ? Number(spentPercent / budgetAmount) : 0;
 
           // Threshold notification (>= configured threshold but < 100)
-          if (percentage >= threshold && percentage < 100) {
+          if (
+            budgetAmount > 0n &&
+            spentPercent >= thresholdPercent &&
+            spentAmount < budgetAmount
+          ) {
             const period = `${year}-${String(month).padStart(2, '0')}`;
             const dedupe = `${userId}|BUDGET_THRESHOLD|${categoryId}|${period}|${threshold}`;
             const title = copy.budgetAlmostFullTitle;
@@ -122,7 +132,7 @@ export class FinanceBotService {
           }
 
           // Exceeded notification (>=100)
-          if (percentage >= 100) {
+          if (budgetAmount > 0n && spentPercent >= budgetAmount * 100n) {
             const period = `${year}-${String(month).padStart(2, '0')}`;
             const dedupe = `${userId}|BUDGET_EXCEEDED|${categoryId}|${period}|100`;
             const title = copy.budgetExceededTitle;
@@ -257,16 +267,15 @@ export class FinanceBotService {
   private resolveTimeZone(raw?: string | null): string {
     const candidates = [
       raw,
-      process.env.TZ,
       process.env.APP_DEFAULT_TIMEZONE,
-      'UTC',
+      'Asia/Jakarta',
     ] as const;
 
     for (const candidate of candidates) {
       if (this.isValidTimeZone(candidate)) return candidate;
     }
 
-    return 'UTC';
+    return 'Asia/Jakarta';
   }
 
   private isValidReminderTime(value: unknown): value is string {

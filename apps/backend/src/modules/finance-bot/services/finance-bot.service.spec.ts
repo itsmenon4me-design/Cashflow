@@ -500,7 +500,9 @@ describe('FinanceBotService.runDailyRecordingReminders', () => {
     });
   });
 
-  it('falls back to UTC when a user timezone is invalid', async () => {
+  it('uses APP_DEFAULT_TIMEZONE when a user timezone is invalid', async () => {
+    const previousDefault = process.env.APP_DEFAULT_TIMEZONE;
+    process.env.APP_DEFAULT_TIMEZONE = 'UTC';
     const mocks = makeMocks();
     const recordedIntervals: Array<{ gte: Date; lt: Date }> = [];
     mocks.prisma.userSettings.findMany = jest.fn().mockResolvedValue([
@@ -527,26 +529,85 @@ describe('FinanceBotService.runDailyRecordingReminders', () => {
     mocks.notifications.findByDedupeKey = jest.fn().mockResolvedValue(null);
 
     const service = makeService(mocks);
-    await service.runDailyRecordingReminders(new Date('2026-08-09T20:00:00Z'));
+    try {
+      await service.runDailyRecordingReminders(
+        new Date('2026-08-09T20:00:00Z'),
+      );
 
-    expect(recordedIntervals[0].gte.toISOString()).toBe(
-      '2026-08-09T00:00:00.000Z',
-    );
-    expect(recordedIntervals[0].lt.toISOString()).toBe(
-      '2026-08-10T00:00:00.000Z',
-    );
-    expect(mocks.notifications.createIfNotExists).toHaveBeenCalledWith(
-      'user-invalid-timezone',
-      'DAILY_RECORDING_REMINDER',
-      'Ingat catat pengeluaran hari ini',
-      'Jangan lupa catat transaksi hari ini ya!',
+      expect(recordedIntervals[0].gte.toISOString()).toBe(
+        '2026-08-09T00:00:00.000Z',
+      );
+      expect(recordedIntervals[0].lt.toISOString()).toBe(
+        '2026-08-10T00:00:00.000Z',
+      );
+      expect(mocks.notifications.createIfNotExists).toHaveBeenCalledWith(
+        'user-invalid-timezone',
+        'DAILY_RECORDING_REMINDER',
+        'Ingat catat pengeluaran hari ini',
+        'Jangan lupa catat transaksi hari ini ya!',
+        {
+          ruleType: 'DAILY_RECORDING_REMINDER',
+          referenceDate: '2026-08-09',
+          priority: 'LOW',
+        },
+        'user-invalid-timezone|DAILY_RECORDING_REMINDER|2026-08-09',
+      );
+    } finally {
+      if (previousDefault === undefined) {
+        delete process.env.APP_DEFAULT_TIMEZONE;
+      } else {
+        process.env.APP_DEFAULT_TIMEZONE = previousDefault;
+      }
+    }
+  });
+
+  it('falls back to WIB when both user and app timezones are invalid', async () => {
+    const previousDefault = process.env.APP_DEFAULT_TIMEZONE;
+    process.env.APP_DEFAULT_TIMEZONE = 'Invalid/AppZone';
+    const mocks = makeMocks();
+    const recordedIntervals: Array<{ gte: Date; lt: Date }> = [];
+    mocks.prisma.userSettings.findMany = jest.fn().mockResolvedValue([
       {
-        ruleType: 'DAILY_RECORDING_REMINDER',
-        referenceDate: '2026-08-09',
-        priority: 'LOW',
+        user_id: 'user-invalid-timezone',
+        notification_preferences: {
+          financeBot: {
+            enabled: true,
+            dailyReminderEnabled: true,
+            reminderTime1: '20:00',
+            reminderTime2: '22:00',
+          },
+        },
+        timezone: 'Invalid/Zone',
       },
-      'user-invalid-timezone|DAILY_RECORDING_REMINDER|2026-08-09',
+    ]);
+    mocks.prisma.transaction.count = jest.fn(
+      (args?: MaybeTransactionCountArgs) => {
+        const td = args?.where?.transaction_date;
+        if (td && td.lt) recordedIntervals.push({ gte: td.gte, lt: td.lt });
+        return 0;
+      },
     );
+    mocks.notifications.findByDedupeKey = jest.fn().mockResolvedValue(null);
+
+    const service = makeService(mocks);
+    try {
+      await service.runDailyRecordingReminders(
+        new Date('2026-08-09T20:00:00Z'),
+      );
+
+      expect(recordedIntervals[0].gte.toISOString()).toBe(
+        '2026-08-09T17:00:00.000Z',
+      );
+      expect(recordedIntervals[0].lt.toISOString()).toBe(
+        '2026-08-10T17:00:00.000Z',
+      );
+    } finally {
+      if (previousDefault === undefined) {
+        delete process.env.APP_DEFAULT_TIMEZONE;
+      } else {
+        process.env.APP_DEFAULT_TIMEZONE = previousDefault;
+      }
+    }
   });
 
   it('falls back to default reminder time when the configured time is invalid', async () => {
@@ -624,6 +685,8 @@ describe('FinanceBotService.runDailyRecordingReminders', () => {
           {
             categoryId: 'c1',
             categoryName: 'Food',
+            budgetAmount: '1000',
+            spentAmount: '850',
             percentageUsed: 85,
           },
         ],
@@ -653,6 +716,160 @@ describe('FinanceBotService.runDailyRecordingReminders', () => {
       );
     });
 
+    it.each([
+      {
+        label: '79.6%',
+        spentAmount: '796',
+        percentageUsed: 79.6,
+        expectedType: null,
+        expectedPercentage: null,
+      },
+      {
+        label: '80%',
+        spentAmount: '800',
+        percentageUsed: 80,
+        expectedType: 'BUDGET_THRESHOLD',
+        expectedPercentage: 80,
+      },
+      {
+        label: '99.6%',
+        spentAmount: '996',
+        percentageUsed: 99.6,
+        expectedType: 'BUDGET_THRESHOLD',
+        expectedPercentage: 99,
+      },
+      {
+        label: '100%',
+        spentAmount: '1000',
+        percentageUsed: 100,
+        expectedType: 'BUDGET_EXCEEDED',
+        expectedPercentage: 100,
+      },
+    ])(
+      'compares the exact budget ratio at $label',
+      async ({
+        spentAmount,
+        percentageUsed,
+        expectedType,
+        expectedPercentage,
+      }) => {
+        const mocks = makeMocks();
+        mocks.userSettings.getSettings = jest.fn().mockResolvedValue({
+          notification_preferences: {
+            financeBot: {
+              enabled: true,
+              budgetThreshold: 80,
+            },
+          },
+        });
+        mocks.budgetAnalytics.analyzeMonth = jest.fn().mockResolvedValue({
+          categories: [
+            {
+              categoryId: 'c1',
+              categoryName: 'Food',
+              budgetAmount: '1000',
+              spentAmount,
+              percentageUsed,
+            },
+          ],
+        });
+        mocks.prisma.transaction.findFirst = jest.fn().mockResolvedValue(null);
+
+        const service = makeService(mocks);
+        await service.evaluateOnTransaction('user-1', {
+          transaction_date: '2026-08-09T12:00:00Z',
+          category_id: 'c1',
+        });
+
+        if (expectedType === null) {
+          expect(mocks.notifications.createIfNotExists).not.toHaveBeenCalled();
+          return;
+        }
+
+        expect(mocks.notifications.createIfNotExists).toHaveBeenCalledTimes(1);
+        expect(mocks.notifications.createIfNotExists).toHaveBeenCalledWith(
+          'user-1',
+          expectedType,
+          expect.any(String),
+          expect.stringContaining(`${expectedPercentage}%`),
+          expect.objectContaining({ percentage: expectedPercentage }),
+          expect.any(String),
+        );
+      },
+    );
+
+    it.each([
+      { label: 'zero spend', spentAmount: '0' },
+      { label: 'positive spend', spentAmount: '1' },
+    ])(
+      'does not send budget notifications for a zero budget with $label',
+      async ({ spentAmount }) => {
+        const mocks = makeMocks();
+        mocks.userSettings.getSettings = jest.fn().mockResolvedValue({
+          notification_preferences: {
+            financeBot: {
+              enabled: true,
+              budgetThreshold: 80,
+            },
+          },
+        });
+        mocks.budgetAnalytics.analyzeMonth = jest.fn().mockResolvedValue({
+          categories: [
+            {
+              categoryId: 'c1',
+              categoryName: 'Food',
+              budgetAmount: '0',
+              spentAmount,
+              percentageUsed: 0,
+            },
+          ],
+        });
+        mocks.prisma.transaction.findFirst = jest.fn().mockResolvedValue(null);
+
+        const service = makeService(mocks);
+        await service.evaluateOnTransaction('user-1', {
+          transaction_date: '2026-08-09T12:00:00Z',
+          category_id: 'c1',
+        });
+
+        expect(mocks.notifications.createIfNotExists).not.toHaveBeenCalled();
+      },
+    );
+
+    it('selects the transaction budget month using WIB under TZ=UTC', async () => {
+      const mocks = makeMocks();
+      mocks.userSettings.getSettings = jest.fn().mockResolvedValue({
+        notification_preferences: { financeBot: { enabled: true } },
+      });
+      mocks.budgetAnalytics.analyzeMonth = jest
+        .fn()
+        .mockResolvedValue({ categories: [] });
+      mocks.prisma.transaction.findFirst = jest.fn().mockResolvedValue(null);
+
+      const service = makeService(mocks);
+      await service.evaluateOnTransaction('user-1', {
+        transaction_date: '2026-09-01T03:00:00+07:00',
+        category_id: 'c1',
+      });
+      await service.evaluateOnTransaction('user-1', {
+        transaction_date: '2026-08-31T23:59:00+07:00',
+        category_id: 'c1',
+      });
+
+      expect(mocks.budgetAnalytics.analyzeMonth).toHaveBeenNthCalledWith(
+        1,
+        'user-1',
+        9,
+        2026,
+      );
+      expect(mocks.budgetAnalytics.analyzeMonth).toHaveBeenNthCalledWith(
+        2,
+        'user-1',
+        8,
+        2026,
+      );
+    });
+
     it('handles notification failures during transaction evaluation without throwing', async () => {
       const mocks = makeMocks();
       mocks.userSettings.getSettings = jest.fn().mockResolvedValue({
@@ -668,6 +885,8 @@ describe('FinanceBotService.runDailyRecordingReminders', () => {
           {
             categoryId: 'c1',
             categoryName: 'Food',
+            budgetAmount: '1000',
+            spentAmount: '850',
             percentageUsed: 85,
           },
         ],
