@@ -26,8 +26,8 @@ export function CategoryFilters({ filters, onChange, onReset }: CategoryFiltersP
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(9rem,0.6fr)_minmax(9rem,0.6fr)_auto]">
-        <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
+      <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(9rem,0.6fr)_minmax(9rem,0.6fr)_auto]">
+        <div className="relative min-w-0 sm:col-span-2 lg:col-span-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="rounded-xl border-zinc-500 bg-card pl-9 dark:border-zinc-500"

@@ -245,7 +245,7 @@ export function InvestmentsPage() {
       />
 
       {hasLoadedOnce && !error && (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
           <InvestmentStat
             label={uiText.investments.totalInvested}
             value={formatCurrencyCents(overview?.totalInvested ?? "0")}

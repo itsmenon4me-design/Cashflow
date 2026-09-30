@@ -137,13 +137,13 @@ export function ForecastPage() {
         <p className="text-sm text-muted-foreground">{text.forecast.pageSubtitle}</p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="space-y-1.5">
           <label htmlFor="forecast-horizon" className="text-sm font-medium text-foreground">
             {text.forecast.horizonLabel}
           </label>
           <Select value={String(horizon)} onValueChange={(value) => setHorizon(Number(value))}>
-            <SelectTrigger id="forecast-horizon" className="w-full sm:w-44">
+            <SelectTrigger id="forecast-horizon" className="w-full sm:w-60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -175,7 +175,7 @@ export function ForecastPage() {
         />
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
             <ForecastSummaryCard
               label={text.forecast.projectedIncome}
               value={formatCurrencyCents(
@@ -224,7 +224,7 @@ export function ForecastPage() {
             locale={language}
           />
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <section className="grid gap-6">
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>{text.forecast.breakdownTitle}</CardTitle>
@@ -233,13 +233,13 @@ export function ForecastPage() {
                 {forecast.months.map((month) => (
                   <div
                     key={month.period}
-                    className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="grid gap-3 rounded-xl border border-border bg-card px-4 py-3 md:grid-cols-[minmax(12rem,0.8fr)_minmax(0,2fr)] md:items-center"
                   >
                     <div>
                       <p className="font-medium text-foreground">{formatPeriodLabel(month.period, language)}</p>
                       <p className="text-sm text-muted-foreground">{text.forecast.breakdownPeriod}</p>
                     </div>
-                    <div className="grid gap-2 sm:min-w-[280px] sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{text.forecast.projectedIncome}</p>
                         <p className="text-sm font-semibold text-foreground">

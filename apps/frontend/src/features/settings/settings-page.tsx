@@ -395,8 +395,8 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">{uiText.settingsPage.subtitle}</p>
       </div>
 
-      <div className="flex flex-col gap-6 xl:flex-row">
-        <aside className="w-full xl:w-[360px] xl:min-w-[360px] xl:max-w-[360px]">
+      <div className="flex flex-col gap-6">
+        <aside className="w-full">
           <div className="rounded-2xl border bg-card p-3 shadow-sm">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -436,7 +436,6 @@ export function SettingsPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-medium xl:whitespace-nowrap xl:text-sm">{tab.label}</div>
-                        <div className="hidden whitespace-nowrap text-[11px] text-muted-foreground xl:block">{tab.summary}</div>
                       </div>
                     </button>
                   );
@@ -450,7 +449,7 @@ export function SettingsPage() {
           {activeSettingsTab.id === "general" && (
             <div className="space-y-6">
               <SettingsGroup title={uiText.settingsPage.groupApplication}>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Card className="min-h-[242px] shadow-sm">
                     <CardHeader>
                       <SectionHeading icon={Palette} title={uiText.settingsPage.appearance} subtitle={uiText.settingsPage.appearanceSubtitle} />
