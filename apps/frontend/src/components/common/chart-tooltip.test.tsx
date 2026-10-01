@@ -29,4 +29,25 @@ describe("ChartTooltip", () => {
 
     expect(screen.getByText("25%")).toBeInTheDocument();
   });
+
+  it("passes the source datapoint to formatters for signed chart values", () => {
+    render(
+      <ChartTooltip
+        active
+        label="Oct"
+        payload={[
+          {
+            name: "Arus Kas",
+            value: 800,
+            payload: { balance: -800 },
+          },
+        ]}
+        valueFormatter={(_value, entry) =>
+          String(entry?.payload?.balance ?? "")
+        }
+      />,
+    );
+
+    expect(screen.getByText("-800")).toBeInTheDocument();
+  });
 });

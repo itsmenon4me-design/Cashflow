@@ -2,13 +2,17 @@ interface ChartTooltipEntry {
   name?: string;
   value?: number | string;
   color?: string;
+  payload?: Record<string, unknown>;
 }
 
 interface ChartTooltipProps {
   active?: boolean;
   payload?: ChartTooltipEntry[];
   label?: string | number;
-  valueFormatter?: (value: number | string) => string;
+  valueFormatter?: (
+    value: number | string,
+    entry?: ChartTooltipEntry,
+  ) => string;
 }
 
 export function ChartTooltip({ active, payload, label, valueFormatter }: ChartTooltipProps) {
@@ -31,7 +35,7 @@ export function ChartTooltip({ active, payload, label, valueFormatter }: ChartTo
             <span>{entry.name}</span>
             <span className="ml-auto font-medium text-foreground">
               {valueFormatter
-                ? valueFormatter(entry.value ?? "").replace(/\bRp\s*/g, "")
+                ? valueFormatter(entry.value ?? "", entry).replace(/\bRp\s*/g, "")
                 : entry.value}
             </span>
           </div>
