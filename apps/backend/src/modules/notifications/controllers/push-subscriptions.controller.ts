@@ -6,6 +6,10 @@ import {
   CreatePushSubscriptionDto,
   PushSubscriptionEndpointDto,
 } from '../dto/push-subscription.dto';
+import {
+  NativePushTokenDto,
+  RemoveNativePushTokenDto,
+} from '../dto/native-push-token.dto';
 import { PushNotificationsService } from '../services/push-notifications.service';
 
 @ApiTags('Push notifications')
@@ -38,6 +42,26 @@ export class PushSubscriptionsController {
     @Body() input: PushSubscriptionEndpointDto,
   ) {
     await this.push.removeSubscription(userId, input);
+    return { success: true };
+  }
+
+  @Post('native-token')
+  @ApiOperation({ summary: 'Register an Expo push token for a native device' })
+  async registerNativeToken(
+    @CurrentUser('sub') userId: string,
+    @Body() input: NativePushTokenDto,
+  ) {
+    await this.push.saveNativeToken(userId, input);
+    return { success: true };
+  }
+
+  @Post('native-token/remove')
+  @ApiOperation({ summary: 'Remove an Expo push token from this account' })
+  async removeNativeToken(
+    @CurrentUser('sub') userId: string,
+    @Body() input: RemoveNativePushTokenDto,
+  ) {
+    await this.push.removeNativeToken(userId, input.token);
     return { success: true };
   }
 }

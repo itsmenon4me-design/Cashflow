@@ -113,7 +113,7 @@ export class NotificationsService {
       .sendForNotification(notification)
       .catch((error: unknown) => {
         this.logger.error(
-          `Failed to dispatch Web Push for notification ${notification.id}`,
+          `Failed to dispatch push notifications for notification ${notification.id}`,
           error instanceof Error ? error.stack : String(error),
         );
       });

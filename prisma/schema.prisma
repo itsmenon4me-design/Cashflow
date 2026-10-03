@@ -61,6 +61,7 @@ model User {
   notifications     Notification[]
   userSettings      UserSettings?
   pushSubscriptions PushSubscription[]
+  nativePushTokens  NativePushToken[]
 
   @@map("users")
 }
@@ -400,6 +401,20 @@ model PushSubscription {
 
   @@index([user_id])
   @@map("push_subscriptions")
+}
+
+model NativePushToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique @db.Text
+  platform   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("native_push_tokens")
 }
 
 // Transaction model

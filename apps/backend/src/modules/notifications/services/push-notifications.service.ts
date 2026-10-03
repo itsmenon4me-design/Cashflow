@@ -12,6 +12,7 @@ import {
   CreatePushSubscriptionDto,
   PushSubscriptionEndpointDto,
 } from '../dto/push-subscription.dto';
+import { NativePushTokenDto } from '../dto/native-push-token.dto';
 
 interface VapidConfiguration {
   publicKey: string;
@@ -152,9 +153,46 @@ export class PushNotificationsService {
     });
   }
 
-  async sendForNotification(notification: NotificationEntity): Promise<void> {
-    if (!this.vapid || !(await this.isPushEnabled(notification))) return;
+  async saveNativeToken(
+    userId: string,
+    input: NativePushTokenDto,
+  ): Promise<void> {
+    const existing = await this.prisma.nativePushToken.findUnique({
+      where: { token: input.token },
+      select: { user_id: true },
+    });
+    if (existing && existing.user_id !== userId) {
+      throw new ConflictException(
+        'This device is already linked to another account.',
+      );
+    }
+    await this.prisma.nativePushToken.upsert({
+      where: { token: input.token },
+      create: {
+        user_id: userId,
+        token: input.token,
+        platform: input.platform,
+      },
+      update: { platform: input.platform },
+    });
+  }
 
+  async removeNativeToken(userId: string, token: string): Promise<void> {
+    await this.prisma.nativePushToken.deleteMany({
+      where: { user_id: userId, token },
+    });
+  }
+
+  async sendForNotification(notification: NotificationEntity): Promise<void> {
+    if (!(await this.isPushEnabled(notification))) return;
+    await Promise.all([
+      this.sendWebPush(notification),
+      this.sendNativePush(notification),
+    ]);
+  }
+
+  private async sendWebPush(notification: NotificationEntity): Promise<void> {
+    if (!this.vapid) return;
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: { user_id: notification.user_id },
       select: { id: true, endpoint: true, p256dh: true, auth: true },
@@ -226,6 +264,86 @@ export class PushNotificationsService {
         'Web Push is not configured on this server.',
       );
     }
+  }
+
+  private async sendNativePush(
+    notification: NotificationEntity,
+  ): Promise<void> {
+    const subscriptions = await this.prisma.nativePushToken.findMany({
+      where: { user_id: notification.user_id },
+      select: { id: true, token: true },
+    });
+    if (subscriptions.length === 0) return;
+
+    const settings = await this.prisma.userSettings.findUnique({
+      where: { user_id: notification.user_id },
+      select: { language: true },
+    });
+    const body =
+      settings?.language === 'en'
+        ? 'You have a new notification. Open Neraca to view details.'
+        : 'Ada notifikasi baru. Buka Neraca untuk melihat detail.';
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(
+        subscriptions.map(({ token }) => ({
+          to: token,
+          title: notification.title,
+          body,
+          data: { notificationId: notification.id, route: 'notifications' },
+          sound: 'default',
+        })),
+      ),
+    });
+    if (!response.ok) {
+      throw new Error(`Expo Push returned HTTP ${response.status}.`);
+    }
+
+    const result: unknown = await response.json();
+    if (
+      typeof result !== 'object' ||
+      result === null ||
+      !('data' in result) ||
+      !Array.isArray(result.data) ||
+      result.data.length !== subscriptions.length
+    ) {
+      throw new Error('Expo Push returned an invalid ticket response.');
+    }
+
+    await Promise.all(
+      result.data.map(async (ticket: unknown, index: number) => {
+        if (typeof ticket !== 'object' || ticket === null) {
+          throw new Error('Expo Push returned a malformed ticket.');
+        }
+        const ticketStatus = 'status' in ticket ? ticket.status : undefined;
+        if (ticketStatus === 'ok') return;
+        const details =
+          'details' in ticket &&
+          typeof ticket.details === 'object' &&
+          ticket.details !== null
+            ? ticket.details
+            : null;
+        const ticketError =
+          details && 'error' in details && typeof details.error === 'string'
+            ? details.error
+            : 'UnknownError';
+        const subscription = subscriptions[index];
+        if (ticketError === 'DeviceNotRegistered') {
+          await this.prisma.nativePushToken.deleteMany({
+            where: { id: subscription.id },
+          });
+          return;
+        }
+        this.logger.warn(
+          `Expo Push delivery failed for native token ${subscription.id}: ${ticketError}`,
+        );
+      }),
+    );
   }
 
   private validatePushEndpoint(endpoint: string): void {

@@ -44,12 +44,20 @@ describe('PushNotificationsService', () => {
   };
   const pushFindMany = jest.fn();
   const pushDeleteMany = jest.fn();
+  const nativePushFindMany = jest.fn();
+  const nativePushDeleteMany = jest.fn();
   const userSettingsFindUnique = jest.fn();
   const prisma = {
     pushSubscription: {
       upsert: jest.fn(),
       deleteMany: pushDeleteMany,
       findMany: pushFindMany,
+      findUnique: jest.fn(),
+    },
+    nativePushToken: {
+      upsert: jest.fn(),
+      deleteMany: nativePushDeleteMany,
+      findMany: nativePushFindMany,
       findUnique: jest.fn(),
     },
     userSettings: {
@@ -69,6 +77,9 @@ describe('PushNotificationsService', () => {
         auth: 'auth',
       },
     ]);
+    nativePushFindMany.mockResolvedValue([]);
+    nativePushDeleteMany.mockResolvedValue({ count: 1 });
+    prisma.nativePushToken.findUnique = jest.fn().mockResolvedValue(null);
     prisma.pushSubscription.findUnique = jest.fn().mockResolvedValue(null);
     pushDeleteMany.mockResolvedValue({ count: 1 });
     userSettingsFindUnique.mockResolvedValue({
@@ -134,6 +145,41 @@ describe('PushNotificationsService', () => {
       service.saveSubscription('user-1', {
         endpoint: 'https://fcm.googleapis.com/fcm/send/token',
         keys: { p256dh: 'valid-p256dh-key', auth: 'valid-auth-key' },
+      }),
+    ).rejects.toThrow('This device is already linked to another account.');
+  });
+
+  it('persists a native token without requiring Web Push configuration', async () => {
+    delete process.env.VAPID_PUBLIC_KEY;
+    delete process.env.VAPID_PRIVATE_KEY;
+    const service = new PushNotificationsService(prisma);
+
+    await service.saveNativeToken('user-1', {
+      token: 'ExponentPushToken[12345678901234567890]',
+      platform: 'android',
+    });
+
+    expect(prisma.nativePushToken.upsert).toHaveBeenCalledWith({
+      where: { token: 'ExponentPushToken[12345678901234567890]' },
+      create: {
+        user_id: 'user-1',
+        token: 'ExponentPushToken[12345678901234567890]',
+        platform: 'android',
+      },
+      update: { platform: 'android' },
+    });
+  });
+
+  it('does not transfer a native token owned by another account', async () => {
+    prisma.nativePushToken.findUnique = jest.fn().mockResolvedValue({
+      user_id: 'other-user',
+    });
+    const service = new PushNotificationsService(prisma);
+
+    await expect(
+      service.saveNativeToken('user-1', {
+        token: 'ExponentPushToken[12345678901234567890]',
+        platform: 'android',
       }),
     ).rejects.toThrow('This device is already linked to another account.');
   });
