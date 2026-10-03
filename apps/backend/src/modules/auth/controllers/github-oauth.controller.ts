@@ -14,11 +14,11 @@ export class GithubOauthController {
   @Get('github')
   @ApiOperation({ summary: 'Prepare GitHub OAuth redirect' })
   @ApiResponse({ status: 200 })
-  async githubLogin() {
+  async githubLogin(@Query('redirectUri') redirectUri?: string) {
     try {
       return {
         success: true,
-        url: await this.githubAuthService.getLoginUrl(),
+        url: await this.githubAuthService.getLoginUrl(redirectUri),
       };
     } catch (error) {
       const message =
@@ -38,7 +38,11 @@ export class GithubOauthController {
     @Query('code') code?: string,
     @Query('state') state?: string,
   ) {
+    let failureRedirectUrl =
+      this.githubAuthService.handleGithubCallbackError().redirectUrl;
     try {
+      failureRedirectUrl =
+        await this.githubAuthService.getCallbackFailureRedirectUrl(state);
       const result = await this.githubAuthService.handleGithubCallback({
         code,
         state,
@@ -47,8 +51,7 @@ export class GithubOauthController {
 
       return res.redirect(result.redirectUrl);
     } catch {
-      const fallback = this.githubAuthService.handleGithubCallbackError();
-      return res.redirect(fallback.redirectUrl);
+      return res.redirect(failureRedirectUrl);
     }
   }
 }

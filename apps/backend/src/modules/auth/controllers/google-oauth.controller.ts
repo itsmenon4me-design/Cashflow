@@ -14,11 +14,11 @@ export class GoogleOauthController {
   @Get('google')
   @ApiOperation({ summary: 'Prepare Google OAuth redirect' })
   @ApiResponse({ status: 200 })
-  async googleLogin() {
+  async googleLogin(@Query('redirectUri') redirectUri?: string) {
     try {
       return {
         success: true,
-        url: await this.googleAuthService.getLoginUrl(),
+        url: await this.googleAuthService.getLoginUrl(redirectUri),
       };
     } catch (error) {
       const message =
@@ -36,7 +36,11 @@ export class GoogleOauthController {
     @Query('code') code?: string,
     @Query('state') state?: string,
   ) {
+    let failureRedirectUrl =
+      this.googleAuthService.handleGoogleCallbackError().redirectUrl;
     try {
+      failureRedirectUrl =
+        await this.googleAuthService.getCallbackFailureRedirectUrl(state);
       // Use raw code value provided by Express (query params are already decoded)
       const result = await this.googleAuthService.handleGoogleCallback({
         code,
@@ -48,8 +52,7 @@ export class GoogleOauthController {
     } catch (error) {
       // log original error message for debugging
       try { console.error('[GoogleOAuthController] callback handler error:', error?.message ?? error); } catch (e) { /* ignore */ }
-      const fallback = await this.googleAuthService.handleGoogleCallbackError();
-      return res.redirect(fallback.redirectUrl);
+      return res.redirect(failureRedirectUrl);
     }
   }
 }

@@ -9,9 +9,22 @@ import { PrismaService } from '../../../database/prisma.service';
 describe('GithubAuthService', () => {
   let service: GithubAuthService;
   let provider: GithubOAuthProvider;
-  const redis = { set: jest.fn().mockResolvedValue(true), get: jest.fn().mockResolvedValue('state'), del: jest.fn().mockResolvedValue(1) };
+  const redisState = new Map<string, string>();
+  const redis = {
+    set: jest.fn().mockImplementation(async (key: string, value: string) => {
+      redisState.set(key, value);
+      return true;
+    }),
+    get: jest.fn().mockImplementation(async (key: string) => redisState.get(key) ?? null),
+    del: jest.fn().mockImplementation(async (key: string) => {
+      redisState.delete(key);
+      return 1;
+    }),
+  };
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    redisState.clear();
     provider = new GithubOAuthProvider();
     delete process.env.GITHUB_CLIENT_ID;
     delete process.env.GITHUB_CLIENT_SECRET;
@@ -40,6 +53,27 @@ describe('GithubAuthService', () => {
     const url = await service.getLoginUrl();
     expect(url).toContain('https://github.com/login/oauth/authorize');
     expect(url).toContain('client_id=test-client-id');
+  });
+
+  it('rejects unregistered native OAuth callback URLs', async () => {
+    process.env.GITHUB_CLIENT_ID = 'test-client-id';
+    process.env.GITHUB_CLIENT_SECRET = 'test-client-secret';
+
+    await expect(
+      service.getLoginUrl('https://attacker.example/callback'),
+    ).rejects.toThrow('The native OAuth redirect URI is not allowed.');
+  });
+
+  it('keeps the registered native callback through the OAuth state round trip', async () => {
+    process.env.GITHUB_CLIENT_ID = 'test-client-id';
+    process.env.GITHUB_CLIENT_SECRET = 'test-client-secret';
+
+    const url = await service.getLoginUrl('neraca://auth/callback');
+    const state = new URL(url).searchParams.get('state');
+
+    await expect(service.getCallbackFailureRedirectUrl(state ?? undefined)).resolves.toBe(
+      'neraca://auth/callback?oauth_error=github_auth_failed',
+    );
   });
 
   it('persists the GitHub profile name for a new user', async () => {

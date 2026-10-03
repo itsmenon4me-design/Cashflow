@@ -16,11 +16,23 @@ describe('GoogleAuthService', () => {
   };
   const passwordService: any = { hashPassword: jest.fn() };
   const prisma: any = { user: { findUnique: jest.fn(), update: jest.fn() } };
-  const redis: any = { set: jest.fn().mockResolvedValue(true), get: jest.fn().mockResolvedValue('state'), del: jest.fn().mockResolvedValue(1) };
+  const redisState = new Map<string, string>();
+  const redis: any = {
+    set: jest.fn().mockImplementation(async (key: string, value: string) => {
+      redisState.set(key, value);
+      return true;
+    }),
+    get: jest.fn().mockImplementation(async (key: string) => redisState.get(key) ?? null),
+    del: jest.fn().mockImplementation(async (key: string) => {
+      redisState.delete(key);
+      return 1;
+    }),
+  };
   let service: GoogleAuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    redisState.clear();
     process.env = { ...originalEnv };
     process.env.GOOGLE_CLIENT_ID = 'client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
@@ -62,8 +74,20 @@ describe('GoogleAuthService', () => {
     return mockedFetch;
   }
 
-  it('successfully logs in an existing linked Google account', async () => {
-    const stateUrl = await service.getLoginUrl();
+  it('returns native OAuth callbacks only for the registered app redirect', async () => {
+    const url = await service.getLoginUrl('neraca://auth/callback');
+    expect(url).toContain('https://accounts.google.com/o/oauth2/v2/auth');
+    const state = new URL(url).searchParams.get('state');
+    await expect(service.getCallbackFailureRedirectUrl(state ?? undefined)).resolves.toBe(
+      'neraca://auth/callback?oauth_error=google_auth_failed',
+    );
+    await expect(
+      service.getLoginUrl('https://attacker.example/callback'),
+    ).rejects.toThrow('The native OAuth redirect URI is not allowed.');
+  });
+
+  it('returns successful native Google authentication to the Neraca app', async () => {
+    const stateUrl = await service.getLoginUrl('neraca://auth/callback');
     const state = new URL(stateUrl).searchParams.get('state');
     mockGoogleTokenExchange();
 
@@ -75,6 +99,7 @@ describe('GoogleAuthService', () => {
       avatarUrl: 'https://google.example/avatar-current.png',
       verifiedEmail: true,
     });
+
     oauthAccountService.findProviderAccount.mockResolvedValue({ user_id: 'user-1' });
     usersService.findById.mockResolvedValue({
       id: 'user-1',
@@ -102,7 +127,8 @@ describe('GoogleAuthService', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.redirectUrl).toContain('/auth/google/callback?');
+    expect(result.redirectUrl).toContain('neraca://auth/callback?');
+    expect(new URL(result.redirectUrl).searchParams.get('accessToken')).toBe('token');
     expect(new URL(result.redirectUrl).searchParams.get('userName')).toBe(
       'Manual Custom Name',
     );
@@ -187,6 +213,7 @@ describe('GoogleAuthService', () => {
       expect.objectContaining({ provider: 'google' }),
     );
     expect(result.success).toBe(true);
+    expect(result.redirectUrl).toContain('/auth/google/callback?');
   });
 
   it('rejects unverified Google emails', async () => {

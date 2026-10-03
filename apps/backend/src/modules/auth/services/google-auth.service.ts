@@ -13,6 +13,11 @@ import {
 } from '../providers/google/google-oauth.provider';
 import { AuthService } from './auth.service';
 import { OAuthAccountService } from './oauth-account.service';
+import {
+  parseOAuthState,
+  serializeOAuthState,
+  validateMobileRedirectUri,
+} from './oauth-mobile-redirect';
 import { AuthRequestContext } from '../types/auth-request';
 
 type GoogleTokenResponse = {
@@ -54,10 +59,13 @@ export class GoogleAuthService {
     return crypto.randomUUID();
   }
 
-  private async saveState(state: string): Promise<void> {
+  private async saveState(
+    state: string,
+    mobileRedirectUri: string | null,
+  ): Promise<void> {
     const saved = await this.redis.set(
       this.getStateKey(state),
-      state,
+      serializeOAuthState(state, mobileRedirectUri),
       this.oauthStateTtlSeconds,
     );
     if (!saved) {
@@ -68,7 +76,7 @@ export class GoogleAuthService {
     }
   }
 
-  private async validateState(state?: string): Promise<void> {
+  private async validateState(state?: string): Promise<string | null> {
     if (!state) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -84,7 +92,15 @@ export class GoogleAuthService {
       );
     }
 
+    const parsedState = parseOAuthState(redisValue, state);
+    if (!parsedState.valid) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Google authentication request is invalid or expired.',
+      );
+    }
     await this.redis.del(this.getStateKey(state));
+    return parsedState.redirectUri;
   }
 
   private buildSuccessRedirectUrl(
@@ -92,6 +108,7 @@ export class GoogleAuthService {
     refreshToken: string,
     user: { email: string; full_name: string },
     welcome: 'new' | 'returning',
+    mobileRedirectUri: string | null,
   ) {
     const params = new URLSearchParams({
       accessToken,
@@ -100,11 +117,25 @@ export class GoogleAuthService {
       userName: user.full_name,
       welcome,
     });
-    return `${this.getFrontendBaseUrl()}/auth/google/callback?${params.toString()}`;
+    const callbackUrl =
+      mobileRedirectUri ?? `${this.getFrontendBaseUrl()}/auth/google/callback`;
+    return `${callbackUrl}?${params.toString()}`;
   }
 
-  private buildFailureRedirectUrl() {
-    return `${this.getFrontendBaseUrl()}/login?oauth_error=google_auth_failed`;
+  private buildFailureRedirectUrl(mobileRedirectUri: string | null = null) {
+    const callbackUrl =
+      mobileRedirectUri ?? `${this.getFrontendBaseUrl()}/login`;
+    return `${callbackUrl}?oauth_error=google_auth_failed`;
+  }
+
+  async getCallbackFailureRedirectUrl(state?: string) {
+    if (!state) return this.buildFailureRedirectUrl();
+    const value = await this.redis.get(this.getStateKey(state));
+    if (value === null) return this.buildFailureRedirectUrl();
+    const parsedState = parseOAuthState(value, state);
+    return this.buildFailureRedirectUrl(
+      parsedState.valid ? parsedState.redirectUri : null,
+    );
   }
 
   private async generateUniqueUsername(baseName: string): Promise<string> {
@@ -171,7 +202,7 @@ export class GoogleAuthService {
     return refreshed;
   }
 
-  async getLoginUrl(): Promise<string> {
+  async getLoginUrl(redirectUri?: string): Promise<string> {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
       throw ErrorService.create(
@@ -180,8 +211,9 @@ export class GoogleAuthService {
       );
     }
 
+    const mobileRedirectUri = validateMobileRedirectUri(redirectUri);
     const state = this.createState();
-    await this.saveState(state);
+    await this.saveState(state, mobileRedirectUri);
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID ?? '',
       redirect_uri: process.env.GOOGLE_CALLBACK_URL ?? '',
@@ -215,7 +247,7 @@ export class GoogleAuthService {
       );
     }
 
-    await this.validateState(input.state);
+    const mobileRedirectUri = await this.validateState(input.state);
 
     // debug-able holders for token/profile responses so we can log them on error
     let tokenResponse: any = undefined;
@@ -402,6 +434,7 @@ export class GoogleAuthService {
             full_name: user.full_name,
           },
           welcome,
+          mobileRedirectUri,
         ),
       };
     } catch (error) {
@@ -469,10 +502,10 @@ export class GoogleAuthService {
     }
   }
 
-  handleGoogleCallbackError() {
+  handleGoogleCallbackError(mobileRedirectUri: string | null = null) {
     return {
       success: false,
-      redirectUrl: this.buildFailureRedirectUrl(),
+      redirectUrl: this.buildFailureRedirectUrl(mobileRedirectUri),
     };
   }
 }

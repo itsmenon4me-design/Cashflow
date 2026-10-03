@@ -12,6 +12,11 @@ import {
 } from '../providers/github/github-oauth.provider';
 import { AuthService } from './auth.service';
 import { OAuthAccountService } from './oauth-account.service';
+import {
+  parseOAuthState,
+  serializeOAuthState,
+  validateMobileRedirectUri,
+} from './oauth-mobile-redirect';
 import { AuthRequestContext } from '../types/auth-request';
 
 type GithubTokenResponse = { access_token?: string };
@@ -52,10 +57,13 @@ export class GithubAuthService {
     return crypto.randomUUID();
   }
 
-  private async saveState(state: string): Promise<void> {
+  private async saveState(
+    state: string,
+    mobileRedirectUri: string | null,
+  ): Promise<void> {
     const saved = await this.redis.set(
       this.getStateKey(state),
-      state,
+      serializeOAuthState(state, mobileRedirectUri),
       this.oauthStateTtlSeconds,
     );
     if (!saved) {
@@ -66,7 +74,7 @@ export class GithubAuthService {
     }
   }
 
-  private async validateState(state?: string): Promise<void> {
+  private async validateState(state?: string): Promise<string | null> {
     if (!state) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -82,7 +90,15 @@ export class GithubAuthService {
       );
     }
 
+    const parsedState = parseOAuthState(redisValue, state);
+    if (!parsedState.valid) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'GitHub authentication request is invalid or expired.',
+      );
+    }
     await this.redis.del(this.getStateKey(state));
+    return parsedState.redirectUri;
   }
 
   private successUrl(
@@ -90,6 +106,7 @@ export class GithubAuthService {
     refreshToken: string,
     user: { email: string; full_name: string },
     welcome: 'new' | 'returning',
+    mobileRedirectUri: string | null,
   ): string {
     const params = new URLSearchParams({
       accessToken,
@@ -98,11 +115,22 @@ export class GithubAuthService {
       userName: user.full_name,
       welcome,
     });
-    return `${this.getFrontendBaseUrl()}/auth/github/callback?${params.toString()}`;
+    const callbackUrl =
+      mobileRedirectUri ?? `${this.getFrontendBaseUrl()}/auth/github/callback`;
+    return `${callbackUrl}?${params.toString()}`;
   }
 
-  private failureUrl(): string {
-    return `${this.getFrontendBaseUrl()}/login?oauth_error=github_auth_failed`;
+  private failureUrl(mobileRedirectUri: string | null = null): string {
+    const callbackUrl = mobileRedirectUri ?? `${this.getFrontendBaseUrl()}/login`;
+    return `${callbackUrl}?oauth_error=github_auth_failed`;
+  }
+
+  async getCallbackFailureRedirectUrl(state?: string) {
+    if (!state) return this.failureUrl();
+    const value = await this.redis.get(this.getStateKey(state));
+    if (value === null) return this.failureUrl();
+    const parsedState = parseOAuthState(value, state);
+    return this.failureUrl(parsedState.valid ? parsedState.redirectUri : null);
   }
 
   private async uniqueUsername(baseName: string): Promise<string> {
@@ -144,15 +172,16 @@ export class GithubAuthService {
     return this.usersService.findById(user.id);
   }
 
-  async getLoginUrl(): Promise<string> {
+  async getLoginUrl(redirectUri?: string): Promise<string> {
     if (!this.provider.getConfigurationStatus().isConfigured) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
         'GitHub OAuth is not configured yet. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
       );
     }
+    const mobileRedirectUri = validateMobileRedirectUri(redirectUri);
     const state = this.createState();
-    await this.saveState(state);
+    await this.saveState(state, mobileRedirectUri);
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID ?? '',
       redirect_uri: this.getCallbackUrl(),
@@ -173,7 +202,7 @@ export class GithubAuthService {
         'GitHub OAuth callback is unavailable.',
       );
     }
-    await this.validateState(input.state);
+    const mobileRedirectUri = await this.validateState(input.state);
     const tokenResponse = await fetch(
       'https://github.com/login/oauth/access_token',
       {
@@ -257,11 +286,12 @@ export class GithubAuthService {
         session.data.refreshToken,
         user,
         welcome,
+        mobileRedirectUri,
       ),
     };
   }
 
-  handleGithubCallbackError() {
-    return { success: false, redirectUrl: this.failureUrl() };
+  handleGithubCallbackError(mobileRedirectUri: string | null = null) {
+    return { success: false, redirectUrl: this.failureUrl(mobileRedirectUri) };
   }
 }
