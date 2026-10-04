@@ -18,6 +18,7 @@ export class SessionService {
     id?: string;
     user_id: string;
     refresh_token_id: string;
+    device_id?: string | null;
     device_name?: string | null;
     device_type?: string | null;
     browser?: string | null;
@@ -33,6 +34,7 @@ export class SessionService {
       id: data.id,
       user_id: data.user_id,
       refresh_token_id: data.refresh_token_id,
+      device_id: data.device_id,
       device_name: data.device_name,
       device_type: data.device_type,
       browser: data.browser,
@@ -78,6 +80,20 @@ export class SessionService {
     }
     this.logger.log(
       `Logout All Devices for user=${userId} except=${exceptId ?? 'none'}`,
+    );
+  }
+
+  async revokeDeviceSessions(userId: string, deviceId: string): Promise<void> {
+    const active = await this.repo.findActiveByUserId(userId);
+    const matching = active.filter((session) => session.device_id === deviceId);
+    if (matching.length === 0) return;
+
+    await this.repo.revokeMany(matching.map((session) => session.id));
+    for (const session of matching) {
+      await this.refreshRepo.revoke(session.refresh_token_id);
+    }
+    this.logger.log(
+      `Replaced active session for user=${userId} device=${deviceId}`,
     );
   }
 

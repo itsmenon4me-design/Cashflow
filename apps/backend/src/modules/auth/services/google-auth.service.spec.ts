@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ErrorCode } from '../../../common/errors/error-codes';
 import { GoogleAuthService } from './google-auth.service';
@@ -84,6 +85,34 @@ describe('GoogleAuthService', () => {
     await expect(
       service.getLoginUrl('https://attacker.example/callback'),
     ).rejects.toThrow('The native OAuth redirect URI is not allowed.');
+  });
+
+  it('logs only the OAuth callback stage when Google token exchange fails', async () => {
+    const stateUrl = await service.getLoginUrl('neraca://auth/callback');
+    const state = new URL(stateUrl).searchParams.get('state');
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error');
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: 'invalid_grant',
+        access_token: 'sensitive-access-token',
+      }),
+    });
+
+    try {
+      await expect(
+        service.handleGoogleCallback({ code: 'code-123', state: state ?? undefined }),
+      ).rejects.toThrow('Google authentication failed. Please try again.');
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Google OAuth callback failed during token_exchange (UPSTREAM_OR_INTERNAL_ERROR).',
+      );
+      expect(JSON.stringify(loggerSpy.mock.calls)).not.toContain(
+        'sensitive-access-token',
+      );
+    } finally {
+      loggerSpy.mockRestore();
+    }
   });
 
   it('returns successful native Google authentication to the Neraca app', async () => {

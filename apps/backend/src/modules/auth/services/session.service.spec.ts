@@ -95,6 +95,19 @@ describe('SessionService', () => {
     expect(refreshRepo.revoke).toHaveBeenCalled();
   });
 
+  it('replaces only sessions registered to the same installation', async () => {
+    (repo.findActiveByUserId as jest.Mock).mockResolvedValue([
+      { id: 'same-device', refresh_token_id: 'old-refresh', device_id: 'device-a' },
+      { id: 'other-device', refresh_token_id: 'other-refresh', device_id: 'device-b' },
+    ]);
+
+    await svc.revokeDeviceSessions('u1', 'device-a');
+
+    expect(repo.revokeMany).toHaveBeenCalledWith(['same-device']);
+    expect(refreshRepo.revoke).toHaveBeenCalledWith('old-refresh');
+    expect(refreshRepo.revoke).not.toHaveBeenCalledWith('other-refresh');
+  });
+
   it('logout current delegates to revoke', async () => {
     const spy = jest.spyOn(svc, 'revoke');
     await svc.logoutCurrent('s1', 'u1');

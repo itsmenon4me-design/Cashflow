@@ -299,7 +299,8 @@ export const enText = {
     loginInvalidCredentials: "Incorrect email or password.",
     emailNotVerified: "Your email is not verified. Please check your email.",
     resendVerification: "Resend verification email",
-    verificationEmailSent: "Verification email sent.",
+    verificationEmailSent:
+      "If this email needs verification, instructions will arrive if the address can receive them.",
     verificationEmailFailed: "Unable to send verification email.",
     fullNameRequired: "Full name is required.",
     fullNameShort: "Full name is too short.",

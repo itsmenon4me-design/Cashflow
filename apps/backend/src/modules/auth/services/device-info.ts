@@ -69,11 +69,15 @@ export function extractAuthRequestContext(req: {
   };
   const city = firstHeader('cf-ipcity', 'x-vercel-ip-city');
   const country = firstHeader('cf-ipcountry', 'x-vercel-ip-country');
+  const deviceId = firstHeader('x-device-id');
   return {
     ip: ip ? ip.replace(/"/g, '') : null,
     userAgent: userAgent ?? null,
     city: city ? decodeURIComponent(city).replace(/"/g, '') : null,
     country: country ? country.replace(/"/g, '') : null,
+    deviceId: deviceId && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId)
+      ? deviceId.toLowerCase()
+      : null,
   };
 }
 

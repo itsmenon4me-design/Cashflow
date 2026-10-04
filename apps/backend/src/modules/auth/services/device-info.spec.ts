@@ -21,6 +21,19 @@ describe('device-info parser', () => {
     expect(ctx.country).toBe('ID');
   });
 
+  it('accepts only a UUID installation id from the request header', () => {
+    expect(
+      extractAuthRequestContext({
+        headers: { 'x-device-id': '123e4567-e89b-42d3-a456-426614174000' },
+      }).deviceId,
+    ).toBe('123e4567-e89b-42d3-a456-426614174000');
+    expect(
+      extractAuthRequestContext({
+        headers: { 'x-device-id': 'not-a-device-id' },
+      }).deviceId,
+    ).toBeNull();
+  });
+
   it('falls back to Vercel geo headers when Cloudflare headers are empty', () => {
     const ctx = extractAuthRequestContext({
       headers: {

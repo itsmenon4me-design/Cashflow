@@ -13,6 +13,7 @@ export class PrismaSessionRepository implements ISessionRepository {
     e.id = rec.id;
     e.user_id = rec.user_id;
     e.refresh_token_id = rec.refresh_token_id;
+    e.device_id = rec.device_id ?? null;
     e.device_name = rec.device_name ?? null;
     e.device_type = rec.device_type ?? null;
     e.browser = rec.browser ?? null;
@@ -33,6 +34,7 @@ export class PrismaSessionRepository implements ISessionRepository {
     id?: string;
     user_id: string;
     refresh_token_id: string;
+    device_id?: string | null;
     device_name?: string | null;
     device_type?: string | null;
     browser?: string | null;
@@ -50,6 +52,7 @@ export class PrismaSessionRepository implements ISessionRepository {
         id: data.id,
         user_id: data.user_id,
         refresh_token_id: data.refresh_token_id,
+        device_id: data.device_id,
         device_name: data.device_name,
         device_type: data.device_type,
         browser: data.browser,

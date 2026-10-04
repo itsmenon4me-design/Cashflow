@@ -64,9 +64,9 @@ export class AuthController {
   async register(@Body() body: CreateUserDto) {
     // Delegate to UsersService which handles hashing and role assignment
     const created = await this.users.create(body);
-    let verificationEmailSent = true;
+    let verificationEmailSent = false;
     try {
-      await this.verification.sendVerificationEmail(created.id);
+      verificationEmailSent = await this.verification.sendVerificationEmail(created.id);
     } catch (error) {
       verificationEmailSent = false;
       this.logger.error(

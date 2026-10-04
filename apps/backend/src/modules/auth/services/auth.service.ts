@@ -74,10 +74,15 @@ export class AuthService {
 
     const created = await this.refreshService.createForUser(user.id, sessionId);
 
+    if (context.deviceId) {
+      await this.sessionService.revokeDeviceSessions(user.id, context.deviceId);
+    }
+
     await this.sessionService.create({
       id: sessionId,
       user_id: user.id,
       refresh_token_id: created.id,
+      device_id: context.deviceId ?? null,
       ...deriveDeviceInfo(context.userAgent ?? null),
       ip_address: context.ip ?? null,
       city: context.city ?? null,

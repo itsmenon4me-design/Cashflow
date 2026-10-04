@@ -225,4 +225,32 @@ describe('PushNotificationsService', () => {
       where: { id: 'subscription-1' },
     });
   });
+
+  it('sends native pushes on the high-importance Android channel', async () => {
+    nativePushFindMany.mockResolvedValue([
+      { id: 'native-token-1', token: 'ExponentPushToken[12345678901234567890]' },
+    ]);
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ status: 'ok', id: 'ticket-1' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const service = new PushNotificationsService(prisma);
+
+    await service.sendForNotification(notification('TRANSACTION'));
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe('https://exp.host/--/api/v2/push/send');
+    expect(options?.method).toBe('POST');
+    const messages = JSON.parse(String(options?.body)) as Record<string, unknown>[];
+    expect(messages).toEqual([
+      expect.objectContaining({
+        to: 'ExponentPushToken[12345678901234567890]',
+        channelId: 'default',
+        priority: 'high',
+        sound: 'default',
+      }),
+    ]);
+  });
 });

@@ -71,6 +71,7 @@ export class MailService {
     email: string,
     name: string | undefined,
     link: string,
+    mobileLink?: string,
   ) {
     if (!this.cfg.config.passwordResetEnabled) {
       this.logger.warn(
@@ -82,7 +83,7 @@ export class MailService {
       await this.send(
         email,
         'Password reset',
-        `<p>Hi ${name ?? ''},</p><p>Click the link below to reset your password:</p><p><a href="${link}">${link}</a></p><p>This link expires in 30 minutes.</p>`,
+        `<p>Hi ${name ?? ''},</p><p>Click the link below to reset your password:</p><p><a href="${link}">${link}</a></p>${mobileLink ? `<p>Or open this link on a device with the Neraca app installed:</p><p><a href="${mobileLink}">Open Neraca</a></p>` : ''}<p>This link expires in 30 minutes.</p>`,
       );
       return;
     }

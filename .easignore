@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build
+dist/
+**/dist/
+coverage/
+**/coverage/
+.next/
+**/.next/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Archives
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+prisma/.env
+
+# Generated Prisma client
+apps/backend/src/generated/
+
+# Generated recovery evidence
+apps/backend/recovery_reports/evidence/recovery/staging/
+apps/recovery_reports/evidence/recovery/staging/
+
+# Playwright private session
+**/storageState.json
+
+# Playwright artifacts
+**/playwright-report/
+**/playwright-results/
+**/playwright-results-small/
+**/test-results/
+**/playwright-traces/
+playwright-traces/
+apps/frontend/test-logs/
+**/.tmp-trace-analysis/
+
+# Generated test reports
+apps/frontend/playwright_verify_results.json
+apps/frontend/vitest-language.json
+apps/backend/.tmp-jest-results.json
+apps/backend/jest-report.json
+
+# Local debug and temporary files
+*.pid
+.vercel
+.hermes/
+.opencode/
+.github/
+
+# Generated native Android build outputs
+/apps/mobile/android/.gradle/
+/apps/mobile/android/build/
+/apps/mobile/android/app/build/
+/apps/mobile/android/app/.cxx/

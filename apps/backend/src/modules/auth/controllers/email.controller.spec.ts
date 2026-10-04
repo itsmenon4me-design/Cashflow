@@ -97,7 +97,7 @@ describe('EmailController (security)', () => {
       expect(verificationMock.sendVerificationEmail).toHaveBeenCalledWith('u1');
     });
 
-    it('reports verification delivery failure instead of returning false success', async () => {
+    it('does not disclose verification delivery errors in the response', async () => {
       verificationMock.sendVerificationEmail.mockRejectedValueOnce(
         new Error('SMTP unavailable'),
       );
@@ -105,7 +105,10 @@ describe('EmailController (security)', () => {
         .post('/auth/email/send-verification')
         .send({ email: 'a@b.com' })
         .expect(201);
-      expect(response.body.success).toBe(false);
+      expect(response.body).toEqual({
+        success: true,
+        message: 'If this address can receive verification instructions, an email will arrive shortly.',
+      });
     });
 
     it('responds generically for unknown emails without sending', async () => {
@@ -114,7 +117,10 @@ describe('EmailController (security)', () => {
         .post('/auth/email/send-verification')
         .send({ email: 'ghost@b.com' })
         .expect(201);
-      expect(response.body).toEqual({ success: true });
+      expect(response.body).toEqual({
+        success: true,
+        message: 'If this address can receive verification instructions, an email will arrive shortly.',
+      });
       expect(verificationMock.sendVerificationEmail).not.toHaveBeenCalled();
     });
 
@@ -145,7 +151,7 @@ describe('EmailController (security)', () => {
       expect(verificationMock.sendVerificationEmail).toHaveBeenCalledWith('u1');
     });
 
-    it('reports resend delivery failure instead of returning false success', async () => {
+    it('does not disclose resend delivery errors in the response', async () => {
       verificationMock.sendVerificationEmail.mockRejectedValueOnce(
         new Error('SMTP unavailable'),
       );
@@ -153,7 +159,10 @@ describe('EmailController (security)', () => {
         .post('/auth/email/resend')
         .send({ email: 'a@b.com' })
         .expect(201);
-      expect(response.body.success).toBe(false);
+      expect(response.body).toEqual({
+        success: true,
+        message: 'If this address can receive verification instructions, an email will arrive shortly.',
+      });
     });
 
     it('is rate limited per IP', async () => {
@@ -188,6 +197,27 @@ describe('EmailController (security)', () => {
         .expect(201);
       expect((response.body as { success: boolean }).success).toBe(true);
       expect(usersRepoMock.update).toHaveBeenCalled();
+    });
+
+    it('includes a native app link in the password reset email', async () => {
+      await http()
+        .post('/auth/email/forgot-password')
+        .send({ email: 'a@b.com' })
+        .expect(201);
+
+      const [, , webLink, mobileLink] =
+        mailServiceMock.sendPasswordReset.mock.calls[0] as [
+          string,
+          string,
+          string,
+          string,
+        ];
+      const parsedMobileLink = new URL(mobileLink);
+      expect(webLink).toContain('/reset-password?token=');
+      expect(parsedMobileLink.protocol).toBe('neraca:');
+      expect(parsedMobileLink.hostname).toBe('reset-password');
+      expect(parsedMobileLink.searchParams.get('token')).toBeTruthy();
+      expect(parsedMobileLink.searchParams.get('id')).toBeTruthy();
     });
 
     it('rejects a malformed email', async () => {

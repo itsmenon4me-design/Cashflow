@@ -242,5 +242,19 @@ export function validate(
     );
   }
 
+  if (
+    validatedConfig.NODE_ENV === Environment.Production &&
+    validatedConfig.EMAIL_VERIFICATION_ENABLED &&
+    (!validatedConfig.SMTP_HOST ||
+      !validatedConfig.SMTP_USER ||
+      !validatedConfig.SMTP_PASSWORD ||
+      !validatedConfig.SMTP_FROM ||
+      validatedConfig.SMTP_FROM.includes('.example'))
+  ) {
+    throw new Error(
+      'Production email verification requires SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and a real SMTP_FROM address.',
+    );
+  }
+
   return validatedConfig;
 }

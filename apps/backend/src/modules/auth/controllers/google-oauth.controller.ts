@@ -14,11 +14,17 @@ export class GoogleOauthController {
   @Get('google')
   @ApiOperation({ summary: 'Prepare Google OAuth redirect' })
   @ApiResponse({ status: 200 })
-  async googleLogin(@Query('redirectUri') redirectUri?: string) {
+  async googleLogin(
+    @Query('redirectUri') redirectUri?: string,
+    @Req() req?: Request,
+  ) {
     try {
       return {
         success: true,
-        url: await this.googleAuthService.getLoginUrl(redirectUri),
+        url: await this.googleAuthService.getLoginUrl(
+          redirectUri,
+          req ? extractAuthRequestContext(req).deviceId : null,
+        ),
       };
     } catch (error) {
       const message =

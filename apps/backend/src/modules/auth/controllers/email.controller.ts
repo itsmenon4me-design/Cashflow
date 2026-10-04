@@ -17,6 +17,11 @@ import * as crypto from 'crypto';
 import { PrismaUsersRepository } from '../../users/repositories/prisma-users.repository';
 import { AuthRateLimitGuard } from '../auth-rate-limit.guard';
 
+const genericVerificationResponse = {
+  success: true,
+  message: 'If this address can receive verification instructions, an email will arrive shortly.',
+};
+
 class SendVerificationDto {
   @IsNotEmpty({ message: 'email must not be empty' })
   @IsEmail({}, { message: 'email must be a valid email address' })
@@ -57,7 +62,7 @@ export class EmailController {
     if (!user) {
       // Do not reveal; respond success
       this.logger.debug('Send verification requested for unknown email');
-      return { success: true };
+      return genericVerificationResponse;
     }
 
     try {
@@ -66,12 +71,8 @@ export class EmailController {
       this.logger.error(
         `Failed to send verification email: email=${body.email} error=${(err as Error).message}`,
       );
-      return {
-        success: false,
-        message: 'Verification email could not be sent. Please try again later.',
-      };
     }
-    return { success: true };
+    return genericVerificationResponse;
   }
 
   @Get('verify')
@@ -90,7 +91,7 @@ export class EmailController {
     const user = await this.users.findByEmail(body.email);
     if (!user) {
       this.logger.debug('Resend verification requested for unknown email');
-      return { success: true };
+      return genericVerificationResponse;
     }
     try {
       await this.verification.sendVerificationEmail(user.id);
@@ -98,12 +99,8 @@ export class EmailController {
       this.logger.error(
         `Failed to resend verification email: email=${body.email} error=${(err as Error).message}`,
       );
-      return {
-        success: false,
-        message: 'Verification email could not be sent. Please try again later.',
-      };
     }
-    return { success: true };
+    return genericVerificationResponse;
   }
 
   @Post('/forgot-password')
@@ -148,8 +145,15 @@ export class EmailController {
       process.env.APP_URL ??
       'http://localhost:3000';
     const link = `${baseUrl}/reset-password?token=${raw}&id=${user.id}`;
+    const mobileParams = new URLSearchParams({ token: raw, id: user.id });
+    const mobileLink = `neraca://reset-password?${mobileParams.toString()}`;
     try {
-      await this.mail.sendPasswordReset(user.email, user.full_name, link);
+      await this.mail.sendPasswordReset(
+        user.email,
+        user.full_name,
+        link,
+        mobileLink,
+      );
     } catch (err) {
       this.logger.error(
         `Failed to send password reset email: email=${user.email} error=${(err as Error).message}`,

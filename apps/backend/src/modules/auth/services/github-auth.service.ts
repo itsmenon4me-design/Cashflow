@@ -60,10 +60,11 @@ export class GithubAuthService {
   private async saveState(
     state: string,
     mobileRedirectUri: string | null,
+    deviceId: string | null,
   ): Promise<void> {
     const saved = await this.redis.set(
       this.getStateKey(state),
-      serializeOAuthState(state, mobileRedirectUri),
+      serializeOAuthState(state, mobileRedirectUri, deviceId),
       this.oauthStateTtlSeconds,
     );
     if (!saved) {
@@ -74,7 +75,7 @@ export class GithubAuthService {
     }
   }
 
-  private async validateState(state?: string): Promise<string | null> {
+  private async validateState(state?: string): Promise<{ redirectUri: string | null; deviceId: string | null }> {
     if (!state) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -98,7 +99,7 @@ export class GithubAuthService {
       );
     }
     await this.redis.del(this.getStateKey(state));
-    return parsedState.redirectUri;
+    return { redirectUri: parsedState.redirectUri, deviceId: parsedState.deviceId };
   }
 
   private successUrl(
@@ -172,7 +173,7 @@ export class GithubAuthService {
     return this.usersService.findById(user.id);
   }
 
-  async getLoginUrl(redirectUri?: string): Promise<string> {
+  async getLoginUrl(redirectUri?: string, deviceId?: string | null): Promise<string> {
     if (!this.provider.getConfigurationStatus().isConfigured) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -181,7 +182,7 @@ export class GithubAuthService {
     }
     const mobileRedirectUri = validateMobileRedirectUri(redirectUri);
     const state = this.createState();
-    await this.saveState(state, mobileRedirectUri);
+    await this.saveState(state, mobileRedirectUri, deviceId ?? null);
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID ?? '',
       redirect_uri: this.getCallbackUrl(),
@@ -202,7 +203,7 @@ export class GithubAuthService {
         'GitHub OAuth callback is unavailable.',
       );
     }
-    const mobileRedirectUri = await this.validateState(input.state);
+    const { redirectUri: mobileRedirectUri, deviceId } = await this.validateState(input.state);
     const tokenResponse = await fetch(
       'https://github.com/login/oauth/access_token',
       {
@@ -277,7 +278,7 @@ export class GithubAuthService {
     const session = await this.authService.issueSessionForUser(
       user,
       'github',
-      input.context,
+      deviceId ? { ...input.context, deviceId } : input.context,
     );
     return {
       success: true,

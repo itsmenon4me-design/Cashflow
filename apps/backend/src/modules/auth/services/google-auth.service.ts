@@ -26,6 +26,7 @@ type GoogleTokenResponse = {
 
 @Injectable()
 export class GoogleAuthService {
+  private readonly logger = new Logger(GoogleAuthService.name);
   private readonly oauthStateTtlSeconds = 600;
 
   constructor(
@@ -62,10 +63,11 @@ export class GoogleAuthService {
   private async saveState(
     state: string,
     mobileRedirectUri: string | null,
+    deviceId: string | null,
   ): Promise<void> {
     const saved = await this.redis.set(
       this.getStateKey(state),
-      serializeOAuthState(state, mobileRedirectUri),
+      serializeOAuthState(state, mobileRedirectUri, deviceId),
       this.oauthStateTtlSeconds,
     );
     if (!saved) {
@@ -76,7 +78,7 @@ export class GoogleAuthService {
     }
   }
 
-  private async validateState(state?: string): Promise<string | null> {
+  private async validateState(state?: string): Promise<{ redirectUri: string | null; deviceId: string | null }> {
     if (!state) {
       throw ErrorService.create(
         ErrorCode.INVALID_INPUT,
@@ -100,7 +102,7 @@ export class GoogleAuthService {
       );
     }
     await this.redis.del(this.getStateKey(state));
-    return parsedState.redirectUri;
+    return { redirectUri: parsedState.redirectUri, deviceId: parsedState.deviceId };
   }
 
   private buildSuccessRedirectUrl(
@@ -202,7 +204,7 @@ export class GoogleAuthService {
     return refreshed;
   }
 
-  async getLoginUrl(redirectUri?: string): Promise<string> {
+  async getLoginUrl(redirectUri?: string, deviceId?: string | null): Promise<string> {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
       throw ErrorService.create(
@@ -213,7 +215,7 @@ export class GoogleAuthService {
 
     const mobileRedirectUri = validateMobileRedirectUri(redirectUri);
     const state = this.createState();
-    await this.saveState(state, mobileRedirectUri);
+    await this.saveState(state, mobileRedirectUri, deviceId ?? null);
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID ?? '',
       redirect_uri: process.env.GOOGLE_CALLBACK_URL ?? '',
@@ -247,15 +249,11 @@ export class GoogleAuthService {
       );
     }
 
-    const mobileRedirectUri = await this.validateState(input.state);
-
-    // debug-able holders for token/profile responses so we can log them on error
-    let tokenResponse: any = undefined;
-    let tokenData: any = undefined;
-    let profileResponse: any = undefined;
+    const { redirectUri: mobileRedirectUri, deviceId } = await this.validateState(input.state);
+    let callbackStage = 'token_exchange';
 
     try {
-      tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -268,56 +266,14 @@ export class GoogleAuthService {
           grant_type: 'authorization_code',
         }),
       });
-
-      // Read raw body first to avoid 'Body has already been consumed' when logging
-      let tokenRaw = '';
-      // Some test mocks return an object with json(), others emulate Response with text().
-      try {
-        if (typeof tokenResponse.text === 'function') {
-          tokenRaw = await tokenResponse.text().catch(() => '');
-          try {
-            tokenData = tokenRaw
-              ? JSON.parse(tokenRaw)
-              : ({} as GoogleTokenResponse);
-          } catch (parseErr) {
-            console.error(
-              '[GoogleAuth] failed to parse tokenResponse JSON from text',
-              parseErr,
-              'raw:',
-              tokenRaw,
-            );
-            tokenData = {} as GoogleTokenResponse;
-          }
-        } else if (typeof tokenResponse.json === 'function') {
-          tokenData = await tokenResponse
-            .json()
-            .catch(() => ({}) as GoogleTokenResponse);
-          try {
-            tokenRaw = tokenData ? JSON.stringify(tokenData) : '';
-          } catch {
-            tokenRaw = '';
-          }
-        } else {
-          tokenData = {} as GoogleTokenResponse;
-        }
-      } catch (e) {
-        console.error('[GoogleAuth] error reading tokenResponse body', e);
-        tokenData = {} as GoogleTokenResponse;
-      }
+      const tokenData = (await tokenResponse.json()) as GoogleTokenResponse;
 
       if (!tokenResponse.ok || !tokenData.access_token) {
-        console.error(
-          '[GoogleAuth] token exchange response not ok or missing access_token',
-          {
-            status: tokenResponse && tokenResponse.status,
-            tokenData,
-            raw: tokenRaw,
-          },
-        );
         throw new Error('Google token exchange failed');
       }
 
-      profileResponse = await fetch(
+      callbackStage = 'profile_lookup';
+      const profileResponse = await fetch(
         'https://openidconnect.googleapis.com/v1/userinfo',
         {
           headers: {
@@ -340,6 +296,7 @@ export class GoogleAuthService {
         );
       }
 
+      callbackStage = 'resolve_user';
       let user: Awaited<ReturnType<UsersService['findByEmail']>> = null;
       let welcome: 'new' | 'returning' = 'returning';
       let existingProviderAccount =
@@ -419,10 +376,11 @@ export class GoogleAuthService {
         );
       }
 
+      callbackStage = 'create_session';
       const session = await this.authService.issueSessionForUser(
         user,
         'google',
-        input.context,
+        deviceId ? { ...input.context, deviceId } : input.context,
       );
       return {
         success: true,
@@ -438,58 +396,11 @@ export class GoogleAuthService {
         ),
       };
     } catch (error) {
-      try {
-        console.error('[GoogleAuth] handleGoogleCallback error:', error);
-
-        if (tokenResponse) {
-          try {
-            const trText = await (
-              tokenResponse.clone
-                ? tokenResponse.clone().text()
-                : tokenResponse.text()
-            ).catch(() => '<unreadable>');
-            console.error(
-              '[GoogleAuth] tokenResponse status:',
-              tokenResponse.status,
-              'body:',
-              trText,
-            );
-          } catch (e) {
-            console.error('[GoogleAuth] failed to read tokenResponse body', e);
-          }
-        }
-
-        if (typeof tokenData !== 'undefined') {
-          try {
-            console.error('[GoogleAuth] tokenData:', tokenData);
-          } catch (e) {
-            console.error('[GoogleAuth] failed to log tokenData', e);
-          }
-        }
-
-        if (profileResponse) {
-          try {
-            const prText = await (
-              profileResponse.clone
-                ? profileResponse.clone().text()
-                : profileResponse.text()
-            ).catch(() => '<unreadable>');
-            console.error(
-              '[GoogleAuth] profileResponse status:',
-              profileResponse.status,
-              'body:',
-              prText,
-            );
-          } catch (e) {
-            console.error(
-              '[GoogleAuth] failed to read profileResponse body',
-              e,
-            );
-          }
-        }
-      } catch (logErr) {
-        console.error('[GoogleAuth] error while logging error:', logErr);
-      }
+      const errorCode =
+        error instanceof AppError ? error.errorCode : 'UPSTREAM_OR_INTERNAL_ERROR';
+      this.logger.error(
+        `Google OAuth callback failed during ${callbackStage} (${errorCode}).`,
+      );
 
       if (error instanceof AppError) {
         throw error;

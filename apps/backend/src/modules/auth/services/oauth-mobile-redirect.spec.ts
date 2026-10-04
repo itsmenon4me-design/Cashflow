@@ -20,12 +20,25 @@ describe('native OAuth redirect validation', () => {
     expect(parseOAuthState('state-1', 'state-1')).toEqual({
       valid: true,
       redirectUri: null,
+      deviceId: null,
     });
 
     const stored = serializeOAuthState('state-2', MOBILE_AUTH_REDIRECT_URI);
     expect(parseOAuthState(stored, 'state-2')).toEqual({
       valid: true,
       redirectUri: MOBILE_AUTH_REDIRECT_URI,
+      deviceId: null,
+    });
+  });
+
+  it('preserves a validated installation id in OAuth state', () => {
+    const deviceId = '123e4567-e89b-42d3-a456-426614174000';
+    const stored = serializeOAuthState('state-device', null, deviceId);
+
+    expect(parseOAuthState(stored, 'state-device')).toEqual({
+      valid: true,
+      redirectUri: null,
+      deviceId,
     });
   });
 
@@ -33,18 +46,19 @@ describe('native OAuth redirect validation', () => {
     expect(parseOAuthState('not-json', 'state-3')).toEqual({
       valid: false,
       redirectUri: null,
+      deviceId: null,
     });
     expect(
       parseOAuthState(
         JSON.stringify({ state: 'other-state', redirectUri: MOBILE_AUTH_REDIRECT_URI }),
         'state-3',
       ),
-    ).toEqual({ valid: false, redirectUri: null });
+    ).toEqual({ valid: false, redirectUri: null, deviceId: null });
     expect(
       parseOAuthState(
         JSON.stringify({ state: 'state-3', redirectUri: 'https://attacker.example' }),
         'state-3',
       ),
-    ).toEqual({ valid: false, redirectUri: null });
+    ).toEqual({ valid: false, redirectUri: null, deviceId: null });
   });
 });

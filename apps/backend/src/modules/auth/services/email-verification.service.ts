@@ -26,14 +26,16 @@ export class EmailVerificationService {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  async sendVerificationEmail(userId: string) {
+  async sendVerificationEmail(userId: string): Promise<boolean> {
     this.logger.log(`sendVerificationEmail called: userId=${userId}`);
     const user = await this.users.findById(userId);
     if (!user) throw ErrorService.create(ErrorCode.NOT_FOUND, 'User not found');
 
     if (!this.mailCfg.config.emailVerificationEnabled) {
-      this.logger.debug('Email verification disabled by configuration');
-      return;
+      this.logger.warn(
+        `Email verification disabled by configuration. Verification email for user=${user.id} was not sent.`,
+      );
+      return false;
     }
 
     const raw = this.generateRawToken();
@@ -56,6 +58,7 @@ export class EmailVerificationService {
     try {
       await this.mail.sendVerification(user.email, user.full_name, link);
       this.logger.log(`Verification Sent: user=${user.id} email=${user.email}`);
+      return true;
     } catch (err) {
       this.logger.error(
         `Failed to deliver verification email: user=${user.id} email=${user.email} error=${(err as Error).message}`,

@@ -84,4 +84,30 @@ describe('EmailVerificationService', () => {
       'SMTP unavailable',
     );
   });
+
+  it('reports disabled delivery without claiming an email was sent', async () => {
+    const user = new UserEntity();
+    user.id = 'u1';
+    user.email = 'a@b.com';
+    user.full_name = 'Test';
+    (users.findById as jest.Mock).mockResolvedValue(user);
+    const disabledService = new EmailVerificationService(
+      users as unknown as UsersService,
+      mail as unknown as MailService,
+      {
+        config: {
+          emailVerificationEnabled: false,
+          host: '',
+          port: 587,
+          from: '',
+          passwordResetEnabled: true,
+          smtpConfigured: false,
+        },
+      } as MailConfigService,
+      usersRepo as unknown as PrismaUsersRepository,
+    );
+
+    await expect(disabledService.sendVerificationEmail('u1')).resolves.toBe(false);
+    expect(mail.sendVerification).not.toHaveBeenCalled();
+  });
 });

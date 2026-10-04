@@ -1,6 +1,5 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,9 +26,6 @@ export function DeleteSavingGoalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-            <TriangleAlert className="size-5" />
-          </div>
           <DialogTitle>{uiText.savingGoals.deleteTitle}</DialogTitle>
           <DialogDescription>{uiText.savingGoals.deleteMessage}</DialogDescription>
         </DialogHeader>

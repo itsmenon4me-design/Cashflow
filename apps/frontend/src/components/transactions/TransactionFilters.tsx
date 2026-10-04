@@ -58,9 +58,12 @@ export function TransactionFilters({
 
         <div
           data-slot="transaction-filter-controls"
-          className="grid grid-cols-1 items-end gap-3 @lg/transaction-filters:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]"
+          className="grid grid-cols-2 items-end gap-3 @lg/transaction-filters:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]"
         >
-          <div className="min-w-0 max-w-40">
+          <div className={cn(
+            "min-w-0 max-w-40",
+            !showTypeFilter && "col-span-2",
+          )}>
             <Select
               value={filters.category}
               onValueChange={(category) => update({ category })}
@@ -144,8 +147,8 @@ export function TransactionFilters({
 
           <div
             className={cn(
-              "flex min-w-0 justify-center",
-              "@lg/transaction-filters:justify-start",
+              "col-span-2 flex min-w-0 justify-center",
+              "@lg/transaction-filters:col-span-1 @lg/transaction-filters:justify-start",
             )}
           >
             <Button

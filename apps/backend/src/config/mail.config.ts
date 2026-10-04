@@ -21,5 +21,11 @@ export const mailConfig = registerAs('mail', (): MailConfig => ({
     (process.env.EMAIL_VERIFICATION_ENABLED ?? 'false') === 'true',
   passwordResetEnabled:
     (process.env.PASSWORD_RESET_ENABLED ?? 'true') === 'true',
-  smtpConfigured: Boolean(process.env.SMTP_HOST),
+  smtpConfigured: Boolean(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASSWORD &&
+    process.env.SMTP_FROM &&
+    !process.env.SMTP_FROM.includes('.example'),
+  ),
 }));

@@ -121,6 +121,7 @@ model Session {
   id               String    @id @default(uuid()) @db.Uuid
   user_id          String    @db.Uuid
   refresh_token_id String    @db.Uuid
+  device_id        String?
   device_name      String?
   device_type      String?
   browser          String?
@@ -139,6 +140,7 @@ model Session {
   refreshToken RefreshToken @relation(fields: [refresh_token_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
+  @@index([user_id, device_id])
   @@index([refresh_token_id])
   @@map("sessions")
 }

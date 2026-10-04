@@ -2,6 +2,7 @@ export class SessionEntity {
   id!: string;
   user_id!: string;
   refresh_token_id!: string;
+  device_id?: string | null;
   device_name?: string | null;
   device_type?: string | null;
   browser?: string | null;

@@ -43,6 +43,39 @@ describe('validate environment', () => {
     expect(config.HOST).toBe('0.0.0.0');
   });
 
+  describe('production email verification', () => {
+    it('requires configured SMTP when verification delivery is enabled', () => {
+      expect(() =>
+        validate(validEnv({
+          NODE_ENV: 'production',
+          EMAIL_VERIFICATION_ENABLED: true,
+        })),
+      ).toThrow('Production email verification requires SMTP_HOST');
+    });
+
+    it('accepts configured SMTP when verification delivery is enabled', () => {
+      const config = validate(validEnv({
+        NODE_ENV: 'production',
+        EMAIL_VERIFICATION_ENABLED: true,
+        SMTP_HOST: 'smtp.mail-provider.test',
+        SMTP_USER: 'mailer',
+        SMTP_PASSWORD: 'configured-secret',
+        SMTP_FROM: 'no-reply@cashflow.app',
+      }));
+
+      expect(config.EMAIL_VERIFICATION_ENABLED).toBe(true);
+    });
+
+    it('keeps intentionally disabled email verification independent of SMTP', () => {
+      const config = validate(validEnv({
+        NODE_ENV: 'production',
+        EMAIL_VERIFICATION_ENABLED: false,
+      }));
+
+      expect(config.EMAIL_VERIFICATION_ENABLED).toBe(false);
+    });
+  });
+
   it('throws when NODE_ENV is invalid', () => {
     expect(() => validate(validEnv({ NODE_ENV: 'invalid' }))).toThrow(
       'Environment validation failed',

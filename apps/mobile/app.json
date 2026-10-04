@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Neraca",
+    "slug": "mobile",
+    "version": "1.0.8",
+    "scheme": "neraca",
+    "orientation": "portrait",
+    "icon": "./assets/neraca-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B2A4A",
+        "foregroundImage": "./assets/neraca-adaptive-foreground.png",
+        "monochromeImage": "./assets/neraca-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.mobile",
+      "versionCode": 9
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-notifications",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/neraca-splash.png",
+          "imageWidth": 140,
+          "backgroundColor": "#0B2A4A",
+          "dark": {
+            "image": "./assets/neraca-splash.png",
+            "backgroundColor": "#0B2A4A"
+          }
+        }
+      ],
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "42051410-1a4e-4c56-b6c3-199743b04f1e"
+      }
+    },
+    "owner": "nonamecukurukuk"
+  }
+}

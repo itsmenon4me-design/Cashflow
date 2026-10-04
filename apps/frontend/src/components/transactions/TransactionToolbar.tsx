@@ -9,6 +9,7 @@ interface TransactionToolbarProps {
   loading?: boolean;
   onAdd?: () => void;
   showAdd?: boolean;
+  showCount?: boolean;
 }
 
 export function TransactionToolbar({
@@ -16,10 +17,11 @@ export function TransactionToolbar({
   loading = false,
   onAdd,
   showAdd = true,
+  showCount = true,
 }: TransactionToolbarProps) {
   return (
     <div className="flex min-h-9 items-center justify-between gap-3">
-      {!loading && typeof count === "number" ? (
+      {showCount && !loading && typeof count === "number" ? (
         <p className="text-sm text-muted-foreground">
           {uiText.transactions.count.replace("{count}", String(count))}
         </p>

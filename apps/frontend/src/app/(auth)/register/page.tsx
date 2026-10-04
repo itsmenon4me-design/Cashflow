@@ -209,8 +209,13 @@ export default function Page() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={submitting}
-                    className="pr-10"
+                    className={showPassword ? "pr-10" : "pr-10 text-transparent caret-foreground"}
                   />
+                  {!showPassword && password.length > 0 && (
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2.5 right-10 flex items-center overflow-hidden whitespace-nowrap text-base text-foreground md:text-sm">
+                      {"•".repeat(password.length)}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
@@ -228,15 +233,23 @@ export default function Page() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirm">{t.confirmPassword}</Label>
-                <Input
-                  id="confirm"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="Ketik ulang kata sandi"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  disabled={submitting}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Ketik ulang kata sandi"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    disabled={submitting}
+                    className={showPassword ? "" : "text-transparent caret-foreground"}
+                  />
+                  {!showPassword && confirm.length > 0 && (
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2.5 right-2.5 flex items-center overflow-hidden whitespace-nowrap text-base text-foreground md:text-sm">
+                      {"•".repeat(confirm.length)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {error && (

@@ -15,6 +15,29 @@ import {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api/v1";
 export const API_REQUEST_TIMEOUT_MS = 20_000;
+const DEVICE_ID_STORAGE_KEY = "cashflow.auth.device-id";
+let cachedDeviceId: string | null = null;
+
+function getBrowserDeviceId(): string | null {
+  if (typeof window === "undefined") return null;
+  if (cachedDeviceId) return cachedDeviceId;
+
+  const stored = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  if (stored) {
+    cachedDeviceId = stored;
+    return stored;
+  }
+
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  const deviceId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
+  cachedDeviceId = deviceId;
+  return deviceId;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -277,6 +300,7 @@ async function request<T>(
   return withRequestTimeout(async (requestSignal) => {
     // Tokens live synchronously in localStorage, so no waiting is needed here.
     const accessToken = getAccessToken();
+    const deviceId = getBrowserDeviceId();
 
     const doFetch = (token: string | null) =>
       fetch(url, {
@@ -284,6 +308,7 @@ async function request<T>(
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(deviceId ? { "X-Device-Id": deviceId } : {}),
           ...headers,
         },
         body: body === undefined ? undefined : JSON.stringify(body),

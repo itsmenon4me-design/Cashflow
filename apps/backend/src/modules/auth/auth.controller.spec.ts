@@ -143,7 +143,7 @@ describe('AuthController', () => {
     };
 
     mockUsersService.create.mockResolvedValue(created);
-    mockVerificationService.sendVerificationEmail.mockResolvedValue(undefined);
+    mockVerificationService.sendVerificationEmail.mockResolvedValue(true);
 
     const res = await controller.register(dto);
 
@@ -152,6 +152,7 @@ describe('AuthController', () => {
       'u1',
     );
     expect(res.success).toBe(true);
+    expect(res.verificationEmailSent).toBe(true);
     expect(
       (res.data as unknown as { password_hash?: unknown }).password_hash,
     ).toBeUndefined();
@@ -188,6 +189,22 @@ describe('AuthController', () => {
       expect.stringContaining('Registration verification email failed'),
     );
     loggerSpy.mockRestore();
+  });
+
+  it('marks verification as not sent when email delivery is disabled', async () => {
+    const dto: CreateUserDto = {
+      email: 'disabled-email@example.com',
+      username: 'disabledemail',
+      full_name: 'Disabled Email',
+      password: 'VeryS3cureP@ss!',
+    };
+    mockUsersService.create.mockResolvedValue({ ...userEntity, id: 'u3' });
+    mockVerificationService.sendVerificationEmail.mockResolvedValue(false);
+
+    const response = await controller.register(dto);
+
+    expect(response.success).toBe(true);
+    expect(response.verificationEmailSent).toBe(false);
   });
 
   it('me returns current user when found', async () => {

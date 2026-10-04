@@ -68,6 +68,27 @@ describe("TransactionsPage", () => {
   });
 
   it.each([
+    { page: "history", transactionType: undefined, showAddButton: false },
+    { page: "income", transactionType: "income" as const, showAddButton: true },
+    { page: "expense", transactionType: "expense" as const, showAddButton: true },
+  ])("$page page has the expected add transaction action", async ({ transactionType, showAddButton }) => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      data: [],
+      pagination: { totalItems: 0, totalPages: 0, page: 1 },
+    } as any);
+
+    render(<TransactionsPage transactionType={transactionType} />);
+    await screen.findByText(uiText.transactions.emptyTitle);
+
+    if (showAddButton) {
+      expect(screen.getByRole("button", { name: uiText.transactions.add })).toBeInTheDocument();
+    } else {
+      expect(screen.queryByRole("button", { name: uiText.transactions.add })).not.toBeInTheDocument();
+    }
+  });
+
+  it.each([
     { page: "income", transactionType: "income" as const },
     { page: "expense", transactionType: "expense" as const },
     { page: "history", transactionType: undefined },
@@ -141,14 +162,14 @@ describe("TransactionsPage", () => {
 
     const filterGrid = container.querySelector('[data-slot="transaction-filter-controls"]');
     expect(filterGrid).toHaveClass(
-      "lg:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]",
+      "@lg/transaction-filters:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),10rem))]",
     );
     expect(
       screen.getByRole("combobox", { name: uiText.table.category }),
     ).toHaveClass("max-w-40");
     expect(
       screen.getByRole("button", { name: uiText.transactions.resetFilters }).parentElement,
-    ).toHaveClass("lg:col-span-1");
+    ).toHaveClass("@lg/transaction-filters:justify-start");
 
     unmount();
     render(<TransactionsPage transactionType="income" />);

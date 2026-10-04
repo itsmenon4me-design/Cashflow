@@ -139,8 +139,11 @@ export function ActiveSessionsTable() {
           <tbody className="divide-y divide-border">
             {items.map((session) => {
               const current = session.id === currentId;
-              const device = [session.operating_system, session.browser].filter(Boolean).join(", ")
-                || session.device_name
+              const deviceParts = [session.operating_system, session.browser]
+                .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
+              const deviceName = session.device_name?.trim();
+              const device = deviceParts.join(", ")
+                || (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
                 || uiText.settingsPage.unknownDevice;
               return (
                 <tr key={session.id} className="align-middle">

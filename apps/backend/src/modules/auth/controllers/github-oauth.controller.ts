@@ -14,11 +14,17 @@ export class GithubOauthController {
   @Get('github')
   @ApiOperation({ summary: 'Prepare GitHub OAuth redirect' })
   @ApiResponse({ status: 200 })
-  async githubLogin(@Query('redirectUri') redirectUri?: string) {
+  async githubLogin(
+    @Query('redirectUri') redirectUri?: string,
+    @Req() req?: Request,
+  ) {
     try {
       return {
         success: true,
-        url: await this.githubAuthService.getLoginUrl(redirectUri),
+        url: await this.githubAuthService.getLoginUrl(
+          redirectUri,
+          req ? extractAuthRequestContext(req).deviceId : null,
+        ),
       };
     } catch (error) {
       const message =

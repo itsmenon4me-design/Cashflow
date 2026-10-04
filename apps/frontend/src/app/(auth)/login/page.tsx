@@ -235,8 +235,13 @@ export default function Page() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     disabled={submitting}
-                    className="pr-10"
+                    className={showPassword ? "pr-10" : "pr-10 text-transparent caret-foreground"}
                   />
+                  {!showPassword && password.length > 0 && (
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2.5 right-10 flex items-center overflow-hidden whitespace-nowrap text-base text-foreground md:text-sm">
+                      {"•".repeat(password.length)}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}

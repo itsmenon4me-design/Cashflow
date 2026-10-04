@@ -652,8 +652,13 @@ export function SettingsPage() {
                     onChange={(event) => setDeletePassword(event.target.value)}
                     placeholder={uiText.settingsPage.passwordPlaceholder}
                     autoComplete="current-password"
-                    className="pr-10"
+                    className={showDeletePassword ? "pr-10" : "pr-10 text-transparent caret-foreground"}
                   />
+                  {!showDeletePassword && deletePassword.length > 0 && (
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2.5 right-10 flex items-center overflow-hidden whitespace-nowrap text-base text-foreground md:text-sm">
+                      {"•".repeat(deletePassword.length)}
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"

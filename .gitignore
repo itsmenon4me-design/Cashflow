@@ -79,3 +79,6 @@ apps/backend/jest-report.json
 .hermes/
 .opencode/
 .github/
+/BLOCKER_RESOLUTION_SESSION_REPORT.md
+/PHASE_ROADMAP_FINDINGS.md
+/PRE_COMMIT_AUDIT_2026_08_14.md

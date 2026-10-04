@@ -13,4 +13,11 @@ describe("TransactionToolbar", () => {
     expect(screen.getByRole("button")).toBeInTheDocument();
     expect(screen.getByRole("button").parentElement).toHaveClass("ml-auto");
   });
+
+  it("can hide the result count while keeping the add action available", () => {
+    render(<TransactionToolbar count={12} showCount={false} onAdd={vi.fn()} />);
+
+    expect(screen.queryByText("12 transaksi")).not.toBeInTheDocument();
+    expect(screen.getByRole("button")).toBeInTheDocument();
+  });
 });

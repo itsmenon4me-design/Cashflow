@@ -300,7 +300,8 @@ export const idText = {
     loginInvalidCredentials: "Email atau kata sandi salah.",
     emailNotVerified: "Akun belum diverifikasi, silakan cek email Anda.",
     resendVerification: "Kirim ulang email verifikasi",
-    verificationEmailSent: "Email verifikasi berhasil dikirim.",
+    verificationEmailSent:
+      "Jika email ini memerlukan verifikasi, petunjuk akan dikirim bila alamat dapat menerimanya.",
     verificationEmailFailed: "Email verifikasi tidak dapat dikirim.",
     fullNameRequired: "Nama lengkap wajib diisi.",
     fullNameShort: "Nama lengkap terlalu singkat.",
