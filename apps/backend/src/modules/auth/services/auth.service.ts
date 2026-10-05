@@ -211,6 +211,24 @@ export class AuthService {
         ) {
           metadata.databaseCode = error.code;
         }
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'meta' in error &&
+          typeof error.meta === 'object' &&
+          error.meta !== null
+        ) {
+          const prismaMeta = error.meta as Record<string, unknown>;
+          for (const key of ['modelName', 'column', 'table'] as const) {
+            const value = prismaMeta[key];
+            if (
+              typeof value === 'string' &&
+              /^[A-Za-z0-9_.-]{1,128}$/.test(value)
+            ) {
+              metadata[key] = value;
+            }
+          }
+        }
         this.appLogger.error(
           'Unexpected login failure',
           undefined,

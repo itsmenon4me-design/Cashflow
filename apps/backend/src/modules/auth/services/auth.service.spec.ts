@@ -209,6 +209,74 @@ describe('AuthService (rate-limit failures)', () => {
     );
   });
 
+  test('logs only allowlisted Prisma metadata for session failures', async () => {
+    const mocks = makeMocks();
+    mocks.users.findByEmail.mockResolvedValue({
+      id: 'u1',
+      email: 'private@example.com',
+      password_hash: 'hash',
+      role_code: 'USER',
+      username: 'user1',
+      full_name: 'User One',
+      status: 'ACTIVE',
+      created_at: new Date(),
+      updated_at: new Date(),
+      last_login_at: null,
+    });
+    mocks.passwordService.verifyPassword.mockResolvedValue(true);
+    mocks.redis.del.mockResolvedValue(1);
+    mocks.refreshService.createForUser.mockRejectedValue(
+      Object.assign(new Error('sensitive database details'), {
+        code: 'P2022',
+        meta: {
+          modelName: 'Session',
+          column: 'sessions.device_id',
+          table: 'sessions',
+          query: 'must not be logged',
+        },
+      }),
+    );
+    const svc = new AuthService(
+      mocks.users,
+      mocks.passwordService,
+      mocks.jwtService,
+      mocks.jwtConfig,
+      mocks.refreshService,
+      mocks.sessionService,
+      mocks.auditLogService,
+      mocks.redis,
+      mocks.authConfig,
+      mocks.appLogger,
+    );
+
+    await expect(
+      svc.login(
+        { email: 'private@example.com', password: 'secret-password' },
+        { requestId: 'sin1::request-123' },
+      ),
+    ).rejects.toThrow('sensitive database details');
+
+    expect(mocks.appLogger.error).toHaveBeenCalledWith(
+      'Unexpected login failure',
+      undefined,
+      'AUTH_LOGIN',
+      {
+        stage: 'session_creation',
+        errorType: 'Error',
+        vercelRequestId: 'sin1::request-123',
+        databaseCode: 'P2022',
+        modelName: 'Session',
+        column: 'sessions.device_id',
+        table: 'sessions',
+      },
+    );
+    const logged = JSON.stringify(mocks.appLogger.error.mock.calls);
+    expect(logged).not.toContain('private@example.com');
+    expect(logged).not.toContain('secret-password');
+    expect(logged).not.toContain('sensitive database details');
+    expect(logged).not.toContain('must not be logged');
+  });
+
   test('rejects pending verification with a dedicated error code', async () => {
     const mocks = makeMocks();
     mocks.users.findByEmail.mockResolvedValue({
