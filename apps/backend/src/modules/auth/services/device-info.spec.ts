@@ -34,19 +34,6 @@ describe('device-info parser', () => {
     ).toBeNull();
   });
 
-  it('accepts only a safe Vercel request id for diagnostics', () => {
-    expect(
-      extractAuthRequestContext({
-        headers: { 'x-vercel-id': 'sin1::request-123' },
-      }).requestId,
-    ).toBe('sin1::request-123');
-    expect(
-      extractAuthRequestContext({
-        headers: { 'x-vercel-id': 'request id with spaces' },
-      }).requestId,
-    ).toBeNull();
-  });
-
   it('falls back to Vercel geo headers when Cloudflare headers are empty', () => {
     const ctx = extractAuthRequestContext({
       headers: {

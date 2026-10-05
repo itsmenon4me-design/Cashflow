@@ -70,7 +70,6 @@ export function extractAuthRequestContext(req: {
   const city = firstHeader('cf-ipcity', 'x-vercel-ip-city');
   const country = firstHeader('cf-ipcountry', 'x-vercel-ip-country');
   const deviceId = firstHeader('x-device-id');
-  const requestId = firstHeader('x-vercel-id');
   return {
     ip: ip ? ip.replace(/"/g, '') : null,
     userAgent: userAgent ?? null,
@@ -79,10 +78,6 @@ export function extractAuthRequestContext(req: {
     deviceId: deviceId && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId)
       ? deviceId.toLowerCase()
       : null,
-    requestId:
-      requestId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestId)
-        ? requestId
-        : null,
   };
 }
 

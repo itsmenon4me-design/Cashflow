@@ -4,5 +4,4 @@ export interface AuthRequestContext {
   city?: string | null;
   country?: string | null;
   deviceId?: string | null;
-  requestId?: string | null;
 }
