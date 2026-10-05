@@ -159,6 +159,54 @@ describe('AuthService (rate-limit failures)', () => {
     await expect(
       svc.login({ email: 'notfound@example.com', password: 'x' }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RATE_LIMIT });
+    expect(appLogger.error).not.toHaveBeenCalled();
+  });
+
+  test('logs sanitized diagnostics for unexpected login failures', async () => {
+    const mocks = makeMocks();
+    mocks.users.findByEmail.mockRejectedValue(
+      Object.assign(new Error('sensitive request details'), { code: 'P2025' }),
+    );
+    const svc = new AuthService(
+      mocks.users,
+      mocks.passwordService,
+      mocks.jwtService,
+      mocks.jwtConfig,
+      mocks.refreshService,
+      mocks.sessionService,
+      mocks.auditLogService,
+      mocks.redis,
+      mocks.authConfig,
+      mocks.appLogger,
+    );
+
+    await expect(
+      svc.login(
+        { email: 'private@example.com', password: 'secret-password' },
+        { requestId: 'sin1::request-123' },
+      ),
+    ).rejects.toThrow('sensitive request details');
+
+    expect(mocks.appLogger.error).toHaveBeenCalledWith(
+      'Unexpected login failure',
+      undefined,
+      'AUTH_LOGIN',
+      {
+        stage: 'user_lookup',
+        errorType: 'Error',
+        vercelRequestId: 'sin1::request-123',
+        databaseCode: 'P2025',
+      },
+    );
+    expect(JSON.stringify(mocks.appLogger.error.mock.calls)).not.toContain(
+      'private@example.com',
+    );
+    expect(JSON.stringify(mocks.appLogger.error.mock.calls)).not.toContain(
+      'secret-password',
+    );
+    expect(JSON.stringify(mocks.appLogger.error.mock.calls)).not.toContain(
+      'sensitive request details',
+    );
   });
 
   test('rejects pending verification with a dedicated error code', async () => {

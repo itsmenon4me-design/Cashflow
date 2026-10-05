@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
 import { UsersService } from '../../users/services/users.service';
 import { PasswordService } from '../../../common/security/password/password.service';
 import { ErrorService } from '../../../common/errors/error.service';
@@ -128,62 +129,97 @@ export class AuthService {
   }
 
   async login(input: LoginDto, context: AuthRequestContext = {}) {
-    const user = await this.users.findByEmail(input.email);
+    let stage = 'user_lookup';
+    try {
+      const user = await this.users.findByEmail(input.email);
 
-    // derive obfuscated identifier key so both existing and non-existing emails behave the same
-    const idHash = crypto
-      .createHash('sha256')
-      .update(input.email.toLowerCase())
-      .digest('hex');
-    const failKey = `auth:fail:${idHash}`;
-    const authCfg = this.authConfig.config;
-    const failWindow = authCfg.failWindowSeconds;
-    const failLimit = authCfg.failLimit;
+      // derive obfuscated identifier key so both existing and non-existing emails behave the same
+      const idHash = crypto
+        .createHash('sha256')
+        .update(input.email.toLowerCase())
+        .digest('hex');
+      const failKey = `auth:fail:${idHash}`;
+      const authCfg = this.authConfig.config;
+      const failWindow = authCfg.failWindowSeconds;
+      const failLimit = authCfg.failLimit;
 
-    if (!user) {
-      // increment failure counter for identifier (best-effort); do not reveal existence
-      const cnt = await this.redis.incr(failKey, failWindow);
-      if (cnt !== null && cnt >= failLimit) {
-        throw ErrorService.create(ErrorCode.RATE_LIMIT);
+      if (!user) {
+        // increment failure counter for identifier (best-effort); do not reveal existence
+        stage = 'failure_counter';
+        const cnt = await this.redis.incr(failKey, failWindow);
+        if (cnt !== null && cnt >= failLimit) {
+          throw ErrorService.create(ErrorCode.RATE_LIMIT);
+        }
+        throw ErrorService.create(ErrorCode.INVALID_CREDENTIALS);
       }
-      throw ErrorService.create(ErrorCode.INVALID_CREDENTIALS);
-    }
 
-    // Account status checks
-    if (
-      user.status === 'INACTIVE' ||
-      user.status === 'SUSPENDED' ||
-      user.status === 'PENDING_VERIFICATION'
-    ) {
-      if (user.status === 'PENDING_VERIFICATION') {
-        throw ErrorService.create(
-          ErrorCode.EMAIL_NOT_VERIFIED,
-          'Email address is not verified',
+      // Account status checks
+      if (
+        user.status === 'INACTIVE' ||
+        user.status === 'SUSPENDED' ||
+        user.status === 'PENDING_VERIFICATION'
+      ) {
+        if (user.status === 'PENDING_VERIFICATION') {
+          throw ErrorService.create(
+            ErrorCode.EMAIL_NOT_VERIFIED,
+            'Email address is not verified',
+          );
+        }
+        throw ErrorService.create(ErrorCode.FORBIDDEN, 'Account not active');
+      }
+
+      stage = 'password_verification';
+      const ok = await this.passwordService.verifyPassword(
+        user.password_hash,
+        input.password,
+      );
+      if (!ok) {
+        stage = 'failure_counter';
+        const cnt = await this.redis.incr(failKey, failWindow);
+        if (cnt !== null && cnt >= failLimit) {
+          throw ErrorService.create(ErrorCode.RATE_LIMIT);
+        }
+        throw ErrorService.create(ErrorCode.INVALID_CREDENTIALS);
+      }
+
+      // Clear failure counter for this identifier on successful auth (best-effort)
+      stage = 'failure_counter_cleanup';
+      try {
+        await this.redis.del(failKey);
+      } catch {
+        // ignore — do not fail login if Redis is unavailable
+      }
+
+      stage = 'session_creation';
+      return await this.issueSessionForUser(user, 'password', context);
+    } catch (error) {
+      if (!(error instanceof AppError) || error.statusCode >= 500) {
+        const metadata: Record<string, unknown> = {
+          stage,
+          errorType: error instanceof Error ? error.name : typeof error,
+        };
+        if (context.requestId) metadata.vercelRequestId = context.requestId;
+        if (error instanceof AppError) {
+          metadata.appErrorCode = error.errorCode;
+        }
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          typeof error.code === 'string' &&
+          /^P\d{4}$/.test(error.code)
+        ) {
+          metadata.databaseCode = error.code;
+        }
+        this.appLogger.error(
+          'Unexpected login failure',
+          undefined,
+          'AUTH_LOGIN',
+          metadata,
         );
       }
-      throw ErrorService.create(ErrorCode.FORBIDDEN, 'Account not active');
+      throw error;
     }
-
-    const ok = await this.passwordService.verifyPassword(
-      user.password_hash,
-      input.password,
-    );
-    if (!ok) {
-      const cnt = await this.redis.incr(failKey, failWindow);
-      if (cnt !== null && cnt >= failLimit) {
-        throw ErrorService.create(ErrorCode.RATE_LIMIT);
-      }
-      throw ErrorService.create(ErrorCode.INVALID_CREDENTIALS);
-    }
-
-    // Clear failure counter for this identifier on successful auth (best-effort)
-    try {
-      await this.redis.del(failKey);
-    } catch {
-      // ignore — do not fail login if Redis is unavailable
-    }
-
-    return this.issueSessionForUser(user, 'password', context);
   }
 
   async refresh(refreshToken: string, context: AuthRequestContext = {}) {
