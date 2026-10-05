@@ -24,6 +24,54 @@ import {
 import { AuthRequestContext } from '../types/auth-request';
 import { deriveDeviceInfo } from './device-info';
 
+function safePrismaDiagnosticMetadata(value: unknown): Record<string, string> {
+  const result: Record<string, string> = {};
+  const validValue = (candidate: unknown): candidate is string =>
+    typeof candidate === 'string' &&
+    /^[A-Za-z0-9_.-]{1,128}$/.test(candidate);
+  const asRecord = (candidate: unknown): Record<string, unknown> | null =>
+    typeof candidate === 'object' && candidate !== null
+      ? (candidate as Record<string, unknown>)
+      : null;
+
+  const meta = asRecord(value);
+  if (!meta) return result;
+
+  for (const key of ['modelName', 'table'] as const) {
+    if (validValue(meta[key])) result[key] = meta[key];
+  }
+  if (validValue(meta.column ?? meta.column_name ?? meta.columnName)) {
+    result.column = (meta.column ?? meta.column_name ?? meta.columnName) as string;
+  }
+
+  let nested: unknown = meta;
+  for (let depth = 0; depth < 3; depth += 1) {
+    const record = asRecord(nested);
+    if (!record) break;
+    nested = record.driverAdapterError ?? record.cause;
+    const nestedRecord = asRecord(nested);
+    if (!nestedRecord) continue;
+
+    const column =
+      nestedRecord.column ??
+      nestedRecord.column_name ??
+      nestedRecord.columnName;
+    if (!result.column && validValue(column)) result.column = column;
+    if (!result.table && validValue(nestedRecord.table)) {
+      result.table = nestedRecord.table;
+    }
+    if (
+      !result.metaKind &&
+      typeof nestedRecord.kind === 'string' &&
+      /^[A-Za-z]{1,64}$/.test(nestedRecord.kind)
+    ) {
+      result.metaKind = nestedRecord.kind;
+    }
+  }
+
+  return result;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -218,16 +266,10 @@ export class AuthService {
           typeof error.meta === 'object' &&
           error.meta !== null
         ) {
-          const prismaMeta = error.meta as Record<string, unknown>;
-          for (const key of ['modelName', 'column', 'table'] as const) {
-            const value = prismaMeta[key];
-            if (
-              typeof value === 'string' &&
-              /^[A-Za-z0-9_.-]{1,128}$/.test(value)
-            ) {
-              metadata[key] = value;
-            }
-          }
+          Object.assign(
+            metadata,
+            safePrismaDiagnosticMetadata(error.meta),
+          );
         }
         this.appLogger.error(
           'Unexpected login failure',

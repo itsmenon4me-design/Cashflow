@@ -230,9 +230,14 @@ describe('AuthService (rate-limit failures)', () => {
         code: 'P2022',
         meta: {
           modelName: 'Session',
-          column: 'sessions.device_id',
-          table: 'sessions',
-          query: 'must not be logged',
+          driverAdapterError: {
+            cause: {
+              kind: 'ColumnNotFound',
+              column: 'sessions.device_id',
+              table: 'sessions',
+              query: 'must not be logged',
+            },
+          },
         },
       }),
     );
@@ -268,6 +273,7 @@ describe('AuthService (rate-limit failures)', () => {
         modelName: 'Session',
         column: 'sessions.device_id',
         table: 'sessions',
+        metaKind: 'ColumnNotFound',
       },
     );
     const logged = JSON.stringify(mocks.appLogger.error.mock.calls);
