@@ -119,18 +119,7 @@ export const transactionService = {
       .patch<{ success: boolean; data: TransactionDTO }>(`/transactions/${id}`, payload)
       .then((res) => res.data),
 
-  remove: (id: string): Promise<{ success: boolean }> => {
-    const url = `/transactions/${id}`;
-    try {
-      console.log('[DELETE FLOW] transaction.service.remove calling DELETE URL=', url);
-    } catch (e) {}
-    return apiClient.delete<{ success: boolean }>(url).then((res: any) => {
-      try {
-        console.log('[DELETE FLOW] transaction.service.remove response status=', res.status);
-      } catch (e) {}
-      return res.data;
-    });
-  },
-
+  remove: (id: string): Promise<{ success: boolean }> =>
+    apiClient.delete<{ success: boolean }>(`/transactions/${id}`),
 
 };

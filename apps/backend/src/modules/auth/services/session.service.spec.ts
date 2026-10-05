@@ -57,11 +57,28 @@ describe('SessionService', () => {
 
   it('lists sessions for user', async () => {
     (repo.findActiveByUserId as jest.Mock).mockResolvedValue([
-      { id: 's1', user_id: 'u1' },
+      {
+        id: 'newer',
+        user_id: 'u1',
+        user_agent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/133.0.0.0 Safari/537.36',
+        last_activity_at: new Date('2026-04-02T00:00:00.000Z'),
+      },
+      {
+        id: 'older',
+        user_id: 'u1',
+        user_agent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15',
+        last_activity_at: new Date('2026-04-01T00:00:00.000Z'),
+      },
     ]);
     const list = await svc.listForUser('u1');
     expect(repo.findActiveByUserId).toHaveBeenCalledWith('u1');
-    expect(list).toHaveLength(1);
+    expect(list.map((session) => session.id)).toEqual(['newer', 'older']);
+    expect(list.map((session) => session.device_name)).toEqual([
+      'Windows PC · Chrome',
+      'Mac · Safari',
+    ]);
   });
 
   it('revokes session only if owned', async () => {
@@ -97,8 +114,16 @@ describe('SessionService', () => {
 
   it('replaces only sessions registered to the same installation', async () => {
     (repo.findActiveByUserId as jest.Mock).mockResolvedValue([
-      { id: 'same-device', refresh_token_id: 'old-refresh', device_id: 'device-a' },
-      { id: 'other-device', refresh_token_id: 'other-refresh', device_id: 'device-b' },
+      {
+        id: 'same-device',
+        refresh_token_id: 'old-refresh',
+        device_id: 'device-a',
+      },
+      {
+        id: 'other-device',
+        refresh_token_id: 'other-refresh',
+        device_id: 'device-b',
+      },
     ]);
 
     await svc.revokeDeviceSessions('u1', 'device-a');

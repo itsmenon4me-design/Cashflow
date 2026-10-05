@@ -38,13 +38,13 @@ export function AuditLogPage() {
     setError(false);
     try {
       const sessions = await sessionService.list();
-      setItems(sessions.sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId)));
+      setItems(sessions);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [currentId]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);

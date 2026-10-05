@@ -1,7 +1,4 @@
-import {
-  deriveDeviceInfo,
-  extractAuthRequestContext,
-} from './device-info';
+import { deriveDeviceInfo, extractAuthRequestContext } from './device-info';
 
 describe('device-info parser', () => {
   it('extracts request context properly', () => {
@@ -11,6 +8,7 @@ describe('device-info parser', () => {
         'x-forwarded-for': '127.0.0.1, 10.0.0.1',
         'cf-ipcity': 'Jakarta',
         'cf-ipcountry': 'ID',
+        'x-client-platform': 'android',
       },
       ip: '192.0.2.1',
     });
@@ -19,6 +17,7 @@ describe('device-info parser', () => {
     expect(ctx.userAgent).toBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
     expect(ctx.city).toBe('Jakarta');
     expect(ctx.country).toBe('ID');
+    expect(ctx.clientPlatform).toBe('android');
   });
 
   it('accepts only a UUID installation id from the request header', () => {
@@ -86,7 +85,7 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Desktop');
     expect(info.operating_system).toBe('Windows');
     expect(info.browser).toBe('Chrome');
-    expect(info.device_name).toBe('Windows 10 · Chrome');
+    expect(info.device_name).toBe('Windows PC · Chrome');
   });
 
   it('detects macOS Safari desktop device', () => {
@@ -96,7 +95,7 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Desktop');
     expect(info.operating_system).toBe('macOS');
     expect(info.browser).toBe('Safari');
-    expect(info.device_name).toBe('macOS 10.15.7 · Safari');
+    expect(info.device_name).toBe('Mac · Safari');
   });
 
   it('detects iPhone iOS mobile device', () => {
@@ -106,7 +105,7 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Mobile');
     expect(info.operating_system).toBe('iOS');
     expect(info.browser).toBe('Mobile Safari');
-    expect(info.device_name).toBe('iPhone · Mobile Safari');
+    expect(info.device_name).toBe('iPhone');
   });
 
   it('detects Android Chrome mobile device with vendor/model', () => {
@@ -116,7 +115,20 @@ describe('device-info parser', () => {
     expect(info.device_type).toBe('Mobile');
     expect(info.operating_system).toBe('Android');
     expect(info.browser).toBe('Mobile Chrome');
-    expect(info.device_name).toBe('Samsung SM-S918B · Mobile Chrome');
+    expect(info.device_name).toBe('Samsung SM-S918B');
+  });
+
+  it('labels native app sessions by platform without exposing the OS version', () => {
+    expect(deriveDeviceInfo(null, 'android')).toMatchObject({
+      device_name: 'Android',
+      device_type: 'Mobile',
+      operating_system: 'Android',
+    });
+    expect(deriveDeviceInfo('Neraca/1 okhttp/5.0', 'ios')).toMatchObject({
+      device_name: 'iPhone',
+      device_type: 'Mobile',
+      operating_system: 'iOS',
+    });
   });
 
   it('handles null/empty UA gracefully', () => {

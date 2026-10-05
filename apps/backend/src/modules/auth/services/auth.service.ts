@@ -83,7 +83,7 @@ export class AuthService {
       user_id: user.id,
       refresh_token_id: created.id,
       device_id: context.deviceId ?? null,
-      ...deriveDeviceInfo(context.userAgent ?? null),
+      ...deriveDeviceInfo(context.userAgent ?? null, context.clientPlatform),
       ip_address: context.ip ?? null,
       city: context.city ?? null,
       country: context.country ?? null,

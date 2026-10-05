@@ -42,6 +42,7 @@ import {
   ApiError,
   authApi,
   clearAuthTokens,
+  checkApiConnectivity,
   getAuthenticatedUser,
   nativePushApi,
   notificationApi,
@@ -72,6 +73,16 @@ import {
   type NativeUserSettings,
 } from "./services/api-client";
 import { saveNativeReportExport } from "./services/report-export";
+import {
+  NativeTransactionSyncQueue,
+  type NativeTransactionDraft,
+  type NativeTransactionPayload,
+  type NativeTransactionSyncRecord,
+} from "./services/native-transaction-sync";
+import {
+  clearNativeOfflineCache,
+  setNativeOfflineCacheScope,
+} from "./services/native-offline-cache";
 
 type RouteKey =
   | "dashboard"
@@ -93,7 +104,11 @@ type Palette = (typeof themes)[keyof typeof themes];
 type AuthStatus = "loading" | "signedOut" | "authenticated" | "error";
 type NativeSettingsPatch = Parameters<typeof settingsApi.update>[0];
 
-type DemoTransaction = { id: string; date: string; dateISO: string; category: string; categoryId?: string; note: string; amount: string; income: boolean; status: "completed" };
+type DemoTransaction = NativeTransactionDraft & {
+  id: string;
+  status: "completed";
+  syncState?: "pending" | "failed";
+};
 type TransactionFieldErrors = { date?: string; category?: string; amount?: string };
 type DemoNotification = { id: string; title: string; message: string; createdAt: string; isRead: boolean };
 type SessionDialogState =
@@ -107,7 +122,7 @@ type DashboardSnapshot = {
 };
 type NativeToast = { id: number; message: string; tone: "success" | "error" | "info" };
 const getTransactionAmount = (transaction: { amount: string }) => Number(transaction.amount.replace(/[^\d]/g, ""));
-type NewDemoTransaction = Omit<DemoTransaction, "id" | "status">;
+type NewDemoTransaction = NativeTransactionDraft;
 type DemoTransactionsContextValue = {
   transactions: DemoTransaction[];
   rawTransactions: NativeTransaction[];
@@ -115,6 +130,7 @@ type DemoTransactionsContextValue = {
   financeLoading: boolean;
   financeError: string | null;
   financeRevision: number;
+  invalidateFinancialSnapshots: () => void;
   notifications: DemoNotification[];
   notificationError: boolean;
   addTransaction: (transaction: NewDemoTransaction) => Promise<void>;
@@ -131,8 +147,10 @@ type DemoTransactionsContextValue = {
 };
 const DemoTransactionsContext = createContext<DemoTransactionsContextValue | null>(null);
 const MobileLanguageContext = createContext<MobileLanguage>("id");
+const BackendOfflineContext = createContext(true);
 const LANGUAGE_STORAGE_KEY = "cashflow.language";
 const NATIVE_PUSH_TOKEN_STORAGE_KEY = "cashflow.native.push-token";
+const NATIVE_PENDING_TRANSACTION_PREFIX = "native-pending-";
 const dashboardSnapshots = new Map<string, DashboardSnapshot>();
 const reportSnapshots = new Map<string, NativeReportPageData>();
 const analyticsSnapshots = new Map<string, NativeAnalyticsPageData>();
@@ -155,6 +173,51 @@ function clearFinancialSnapshots(userId: string) {
   budgetSnapshots.delete(userId);
   goalSnapshots.delete(userId);
   investmentSnapshots.delete(userId);
+}
+
+function withPendingTransactionSync(
+  transactions: DemoTransaction[],
+  records: NativeTransactionSyncRecord[],
+): DemoTransaction[] {
+  const recordsByEntity = new Map(records.map((record) => [record.entityId, record]));
+  const serverTransactions = transactions
+    .filter((transaction) =>
+      !transaction.id.startsWith(NATIVE_PENDING_TRANSACTION_PREFIX)
+      || recordsByEntity.get(transaction.id)?.action === "create",
+    )
+    .map((transaction) => {
+      const record = recordsByEntity.get(transaction.id);
+      if (!record) {
+        const cleanTransaction = { ...transaction };
+        delete cleanTransaction.syncState;
+        return cleanTransaction;
+      }
+      return { ...transaction, syncState: record.failed ? "failed" as const : "pending" as const };
+    });
+  const localCreates = records
+    .filter((record) =>
+      record.action === "create"
+      && record.draft
+      && !serverTransactions.some((transaction) => transaction.id === record.entityId),
+    )
+    .map((record) => ({
+      ...record.draft!,
+      id: record.entityId,
+      status: "completed" as const,
+      syncState: record.failed ? "failed" as const : "pending" as const,
+    }));
+  return [...serverTransactions, ...localCreates].sort((left, right) =>
+    right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date),
+  );
+}
+
+function isRetryableTransactionMutationError(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status >= 500;
+  if (!(error instanceof Error)) return false;
+  return error instanceof TypeError
+    || error.name === "AbortError"
+    || error.name === "TimeoutError"
+    || error instanceof SyntaxError;
 }
 
 // Expo Go has no remote push support, so load the notification module only in native builds.
@@ -682,19 +745,36 @@ function AppShell() {
   const [transactionToView, setTransactionToView] = useState<DemoTransaction | null>(null);
   const [transactions, setTransactions] = useState<DemoTransaction[]>([]);
   const [rawTransactions, setRawTransactions] = useState<NativeTransaction[]>([]);
+  const [syncQueueRecords, setSyncQueueRecords] = useState<NativeTransactionSyncRecord[]>([]);
   const [categories, setCategories] = useState<DemoCategory[]>([]);
   const [financeLoading, setFinanceLoading] = useState(false);
   const [financeError, setFinanceError] = useState<string | null>(null);
   const [financeRevision, setFinanceRevision] = useState(0);
+  const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
   const [notifications, setNotifications] = useState<DemoNotification[]>([]);
   const [notificationError, setNotificationError] = useState(false);
   const [toast, setToast] = useState<NativeToast | null>(null);
   const [language, setLanguage] = useState<MobileLanguage>("id");
   const authUserRef = useRef(authUser);
+  const syncQueueRecordsRef = useRef(syncQueueRecords);
   const languageRef = useRef(language);
   const handledAuthLinks = useRef(new Set<string>());
   const notificationRefreshRef = useRef<() => Promise<void>>(async () => {});
   const optimisticTransactionSequence = useRef(0);
+  const transactionSyncUserId = authUser?.id;
+  const transactionSyncQueue = useMemo(
+    () => transactionSyncUserId ? new NativeTransactionSyncQueue(transactionSyncUserId, AsyncStorage) : null,
+    [transactionSyncUserId],
+  );
+  const publishSyncQueueRecords = useCallback((
+    records: NativeTransactionSyncRecord[],
+    ownerId: string | undefined = authUserRef.current?.id,
+  ) => {
+    if (ownerId !== authUserRef.current?.id) return;
+    syncQueueRecordsRef.current = records;
+    setSyncQueueRecords(records);
+    setTransactions((current) => withPendingTransactionSync(current, records));
+  }, []);
   const toastSequence = useRef(0);
   const showToast = useCallback((message: string, tone: NativeToast["tone"] = "success") => {
     setToast({ id: ++toastSequence.current, message, tone });
@@ -710,8 +790,17 @@ function AppShell() {
     authUserRef.current = authUser;
   }, [authUser]);
   useEffect(() => {
+    setNativeOfflineCacheScope(authUser?.id);
+  }, [authUser?.id]);
+  useEffect(() => {
     languageRef.current = language;
   }, [language]);
+  const invalidateFinancialSnapshots = useCallback(() => {
+    const userId = authUserRef.current?.id;
+    if (!userId) return;
+    clearFinancialSnapshots(userId);
+    setFinanceRevision((revision) => revision + 1);
+  }, []);
   const restoreAuthSession = useCallback(async () => {
     if (!authUserRef.current) setAuthStatus("loading");
     setAuthError(null);
@@ -1061,16 +1150,18 @@ function AppShell() {
     const cleanup = await Promise.allSettled([
       AsyncStorage.removeItem(NATIVE_PUSH_TOKEN_STORAGE_KEY),
       clearAuthTokens(),
+      transactionSyncQueue?.clear() ?? Promise.resolve(),
+      authUser ? clearNativeOfflineCache(authUser.id) : Promise.resolve(),
     ]);
     const cleanupError = cleanup.find((result) => result.status === "rejected");
     if (cleanupError?.status === "rejected") {
-      console.error("The account was deleted, but native local credentials could not be cleared.", cleanupError.reason);
+      console.error("The account was deleted, but native local account data could not be cleared.", cleanupError.reason);
       Alert.alert(
         translateMobileText("Akun sudah dihapus.", language),
         translateMobileText("Data sesi di perangkat tidak dapat dibersihkan. Tutup dan buka kembali aplikasi.", language),
       );
     }
-  }, [authUser, language]);
+  }, [authUser, language, transactionSyncQueue]);
   useEffect(() => {
     setUnauthorizedHandler(() => {
       if (authUserRef.current) clearFinancialSnapshots(authUserRef.current.id);
@@ -1108,6 +1199,7 @@ function AppShell() {
     };
   }, [handleNativeAuthLink, restoreAuthSession]);
   const refreshFinanceData = useCallback(async () => {
+    invalidateFinancialSnapshots();
     setFinanceLoading(true);
     setFinanceError(null);
     try {
@@ -1121,7 +1213,7 @@ function AppShell() {
         .map((item) => toDemoTransaction(item, categoryNames, language, userSettings?.timezone))
         .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date));
       setCategories(nextCategories);
-      setTransactions(nextTransactions);
+      setTransactions(withPendingTransactionSync(nextTransactions, syncQueueRecordsRef.current));
       setRawTransactions(transactionResponse);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
@@ -1131,7 +1223,191 @@ function AppShell() {
     } finally {
       setFinanceLoading(false);
     }
-  }, [language, userSettings?.timezone]);
+  }, [invalidateFinancialSnapshots, language, userSettings?.timezone]);
+  const flushTransactionSync = useCallback(async (force = false) => {
+    if (
+      !transactionSyncQueue
+      || !transactionSyncUserId
+      || authUserRef.current?.id !== transactionSyncUserId
+      || (!force && backendReachable === false)
+    ) {
+      return { succeeded: 0, records: syncQueueRecordsRef.current };
+    }
+    const result = await transactionSyncQueue.flush(async (record) => {
+      switch (record.action) {
+        case "create":
+          if (!record.payload) throw new ApiError("Queued transaction data is invalid.", 400, null);
+          await financeApi.createTransaction(record.payload);
+          return;
+        case "update":
+          if (!record.payload) throw new ApiError("Queued transaction data is invalid.", 400, null);
+          await financeApi.updateTransaction(record.entityId, record.payload);
+          return;
+        case "delete": {
+          const response = await financeApi.removeTransaction(record.entityId);
+          if (!response.success) {
+            throw new ApiError("The server did not confirm the queued transaction deletion.", 500, response);
+          }
+          return;
+        }
+      }
+    }, Date.now(), () => authUserRef.current?.id === transactionSyncUserId);
+    publishSyncQueueRecords(result.records, transactionSyncUserId);
+    if (result.succeeded > 0 && authUserRef.current?.id === transactionSyncUserId) {
+      await refreshFinanceData();
+    }
+    return result;
+  }, [backendReachable, publishSyncQueueRecords, refreshFinanceData, transactionSyncQueue, transactionSyncUserId]);
+  const retryPendingSync = useCallback(async () => {
+    if (!transactionSyncQueue || !transactionSyncUserId || authUserRef.current?.id !== transactionSyncUserId) return;
+    try {
+      const retriedRecords = await transactionSyncQueue.retryFailed();
+      publishSyncQueueRecords(retriedRecords, transactionSyncUserId);
+      const result = await flushTransactionSync();
+      if (result.records.some((record) => record.failed)) {
+        showToast(translateMobileText("Sinkronisasi gagal", language), "error");
+      } else if (result.succeeded > 0 && result.records.length === 0) {
+        showToast(translateMobileText("Transaksi tersinkron.", language));
+      } else {
+        showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
+      }
+    } catch (error) {
+      console.error("Could not retry native transaction sync.", error);
+      Alert.alert(
+        translateMobileText("Sinkronisasi gagal", language),
+        error instanceof Error ? error.message : "Silakan coba lagi.",
+      );
+    }
+  }, [flushTransactionSync, language, publishSyncQueueRecords, showToast, transactionSyncQueue, transactionSyncUserId]);
+  const dismissFailedSync = useCallback(async () => {
+    if (!transactionSyncQueue || !transactionSyncUserId || authUserRef.current?.id !== transactionSyncUserId) return;
+    const failedRecords = syncQueueRecordsRef.current.filter((record) => record.failed);
+    if (failedRecords.length === 0) return;
+    Alert.alert(
+      translateMobileText("Hapus dari antrean", language),
+      translateMobileText("Hapus perubahan gagal dari antrean lokal? Perubahan tersebut tidak akan dikirim ke server.", language),
+      [
+        { text: translateMobileText("Batal", language), style: "cancel" },
+        {
+          text: translateMobileText("Hapus", language),
+          style: "destructive",
+          onPress: () => {
+            void transactionSyncQueue.dismissFailed()
+              .then((records) => publishSyncQueueRecords(records, transactionSyncUserId))
+              .catch((error: unknown) => {
+                console.error("Could not dismiss failed native transaction sync items.", error);
+                Alert.alert(
+                  translateMobileText("Sinkronisasi gagal", language),
+                  error instanceof Error ? error.message : "Antrean transaksi lokal tidak dapat diperbarui.",
+                );
+              });
+          },
+        },
+      ],
+    );
+  }, [language, publishSyncQueueRecords, transactionSyncQueue, transactionSyncUserId]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !transactionSyncQueue) return;
+    let active = true;
+    void transactionSyncQueue.getRecords()
+      .then((records) => {
+        if (active) publishSyncQueueRecords(records, transactionSyncUserId);
+      })
+      .catch((error: unknown) => {
+        console.error("Could not load the native transaction sync queue.", error);
+        if (active) {
+          Alert.alert(
+            translateMobileText("Sinkronisasi gagal", languageRef.current),
+            error instanceof Error ? error.message : "Antrean transaksi tersimpan tidak dapat dibaca.",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [authStatus, publishSyncQueueRecords, transactionSyncQueue, transactionSyncUserId]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !transactionSyncUserId) return;
+    let active = true;
+    let checking = false;
+    const probe = async () => {
+      if (checking) return;
+      checking = true;
+      let reachable = false;
+      try {
+        reachable = await checkApiConnectivity();
+      } catch {
+        reachable = false;
+      } finally {
+        checking = false;
+      }
+      if (!active || authUserRef.current?.id !== transactionSyncUserId) return;
+      setBackendReachable(reachable);
+      if (reachable && syncQueueRecordsRef.current.some((record) => !record.failed)) {
+        void flushTransactionSync(true).catch((error: unknown) => {
+          console.error("Native transaction sync failed after the backend became reachable.", error);
+        });
+      }
+    };
+    void probe();
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const startInterval = () => {
+      if (!interval) interval = setInterval(() => void probe(), 30_000);
+    };
+    const stopInterval = () => {
+      if (interval) clearInterval(interval);
+      interval = undefined;
+    };
+    if (AppState.currentState === "active") startInterval();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void probe();
+        startInterval();
+      } else {
+        stopInterval();
+      }
+    });
+    return () => {
+      active = false;
+      stopInterval();
+      subscription.remove();
+    };
+  }, [authStatus, flushTransactionSync, transactionSyncUserId]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !transactionSyncQueue) return;
+    let active = true;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const attemptSync = () => {
+      void flushTransactionSync().catch((error: unknown) => {
+        console.error("Automatic native transaction sync failed.", error);
+        if (active) showToast(translateMobileText("Sinkronisasi gagal", languageRef.current), "error");
+      });
+    };
+    const scheduleNextAttempt = (records: NativeTransactionSyncRecord[]) => {
+      if (retryTimer) clearTimeout(retryTimer);
+      const nextAttemptAt = records
+        .filter((record) => !record.failed)
+        .reduce((earliest, record) => Math.min(earliest, record.nextAttemptAt ?? Date.now()), Infinity);
+      const delay = Number.isFinite(nextAttemptAt)
+        ? Math.max(0, Math.min(30_000, nextAttemptAt - Date.now()))
+        : 30_000;
+      retryTimer = setTimeout(() => {
+        if (AppState.currentState === "active") attemptSync();
+        else scheduleNextAttempt(syncQueueRecordsRef.current);
+      }, delay);
+    };
+    scheduleNextAttempt(syncQueueRecords);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !active) return;
+      if (retryTimer) clearTimeout(retryTimer);
+      attemptSync();
+    });
+    return () => {
+      active = false;
+      if (retryTimer) clearTimeout(retryTimer);
+      subscription.remove();
+    };
+  }, [authStatus, flushTransactionSync, showToast, syncQueueRecords, transactionSyncQueue]);
   const refreshCategories = useCallback(async () => {
     const response = await financeApi.listCategories();
     setCategories(response.filter((item) => item.is_active).map(toDemoCategory));
@@ -1144,14 +1420,30 @@ function AppShell() {
       if (authStatus === "signedOut") {
         setTransactions([]);
         setRawTransactions([]);
+        syncQueueRecordsRef.current = [];
+        setSyncQueueRecords([]);
         setCategories([]);
         setFinanceError(null);
         setFinanceLoading(false);
       }
     });
   }, [authStatus, refreshFinanceData]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !authUser) return;
+    let wasInactive = false;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") {
+        wasInactive = true;
+        return;
+      }
+      if (!wasInactive) return;
+      wasInactive = false;
+      void refreshFinanceData();
+    });
+    return () => subscription.remove();
+  }, [authStatus, authUser, refreshFinanceData]);
 
-  const transactionPayload = useCallback((transaction: NewDemoTransaction) => {
+  const transactionPayload = useCallback((transaction: NewDemoTransaction): NativeTransactionPayload => {
     const category = categories.find((item) =>
       item.name === transaction.category || item.label === transaction.category,
     );
@@ -1176,7 +1468,11 @@ function AppShell() {
     };
   }, [categories, userSettings]);
   const addTransaction = useCallback(async (transaction: NewDemoTransaction) => {
-    const optimisticId = `optimistic-${Date.now()}-${++optimisticTransactionSequence.current}`;
+    const optimisticId = `${NATIVE_PENDING_TRANSACTION_PREFIX}${Date.now()}-${++optimisticTransactionSequence.current}`;
+    const payload: NativeTransactionPayload = {
+      ...transactionPayload(transaction),
+      reference_number: optimisticId,
+    };
     const optimisticTransaction: DemoTransaction = {
       ...transaction,
       id: optimisticId,
@@ -1194,58 +1490,148 @@ function AppShell() {
       isRead: false,
     }, ...current]);
     try {
-      const created = await financeApi.createTransaction(transactionPayload(transaction));
+      const created = await financeApi.createTransaction(payload);
       const categoryNames = new Map(categories.map((item) => [item.id, item.name]));
       const mapped = toDemoTransaction(created, categoryNames, language, userSettings?.timezone);
       setTransactions((current) => current
         .map((item) => item.id === optimisticId ? mapped : item)
         .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date)));
       setRawTransactions((current) => [created, ...current]);
-      setFinanceRevision((revision) => revision + 1);
+      invalidateFinancialSnapshots();
       showToast(translateMobileText("Transaksi Berhasil", language));
       void notificationRefreshRef.current();
     } catch (error) {
+      if (isRetryableTransactionMutationError(error) && transactionSyncQueue) {
+        try {
+          const records = await transactionSyncQueue.enqueue({
+            action: "create",
+            entityId: optimisticId,
+            payload,
+            draft: transaction,
+          }, 1);
+          publishSyncQueueRecords(records, transactionSyncUserId);
+          showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
+          return;
+        } catch (queueError) {
+          console.error("Could not persist the pending native transaction.", queueError);
+          setTransactions((current) => current.filter((item) => item.id !== optimisticId));
+          setNotifications((current) => current.filter((item) => item.id !== optimisticNotificationId));
+          throw new Error(`${translateMobileText("Transaksi tidak dapat disimpan.", language)} ${queueError instanceof Error ? queueError.message : "Antrean lokal tidak dapat disimpan."}`);
+        }
+      }
       setTransactions((current) => current.filter((item) => item.id !== optimisticId));
       setNotifications((current) => current.filter((item) => item.id !== optimisticNotificationId));
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
       console.error("Failed to create native transaction.", error);
       throw new Error(`${translateMobileText("Transaksi tidak dapat disimpan.", language)} ${message}`);
     }
-  }, [categories, language, showToast, transactionPayload, userSettings]);
+  }, [categories, invalidateFinancialSnapshots, language, publishSyncQueueRecords, showToast, transactionPayload, transactionSyncQueue, transactionSyncUserId, userSettings]);
   const updateTransaction = useCallback(async (id: string, transaction: NewDemoTransaction) => {
+    const payload = transactionPayload(transaction);
     const previous = transactions.find((item) => item.id === id);
+    const queuedMutation = syncQueueRecordsRef.current.find((record) => record.entityId === id);
+    if (queuedMutation?.action === "delete") {
+      throw new Error(translateMobileText("Transaksi sudah menunggu penghapusan.", language));
+    }
+    if (queuedMutation && transactionSyncQueue) {
+      const records = await transactionSyncQueue.enqueue({
+        action: "update",
+        entityId: id,
+        payload,
+        draft: transaction,
+      });
+      publishSyncQueueRecords(records, transactionSyncUserId);
+      setTransactions((current) => current.map((item) =>
+        item.id === id
+          ? queuedMutation.action === "create"
+            ? { ...transaction, id, status: item.status, syncState: "pending" }
+            : { ...item, syncState: "pending" }
+          : item,
+      ));
+      invalidateFinancialSnapshots();
+      showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
+      return;
+    }
     if (previous) setTransactions((current) => current.map((item) =>
       item.id === id ? { ...transaction, id, status: item.status } : item,
     ));
     try {
-      const updated = await financeApi.updateTransaction(id, transactionPayload(transaction));
+      const updated = await financeApi.updateTransaction(id, payload);
       const categoryNames = new Map(categories.map((item) => [item.id, item.name]));
       const mapped = toDemoTransaction(updated, categoryNames, language, userSettings?.timezone);
       setTransactions((current) => current
         .map((item) => item.id === id ? mapped : item)
         .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date)));
       setRawTransactions((current) => current.map((item) => item.id === id ? updated : item));
-      setFinanceRevision((revision) => revision + 1);
+      invalidateFinancialSnapshots();
       showToast(translateMobileText("Transaksi berhasil diperbarui.", language));
     } catch (error) {
+      if (isRetryableTransactionMutationError(error) && transactionSyncQueue) {
+        if (previous) setTransactions((current) => current.map((item) => item.id === id ? previous : item));
+        try {
+          const records = await transactionSyncQueue.enqueue({
+            action: "update",
+            entityId: id,
+            payload,
+          }, 1);
+          publishSyncQueueRecords(records, transactionSyncUserId);
+          showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
+          return;
+        } catch (queueError) {
+          console.error("Could not persist the pending native transaction update.", queueError);
+          throw new Error(`${translateMobileText("Transaksi tidak dapat diperbarui.", language)} ${queueError instanceof Error ? queueError.message : "Antrean lokal tidak dapat disimpan."}`);
+        }
+      }
       if (previous) setTransactions((current) => current.map((item) => item.id === id ? previous : item));
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
       console.error("Failed to update native transaction.", error);
       throw new Error(`${translateMobileText("Transaksi tidak dapat diperbarui.", language)} ${message}`);
     }
-  }, [categories, language, showToast, transactionPayload, transactions, userSettings]);
+  }, [categories, invalidateFinancialSnapshots, language, publishSyncQueueRecords, showToast, transactionPayload, transactionSyncQueue, transactionSyncUserId, transactions, userSettings]);
   const removeTransaction = useCallback(async (id: string) => {
+    const queuedMutation = syncQueueRecordsRef.current.find((record) => record.entityId === id);
+    if (queuedMutation?.action === "create" && transactionSyncQueue) {
+      const records = await transactionSyncQueue.enqueue({ action: "delete", entityId: id, payload: null });
+      publishSyncQueueRecords(records, transactionSyncUserId);
+      setTransactions((current) => current.filter((item) => item.id !== id));
+      setNotifications((current) => current.filter((item) => item.id !== `local-${id}`));
+      invalidateFinancialSnapshots();
+      return;
+    }
+    if (queuedMutation?.action === "delete") return;
     try {
       const response = await financeApi.removeTransaction(id);
-      if (!response.success) throw new Error("The server could not delete the transaction.");
+      if (!response.success) {
+        throw new ApiError("The server could not delete the transaction.", 500, response);
+      }
       setTransactions((current) => current.filter((item) => item.id !== id));
       setRawTransactions((current) => current.filter((item) => item.id !== id));
+      invalidateFinancialSnapshots();
     } catch (error) {
+      if (isRetryableTransactionMutationError(error) && transactionSyncQueue) {
+        try {
+          const records = await transactionSyncQueue.enqueue({
+            action: "delete",
+            entityId: id,
+            payload: null,
+          }, 1);
+          publishSyncQueueRecords(records, transactionSyncUserId);
+          showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
+          return;
+        } catch (queueError) {
+          console.error("Could not persist the pending native transaction deletion.", queueError);
+          Alert.alert(
+            translateMobileText("Transaksi tidak dapat dihapus.", language),
+            queueError instanceof Error ? queueError.message : "Antrean lokal tidak dapat disimpan.",
+          );
+          return;
+        }
+      }
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
       console.error("Failed to delete native transaction.", error);
       Alert.alert(translateMobileText("Transaksi tidak dapat dihapus.", language), message);
     }
-  }, [language]);
+  }, [invalidateFinancialSnapshots, language, publishSyncQueueRecords, showToast, transactionSyncQueue, transactionSyncUserId]);
   const loadNotifications = useCallback(async () => {
     try {
       const response = await notificationApi.list();
@@ -1340,6 +1726,8 @@ function AppShell() {
       () => setNotifications([]),
     );
   }, [runNotificationAction]);
+  const pendingSyncCount = syncQueueRecords.filter((record) => !record.failed).length;
+  const failedSyncCount = syncQueueRecords.filter((record) => record.failed).length;
   const transactionContext = useMemo(() => ({
     transactions,
     rawTransactions,
@@ -1347,6 +1735,7 @@ function AppShell() {
     financeLoading,
     financeError,
     financeRevision,
+    invalidateFinancialSnapshots,
     notifications,
     notificationError,
     addTransaction,
@@ -1360,7 +1749,7 @@ function AppShell() {
     retryNotificationLoad,
     refreshCategories,
     showToast,
-  }), [addTransaction, categories, financeError, financeLoading, financeRevision, markAllNotificationsRead, markNotificationRead, notificationError, notifications, rawTransactions, refreshCategories, refreshFinanceData, removeAllNotifications, removeNotification, removeTransaction, retryNotificationLoad, showToast, transactions, updateTransaction]);
+  }), [addTransaction, categories, financeError, financeLoading, financeRevision, invalidateFinancialSnapshots, markAllNotificationsRead, markNotificationRead, notificationError, notifications, rawTransactions, refreshCategories, refreshFinanceData, removeAllNotifications, removeNotification, removeTransaction, retryNotificationLoad, showToast, transactions, updateTransaction]);
   const changeLanguage = useCallback(async (nextLanguage: MobileLanguage) => {
     if (!await saveUserSettings({ language: nextLanguage })) return;
     try {
@@ -1587,15 +1976,46 @@ function AppShell() {
       <TransientPopupDismissAllContext.Provider value={dismissTransientUi}>
       <View style={styles.screen}>
         <Header palette={palette} user={authUser} notificationItems={notifications} unreadNotificationCount={unreadNotificationCount} searchOpen={headerSearchOpen} onSearchOpenChange={setHeaderSearchOpen} onDismissTransient={dismissTransientUi} onNavigate={navigateToRoute} onMenu={() => { dismissTransientUi(); setDrawerOpen(true); }} onNotifications={() => navigateToRoute("notifications")} onMarkAllNotificationsRead={markAllNotificationsRead} onProfile={() => navigateToRoute("profile")} onSettings={() => navigateToRoute("settings")} />
+        {(backendReachable === false || syncQueueRecords.length > 0) && <View
+          accessibilityRole="summary"
+          style={[styles.nativeSyncBanner, { backgroundColor: palette.muted, borderColor: palette.border }]}
+        >
+          <MaterialCommunityIcons
+            name={backendReachable === false ? "cloud-off-outline" : failedSyncCount > 0 ? "alert-circle-outline" : "cloud-sync-outline"}
+            size={18}
+            color={backendReachable === false || failedSyncCount > 0 ? palette.warning : palette.accent}
+          />
+          <View style={styles.nativeSyncBannerCopy}>
+            {backendReachable === false
+              ? <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Koneksi ke server terputus.", language)}</Text>
+              : failedSyncCount > 0
+                ? <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{failedSyncCount} • {translateMobileText("Sinkronisasi gagal", language)}</Text>
+                : <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Menyinkronkan transaksi...", language)}</Text>}
+            {pendingSyncCount > 0 && <Text style={[styles.nativeSyncBannerDetail, { color: palette.secondaryText }]}>
+              {pendingSyncCount} {translateMobileText("transaksi menunggu sinkronisasi.", language)}
+            </Text>}
+            {backendReachable === false && <Text style={[styles.nativeSyncBannerDetail, { color: palette.secondaryText }]}>{translateMobileText("Periksa koneksi lalu tunggu server dapat dijangkau kembali.", language)}</Text>}
+          </View>
+          {failedSyncCount > 0 && <View style={styles.nativeSyncBannerActions}>
+            <Pressable accessibilityRole="button" onPress={() => { void retryPendingSync(); }} style={[styles.nativeSyncAction, { borderColor: palette.border, backgroundColor: palette.card }]}>
+              <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Coba sinkronkan lagi", language)}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => void dismissFailedSync()} style={[styles.nativeSyncAction, { borderColor: palette.border, backgroundColor: palette.card }]}>
+              <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Hapus dari antrean", language)}</Text>
+            </Pressable>
+          </View>}
+        </View>}
         <View
           style={styles.pageContent}
           onTouchStart={(event) => dismissTransientUiOutsidePopup(event.nativeEvent.pageX, event.nativeEvent.pageY)}
         >
-          {route === "dashboard" ? (
-            <Dashboard key={authUser.id} palette={palette} userId={authUser.id} displayName={authUser.full_name?.trim() || authUser.username?.trim() || authUser.email} onNavigate={navigateToRoute} />
-          ) : (
-            <FeaturePage route={route} palette={palette} onNavigate={navigateToRoute} onAddTransaction={openAddTransaction} onEditTransaction={openEditTransaction} onViewTransaction={openViewTransaction} onThemeChange={changeTheme} onLanguageChange={changeLanguage} language={language} user={authUser} onUserChange={onProfileChanged} onLogout={handleLogout} onAccountDeleted={handleAccountDeleted} logoutLoading={logoutLoading} userSettings={userSettings} onSettingsChange={saveUserSettings} pushEnabled={pushEnabled} pushError={pushError} onPushEnabledChange={registerNativePush} pushSaving={pushSaving} />
-          )}
+          <BackendOfflineContext.Provider value={backendReachable !== true}>
+            {route === "dashboard" ? (
+              <Dashboard key={authUser.id} palette={palette} userId={authUser.id} displayName={authUser.full_name?.trim() || authUser.username?.trim() || authUser.email} onNavigate={navigateToRoute} />
+            ) : (
+              <FeaturePage route={route} palette={palette} onNavigate={navigateToRoute} onAddTransaction={openAddTransaction} onEditTransaction={openEditTransaction} onViewTransaction={openViewTransaction} onThemeChange={changeTheme} onLanguageChange={changeLanguage} language={language} user={authUser} onUserChange={onProfileChanged} onLogout={handleLogout} onAccountDeleted={handleAccountDeleted} logoutLoading={logoutLoading} userSettings={userSettings} onSettingsChange={saveUserSettings} pushEnabled={pushEnabled} pushError={pushError} onPushEnabledChange={registerNativePush} pushSaving={pushSaving} />
+            )}
+          </BackendOfflineContext.Provider>
         </View>
         <View style={[styles.bottomNav, { backgroundColor: palette.background, borderColor: palette.border, paddingBottom: Math.max(insets.bottom, 2) }]}>
           {bottomTabs.map((tab) => {
@@ -2878,6 +3298,7 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
           <Text style={[styles.transactionDateText, { color: palette.secondaryText }]}>{formatTransactionDate(item, language)}</Text>
           <View style={[styles.categoryBadge, { backgroundColor: palette.muted }]}><RawText numberOfLines={1} style={[styles.transactionCategoryText, { color: palette.text }]}>{item.category}</RawText></View>
           <Text numberOfLines={1} style={[styles.transactionNoteText, { color: palette.secondaryText }]}>{item.note}</Text>
+          {item.syncState && <Text style={[styles.transactionSyncStatus, { color: palette.text }]}>{translateMobileText(item.syncState === "failed" ? "Sinkronisasi gagal" : "Belum tersinkron", language)}</Text>}
         </View>
         <Text style={[styles.transactionAmount, { color: item.income ? palette.incomeAmount : palette.expenseAmount }]}>{item.amount}</Text>
       </View>
@@ -2917,7 +3338,7 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
 
 function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) {
   const language = useContext(MobileLanguageContext);
-  const { transactions, categories } = useDemoTransactions();
+  const { transactions, categories, financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const now = new Date();
   const [budgets, setBudgets] = useState<DemoBudget[]>(() => budgetSnapshots.get(userId) ?? []);
   const [budgetsLoading, setBudgetsLoading] = useState(true);
@@ -2984,7 +3405,7 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
   }, [categories, transactions, userId, setBudgets, setBudgetsError, setBudgetsLoading]);
   useEffect(() => {
     void Promise.resolve().then(loadBudgets);
-  }, [loadBudgets]);
+  }, [financeRevision, loadBudgets]);
 
   const periodBudgets = budgets.filter((item) => item.month === month && item.year === year);
   const filteredBudgets = periodBudgets.filter((item) => item.category.toLowerCase().includes(query.trim().toLowerCase()));
@@ -3232,9 +3653,14 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
     onConfirm={() => {
       if (pendingBudgetDelete) {
         void financeApi.removeBudget(pendingBudgetDelete.id)
-          .then(async (response) => {
+          .then((response) => {
             if (!response.success) throw new Error("The server could not delete the budget.");
-            await loadBudgets();
+            invalidateFinancialSnapshots();
+            setBudgets((current) => {
+              const next = current.filter((budget) => budget.id !== pendingBudgetDelete.id);
+              budgetSnapshots.set(userId, next);
+              return next;
+            });
           })
           .catch((error: unknown) => {
             const message = error instanceof Error ? error.message : "Silakan coba lagi.";
@@ -3250,7 +3676,7 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
 
 function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
   const language = useContext(MobileLanguageContext);
-  const { categories } = useDemoTransactions();
+  const { categories, financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const today = getLocalDateInput();
   const [goals, setGoals] = useState<DemoGoal[]>(() => goalSnapshots.get(userId) ?? []);
   const [goalsLoading, setGoalsLoading] = useState(true);
@@ -3317,7 +3743,7 @@ function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
   }, [categories, userId]);
   useEffect(() => {
     void Promise.resolve().then(loadGoals);
-  }, [loadGoals]);
+  }, [financeRevision, loadGoals]);
 
   const sortOptions: [string, string][] = [
     ["name_asc", "Nama (A-Z)"],
@@ -3583,10 +4009,16 @@ function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
       onClose={() => setPendingGoalDelete(null)}
       onConfirm={() => {
         if (pendingGoalDelete) {
-          void financeApi.removeSavingGoal(pendingGoalDelete.id)
-            .then(async (response) => {
+          const deletedGoalId = pendingGoalDelete.id;
+          void financeApi.removeSavingGoal(deletedGoalId)
+            .then((response) => {
               if (!response.success) throw new Error("The server could not delete the saving goal.");
-              await loadGoals();
+              invalidateFinancialSnapshots();
+              setGoals((current) => {
+                const next = current.filter((goal) => goal.id !== deletedGoalId);
+                goalSnapshots.set(userId, next);
+                return next;
+              });
             })
             .catch((error: unknown) => {
               const message = error instanceof Error ? error.message : "Silakan coba lagi.";
@@ -3633,7 +4065,7 @@ const GoalCardNative = memo(function GoalCardNative({ goal, palette, onView, onE
       ? palette.border
       : darkTheme ? "rgba(59,130,246,0.3)" : "rgba(29,78,216,0.3)";
   const formatGoalDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString(language === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short", year: "numeric" });
-  const amounts = [["Target", goal.target], ["Terkumpul", goal.current], ["Sisa", Math.max(0, goal.target - goal.current)]] as const;
+  const amounts = [["Target", goal.target], ["Sisa", Math.max(0, goal.target - goal.current)]] as const;
   return <View style={[styles.goalCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
     <View style={styles.goalCardHeading}>
       <View style={styles.goalCardCopy}>
@@ -3642,12 +4074,25 @@ const GoalCardNative = memo(function GoalCardNative({ goal, palette, onView, onE
       </View>
       <View style={[styles.goalStatusChip, { backgroundColor: statusBackground, borderColor: statusBorder }]}><Text style={[styles.goalStatusText, { color: statusColor }]}>{statusLabel}</Text></View>
     </View>
-    <View style={[styles.goalProgressTrack, { backgroundColor: palette.border }]}><View style={[styles.goalProgressFill, { backgroundColor: palette.accent, width: `${Math.min(100, percentage)}%` as `${number}%` }]} /></View>
-    <Text style={[styles.goalPercentage, { color: palette.secondaryText }]}>{Math.round(percentage)}%</Text>
+    <View style={styles.goalProgressSummary}>
+      <View style={styles.goalProgressLead}>
+        <Text style={[styles.goalAmountLabel, { color: palette.secondaryText }]}>Terkumpul</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.goalProgressValue, { color: palette.text }]}>{formatBudgetMoney(goal.current, true)}</Text>
+      </View>
+      <Text style={[styles.goalPercentage, { color: palette.accent }]}>{Math.round(percentage)}%</Text>
+    </View>
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={`Progres target ${goal.name}`}
+      accessibilityValue={{ min: 0, max: 100, now: Math.max(0, Math.min(100, percentage)) }}
+      style={[styles.goalProgressTrack, { backgroundColor: palette.border }]}
+    >
+      <View style={[styles.goalProgressFill, { backgroundColor: palette.accent, width: `${Math.min(100, percentage)}%` as `${number}%` }]} />
+    </View>
     <View style={styles.goalAmounts}>
       {amounts.map(([label, value]) => <View key={label} style={[styles.goalAmountItem, viewportWidth < 400 && styles.goalAmountItemNarrow]}>
         <Text style={[styles.goalAmountLabel, { color: palette.secondaryText }]}>{label}</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.goalAmountValue, { color: palette.text }]}>{formatBudgetMoney(value, true)}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={[label === "Target" ? styles.goalTargetValue : styles.goalAmountValue, { color: palette.text }]}>{formatBudgetMoney(value, true)}</Text>
       </View>)}
     </View>
     <Text style={[styles.goalEstimate, { color: palette.secondaryText }]}>Estimasi tercapai: {estimate ? formatGoalDate(estimate) : "Belum cukup data"}</Text>
@@ -3661,6 +4106,7 @@ const GoalCardNative = memo(function GoalCardNative({ goal, palette, onView, onE
 
 function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string }) {
   const language = useContext(MobileLanguageContext);
+  const { financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const [items, setItems] = useState<DemoInvestment[]>(() => investmentSnapshots.get(userId) ?? []);
   const [itemsLoading, setItemsLoading] = useState(true);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -3735,7 +4181,7 @@ function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string
   }, [userId]);
   useEffect(() => {
     void Promise.resolve().then(loadInvestments);
-  }, [loadInvestments]);
+  }, [financeRevision, loadInvestments]);
 
   const typeOptions = [
     { value: "all", label: "Semua Jenis" },
@@ -4127,10 +4573,16 @@ function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string
       onClose={() => setPendingInvestmentDelete(null)}
       onConfirm={() => {
         if (pendingInvestmentDelete) {
-          void financeApi.removeInvestment(pendingInvestmentDelete.id)
-            .then(async (response) => {
+          const deletedInvestmentId = pendingInvestmentDelete.id;
+          void financeApi.removeInvestment(deletedInvestmentId)
+            .then((response) => {
               if (!response.success) throw new Error("The server could not delete the investment.");
-              await loadInvestments();
+              invalidateFinancialSnapshots();
+              setItems((current) => {
+                const next = current.filter((item) => item.id !== deletedInvestmentId);
+                investmentSnapshots.set(userId, next);
+                return next;
+              });
             })
             .catch((error: unknown) => {
               const message = error instanceof Error ? error.message : "Silakan coba lagi.";
@@ -5417,7 +5869,7 @@ function ReportCategoryBreakdown({
 }
 
 function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; onNavigate: (route: RouteKey) => void; userId: string }) {
-  const { transactions: allTransactions, showToast } = useDemoTransactions();
+  const { transactions: allTransactions, financeRevision, showToast } = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
   const [reportState, setReportState] = useState<{
     key: string;
@@ -5441,7 +5893,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
   const range = useMemo(() => getReportDateRange(period, customRange), [customRange, period]);
   const reportSpanDays = (Date.parse(`${range.end}T00:00:00`) - Date.parse(`${range.start}T00:00:00`)) / 86_400_000 + 1;
   const reportGranularity = reportSpanDays <= 31 ? "daily" : reportSpanDays <= 120 ? "weekly" : "monthly";
-  const reportSnapshotKey = `${userId}:${language}:${range.start}:${range.end}:${reportGranularity}`;
+  const reportSnapshotKey = `${userId}:${language}:${range.start}:${range.end}:${reportGranularity}:${financeRevision}`;
   const reportRequestKey = `${reportSnapshotKey}:${reportRefresh}`;
   const reportData = reportState?.key === reportRequestKey
     ? reportState.data
@@ -5517,6 +5969,9 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
     () => allTransactions.filter((transaction) => transaction.dateISO >= range.start && transaction.dateISO <= range.end),
     [allTransactions, range.end, range.start],
   );
+  const reportIsEmpty = reportSummary
+    ? reportSummary.summary.transactions === 0
+    : transactions.length === 0;
   const expenses = reportExpenses;
   const incomes = reportIncomes;
   const localIncome = reportSummary ? 0 : transactions.filter((item) => item.income).reduce((sum, item) => sum + getTransactionAmount(item), 0);
@@ -5593,7 +6048,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
         <PageHeader palette={palette} title="Laporan Keuangan" description="Ringkasan kinerja keuangan Anda dalam periode terpilih." />
         <FinanceDataState palette={palette} loading={false} error={reportError} onRetry={() => { setReportRefresh((current) => current + 1); }} />
         <View style={styles.reportPeriodBlock}>
-          <View style={styles.reportPeriodHeading}>
+          <View style={[styles.reportPeriodHeading, width < 640 && styles.reportPeriodHeadingStacked]}>
             <Text style={[styles.cardTitle, { color: palette.text }]}>Periode</Text>
             <Pressable
               accessibilityRole="button"
@@ -5650,10 +6105,8 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
           )}
         </Card>
 
-        {transactions.length === 0 ? (
-          <View style={styles.reportEmpty}>
-            <EmptyPanel palette={palette} message="Belum ada transaksi pada periode terpilih." />
-          </View>
+        {reportError && !reportData ? null : reportIsEmpty ? (
+          <ReportEmptyState palette={palette} />
         ) : (
           <>
             <View style={styles.reportSummaryList}>
@@ -5884,7 +6337,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
 
 function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: string }) {
   const language = useContext(MobileLanguageContext);
-  const { rawTransactions, transactions, categories, financeError, refreshFinanceData } = useDemoTransactions();
+  const { rawTransactions, transactions, categories, financeError, financeRevision, refreshFinanceData } = useDemoTransactions();
   const { width } = useWindowDimensions();
   const [chartSelection, setChartSelection] = useState<ChartDetailSelection | null>(null);
   const [period, setPeriod] = useState<ReportPeriodKey>("thisMonth");
@@ -5912,7 +6365,7 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
   const analyticsGranularity: "daily" | "monthly" = (Date.parse(`${range.end}T23:59:59`) - Date.parse(`${range.start}T00:00:00`)) / 86_400_000 > 62
     ? "monthly"
     : "daily";
-  const analyticsSnapshotKey = `${userId}:${range.start}:${range.end}:${analyticsGranularity}`;
+  const analyticsSnapshotKey = `${userId}:${range.start}:${range.end}:${analyticsGranularity}:${financeRevision}`;
   const analyticsRequestKey = `${analyticsSnapshotKey}:${retryCount}`;
   const analyticsData = analyticsState?.snapshotKey === analyticsSnapshotKey
     ? analyticsState.data
@@ -6357,6 +6810,7 @@ function AnalysisPage({ route, palette, userId }: { route: "analytics" | "foreca
 }
 
 function ForecastPageNative({ palette, title, description, userId }: { palette: Palette; title: string; description: string; userId: string }) {
+  const { financeRevision } = useDemoTransactions();
   const { width } = useWindowDimensions();
   const [horizon, setHorizon] = useState(3);
   const [horizonModalOpen, setHorizonModalOpen] = useState(false);
@@ -6366,7 +6820,7 @@ function ForecastPageNative({ palette, title, description, userId }: { palette: 
     data: NativeForecastPageData | null;
     error: string | null;
   } | null>(null);
-  const forecastSnapshotKey = `${userId}:${horizon}`;
+  const forecastSnapshotKey = `${userId}:${horizon}:${financeRevision}`;
   const forecastData = forecastState?.key === forecastSnapshotKey
     ? forecastState.data
     : forecastSnapshots.get(forecastSnapshotKey) ?? null;
@@ -6970,11 +7424,11 @@ const SessionRow = memo(function SessionRow({ item, palette, language, current, 
   canRevoke: boolean;
   onRevoke: () => void;
 }) {
+  const deviceName = item.device_name?.trim();
   const deviceParts = [item.operating_system, item.browser]
     .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
-  const deviceName = item.device_name?.trim();
-  const device = deviceParts.join(", ")
-    || (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+  const device = (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+    || deviceParts.join(" · ")
     || translateMobileText("Perangkat tidak diketahui", language);
   const location = [item.city, item.country].filter(Boolean).join(", ")
     || translateMobileText("Lokasi tidak diketahui", language);
@@ -7103,7 +7557,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
         : null;
       const result = await sessionApi.list();
       setCurrentSessionId(currentId);
-      setSessions(result.sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId)));
+      setSessions(result);
     } catch (error) {
       console.error("Failed to load native active sessions.", error);
       setSessionsError(true);
@@ -7120,11 +7574,11 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
 
   const revokeSession = useCallback((session: NativeSession) => {
     if (session.id === currentSessionId) return;
+    const deviceName = session.device_name?.trim();
     const deviceParts = [session.operating_system, session.browser]
       .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
-    const deviceName = session.device_name?.trim();
-    const device = deviceParts.join(", ")
-      || (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+    const device = (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+      || deviceParts.join(" · ")
       || translateMobileText("Perangkat tidak diketahui", language);
     setSessionDialog({ kind: "single", session, device });
   }, [currentSessionId, language]);
@@ -7604,7 +8058,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
           <Card palette={palette} style={styles.settingsAboutCard}>
             <View style={[styles.settingsAboutRow, { borderColor: palette.border }]}>
               <Text style={[styles.settingsAccountLabel, { color: palette.secondaryText }]}>Versi</Text>
-              <Text style={[styles.settingsChoiceText, { color: palette.text }]}>v1.0.4</Text>
+              <Text style={[styles.settingsChoiceText, { color: palette.text }]}>v{Constants.expoConfig?.version ?? "1.0.4"}</Text>
             </View>
           </Card>
         </View>
@@ -7787,6 +8241,30 @@ function EmptyPanel({ palette, message, compact = false }: { palette: Palette; m
   return <View style={[styles.emptyPanel, compact && styles.emptyPanelCompact]}><MaterialCommunityIcons name="file-chart-outline" size={18} color={palette.secondaryText} /><Text style={[styles.emptyText, compact && styles.emptyTextCompact, { color: palette.secondaryText }]}>{message}</Text></View>;
 }
 
+function ReportEmptyState({ palette }: { palette: Palette }) {
+  const language = useContext(MobileLanguageContext);
+
+  return (
+    <View
+      accessibilityRole="summary"
+      accessibilityLiveRegion="polite"
+      style={[styles.reportEmptyCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
+    >
+      <View style={[styles.reportEmptyIcon, { backgroundColor: palette.muted }]}>
+        <MaterialCommunityIcons name="arrow-top-right" size={32} color={palette.secondaryText} />
+      </View>
+      <View style={styles.reportEmptyCopy}>
+        <Text style={[styles.reportEmptyTitle, { color: palette.text }]}>
+          {translateMobileText("Belum ada data laporan pada periode ini.", language)}
+        </Text>
+        <Text style={[styles.reportEmptyDescription, { color: palette.secondaryText }]}>
+          {translateMobileText("Data akan muncul setelah Anda menambahkan transaksi pada periode tersebut.", language)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function FinanceDataState({ palette, error, onRetry }: {
   palette: Palette;
   loading: boolean;
@@ -7794,15 +8272,16 @@ function FinanceDataState({ palette, error, onRetry }: {
   onRetry: () => void;
 }) {
   const language = useContext(MobileLanguageContext);
-  if (error) {
-    return <View style={[styles.emptyPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-      <Text style={[styles.emptyText, { color: palette.expenseAmount }]}>{error}</Text>
-      <Pressable accessibilityRole="button" onPress={onRetry} style={[styles.primaryButton, { backgroundColor: palette.accent }]}>
-        <Text style={{ color: palette.accentText, fontWeight: "700" }}>{translateMobileText("Coba lagi", language)}</Text>
-      </Pressable>
-    </View>;
-  }
-  return null;
+  const offline = useContext(BackendOfflineContext);
+  if (offline || !error) return null;
+  return <View style={[styles.emptyPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    <Text style={[styles.emptyText, { color: palette.secondaryText }]}>
+      {language === "en" ? "The financial summary could not be refreshed." : "Ringkasan keuangan belum dapat diperbarui."}
+    </Text>
+    <Pressable accessibilityRole="button" onPress={onRetry} style={[styles.primaryButton, { backgroundColor: palette.accent }]}>
+      <Text style={{ color: palette.accentText, fontWeight: "700" }}>{translateMobileText("Coba lagi", language)}</Text>
+    </Pressable>
+  </View>;
 }
 
 function Drawer({ open, route, palette, onClose, onNavigate }: { open: boolean; route: RouteKey; palette: Palette; onClose: () => void; onNavigate: (route: RouteKey) => void }) {
@@ -8170,6 +8649,12 @@ const styles = StyleSheet.create({
   transactionFilterCategoryButton: { alignSelf: "flex-start", width: 168 },
   transactionResetButton: { alignSelf: "stretch", backgroundColor: "transparent", borderRadius: 24, borderWidth: 0, flexDirection: "row", gap: 8, justifyContent: "center" },
   transactionContent: { paddingBottom: 28 },
+  nativeSyncBanner: { alignItems: "flex-start", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  nativeSyncBannerCopy: { flex: 1, gap: 3, minWidth: 140 },
+  nativeSyncBannerText: { fontSize: 12, fontWeight: "600" },
+  nativeSyncBannerDetail: { fontSize: 12 },
+  nativeSyncBannerActions: { alignItems: "stretch", gap: 6, width: "100%" },
+  nativeSyncAction: { alignItems: "center", borderRadius: 8, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 12 },
   transactionPrimaryButton: { borderRadius: 12, flexDirection: "row", gap: 6 },
   transactionFilterCard: { borderRadius: 20, gap: 12, marginTop: 24, padding: 16 },
   transactionSearchBox: { marginTop: 0, minHeight: 46 },
@@ -8186,6 +8671,7 @@ const styles = StyleSheet.create({
   transactionDateText: { fontSize: 12 },
   transactionCategoryText: { fontSize: 12 },
   transactionNoteText: { fontSize: 12, marginTop: 5 },
+  transactionSyncStatus: { fontSize: 11, fontWeight: "600", marginTop: 4 },
   transactionAmount: { fontSize: 14, fontWeight: "700", textAlign: "right" },
   transactionMobileActions: { alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "flex-end", marginTop: 10, paddingHorizontal: 8, paddingVertical: 4 },
   transactionActionButton: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
@@ -8327,22 +8813,26 @@ const styles = StyleSheet.create({
   goalFilterOptions: { borderRadius: 12, borderWidth: 1, elevation: 24, left: 0, maxHeight: 240, maxWidth: 260, paddingVertical: 4, position: "absolute", top: 48, width: 260, zIndex: 50 },
   goalFilterOption: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 44, paddingHorizontal: 12 },
   goalResetButton: { alignSelf: "stretch", minHeight: 44 },
-  goalCard: { borderRadius: 18, borderWidth: 1, marginTop: 16, padding: 16 },
+  goalCard: { borderRadius: 18, borderWidth: 1, marginTop: 16, padding: 18 },
   goalCardHeading: { alignItems: "flex-start", flexDirection: "row", gap: 8, justifyContent: "space-between" },
   goalCardCopy: { flex: 1, minWidth: 0 },
-  goalCardTitle: { fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  goalCardTitle: { fontSize: 15, fontWeight: "600", lineHeight: 21 },
   goalCardDescription: { fontSize: 12, lineHeight: 16, marginTop: 1 },
   goalStatusChip: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
   goalStatusText: { fontSize: 12, fontWeight: "600" },
-  goalProgressTrack: { borderRadius: 4, height: 8, marginTop: 12, overflow: "hidden", width: "100%" },
-  goalProgressFill: { borderRadius: 4, height: 8 },
-  goalPercentage: { fontSize: 12, lineHeight: 16, marginTop: 4 },
-  goalAmounts: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 12 },
+  goalProgressSummary: { alignItems: "flex-end", flexDirection: "row", gap: 12, justifyContent: "space-between", marginTop: 14 },
+  goalProgressLead: { flex: 1, minWidth: 0 },
+  goalProgressValue: { fontSize: 20, fontWeight: "700", lineHeight: 27, marginTop: 1 },
+  goalProgressTrack: { borderRadius: 5, height: 10, marginTop: 8, overflow: "hidden", width: "100%" },
+  goalProgressFill: { borderRadius: 5, height: 10 },
+  goalPercentage: { fontSize: 16, fontWeight: "700", lineHeight: 22, marginBottom: 2 },
+  goalAmounts: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 14 },
   goalAmountItem: { flex: 1, minWidth: 0 },
   goalAmountItemNarrow: { flexBasis: "48%", flexGrow: 0 },
-  goalAmountLabel: { fontSize: 11, lineHeight: 15, textAlign: "center" },
-  goalAmountValue: { fontSize: 11, fontWeight: "600", lineHeight: 15, textAlign: "center" },
-  goalEstimate: { fontSize: 12, lineHeight: 16, marginTop: 12 },
+  goalAmountLabel: { fontSize: 13, lineHeight: 18 },
+  goalAmountValue: { fontSize: 15, fontWeight: "600", lineHeight: 21 },
+  goalTargetValue: { fontSize: 17, fontWeight: "700", lineHeight: 23 },
+  goalEstimate: { fontSize: 14, lineHeight: 20, marginBottom: 8, marginTop: 12 },
   goalActions: { alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 2, marginTop: 0, paddingTop: 12 },
   goalActionButton: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
   goalEmptyState: { alignItems: "center", borderRadius: 18, borderWidth: 1, gap: 6, justifyContent: "center", marginTop: 18, minHeight: 210, padding: 20 },
@@ -8423,6 +8913,7 @@ const styles = StyleSheet.create({
   periodBar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
   reportPeriodBlock: { marginTop: 20 },
   reportPeriodHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  reportPeriodHeadingStacked: { alignItems: "flex-start", flexDirection: "column", gap: 8 },
   reportPeriodButton: { alignItems: "center", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 6, justifyContent: "center", minHeight: 44, paddingHorizontal: 12 },
   reportPeriodButtonText: { fontSize: 14, fontWeight: "500" },
   reportExportCard: { marginTop: 16, padding: 14 },
@@ -8626,7 +9117,11 @@ const styles = StyleSheet.create({
   profileAvatar: { alignItems: "center", backgroundColor: "#B2D5E5", borderRadius: 36, height: 72, justifyContent: "center", width: 72 },
   profileName: { fontSize: 20, fontWeight: "700", marginTop: 14 },
   exportButton: { alignItems: "center", borderRadius: 9, borderWidth: 1, justifyContent: "center", marginTop: 14, minHeight: 44, paddingHorizontal: 14 },
-  reportEmpty: { marginTop: 16, minHeight: 150 },
+  reportEmptyCard: { alignItems: "center", borderRadius: 16, borderWidth: 1, justifyContent: "center", marginTop: 16, minHeight: 360, paddingHorizontal: 24, paddingVertical: 48 },
+  reportEmptyIcon: { alignItems: "center", borderRadius: 16, height: 64, justifyContent: "center", width: 64 },
+  reportEmptyCopy: { alignItems: "center", marginTop: 16, maxWidth: 360 },
+  reportEmptyTitle: { fontSize: 16, fontWeight: "700", lineHeight: 24, textAlign: "center" },
+  reportEmptyDescription: { fontSize: 14, lineHeight: 22, marginTop: 4, textAlign: "center" },
   reportLegend: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 12 },
   reportLegendDot: { borderRadius: 5, height: 10, width: 10 },
   reportLegendLine: { borderTopWidth: 2, height: 0, width: 15 },

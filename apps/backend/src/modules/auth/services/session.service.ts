@@ -5,6 +5,8 @@ import { SessionEntity } from '../entities/session.entity';
 import { AuthRequestContext } from '../types/auth-request';
 import { deriveDeviceInfo } from './device-info';
 
+const UNKNOWN_DEVICE_OS = 'Unknown';
+
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
@@ -53,7 +55,17 @@ export class SessionService {
   }
 
   async listForUser(userId: string): Promise<SessionEntity[]> {
-    return this.repo.findActiveByUserId(userId);
+    const sessions = await this.repo.findActiveByUserId(userId);
+    return sessions.map((session) => {
+      const deviceInfo = deriveDeviceInfo(session.user_agent ?? null);
+      if (
+        deviceInfo.operating_system === UNKNOWN_DEVICE_OS ||
+        deviceInfo.browser === UNKNOWN_DEVICE_OS
+      ) {
+        return session;
+      }
+      return Object.assign(session, deviceInfo);
+    });
   }
 
   async revoke(sessionId: string, userId: string): Promise<void> {
@@ -106,7 +118,10 @@ export class SessionService {
     sessionId: string,
     context: AuthRequestContext,
   ): Promise<void> {
-    const info = deriveDeviceInfo(context.userAgent ?? null);
+    const info = deriveDeviceInfo(
+      context.userAgent ?? null,
+      context.clientPlatform,
+    );
     await this.repo.updateActivityContext(sessionId, {
       ip_address: context.ip ?? null,
       city: context.city ?? null,

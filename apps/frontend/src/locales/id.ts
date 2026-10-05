@@ -600,6 +600,10 @@ export const idText = {
     fieldNotes: "Catatan",
     deleteTitle: "Hapus Transaksi",
     deleteMessage: "Apakah Anda yakin ingin menghapus transaksi ini?",
+    deletePendingSync:
+      "Penghapusan belum dikonfirmasi server. Transaksi akan tetap ada sampai sinkronisasi berhasil.",
+    deleteFailed:
+      "Penghapusan gagal. Transaksi belum dihapus dari server.",
     typeIncome: "Pemasukan",
     typeExpense: "Pengeluaran",
     categoryLoadFailed:

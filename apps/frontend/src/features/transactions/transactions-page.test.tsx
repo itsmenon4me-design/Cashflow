@@ -4,15 +4,24 @@ import { getSafeReturnPath, TransactionsPage } from "./transactions-page";
 import { transactionService } from "@/services/transaction.service";
 import { categoryService } from "@/services/category.service";
 import { uiText } from "@/locales";
-import { ApiTimeoutError } from "@/lib/axios";
+import { ApiError, ApiTimeoutError } from "@/lib/axios";
 import { toInputDate } from "@/lib/date";
 
 const searchParamsMock = vi.hoisted(() => ({ value: new URLSearchParams() }));
+const syncClientMocks = vi.hoisted(() => ({
+  syncCreateTransaction: vi.fn(),
+  syncDeleteTransaction: vi.fn(),
+  syncUpdateTransaction: vi.fn(),
+  getPendingTransactionRecords: vi.fn(async () => []),
+  pendingRecordsToItems: vi.fn(async () => []),
+}));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsMock.value,
   useRouter: () => ({ replace: vi.fn() }),
 }));
+
+vi.mock("@/lib/offline/sync-client", () => syncClientMocks);
 
 describe("TransactionsPage", () => {
   afterEach(() => {
@@ -242,5 +251,87 @@ describe("TransactionsPage", () => {
     expect(
       screen.queryByRole("status", { name: uiText.common.loading }),
     ).not.toBeInTheDocument();
+  });
+
+  it("explains when transaction deletion is queued instead of confirmed", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      success: true,
+      data: [{
+        id: "transaction-1",
+        category_id: "category-1",
+        transaction_type: "EXPENSE",
+        amount_cents: "12000",
+        transaction_date: "2026-09-26T06:37:00.000Z",
+        note: "DATA DUMMY",
+        created_at: "2026-09-26T06:37:00.000Z",
+        updated_at: "2026-09-26T06:37:00.000Z",
+      }],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      },
+    });
+    syncClientMocks.syncDeleteTransaction.mockResolvedValue({ queued: true });
+
+    render(<TransactionsPage transactionType="expense" />);
+
+    fireEvent.click((await screen.findAllByRole("button", {
+      name: `${uiText.common.delete} DATA DUMMY`,
+    }))[0]);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", {
+      name: uiText.common.delete,
+    }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      uiText.transactions.deletePendingSync,
+    );
+  });
+
+  it("shows the server status when transaction deletion is rejected", async () => {
+    vi.spyOn(categoryService, "list").mockResolvedValue([]);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      success: true,
+      data: [{
+        id: "transaction-1",
+        category_id: "category-1",
+        transaction_type: "EXPENSE",
+        amount_cents: "12000",
+        transaction_date: "2026-09-26T06:37:00.000Z",
+        note: "DATA DUMMY",
+        created_at: "2026-09-26T06:37:00.000Z",
+        updated_at: "2026-09-26T06:37:00.000Z",
+      }],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      },
+    });
+    syncClientMocks.syncDeleteTransaction.mockRejectedValue(
+      new ApiError(404, { message: "Not Found" }),
+    );
+
+    render(<TransactionsPage transactionType="expense" />);
+
+    fireEvent.click((await screen.findAllByRole("button", {
+      name: `${uiText.common.delete} DATA DUMMY`,
+    }))[0]);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", {
+      name: uiText.common.delete,
+    }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `${uiText.transactions.deleteFailed} (HTTP 404)`,
+    );
   });
 });

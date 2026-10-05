@@ -19,6 +19,7 @@ import {
 import type { TransactionFiltersState } from "@/features/transactions/types";
 import type { TransactionFormValues } from "@/features/transactions/schema";
 import { uiText } from "@/locales";
+import { ApiError } from "@/lib/axios";
 import { isoToLocalTime } from "@/lib/date";
 import type { CategoryGroup } from "@/lib/categories";
 import { useDataRefreshStore } from "@/stores/refresh.store";
@@ -84,6 +85,7 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const [lookupsReady, setLookupsReady] = useState(false);
   const [formState, setFormState] = useState<FormState>({ open: addQuery === "1", mode: "create", transaction: null, session: 0 });
   const [deleting, setDeleting] = useState<TransactionItem | null>(null);
+  const [deleteFeedback, setDeleteFeedback] = useState<{ kind: "pending" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +161,29 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   const subtitle = transactionType === "income" ? uiText.transactions.incomeSubtitle : transactionType === "expense" ? uiText.transactions.expenseSubtitle : uiText.transactions.subtitle;
 
   const showAddButton = transactionType !== undefined;
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteFeedback(null);
+    try {
+      const result = await syncDeleteTransaction(deleting.id);
+      if (result.queued) {
+        setDeleteFeedback({ kind: "pending", message: uiText.transactions.deletePendingSync });
+      }
+    } catch (deleteError) {
+      console.error("Failed to delete transaction from the server.", deleteError);
+      const status = deleteError instanceof ApiError
+        ? ` (HTTP ${deleteError.status})`
+        : "";
+      setDeleteFeedback({
+        kind: "error",
+        message: `${uiText.transactions.deleteFailed}${status}`,
+      });
+    } finally {
+      setDeleting(null);
+      refresh();
+      bumpRefresh();
+    }
+  };
 
-  return <div className="space-y-6"><div className="min-h-[72px]"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div><TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} showCount={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters(createDefaultTransactionFilters(transactionType ?? "all", timeZone)); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} timeZone={timeZone} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={setDeleting} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={closeCreateForm} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} timeZone={timeZone} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { if (!deleting) return; void syncDeleteTransaction(deleting.id).finally(() => { setDeleting(null); refresh(); bumpRefresh(); }); }} /></LoadOnOpen></div>;
+  return <div className="space-y-6"><div className="min-h-[72px]"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{subtitle}</p></div>{deleteFeedback && <div role={deleteFeedback.kind === "error" ? "alert" : "status"} aria-live="polite" className={deleteFeedback.kind === "error" ? "rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" : "rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground"}>{deleteFeedback.message}</div>}<TransactionToolbar count={totalItems} loading={loading && !hasLoadedOnce} onAdd={() => openForm("create", null)} showAdd={showAddButton} showCount={showAddButton} /><TransactionFilters filters={filters} categoryGroups={categoryGroups} onChange={(next) => { setFilters(next); setPage(1); }} onReset={() => { setFilters(createDefaultTransactionFilters(transactionType ?? "all", timeZone)); setPage(1); }} showTypeFilter={!transactionType} />{error ? <ErrorState title={uiText.states.errorTitle} description={uiText.states.errorDescription} onRetry={refresh} /> : !loading && hasLoadedOnce && !visibleTransactions.length ? <EmptyState title={uiText.transactions.emptyTitle} description={uiText.transactions.emptySubtitle} icon={<ReceiptText className="size-8 text-muted-foreground" aria-hidden="true" />} /> : <><TransactionTable transactions={visibleTransactions} loading={loading && !hasLoadedOnce} timeZone={timeZone} sortBy={sort.key} sortOrder={sort.order} onSortChange={(key) => { setSort((current) => current.key === key ? { key, order: current.order === "asc" ? "desc" : "asc" } : { key, order: "desc" }); setPage(1); }} onView={(transaction) => openForm("view", transaction)} onEdit={(transaction) => openForm("edit", transaction)} onDuplicate={(transaction) => void handleDuplicate(transaction)} onDelete={(transaction) => { setDeleteFeedback(null); setDeleting(transaction); }} hideTypeColumn={!!transactionType} />{!loading && <TransactionPagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} onPageSizeChange={(value) => { setPageSize(value); setPage(1); }} />}</>}<LoadOnOpen active={formState.open || deleting !== null}><LazyTransactionForm key={formState.session} open={formState.open} onOpenChange={closeCreateForm} mode={formState.mode} transaction={formState.transaction} categories={Object.values(categoryNames).sort()} categoryTypes={categoryTypes} transactionType={transactionType} timeZone={timeZone} onSubmit={handleSubmit} /><LazyDeleteTransactionDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }} onConfirm={() => { void confirmDelete(); }} /></LoadOnOpen></div>;
 }

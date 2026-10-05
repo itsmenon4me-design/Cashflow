@@ -598,6 +598,10 @@ export const enText = {
     fieldNotes: "Notes",
     deleteTitle: "Delete Transaction",
     deleteMessage: "Are you sure you want to delete this transaction?",
+    deletePendingSync:
+      "The server has not confirmed the deletion. The transaction will remain until sync succeeds.",
+    deleteFailed:
+      "Deletion failed. The transaction was not deleted from the server.",
     typeIncome: "Income",
     typeExpense: "Expense",
     categoryLoadFailed:

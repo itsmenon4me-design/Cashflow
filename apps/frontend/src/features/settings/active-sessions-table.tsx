@@ -72,13 +72,13 @@ export function ActiveSessionsTable() {
     setError(false);
     try {
       const sessions = await sessionService.list();
-      setItems(sessions.sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId)));
+      setItems(sessions);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [currentId]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -142,8 +142,8 @@ export function ActiveSessionsTable() {
               const deviceParts = [session.operating_system, session.browser]
                 .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
               const deviceName = session.device_name?.trim();
-              const device = deviceParts.join(", ")
-                || (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+              const device = (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
+                || deviceParts.join(" · ")
                 || uiText.settingsPage.unknownDevice;
               return (
                 <tr key={session.id} className="align-middle">

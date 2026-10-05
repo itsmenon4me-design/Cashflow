@@ -1,4 +1,9 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+import {
+  invalidateNativeOfflineEntity,
+  withNativeOfflineCache,
+} from "./native-offline-cache";
 
 export type AuthTokens = {
   accessToken: string;
@@ -505,6 +510,9 @@ async function request<T>(
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const headers = new Headers(options.headers);
   headers.set("X-Device-Id", await getDeviceId());
+  if (Platform.OS === "android" || Platform.OS === "ios") {
+    headers.set("X-Client-Platform", Platform.OS);
+  }
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -669,8 +677,10 @@ export const financeApi = {
     getDashboardSummary: () =>
       request<NativeDashboardSummary>("/dashboard/summary"),
     async listCategories() {
-      const response = await request<ApiEnvelope<NativeCategory[]>>("/categories");
-      return requireData(response, "categories");
+      return withNativeOfflineCache("categories", "list", async () => {
+        const response = await request<ApiEnvelope<NativeCategory[]>>("/categories");
+        return requireData(response, "categories");
+      });
     },
     createCategory: (payload: {
       name: string;
@@ -679,7 +689,11 @@ export const financeApi = {
       color?: string;
       description?: string;
     }) => jsonRequest<ApiEnvelope<NativeCategory>>("/categories", "POST", payload)
-      .then((response) => requireData(response, "category")),
+      .then(async (response) => {
+        const category = requireData(response, "category");
+        await invalidateNativeOfflineEntity("categories");
+        return category;
+      }),
     updateCategory: (id: string, payload: {
       name?: string;
       type?: "INCOME" | "EXPENSE";
@@ -687,31 +701,41 @@ export const financeApi = {
       color?: string;
       description?: string;
     }) => jsonRequest<ApiEnvelope<NativeCategory>>(`/categories/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then((response) => requireData(response, "category")),
+      .then(async (response) => {
+        const category = requireData(response, "category");
+        await invalidateNativeOfflineEntity("categories");
+        return category;
+      }),
     removeCategory: (id: string) =>
-      request<ApiEnvelope<never>>(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      request<ApiEnvelope<never>>(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" })
+        .then(async (response) => {
+          await invalidateNativeOfflineEntity("categories");
+          return response;
+        }),
 
     async listTransactions() {
-      const result: NativeTransaction[] = [];
-      let page = 1;
-      let hasNext = true;
-      while (hasNext) {
-        const response = await request<{
-          success: boolean;
-          data: NativeTransaction[];
-          pagination: { page: number; hasNext: boolean };
-        }>(queryPath("/transactions", { page, limit: 100 }));
-        if (!response.success || !Array.isArray(response.data) || !response.pagination) {
-          throw new ApiError("The server returned an invalid transactions response.", 500, response);
+      return withNativeOfflineCache("transactions", "list:all", async () => {
+        const result: NativeTransaction[] = [];
+        let page = 1;
+        let hasNext = true;
+        while (hasNext) {
+          const response = await request<{
+            success: boolean;
+            data: NativeTransaction[];
+            pagination: { page: number; hasNext: boolean };
+          }>(queryPath("/transactions", { page, limit: 100 }));
+          if (!response.success || !Array.isArray(response.data) || !response.pagination) {
+            throw new ApiError("The server returned an invalid transactions response.", 500, response);
+          }
+          result.push(...response.data);
+          hasNext = response.pagination.hasNext;
+          page += 1;
+          if (page > 1000) {
+            throw new ApiError("The transaction list exceeded the supported pagination limit.", 500, response);
+          }
         }
-        result.push(...response.data);
-        hasNext = response.pagination.hasNext;
-        page += 1;
-        if (page > 1000) {
-          throw new ApiError("The transaction list exceeded the supported pagination limit.", 500, response);
-        }
-      }
-      return result;
+        return result;
+      });
     },
     createTransaction: (payload: {
       category_id: string;
@@ -719,8 +743,13 @@ export const financeApi = {
       amount_cents: number;
       transaction_date: string;
       note?: string;
+      reference_number?: string;
     }) => jsonRequest<ApiEnvelope<NativeTransaction>>("/transactions", "POST", payload)
-      .then((response) => requireData(response, "transaction")),
+      .then(async (response) => {
+        const transaction = requireData(response, "transaction");
+        await invalidateNativeOfflineEntity("transactions");
+        return transaction;
+      }),
     updateTransaction: (id: string, payload: {
       category_id?: string;
       transaction_type?: "INCOME" | "EXPENSE";
@@ -728,13 +757,23 @@ export const financeApi = {
       transaction_date?: string;
       note?: string;
     }) => jsonRequest<ApiEnvelope<NativeTransaction>>(`/transactions/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then((response) => requireData(response, "transaction")),
+      .then(async (response) => {
+        const transaction = requireData(response, "transaction");
+        await invalidateNativeOfflineEntity("transactions");
+        return transaction;
+      }),
     removeTransaction: (id: string) =>
-      request<ApiEnvelope<never>>(`/transactions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      request<ApiEnvelope<never>>(`/transactions/${encodeURIComponent(id)}`, { method: "DELETE" })
+        .then(async (response) => {
+          await invalidateNativeOfflineEntity("transactions");
+          return response;
+        }),
 
     async listBudgets() {
-      const response = await request<ApiEnvelope<NativeBudget[]>>("/budgets");
-      return requireData(response, "budgets");
+      return withNativeOfflineCache("budgets", "list", async () => {
+        const response = await request<ApiEnvelope<NativeBudget[]>>("/budgets");
+        return requireData(response, "budgets");
+      });
     },
     createBudget: (payload: {
       category_id: string;
@@ -742,20 +781,34 @@ export const financeApi = {
       month: number;
       year: number;
     }) => jsonRequest<ApiEnvelope<NativeBudget>>("/budgets", "POST", payload)
-      .then((response) => requireData(response, "budget")),
+      .then(async (response) => {
+        const budget = requireData(response, "budget");
+        await invalidateNativeOfflineEntity("budgets");
+        return budget;
+      }),
     updateBudget: (id: string, payload: {
       category_id?: string;
       budget_amount_cents?: number;
       month?: number;
       year?: number;
     }) => jsonRequest<ApiEnvelope<NativeBudget>>(`/budgets/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then((response) => requireData(response, "budget")),
+      .then(async (response) => {
+        const budget = requireData(response, "budget");
+        await invalidateNativeOfflineEntity("budgets");
+        return budget;
+      }),
     removeBudget: (id: string) =>
-      request<ApiEnvelope<never>>(`/budgets/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      request<ApiEnvelope<never>>(`/budgets/${encodeURIComponent(id)}`, { method: "DELETE" })
+        .then(async (response) => {
+          await invalidateNativeOfflineEntity("budgets");
+          return response;
+        }),
 
     async listSavingGoals() {
-      const response = await request<ApiEnvelope<NativeSavingGoal[]>>("/saving-goals");
-      return requireData(response, "saving goals");
+      return withNativeOfflineCache("saving-goals", "list", async () => {
+        const response = await request<ApiEnvelope<NativeSavingGoal[]>>("/saving-goals");
+        return requireData(response, "saving goals");
+      });
     },
     createSavingGoal: (payload: {
       name: string;
@@ -767,7 +820,11 @@ export const financeApi = {
       target_date: string;
       status?: NativeSavingGoal["status"];
     }) => jsonRequest<ApiEnvelope<NativeSavingGoal>>("/saving-goals", "POST", payload)
-      .then((response) => requireData(response, "saving goal")),
+      .then(async (response) => {
+        const goal = requireData(response, "saving goal");
+        await invalidateNativeOfflineEntity("saving-goals");
+        return goal;
+      }),
     updateSavingGoal: (id: string, payload: {
       name?: string;
       category_id?: string | null;
@@ -778,9 +835,17 @@ export const financeApi = {
       target_date?: string;
       status?: NativeSavingGoal["status"];
     }) => jsonRequest<ApiEnvelope<NativeSavingGoal>>(`/saving-goals/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then((response) => requireData(response, "saving goal")),
+      .then(async (response) => {
+        const goal = requireData(response, "saving goal");
+        await invalidateNativeOfflineEntity("saving-goals");
+        return goal;
+      }),
     removeSavingGoal: (id: string) =>
-      request<ApiEnvelope<never>>(`/saving-goals/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      request<ApiEnvelope<never>>(`/saving-goals/${encodeURIComponent(id)}`, { method: "DELETE" })
+        .then(async (response) => {
+          await invalidateNativeOfflineEntity("saving-goals");
+          return response;
+        }),
 
     async listInvestments() {
       const response = await request<ApiEnvelope<NativeInvestment[]>>("/investments");
@@ -862,4 +927,18 @@ export async function getAuthenticatedUser() {
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
+}
+
+export async function checkApiConnectivity(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const response = await fetch(`${API_BASE_URL}/health/live`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    return response.ok;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

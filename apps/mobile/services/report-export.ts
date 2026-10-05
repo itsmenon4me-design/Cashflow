@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
+import ReportDownloads from "../modules/report-download";
 import type { NativeReportExport } from "./api-client";
 
 const XLSX_CONTENT_TYPE =
@@ -22,9 +23,23 @@ export async function saveNativeReportExport(
     throw new Error("The server returned an invalid Excel report file.");
   }
 
-  if (Platform.OS === "android" && Number(Platform.Version) >= 30) {
+  if (Platform.OS === "android") {
+    if (Number(Platform.Version) >= 29) {
+      if (!ReportDownloads) {
+        throw new Error("Direct Downloads storage is unavailable in this Android build.");
+      }
+      await ReportDownloads.saveToDownloads(
+        report.content,
+        report.filename,
+        XLSX_CONTENT_TYPE,
+      );
+      return "saved";
+    }
+
     const permission =
-      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(
+        FileSystem.StorageAccessFramework.getUriForDirectoryInRoot("Download"),
+      );
     if (!permission.granted) return "cancelled";
 
     const fileName = report.filename.slice(0, -".xlsx".length);
@@ -39,7 +54,7 @@ export async function saveNativeReportExport(
     return "saved";
   }
 
-  if (Platform.OS !== "ios" && Platform.OS !== "android") {
+  if (Platform.OS !== "ios") {
     throw new Error("Excel report export is only available on native devices.");
   }
 

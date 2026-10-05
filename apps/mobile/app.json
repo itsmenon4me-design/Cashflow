@@ -2,7 +2,7 @@
   "expo": {
     "name": "Neraca",
     "slug": "mobile",
-    "version": "1.0.8",
+    "version": "1.0.4",
     "scheme": "neraca",
     "orientation": "portrait",
     "icon": "./assets/neraca-icon.png",
@@ -19,7 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.mobile",
-      "versionCode": 9
+      "versionCode": 11
     },
     "web": {
       "favicon": "./assets/favicon.png"
