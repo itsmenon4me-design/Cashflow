@@ -1,6 +1,7 @@
 # Soft-Delete Name Uniqueness (Application-Level Requirement)
 
-Status: Documented requirement — NO database migration applied (P0 constraint).
+Status: Documented requirement — unrelated uniqueness migrations remain blocked
+by the P0 constraint.
 
 ## Requirement
 
@@ -30,8 +31,15 @@ Affected identity keys per entity:
   uniqueness is enforced only by application-level checks
   (`findByUserAndCategoryAndPeriod`, name lookups before create). Concurrent creates can
   still slip through.
-- No migration has been applied anywhere; the accounts migration above is prepared
-  but deliberately NOT applied (P0 constraint: no migrations may be applied).
+- The Neon production database has the `20261004200000_add_session_device_id`
+  schema change applied manually: `sessions.device_id` and its supporting index
+  were added to fix native login. This is unrelated to the uniqueness migrations
+  above. Reconcile this migration in Prisma's production migration history with
+  `prisma migrate resolve --applied 20261004200000_add_session_device_id` before
+  the next production `prisma migrate deploy`; first verify production migration
+  status and target as described in `docs/DEPLOYMENT.md`.
+- The accounts migration above remains deliberately NOT applied. The P0
+  constraint continues to prohibit unrelated schema migrations.
 - The integration test `accounts.integration.spec.ts` covers: active duplicate names
   rejected, soft-deleted name reuse (requires the prepared migration to be applied),
   IDR/USD/SGD/EUR isolation, and cross-user access rejection.

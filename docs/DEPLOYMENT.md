@@ -71,6 +71,29 @@ CASHFLOW_ENV_FILE=.env docker compose -f docker-compose.yml --env-file .env exec
 - **Never** use `prisma db push` in production.
 - Existing migrations run in order and are never deleted.
 
+### Managed Vercel + Neon deployments
+
+Vercel deployments must not rely on a developer's local `prisma/.env` for the
+production database. Provide the production `DATABASE_URL` only through the
+Vercel runtime/build environment or a secured operator shell, and never print
+it in logs or command output.
+
+Before releasing application code that depends on a schema change:
+
+1. Review the exact migration SQL and confirm its target is the intended Neon
+   production branch.
+2. Apply the migration through the approved production migration job. If SQL
+   was already applied manually, verify its effects first, then reconcile only
+   that migration with `prisma migrate resolve --applied <migration-name>`
+   using an explicitly configured production connection.
+3. Check `prisma migrate status` against that same production target and
+   confirm there are no unexpected pending or failed migrations.
+4. Deploy the application code only after the schema change is in place.
+
+Do not run `prisma migrate deploy` against production until manually applied
+migrations have been reconciled. Never copy a production connection string into
+tracked files, shell history, screenshots, or logs.
+
 ## 5. Prisma Generate
 
 Run inside the backend container (also runs automatically in `entrypoint.sh`):
