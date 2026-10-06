@@ -16,6 +16,11 @@ export const REPORT_WORKBOOK_STYLE = {
     total: 'FFE7ECF1',
     incomeBar: 'FF72B78F',
     expenseBar: 'FFE58A82',
+    chartIncome: 'FF668B7B',
+    chartExpense: 'FFB17C77',
+    chartNet: 'FF17324D',
+    chartGrid: 'FFE2E8EF',
+    chartTrack: 'FFF0F3F6',
   },
   numberFormats: {
     idr: '"Rp" #,##0;[Red]-"Rp" #,##0;"Rp" 0',

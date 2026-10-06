@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { createHash } from 'node:crypto';
 import { DateHelper } from '../../../common/utils/date.util';
 import {
   applyWorkbookBaseFont,
@@ -7,6 +8,10 @@ import {
   styleTableHeader,
   styleTotalRow,
 } from './report-export.styles';
+import {
+  renderCashflowTrendChart,
+  renderCategoryChart,
+} from './report-workbook.charts';
 
 export type WorkbookTransactionType = 'INCOME' | 'EXPENSE';
 export type WorkbookTransactionPeriod = 'Laporan' | 'Pembanding';
@@ -30,6 +35,11 @@ export interface WorkbookTrendPoint {
   netCashFlow: string;
 }
 
+export interface WorkbookCategoryChartItem {
+  name: string;
+  total: bigint;
+}
+
 export interface ReportWorkbookInput {
   startDate: Date;
   endDate: Date;
@@ -47,6 +57,43 @@ const MONEY_FORMAT = REPORT_WORKBOOK_STYLE.numberFormats.idr;
 const DETAILS_SHEET = "'Rincian Transaksi'";
 const DETAILS_TYPE_RANGE = `$J$2:$J$`;
 const DETAILS_PERIOD_RANGE = `$K$2:$K$`;
+const TRANSACTION_REFERENCE_SUFFIX_MODULUS = 100_000_000;
+
+function transactionReferenceIds(
+  transactions: WorkbookTransaction[],
+  timeZone: string,
+): Map<string, string> {
+  const references = new Map<string, string>();
+  const usedReferences = new Set<string>();
+  const orderedTransactions = [...transactions].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+
+  for (const transaction of orderedTransactions) {
+    const calendarDate = DateHelper.calendarDateInTimezone(
+      transaction.transactionDate,
+      timeZone,
+    );
+    const datePrefix = [
+      calendarDate.getUTCFullYear(),
+      String(calendarDate.getUTCMonth() + 1).padStart(2, '0'),
+      String(calendarDate.getUTCDate()).padStart(2, '0'),
+    ].join('');
+    const hash = createHash('sha256').update(transaction.id).digest();
+    let suffix = hash.readUInt32BE(0) % TRANSACTION_REFERENCE_SUFFIX_MODULUS;
+    let reference = '';
+
+    do {
+      reference = `${datePrefix}${String(suffix).padStart(8, '0')}`;
+      suffix = (suffix + 1) % TRANSACTION_REFERENCE_SUFFIX_MODULUS;
+    } while (usedReferences.has(reference));
+
+    references.set(transaction.id, reference);
+    usedReferences.add(reference);
+  }
+
+  return references;
+}
 
 function excelFormula(
   formula: string,
@@ -353,7 +400,17 @@ function setupSummarySheet(
 
   const tableHeaderRow = 10;
   sheet.addRow([]);
-  sheet.getRow(tableHeaderRow).values = ['Metrik', 'Nilai', 'Perubahan'];
+  sheet.getRow(tableHeaderRow).values = [
+    'Metrik',
+    null,
+    'Nilai',
+    null,
+    'Perubahan',
+    null,
+  ];
+  sheet.mergeCells('A10:B10');
+  sheet.mergeCells('C10:D10');
+  sheet.mergeCells('E10:F10');
   styleTableHeader(sheet.getRow(tableHeaderRow), COLORS.navy);
   const summaryRows = [
     [
@@ -405,20 +462,20 @@ function setupSummarySheet(
       },
     ],
   ];
-  summaryRows.forEach((values) => sheet.addRow(values));
+  summaryRows.forEach((values) =>
+    sheet.addRow([values[0], null, values[1], null, values[2], null]),
+  );
   for (let rowNumber = 11; rowNumber <= 14; rowNumber += 1) {
-    sheet.getCell(`B${rowNumber}`).numFmt =
+    sheet.mergeCells(`A${rowNumber}:B${rowNumber}`);
+    sheet.mergeCells(`C${rowNumber}:D${rowNumber}`);
+    sheet.mergeCells(`E${rowNumber}:F${rowNumber}`);
+    sheet.getCell(`C${rowNumber}`).numFmt =
       rowNumber === 14
         ? REPORT_WORKBOOK_STYLE.numberFormats.count
         : MONEY_FORMAT;
     sheet.getRow(rowNumber).height = 30;
   }
-  styleBandedRows(sheet, 11, 14, 3);
-  sheet.autoFilter = 'A10:C14';
-  sheet.getCell('B11').numFmt = MONEY_FORMAT;
-  sheet.getCell('B12').numFmt = MONEY_FORMAT;
-  sheet.getCell('B13').numFmt = MONEY_FORMAT;
-  sheet.getCell('B14').numFmt = REPORT_WORKBOOK_STYLE.numberFormats.count;
+  styleBandedRows(sheet, 11, 14, 6);
   sheet.getCell('N1').value =
     'Sumber pembanding dihitung dari transaksi pada tabel rincian.';
   sheet.getColumn(14).hidden = true;
@@ -456,11 +513,11 @@ function calculateChange(current: bigint, previous: bigint): string {
   return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
 }
 
-function setupTrendSheet(
+async function setupTrendSheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
   sourceEndRow: number,
-): void {
+): Promise<void> {
   const sheet = workbook.addWorksheet('Tren Arus Kas', {
     properties: { tabColor: { argb: COLORS.navy }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
@@ -558,15 +615,29 @@ function setupTrendSheet(
       color: { argb: COLORS.navy },
     };
   }
+  if (input.trend.length > 0) {
+    const chart = await renderCashflowTrendChart(input.trend, input.trendType);
+    const imageId = workbook.addImage({
+      base64: chart.buffer.toString('base64'),
+      extension: 'png',
+    });
+    sheet.addImage(imageId, {
+      tl: { col: 0, row: totalRowNumber + 1 },
+      ext: {
+        width: 1120,
+        height: Math.round((1120 * chart.height) / chart.width),
+      },
+    });
+  }
   applyWorkbookBaseFont(sheet);
 }
 
-function setupCategorySheet(
+async function setupCategorySheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
   type: WorkbookTransactionType,
   sourceEndRow: number,
-): void {
+): Promise<void> {
   const isIncome = type === 'INCOME';
   const title = isIncome
     ? 'Pemasukan per Kategori'
@@ -679,6 +750,15 @@ function setupCategorySheet(
       REPORT_WORKBOOK_STYLE.numberFormats.percentage;
     sheet.getCell(`D${rowNumber}`).numFmt =
       REPORT_WORKBOOK_STYLE.numberFormats.count;
+    sheet.getCell(`A${rowNumber}`).alignment = {
+      vertical: 'middle',
+      wrapText: true,
+    };
+    const category = categories[rowNumber - firstDataRow]?.[1];
+    sheet.getRow(rowNumber).height = Math.max(
+      20,
+      Math.ceil((category?.name.length ?? 0) / 32) * 15,
+    );
   }
   if (categories.length > 0) {
     const dataBarRule: ExcelJS.DataBarRuleType & {
@@ -694,6 +774,26 @@ function setupCategorySheet(
       rules: [dataBarRule],
     });
   }
+  if (categories.length > 0) {
+    const chart = await renderCategoryChart(
+      categories.map(([, category]) => ({
+        name: category.name,
+        total: category.total,
+      })),
+      type,
+    );
+    const imageId = workbook.addImage({
+      base64: chart.buffer.toString('base64'),
+      extension: 'png',
+    });
+    sheet.addImage(imageId, {
+      tl: { col: 0, row: totalRowNumber + 1 },
+      ext: {
+        width: 1120,
+        height: Math.round((1120 * chart.height) / chart.width),
+      },
+    });
+  }
   applyWorkbookBaseFont(sheet);
 }
 
@@ -705,8 +805,12 @@ function setupTransactionSheet(
     properties: { tabColor: { argb: COLORS.navy }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
   });
+  const referenceIds = transactionReferenceIds(
+    input.transactions,
+    input.timeZone ?? 'Asia/Jakarta',
+  );
   sheet.columns = [
-    { width: 39 },
+    { width: 22 },
     { width: 18 },
     { width: 20 },
     { width: 30 },
@@ -732,23 +836,32 @@ function setupTransactionSheet(
     'Kunci Periode',
   ]);
   styleTableHeader(sheet.getRow(1), COLORS.navy);
-  const transactionRows = input.transactions.map((row) => [
-    row.id,
-    DateHelper.calendarDateInTimezone(
-      row.transactionDate,
-      input.timeZone ?? 'Asia/Jakarta',
-    ),
-    row.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
-    row.categoryName,
-    row.note,
-    Number(row.amount),
-    'IDR',
-    row.period === 'Laporan' ? 'Periode laporan' : 'Data pembanding',
-    row.categoryId,
-    row.type,
-    row.period,
-  ]);
+  const transactionRows = input.transactions.map((row) => {
+    const referenceId = referenceIds.get(row.id);
+    if (!referenceId) {
+      throw new Error(
+        'Unable to generate a transaction reference for the workbook.',
+      );
+    }
+    return [
+      referenceId,
+      DateHelper.calendarDateInTimezone(
+        row.transactionDate,
+        input.timeZone ?? 'Asia/Jakarta',
+      ),
+      row.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
+      row.categoryName,
+      row.note,
+      Number(row.amount),
+      'IDR',
+      row.period === 'Laporan' ? 'Periode laporan' : 'Data pembanding',
+      row.categoryId,
+      row.type,
+      row.period,
+    ];
+  });
   transactionRows.forEach((row) => sheet.addRow(row));
+  sheet.getColumn(1).numFmt = '@';
   if (transactionRows.length === 0) sheet.addRow([]);
   const lastRow = Math.max(1, transactionRows.length + 1);
   applyTableView(sheet, `A1:H${lastRow}`);
@@ -761,6 +874,21 @@ function setupTransactionSheet(
     sheet.getCell(`B${rowNumber}`).numFmt =
       REPORT_WORKBOOK_STYLE.numberFormats.date;
     sheet.getCell(`F${rowNumber}`).numFmt = MONEY_FORMAT;
+    sheet.getCell(`D${rowNumber}`).alignment = {
+      vertical: 'middle',
+      wrapText: true,
+    };
+    sheet.getCell(`E${rowNumber}`).alignment = {
+      vertical: 'middle',
+      wrapText: true,
+    };
+    const transaction = transactionRows[rowNumber - 2];
+    const categoryLines = Math.ceil(String(transaction?.[3] ?? '').length / 30);
+    const noteLines = Math.ceil(String(transaction?.[4] ?? '').length / 42);
+    sheet.getRow(rowNumber).height = Math.min(
+      409,
+      Math.max(20, Math.max(categoryLines, noteLines) * 15),
+    );
   }
   if (transactionRows.length > 0) {
     sheet.addConditionalFormatting({
@@ -813,9 +941,9 @@ export async function buildReportWorkbook(
 
   const sourceEndRow = Math.max(2, input.transactions.length + 1);
   setupSummarySheet(workbook, input, sourceEndRow);
-  setupTrendSheet(workbook, input, sourceEndRow);
-  setupCategorySheet(workbook, input, 'EXPENSE', sourceEndRow);
-  setupCategorySheet(workbook, input, 'INCOME', sourceEndRow);
+  await setupTrendSheet(workbook, input, sourceEndRow);
+  await setupCategorySheet(workbook, input, 'EXPENSE', sourceEndRow);
+  await setupCategorySheet(workbook, input, 'INCOME', sourceEndRow);
   setupTransactionSheet(workbook, input);
 
   const buffer = await workbook.xlsx.writeBuffer();

@@ -960,6 +960,20 @@ describe('ReportExportService', () => {
       'Pemasukan per Kategori',
       'Rincian Transaksi',
     ]);
+    expect(workbook.getWorksheet('Ringkasan')?.getCell('A14').value).toBe(
+      'Jumlah Transaksi',
+    );
+    expect(workbook.getWorksheet('Ringkasan')?.getCell('A14').isMerged).toBe(
+      true,
+    );
+    for (const sheetName of [
+      'Tren Arus Kas',
+      'Pengeluaran per Kategori',
+      'Pemasukan per Kategori',
+    ]) {
+      expect(workbook.getWorksheet(sheetName)?.getImages()).toHaveLength(1);
+    }
+    expect(workbook.getWorksheet('Ringkasan')?.getImages()).toHaveLength(0);
     expect(
       workbook.getWorksheet('Ringkasan')?.getCell('A5').value,
     ).toMatchObject({
@@ -1072,6 +1086,22 @@ describe('ReportExportService', () => {
     ).toMatchObject({
       argb: expect.stringMatching(/586575$/),
     });
+    const transactionReferences = workbook
+      .getWorksheet('Rincian Transaksi')
+      ?.getColumn(1)
+      .values.slice(2, 12);
+    expect(transactionReferences).toHaveLength(10);
+    expect(
+      transactionReferences?.every(
+        (reference) => typeof reference === 'string' && /^\d{16}$/.test(reference),
+      ),
+    ).toBe(true);
+    expect(new Set(transactionReferences).size).toBe(
+      transactionReferences?.length,
+    );
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getColumn(1).numFmt,
+    ).toBe('@');
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getColumn(10).hidden,
     ).toBe(true);
@@ -1122,6 +1152,10 @@ describe('ReportExportService', () => {
     ).toMatchObject({
       formula: 'SUM(0)',
     });
+    expect(workbook.getWorksheet('Tren Arus Kas')?.getImages()).toHaveLength(0);
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getImages(),
+    ).toHaveLength(0);
   });
 
   it('uses the full requested date range in CSV exports', async () => {
@@ -1166,7 +1200,7 @@ describe('ReportExportService', () => {
       amount_cents: 1_000n,
       category_id: 'food-category',
       category: { name: 'Makanan' },
-      note: '',
+      note: `transaction ${index}`,
     });
     findMany
       .mockResolvedValueOnce(
@@ -1203,8 +1237,8 @@ describe('ReportExportService', () => {
     );
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result.content as Buffer);
-    expect(
-      workbook.getWorksheet('Rincian Transaksi')?.getCell('A1002').value,
-    ).toBe('tx-1000');
+    const details = workbook.getWorksheet('Rincian Transaksi');
+    expect(details?.getCell('A1002').value).toMatch(/^\d{16}$/);
+    expect(details?.getCell('E1002').value).toBe('transaction 1000');
   });
 });
