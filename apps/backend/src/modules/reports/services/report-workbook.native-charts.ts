@@ -11,10 +11,16 @@ export interface NativeWorkbookChartSeries {
   pointColors?: string[];
 }
 
+export interface NativeWorkbookNamedRange {
+  name: string;
+  formula: string;
+}
+
 export interface NativeWorkbookChart {
   sheetIndex: number;
   title?: string;
   kind: 'bar' | 'doughnut';
+  namedRanges?: NativeWorkbookNamedRange[];
   anchor: {
     from: { col: number; row: number };
     to: { col: number; row: number };
@@ -123,8 +129,10 @@ function chartTitleXml(title: string): string {
 function chartXml(chart: NativeWorkbookChart): string {
   if (chart.kind === 'doughnut') {
     const series = chart.series[0];
-    if (!series) throw new Error('A doughnut chart requires one data series.');
-    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart><c:autoTitleDeleted val="1"/><c:plotArea><c:layout/><c:doughnutChart><c:varyColors val="1"/>${seriesXml(series, 0, chart.categoryFormula, chart.categories, true)}<c:firstSliceAng val="270"/><c:holeSize val="68"/></c:doughnutChart></c:plotArea><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings><c:userShapes r:id="rId1"/></c:chartSpace>`;
+    const seriesXmlContent = series
+      ? seriesXml(series, 0, chart.categoryFormula, chart.categories, true)
+      : '';
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart><c:autoTitleDeleted val="1"/><c:plotArea><c:layout/><c:doughnutChart><c:varyColors val="1"/>${seriesXmlContent}<c:firstSliceAng val="270"/><c:holeSize val="68"/></c:doughnutChart></c:plotArea><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings><c:userShapes r:id="rId1"/></c:chartSpace>`;
   }
 
   const barSeries = chart.series.filter((series) => series.type === 'bar');
@@ -224,7 +232,11 @@ function addWorksheetDrawing(
     const name = tag.match(/^<\/?([\w:.-]+)/)?.[1];
     if (!name) continue;
 
-    if (!closing && depth === 1 && name === 'extLst') {
+    if (
+      !closing &&
+      depth === 1 &&
+      (name === 'tableParts' || name === 'extLst')
+    ) {
       const offset = match.index;
       if (offset === undefined) {
         throw new Error('Unable to locate the worksheet extension list.');
@@ -247,6 +259,36 @@ async function readZipText(zip: JSZip, path: string): Promise<string> {
   return file.async('string');
 }
 
+function addWorkbookNamedRanges(
+  workbookXml: string,
+  namedRanges: NativeWorkbookNamedRange[],
+): string {
+  if (namedRanges.length === 0) return workbookXml;
+  const entries = namedRanges
+    .map(
+      ({ name, formula }) =>
+        `<definedName name="${escapeXml(name)}">${escapeXml(formula)}</definedName>`,
+    )
+    .join('');
+
+  if (workbookXml.includes('</definedNames>')) {
+    return workbookXml.replace('</definedNames>', `${entries}</definedNames>`);
+  }
+  if (workbookXml.includes('<calcPr')) {
+    return workbookXml.replace(
+      '<calcPr',
+      `<definedNames>${entries}</definedNames><calcPr`,
+    );
+  }
+  if (workbookXml.includes('</workbook>')) {
+    return workbookXml.replace(
+      '</workbook>',
+      `<definedNames>${entries}</definedNames></workbook>`,
+    );
+  }
+  throw new Error('Unable to add chart ranges to the workbook.');
+}
+
 export async function addNativeWorkbookCharts(
   workbookBuffer: Buffer,
   charts: NativeWorkbookChart[],
@@ -255,6 +297,26 @@ export async function addNativeWorkbookCharts(
 
   const zip = await JSZip.loadAsync(workbookBuffer);
   const contentTypes = await readZipText(zip, '[Content_Types].xml');
+  const namedRanges = new Map<string, string>();
+  for (const chart of charts) {
+    for (const namedRange of chart.namedRanges ?? []) {
+      const existingFormula = namedRanges.get(namedRange.name);
+      if (existingFormula && existingFormula !== namedRange.formula) {
+        throw new Error(`Conflicting chart range: ${namedRange.name}`);
+      }
+      namedRanges.set(namedRange.name, namedRange.formula);
+    }
+  }
+  if (namedRanges.size > 0) {
+    const workbookXml = await readZipText(zip, 'xl/workbook.xml');
+    zip.file(
+      'xl/workbook.xml',
+      addWorkbookNamedRanges(
+        workbookXml,
+        Array.from(namedRanges, ([name, formula]) => ({ name, formula })),
+      ),
+    );
+  }
   const drawingsBySheet = new Map<number, NativeWorkbookChart[]>();
   for (const chart of charts) {
     const entries = drawingsBySheet.get(chart.sheetIndex) ?? [];

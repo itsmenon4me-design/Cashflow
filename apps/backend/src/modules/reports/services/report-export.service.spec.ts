@@ -201,6 +201,10 @@ describe('ReportExportService', () => {
     const chart6 = await zip.file('xl/charts/chart6.xml')?.async('string');
     const chart7 = await zip.file('xl/charts/chart7.xml')?.async('string');
     const chart8 = await zip.file('xl/charts/chart8.xml')?.async('string');
+    const workbookXml = await zip.file('xl/workbook.xml')?.async('string');
+    const summaryDrawing = await zip
+      .file('xl/drawings/drawing1.xml')
+      ?.async('string');
     const expenseCenter = await zip
       .file('xl/drawings/drawing5.xml')
       ?.async('string');
@@ -215,22 +219,37 @@ describe('ReportExportService', () => {
       'Pemasukan per Kategori',
       'Rincian Transaksi',
     ]);
-    expect(chart1?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$A$31:$A$32",
-    );
-    expect(chart1?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$B$31:$B$32",
-    );
-    expect(chart1?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$C$31:$C$32",
+    expect(chart1).toContain('&apos;Ringkasan&apos;!NeracaTrendPeriods');
+    expect(chart1).toContain('&apos;Ringkasan&apos;!NeracaTrendIncome');
+    expect(chart1).toContain('&apos;Ringkasan&apos;!NeracaTrendExpense');
+    expect(workbookXml).toContain('name="NeracaTrendPeriods"');
+    expect(workbookXml).toContain('name="NeracaTrendIncome"');
+    expect(workbookXml).toContain('name="NeracaTrendExpense"');
+    expect(workbookXml).toContain(
+      'COUNTA(&apos;Tren Arus Kas&apos;!$A$31:$A$1048576)',
     );
     expect(chart1).toContain('<c:ptCount val="2"/>');
+    expect(summaryDrawing).toContain(
+      '<xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>8</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>20</xdr:row>',
+    );
+    expect(summaryDrawing).toContain(
+      '<xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>28</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>8</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>36</xdr:row>',
+    );
     expect(chart2).toContain('<c:doughnutChart>');
     expect(chart4).toContain('<c:barChart>');
     expect(chart4).toContain('<c:lineChart>');
-    expect(chart4?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$D$31:$D$32",
-    );
+    expect(chart4).toContain('TrendData[Arus Kas Bersih]');
+    expect(
+      chart4
+        ?.match(/<c:barChart>[\s\S]*?<\/c:barChart>/)?.[0]
+        .match(/<c:ser>/g),
+    ).toHaveLength(2);
+    expect(
+      chart4
+        ?.match(/<c:lineChart>[\s\S]*?<\/c:lineChart>/)?.[0]
+        .match(/<c:ser>/g),
+    ).toHaveLength(1);
+    expect(chart4).toContain('<c:v>Net Cash Flow</c:v>');
     expect(chart5).toContain('<c:doughnutChart>');
     expect(chart6).toContain('<c:barDir val="bar"/>');
     expect(chart6).toContain('<c:tickLblPos val="none"/>');
@@ -244,17 +263,40 @@ describe('ReportExportService', () => {
     expect(chart8).toContain('<c:dPt><c:idx val="0"/>');
     expect(chart8).toContain('<a:srgbClr val="4E8B70"/>');
     expect(chart8).not.toContain('<c:legend>');
-    expect(chart5?.replaceAll('&apos;', "'")).toContain(
-      "'Pengeluaran per Kategori'!$H$6:$H$7",
-    );
-    expect(chart8?.replaceAll('&apos;', "'")).toContain(
-      "'Pemasukan per Kategori'!$H$6:$H$7",
-    );
+    expect(chart5).toContain('ExpenseCategoryData[Kategori]');
+    expect(chart5).toContain('ExpenseCategoryData[Nominal]');
+    expect(chart8).toContain('IncomeCategoryData[Kategori]');
+    expect(chart8).toContain('IncomeCategoryData[Nominal]');
     expect(expenseCenter).toContain('Rp 11,42 Jt');
     expect(expenseCenter).toContain('Total Pengeluaran');
     expect(expenseCenter).toContain('wrap="none"');
     expect(incomeCenter).toContain('Rp 15,25 Jt');
     expect(incomeCenter).toContain('Total Pemasukan');
+    expect(workbook.creator).toBe('Neraca');
+    expect(workbook.title).toBe('Neraca');
+    expect(workbook.getWorksheet('Ringkasan')?.getCell('A1').value).toBe(
+      'Neraca',
+    );
+    expect(
+      workbook.getWorksheet('Ringkasan')?.getCell('A5').value,
+    ).toMatchObject({
+      result: 15_250_000,
+    });
+    expect(
+      workbook.getWorksheet('Ringkasan')?.getCell('D5').value,
+    ).toMatchObject({
+      result: 11_420_000,
+    });
+    expect(
+      workbook.getWorksheet('Ringkasan')?.getCell('G5').value,
+    ).toMatchObject({
+      result: 3_830_000,
+    });
+    expect(
+      workbook.getWorksheet('Ringkasan')?.getCell('J5').value,
+    ).toMatchObject({
+      result: 4,
+    });
     expect(workbook.getWorksheet('Ringkasan')?.pageSetup.fitToHeight).toBe(1);
     expect(workbook.getWorksheet('Tren Arus Kas')?.pageSetup.fitToHeight).toBe(
       1,
@@ -271,6 +313,68 @@ describe('ReportExportService', () => {
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getImages(),
     ).toHaveLength(0);
+  });
+
+  it('keeps one-category and one-period charts limited to the actual data', async () => {
+    const content = await buildReportWorkbook({
+      startDate: new Date('2026-09-01T00:00:00+07:00'),
+      endDate: new Date('2026-09-01T23:59:59+07:00'),
+      previousStartDate: new Date('2026-08-01T00:00:00+07:00'),
+      previousEndDate: new Date('2026-08-31T23:59:59+07:00'),
+      generatedAt: new Date('2026-10-01T00:00:00Z'),
+      transactions: [
+        {
+          id: 'only-expense',
+          transactionDate: new Date('2026-09-01T12:00:00+07:00'),
+          type: 'EXPENSE',
+          amount: 750_000n,
+          categoryId: 'single-category',
+          categoryName: 'Satu kategori',
+          note: 'Transaksi aktual',
+          period: 'Laporan',
+        },
+      ],
+      trendType: 'daily',
+      trend: [
+        {
+          period: '2026-09-01',
+          income: '0',
+          expense: '750000',
+          netCashFlow: '-750000',
+        },
+      ],
+      timeZone: 'Asia/Jakarta',
+    });
+    const zip = await JSZip.loadAsync(content);
+    const readChart = async (chartNumber: number) =>
+      zip.file(`xl/charts/chart${chartNumber}.xml`)?.async('string');
+    const [
+      summaryTrend,
+      summaryExpense,
+      summaryIncome,
+      trendCombo,
+      expenseBar,
+    ] = await Promise.all([1, 2, 3, 4, 6].map(readChart));
+    const expenseCategoryCache = summaryExpense?.match(
+      /<c:cat>[\s\S]*?<\/c:cat>/,
+    )?.[0];
+    const incomeCategoryCache = summaryIncome?.match(
+      /<c:cat>[\s\S]*?<\/c:cat>/,
+    )?.[0];
+
+    expect(summaryTrend).toContain('<c:ptCount val="1"/>');
+    expect(summaryTrend).toContain('&apos;Ringkasan&apos;!NeracaTrendPeriods');
+    expect(expenseCategoryCache).toContain('<c:ptCount val="1"/>');
+    expect(expenseCategoryCache).toContain('<c:v>Satu kategori</c:v>');
+    expect(incomeCategoryCache).toContain('<c:ptCount val="0"/>');
+    expect(incomeCategoryCache).not.toContain('Belum ada data');
+    expect(trendCombo).toContain('TrendData[Arus Kas Bersih]');
+    expect(expenseBar).toContain('ExpenseCategoryData[Nominal]');
+    expect(
+      [summaryTrend, summaryExpense, summaryIncome, trendCombo, expenseBar]
+        .filter(Boolean)
+        .join(''),
+    ).not.toContain('Tidak ada data');
   });
 
   it('keeps user-zone transaction dates, trend buckets, and formula caches aligned', async () => {
@@ -1193,18 +1297,14 @@ describe('ReportExportService', () => {
       ?.async('string');
     expect(summaryChart).toContain('<c:barChart>');
     expect(summaryChart).toContain('Pemasukan vs Pengeluaran');
-    expect(summaryChart?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$B$31:$B$31",
-    );
+    expect(summaryChart).toContain('&apos;Ringkasan&apos;!NeracaTrendIncome');
     expect(trendChart).toContain('<c:lineChart>');
-    expect(trendChart?.replaceAll('&apos;', "'")).toContain(
-      "'Tren Arus Kas'!$D$31:$D$31",
-    );
+    expect(trendChart).toContain('TrendData[Arus Kas Bersih]');
     expect(
       await xlsxZip.file('xl/worksheets/sheet1.xml')?.async('string'),
     ).toContain('<drawing r:id=');
     expect(expenseSheetXml).toMatch(
-      /<pageSetup\b[^>]*\/><drawing r:id="rId1"\/><extLst\b/,
+      /<pageSetup\b[^>]*\/><drawing r:id="rId2"\/><tableParts\b[\s\S]*?<\/tableParts><extLst\b/,
     );
     expect(expenseSheetXml).toMatch(
       /<c\b[^>]*\br="H6"[^>]*>[\s\S]*?<v>47000<\/v>/,
@@ -1212,9 +1312,15 @@ describe('ReportExportService', () => {
     expect(
       await xlsxZip.file('xl/worksheets/sheet5.xml')?.async('string'),
     ).not.toContain('<drawing');
-    expect(
-      await xlsxZip.file('xl/tables/table1.xml')?.async('string'),
-    ).toContain('ref="A1:H11"');
+    const tableFiles = Object.keys(xlsxZip.files).filter((path) =>
+      /^xl\/tables\/table\d+\.xml$/.test(path),
+    );
+    const transactionTableXml = (
+      await Promise.all(
+        tableFiles.map((path) => xlsxZip.file(path)?.async('string')),
+      )
+    ).find((xml) => xml?.includes('name="TransactionDetails"'));
+    expect(transactionTableXml).toContain('ref="A1:K11"');
     expect(
       Object.keys(xlsxZip.files).filter((path) => path.startsWith('xl/media/')),
     ).toHaveLength(0);
@@ -1230,14 +1336,14 @@ describe('ReportExportService', () => {
           formula: string;
         }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$J$2:$J$11");
+    ).toContain('TransactionDetails[Jenis Data]');
     expect(
       (
         workbook.getWorksheet('Ringkasan')?.getCell('A5').value as {
           formula: string;
         }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$K$2:$K$11");
+    ).toContain('TransactionDetails[Kunci Periode]');
     expect(
       workbook.getWorksheet('Ringkasan')?.getCell('G5').value,
     ).toMatchObject({
@@ -1262,14 +1368,14 @@ describe('ReportExportService', () => {
           formula: string;
         }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$J$2:$J$11");
+    ).toContain('TransactionDetails[Jenis Data]');
     expect(
       (
         workbook.getWorksheet('Tren Arus Kas')?.getCell('B31').value as {
           formula: string;
         }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$K$2:$K$11");
+    ).toContain('TransactionDetails[Kunci Periode]');
     expect(
       workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('I6').value,
     ).toMatchObject({
@@ -1301,13 +1407,13 @@ describe('ReportExportService', () => {
         workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H6')
           .value as { formula: string }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$K$2:$K$11");
+    ).toContain('TransactionDetails[ID Kategori]');
     expect(
       (
         workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H6')
           .value as { formula: string }
       ).formula,
-    ).toContain("'Rincian Transaksi'!$J$2:$J$11");
+    ).toContain('TransactionDetails[Jenis Data]');
     const expenseSheet = workbook.getWorksheet('Pengeluaran per Kategori');
     expect(expenseSheet).toBeDefined();
     const expenseRules = expenseSheet
@@ -1415,7 +1521,7 @@ describe('ReportExportService', () => {
     expect(
       workbook.getWorksheet('Tren Arus Kas')?.getCell('B32').value,
     ).toMatchObject({
-      formula: 'SUM(B31:B31)',
+      formula: 'SUM(TrendData[Pemasukan])',
     });
     expect(workbook.getWorksheet('Tren Arus Kas')?.getImages()).toHaveLength(0);
     expect(

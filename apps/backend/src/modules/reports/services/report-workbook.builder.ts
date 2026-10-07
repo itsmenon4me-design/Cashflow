@@ -11,6 +11,7 @@ import {
 import {
   addNativeWorkbookCharts,
   type NativeWorkbookChart,
+  type NativeWorkbookNamedRange,
 } from './report-workbook.native-charts';
 
 export type WorkbookTransactionType = 'INCOME' | 'EXPENSE';
@@ -55,9 +56,15 @@ export interface ReportWorkbookInput {
 const COLORS = REPORT_WORKBOOK_STYLE.colors;
 const MONEY_FORMAT = REPORT_WORKBOOK_STYLE.numberFormats.idr;
 const PERCENT_FORMAT = REPORT_WORKBOOK_STYLE.numberFormats.percentage;
-const DETAILS_SHEET = "'Rincian Transaksi'";
-const DETAILS_TYPE_RANGE = `$J$2:$J$`;
-const DETAILS_PERIOD_RANGE = `$K$2:$K$`;
+const TRANSACTION_TABLE = 'TransactionDetails';
+const TREND_TABLE = 'TrendData';
+const EXPENSE_CATEGORY_TABLE = 'ExpenseCategoryData';
+const INCOME_CATEGORY_TABLE = 'IncomeCategoryData';
+const DETAILS_AMOUNT_RANGE = `${TRANSACTION_TABLE}[Nominal]`;
+const DETAILS_TYPE_RANGE = `${TRANSACTION_TABLE}[Jenis Data]`;
+const DETAILS_PERIOD_RANGE = `${TRANSACTION_TABLE}[Kunci Periode]`;
+const DETAILS_DATE_RANGE = `${TRANSACTION_TABLE}[Tanggal]`;
+const DETAILS_CATEGORY_RANGE = `${TRANSACTION_TABLE}[ID Kategori]`;
 const TRANSACTION_REFERENCE_SUFFIX_MODULUS = 100_000_000;
 
 function formatCompactRupiah(amount: bigint): string {
@@ -194,7 +201,6 @@ function periodBounds(period: string, type: WorkbookTrendType): [Date, Date] {
 function setupSummarySheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
-  sourceEndRow: number,
 ): void {
   const sheet = workbook.addWorksheet('Ringkasan', {
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
@@ -204,6 +210,9 @@ function setupSummarySheet(
   sheet.getColumn(10).width = 19;
   sheet.getColumn(11).width = 12;
   sheet.getColumn(12).width = 19;
+  sheet.getColumn(7).width = 18;
+  sheet.getColumn(8).width = 18;
+  sheet.getColumn(9).width = 3;
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
@@ -215,7 +224,7 @@ function setupSummarySheet(
   sheet.mergeCells('I1:L1');
   sheet.mergeCells('A2:H2');
   sheet.mergeCells('I2:L2');
-  sheet.getCell('A1').value = 'CashFlow';
+  sheet.getCell('A1').value = 'Neraca';
   sheet.getCell('A1').font = {
     name: REPORT_WORKBOOK_STYLE.font,
     size: 19,
@@ -325,38 +334,35 @@ function setupSummarySheet(
     sheet.getRow(8).height = 20;
   }
 
-  const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
-  const typeRange = `${DETAILS_SHEET}!${DETAILS_TYPE_RANGE}${sourceEndRow}`;
-  const periodRange = `${DETAILS_SHEET}!${DETAILS_PERIOD_RANGE}${sourceEndRow}`;
   const incomeFormula = sumRange(
     'INCOME',
     'Laporan',
-    amountRange,
-    typeRange,
-    periodRange,
+    DETAILS_AMOUNT_RANGE,
+    DETAILS_TYPE_RANGE,
+    DETAILS_PERIOD_RANGE,
   );
   const expenseFormula = sumRange(
     'EXPENSE',
     'Laporan',
-    amountRange,
-    typeRange,
-    periodRange,
+    DETAILS_AMOUNT_RANGE,
+    DETAILS_TYPE_RANGE,
+    DETAILS_PERIOD_RANGE,
   );
   const comparisonIncomeFormula = sumRange(
     'INCOME',
     'Pembanding',
-    amountRange,
-    typeRange,
-    periodRange,
+    DETAILS_AMOUNT_RANGE,
+    DETAILS_TYPE_RANGE,
+    DETAILS_PERIOD_RANGE,
   );
   const comparisonExpenseFormula = sumRange(
     'EXPENSE',
     'Pembanding',
-    amountRange,
-    typeRange,
-    periodRange,
+    DETAILS_AMOUNT_RANGE,
+    DETAILS_TYPE_RANGE,
+    DETAILS_PERIOD_RANGE,
   );
-  const comparisonCountFormula = `COUNTIF(${periodRange},"Pembanding")`;
+  const comparisonCountFormula = `COUNTIF(${DETAILS_PERIOD_RANGE},"Pembanding")`;
   const comparisonNetFormula = `(${comparisonIncomeFormula}-${comparisonExpenseFormula})`;
 
   const cards = [
@@ -405,7 +411,7 @@ function setupSummarySheet(
       start: 'J',
       end: 'L',
       valueColor: COLORS.text,
-      formula: `=COUNTIF(${periodRange},"Laporan")`,
+      formula: `=COUNTIF(${DETAILS_PERIOD_RANGE},"Laporan")`,
       result: input.transactions.filter((row) => row.period === 'Laporan')
         .length,
       previous: comparisonCountFormula,
@@ -636,7 +642,7 @@ function setupSummarySheet(
               Number(category.total),
             ),
           }
-        : { name: '-', percentage: 0, amount: 0 };
+        : { name: null, percentage: null, amount: null };
       sheet.getCell(`J${rowNumber}`).value = cellValues.name;
       sheet.getCell(`K${rowNumber}`).value = cellValues.percentage;
       sheet.getCell(`L${rowNumber}`).value = cellValues.amount;
@@ -806,7 +812,6 @@ function calculateChange(current: bigint, previous: bigint): string {
 function setupTrendSheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
-  sourceEndRow: number,
 ): void {
   const sheet = workbook.addWorksheet('Tren Arus Kas', {
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
@@ -890,11 +895,10 @@ function setupTrendSheet(
     });
   }
 
-  const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
-  const typeRange = `${DETAILS_SHEET}!${DETAILS_TYPE_RANGE}${sourceEndRow}`;
-  const periodRange = `${DETAILS_SHEET}!${DETAILS_PERIOD_RANGE}${sourceEndRow}`;
-  const dateRange = `${DETAILS_SHEET}!$B$2:$B$${sourceEndRow}`;
-  const cardLastDataRow = Math.max(31, 30 + input.trend.length);
+  const amountRange = DETAILS_AMOUNT_RANGE;
+  const typeRange = DETAILS_TYPE_RANGE;
+  const periodRange = DETAILS_PERIOD_RANGE;
+  const dateRange = DETAILS_DATE_RANGE;
   const cardTotalRowNumber = 31 + Math.max(1, input.trend.length);
   const cardIncomeTotal = input.trend.reduce(
     (sum, point) => sum + BigInt(point.income),
@@ -912,7 +916,7 @@ function setupTrendSheet(
       end: 'C',
       color: COLORS.income,
       value: cardIncomeTotal,
-      formula: input.trend.length ? `SUM(B31:B${cardLastDataRow})` : 'SUM(0)',
+      formula: `SUM(${TREND_TABLE}[Pemasukan])`,
     },
     {
       label: 'Total Pengeluaran',
@@ -920,7 +924,7 @@ function setupTrendSheet(
       end: 'F',
       color: COLORS.expense,
       value: cardExpenseTotal,
-      formula: input.trend.length ? `SUM(C31:C${cardLastDataRow})` : 'SUM(0)',
+      formula: `SUM(${TREND_TABLE}[Pengeluaran])`,
     },
     {
       label: 'Arus Kas Bersih',
@@ -1025,6 +1029,24 @@ function setupTrendSheet(
     'Nominal',
   ];
   styleTableHeader(sheet.getRow(30), COLORS.teal);
+  sheet.addTable({
+    name: TREND_TABLE,
+    ref: 'A30',
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: 'TableStyleMedium4',
+      showRowStripes: true,
+      showColumnStripes: false,
+    },
+    columns: [
+      { name: 'Periode', filterButton: true },
+      { name: 'Pemasukan', filterButton: true },
+      { name: 'Pengeluaran', filterButton: true },
+      { name: 'Arus Kas Bersih', filterButton: true },
+    ],
+    rows: input.trend.map(() => [null, null, null, null]),
+  });
 
   input.trend.forEach((point, index) => {
     const rowNumber = 31 + index;
@@ -1047,7 +1069,7 @@ function setupTrendSheet(
       periodRange,
       dateRange,
     );
-    sheet.addRow([
+    sheet.getRow(rowNumber).values = [
       point.period,
       excelFormula(incomeFormula, Number(BigInt(point.income))),
       excelFormula(expenseFormula, Number(BigInt(point.expense))),
@@ -1055,7 +1077,7 @@ function setupTrendSheet(
         `B${rowNumber}-C${rowNumber}`,
         Number(BigInt(point.netCashFlow)),
       ),
-    ]);
+    ];
     setFormulaCache(sheet.getCell(rowNumber, 2), Number(BigInt(point.income)));
     setFormulaCache(sheet.getCell(rowNumber, 3), Number(BigInt(point.expense)));
     setFormulaCache(
@@ -1072,15 +1094,10 @@ function setupTrendSheet(
     (sum, point) => sum + BigInt(point.expense),
     0n,
   );
-  if (input.trend.length === 0) {
-    sheet.getRow(31).values = ['Tidak ada data', 0, 0, 0];
-  }
   const lastDataRow = Math.max(31, 30 + input.trend.length);
   const totalRowNumber = lastDataRow + 1;
-  const totalIncomeFormula =
-    input.trend.length > 0 ? `SUM(B31:B${lastDataRow})` : 'SUM(B31:B31)';
-  const totalExpenseFormula =
-    input.trend.length > 0 ? `SUM(C31:C${lastDataRow})` : 'SUM(C31:C31)';
+  const totalIncomeFormula = `SUM(${TREND_TABLE}[Pemasukan])`;
+  const totalExpenseFormula = `SUM(${TREND_TABLE}[Pengeluaran])`;
   sheet.getRow(totalRowNumber).values = [
     'Total',
     excelFormula(totalIncomeFormula, Number(incomeTotal)),
@@ -1199,7 +1216,6 @@ function setupTrendSheet(
       color: { argb: COLORS.teal },
     };
   }
-  sheet.autoFilter = `A30:D${lastDataRow}`;
   applyWorkbookBaseFont(sheet);
 }
 
@@ -1246,7 +1262,6 @@ function setupCategorySheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
   type: WorkbookTransactionType,
-  sourceEndRow: number,
 ): void {
   const income = type === 'INCOME';
   const title = income ? 'Pemasukan per Kategori' : 'Pengeluaran per Kategori';
@@ -1254,8 +1269,8 @@ function setupCategorySheet(
   const comparisonCategories = getWorkbookCategories(input, type);
   const total = categories.reduce((sum, category) => sum + category.total, 0n);
   const dataStartRow = 6;
-  const dataEndRow = dataStartRow + Math.max(categories.length, 1) - 1;
-  const totalRow = dataEndRow + 1;
+  const dataEndRow = dataStartRow + categories.length - 1;
+  const totalRow = Math.max(dataStartRow, dataEndRow + 1);
   const comparisonHeaderRow = Math.max(totalRow + 3, 46);
   const comparisonStartRow = comparisonHeaderRow + 1;
   const comparisonEndRow = comparisonStartRow + comparisonCategories.length - 1;
@@ -1374,10 +1389,29 @@ function setupCategorySheet(
   ];
   styleTableHeader(sheet.getRow(5), COLORS.teal);
 
-  const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
-  const typeRange = `${DETAILS_SHEET}!${DETAILS_TYPE_RANGE}${sourceEndRow}`;
-  const periodRange = `${DETAILS_SHEET}!${DETAILS_PERIOD_RANGE}${sourceEndRow}`;
-  const categoryRange = `${DETAILS_SHEET}!$I$2:$I$${sourceEndRow}`;
+  sheet.addTable({
+    name: income ? INCOME_CATEGORY_TABLE : EXPENSE_CATEGORY_TABLE,
+    ref: 'G5',
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: 'TableStyleMedium4',
+      showRowStripes: true,
+      showColumnStripes: false,
+    },
+    columns: [
+      { name: 'Kategori', filterButton: true },
+      { name: 'Nominal', filterButton: true },
+      { name: 'Persentase', filterButton: true },
+      { name: 'Jumlah Transaksi', filterButton: true },
+      { name: 'ID Kategori', filterButton: true },
+    ],
+    rows: categories.map(() => [null, null, null, null, null]),
+  });
+  const amountRange = DETAILS_AMOUNT_RANGE;
+  const typeRange = DETAILS_TYPE_RANGE;
+  const periodRange = DETAILS_PERIOD_RANGE;
+  const categoryRange = DETAILS_CATEGORY_RANGE;
   categories.forEach((category, index) => {
     const rowNumber = dataStartRow + index;
     const categoryFormula = `SUMIFS(${amountRange},${typeRange},"${type}",${periodRange},"Laporan",${categoryRange},K${rowNumber})`;
@@ -1397,26 +1431,22 @@ function setupCategorySheet(
     );
     sheet.getCell(`K${rowNumber}`).value = category.id;
   });
-  if (categories.length === 0) {
-    sheet.getCell(`G${dataStartRow}`).value = 'Belum ada data';
-    sheet.getCell(`H${dataStartRow}`).value = excelFormula('0', 0);
-    sheet.getCell(`I${dataStartRow}`).value = excelFormula('0', 0);
-    sheet.getCell(`J${dataStartRow}`).value = excelFormula('0', 0);
-  }
   sheet.getCell(`G${totalRow}`).value = 'Total';
   sheet.getCell(`H${totalRow}`).value = excelFormula(
-    `SUM(H${dataStartRow}:H${dataEndRow})`,
+    categories.length > 0 ? `SUM(H${dataStartRow}:H${dataEndRow})` : 'SUM(0)',
     Number(total),
   );
   sheet.getCell(`I${totalRow}`).value = excelFormula(
-    `SUM(I${dataStartRow}:I${dataEndRow})`,
+    categories.length > 0 ? `SUM(I${dataStartRow}:I${dataEndRow})` : 'SUM(0)',
     categories.length > 0 ? 1 : 0,
   );
   sheet.getCell(`J${totalRow}`).value = excelFormula(
-    `SUM(J${dataStartRow}:J${dataEndRow})`,
+    categories.length > 0 ? `SUM(J${dataStartRow}:J${dataEndRow})` : 'SUM(0)',
     categories.reduce((sum, category) => sum + category.count, 0),
   );
-  styleBandedRows(sheet, dataStartRow, dataEndRow, 10);
+  if (categories.length > 0) {
+    styleBandedRows(sheet, dataStartRow, dataEndRow, 10);
+  }
   styleTotalRow(sheet.getRow(totalRow), 10);
   for (let rowNumber = dataStartRow; rowNumber <= totalRow; rowNumber += 1) {
     sheet.getCell(`H${rowNumber}`).numFmt = MONEY_FORMAT;
@@ -1431,7 +1461,7 @@ function setupCategorySheet(
     const category = categories[rowNumber - dataStartRow];
     sheet.getRow(rowNumber).height = Math.max(
       22,
-      Math.ceil((category?.name.length ?? 0) / 34) * 15,
+      Math.ceil((category?.name.length ?? 1) / 34) * 15,
     );
   }
 
@@ -1587,7 +1617,6 @@ function setupCategorySheet(
       topLeftCell: 'A6',
     },
   ];
-  sheet.autoFilter = `G5:J${totalRow}`;
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
@@ -1602,7 +1631,7 @@ function setupCategorySheet(
 function setupTransactionSheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
-): number {
+): void {
   const sheet = workbook.addWorksheet('Rincian Transaksi', {
     properties: { tabColor: { argb: COLORS.navy }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
@@ -1671,15 +1700,10 @@ function setupTransactionSheet(
       showRowStripes: true,
       showColumnStripes: false,
     },
-    columns: headers.slice(0, 8).map((name) => ({ name, filterButton: true })),
-    rows: transactionRows.map((row) => row.slice(0, 8)),
+    columns: headers.map((name) => ({ name, filterButton: true })),
+    rows: transactionRows,
   });
   styleTableHeader(sheet.getRow(1), COLORS.navy);
-  transactionRows.forEach((row, index) => {
-    for (let column = 9; column <= 11; column += 1) {
-      sheet.getRow(index + 2).getCell(column).value = row[column - 1];
-    }
-  });
   sheet.getColumn(1).numFmt = '@';
   const lastRow = Math.max(1, transactionRows.length + 1);
   sheet.views = [
@@ -1760,40 +1784,57 @@ function setupTransactionSheet(
     });
   }
   applyWorkbookBaseFont(sheet);
-  return Math.max(2, lastRow);
 }
 
 function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
-  const trendEndRow = Math.max(31, input.trend.length + 30);
-  const trendLabels =
+  const trendLabels = input.trend.map((point) => point.period);
+  const incomeValues = input.trend.map((point) => Number(BigInt(point.income)));
+  const expenseValues = input.trend.map((point) =>
+    Number(BigInt(point.expense)),
+  );
+  const summaryTrendRanges: NativeWorkbookNamedRange[] = [
+    {
+      name: 'NeracaTrendPeriods',
+      formula:
+        "OFFSET('Tren Arus Kas'!$A$31,0,0,MAX(1,COUNTA('Tren Arus Kas'!$A$31:$A$1048576)-1),1)",
+    },
+    {
+      name: 'NeracaTrendIncome',
+      formula:
+        "OFFSET('Tren Arus Kas'!$B$31,0,0,MAX(1,COUNTA('Tren Arus Kas'!$B$31:$B$1048576)-1),1)",
+    },
+    {
+      name: 'NeracaTrendExpense',
+      formula:
+        "OFFSET('Tren Arus Kas'!$C$31,0,0,MAX(1,COUNTA('Tren Arus Kas'!$C$31:$C$1048576)-1),1)",
+    },
+  ];
+  const summaryTrendCategoryFormula =
     input.trend.length > 0
-      ? input.trend.map((point) => point.period)
-      : ['Tidak ada data'];
-  const incomeValues =
+      ? "'Ringkasan'!NeracaTrendPeriods"
+      : `${TREND_TABLE}[Periode]`;
+  const summaryTrendSeriesFormula = (name: string, tableColumn: string) =>
     input.trend.length > 0
-      ? input.trend.map((point) => Number(BigInt(point.income)))
-      : [0];
-  const expenseValues =
-    input.trend.length > 0
-      ? input.trend.map((point) => Number(BigInt(point.expense)))
-      : [0];
+      ? `'Ringkasan'!${name}`
+      : `${TREND_TABLE}[${tableColumn}]`;
   const trendCharts: NativeWorkbookChart[] = [
     {
       sheetIndex: 1,
       title: 'Pemasukan vs Pengeluaran',
       kind: 'bar',
+      namedRanges: input.trend.length > 0 ? summaryTrendRanges : undefined,
       anchor: {
         from: { col: 0, row: 10 },
         to: { col: 6, row: 26 },
       },
-      categoryFormula: `'Tren Arus Kas'!$A$31:$A$${trendEndRow}`,
+      categoryFormula: summaryTrendCategoryFormula,
       categories: trendLabels,
       direction: 'column',
       series: [
         {
           name: 'Pemasukan',
           nameFormula: "'Tren Arus Kas'!$B$30",
-          formula: `'Tren Arus Kas'!$B$31:$B$${trendEndRow}`,
+          formula: summaryTrendSeriesFormula('NeracaTrendIncome', 'Pemasukan'),
           values: incomeValues,
           color: COLORS.incomeBar,
           type: 'bar',
@@ -1801,7 +1842,10 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
         {
           name: 'Pengeluaran',
           nameFormula: "'Tren Arus Kas'!$C$30",
-          formula: `'Tren Arus Kas'!$C$31:$C$${trendEndRow}`,
+          formula: summaryTrendSeriesFormula(
+            'NeracaTrendExpense',
+            'Pengeluaran',
+          ),
           values: expenseValues,
           color: COLORS.expenseBar,
           type: 'bar',
@@ -1815,11 +1859,8 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       type === 'EXPENSE'
         ? 'Pengeluaran per Kategori'
         : 'Pemasukan per Kategori';
-    const chartCategories =
-      categories.length > 0
-        ? categories
-        : [{ name: 'Belum ada data', total: 0n }];
-    const lastRow = 5 + chartCategories.length;
+    const chartTable =
+      type === 'EXPENSE' ? EXPENSE_CATEGORY_TABLE : INCOME_CATEGORY_TABLE;
     const total = categories.reduce(
       (sum, category) => sum + category.total,
       0n,
@@ -1830,23 +1871,23 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       kind: 'doughnut',
       anchor:
         type === 'EXPENSE'
-          ? { from: { col: 6, row: 10 }, to: { col: 9, row: 26 } }
-          : { from: { col: 6, row: 28 }, to: { col: 9, row: 45 } },
+          ? { from: { col: 6, row: 10 }, to: { col: 8, row: 20 } }
+          : { from: { col: 6, row: 28 }, to: { col: 8, row: 36 } },
       centerText: {
         value: formatCompactRupiah(total),
         label: type === 'EXPENSE' ? 'Total Pengeluaran' : 'Total Pemasukan',
       },
-      categoryFormula: `'${sheetName}'!$G$6:$G$${lastRow}`,
-      categories: chartCategories.map((category) => category.name),
+      categoryFormula: `${chartTable}[Kategori]`,
+      categories: categories.map((category) => category.name),
       direction: 'column',
       series: [
         {
           name: 'Nominal',
           nameFormula: `'${sheetName}'!$H$5`,
-          formula: `'${sheetName}'!$H$6:$H$${lastRow}`,
-          values: chartCategories.map((category) => Number(category.total)),
+          formula: `${chartTable}[Nominal]`,
+          values: categories.map((category) => Number(category.total)),
           color: type === 'INCOME' ? COLORS.incomeBar : COLORS.expenseBar,
-          pointColors: chartCategories.map(
+          pointColors: categories.map(
             (_, index) =>
               [
                 'FF4E8B70',
@@ -1863,7 +1904,6 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
     });
   }
   {
-    const trendEndOfData = Math.max(31, input.trend.length + 30);
     trendCharts.push({
       sheetIndex: 2,
       title: 'Pemasukan, Pengeluaran dan Arus Kas Bersih',
@@ -1872,33 +1912,31 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
         from: { col: 0, row: 9 },
         to: { col: 11, row: 26 },
       },
-      categoryFormula: `'Tren Arus Kas'!$A$31:$A$${trendEndOfData}`,
+      categoryFormula: `${TREND_TABLE}[Periode]`,
       categories: trendLabels,
       direction: 'column',
       series: [
         {
           name: 'Pemasukan',
           nameFormula: "'Tren Arus Kas'!$B$30",
-          formula: `'Tren Arus Kas'!$B$31:$B$${trendEndOfData}`,
-          values: input.trend.length ? incomeValues : [0],
+          formula: `${TREND_TABLE}[Pemasukan]`,
+          values: incomeValues,
           color: COLORS.incomeBar,
           type: 'bar',
         },
         {
           name: 'Pengeluaran',
           nameFormula: "'Tren Arus Kas'!$C$30",
-          formula: `'Tren Arus Kas'!$C$31:$C$${trendEndOfData}`,
-          values: input.trend.length ? expenseValues : [0],
+          formula: `${TREND_TABLE}[Pengeluaran]`,
+          values: expenseValues,
           color: COLORS.expenseBar,
           type: 'bar',
         },
         {
           name: 'Net Cash Flow',
           nameFormula: "'Tren Arus Kas'!$D$30",
-          formula: `'Tren Arus Kas'!$D$31:$D$${trendEndOfData}`,
-          values: input.trend.length
-            ? input.trend.map((point) => Number(BigInt(point.netCashFlow)))
-            : [0],
+          formula: `${TREND_TABLE}[Arus Kas Bersih]`,
+          values: input.trend.map((point) => Number(BigInt(point.netCashFlow))),
           color: COLORS.chartNet,
           type: 'line',
         },
@@ -1915,20 +1953,17 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       type === 'EXPENSE'
         ? 'Pengeluaran per Kategori'
         : 'Pemasukan per Kategori';
-    const chartCategories =
-      categories.length > 0
-        ? categories
-        : [{ name: 'Belum ada data', total: 0n }];
-    const lastRow = 5 + chartCategories.length;
-    const values = chartCategories.map((category) => Number(category.total));
-    const labels = chartCategories.map((category) => category.name);
-    const categoryFormula = `'${sheetName}'!$G$6:$G$${lastRow}`;
-    const valueFormula = `'${sheetName}'!$H$6:$H$${lastRow}`;
+    const chartTable =
+      type === 'EXPENSE' ? EXPENSE_CATEGORY_TABLE : INCOME_CATEGORY_TABLE;
+    const values = categories.map((category) => Number(category.total));
+    const labels = categories.map((category) => category.name);
+    const categoryFormula = `${chartTable}[Kategori]`;
+    const valueFormula = `${chartTable}[Nominal]`;
     const chartTotal = categories.reduce(
       (sum, category) => sum + category.total,
       0n,
     );
-    const pointColors = chartCategories.map(
+    const pointColors = categories.map(
       (_, index) =>
         [
           'FF4E8B70',
@@ -1995,16 +2030,17 @@ export async function buildReportWorkbook(
   input: ReportWorkbookInput,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'CashFlow';
+  workbook.creator = 'Neraca';
+  workbook.title = 'Neraca';
+  workbook.subject = 'Laporan Keuangan Pribadi';
   workbook.created = input.generatedAt;
   workbook.modified = input.generatedAt;
   workbook.calcProperties = { fullCalcOnLoad: true };
 
-  const sourceEndRow = Math.max(2, input.transactions.length + 1);
-  setupSummarySheet(workbook, input, sourceEndRow);
-  setupTrendSheet(workbook, input, sourceEndRow);
-  setupCategorySheet(workbook, input, 'EXPENSE', sourceEndRow);
-  setupCategorySheet(workbook, input, 'INCOME', sourceEndRow);
+  setupSummarySheet(workbook, input);
+  setupTrendSheet(workbook, input);
+  setupCategorySheet(workbook, input, 'EXPENSE');
+  setupCategorySheet(workbook, input, 'INCOME');
   setupTransactionSheet(workbook, input);
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
