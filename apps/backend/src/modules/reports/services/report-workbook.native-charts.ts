@@ -1,0 +1,270 @@
+import JSZip from 'jszip';
+import { REPORT_WORKBOOK_STYLE } from './report-export.styles';
+
+export interface NativeWorkbookChartSeries {
+  name: string;
+  nameFormula?: string;
+  formula: string;
+  values: number[];
+  color: string;
+  type: 'bar' | 'line';
+}
+
+export interface NativeWorkbookChart {
+  sheetIndex: number;
+  title: string;
+  anchor: {
+    from: { col: number; row: number };
+    to: { col: number; row: number };
+  };
+  categoryFormula: string;
+  categories: string[];
+  direction: 'column' | 'bar';
+  series: NativeWorkbookChartSeries[];
+}
+
+const RELATIONSHIPS_NS =
+  'http://schemas.openxmlformats.org/package/2006/relationships';
+const OFFICE_RELATIONSHIPS_NS =
+  'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const DRAWING_NS =
+  'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+const CHART_NS = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+const DRAWING_REL_TYPE = `${OFFICE_RELATIONSHIPS_NS}/drawing`;
+const CHART_REL_TYPE = `${OFFICE_RELATIONSHIPS_NS}/chart`;
+const CHART_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.drawingml.chart+xml';
+const DRAWING_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.drawing+xml';
+const COLORS = REPORT_WORKBOOK_STYLE.colors;
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+function cellReference(formula: string): string {
+  return escapeXml(formula);
+}
+
+function relationshipId(xml: string): number {
+  const ids = Array.from(xml.matchAll(/\bId="rId(\d+)"/g), (match) =>
+    Number(match[1]),
+  );
+  return Math.max(0, ...ids) + 1;
+}
+
+function pointCache(values: string[]): string {
+  return `<c:strCache><c:ptCount val="${values.length}"/>${values
+    .map(
+      (value, index) =>
+        `<c:pt idx="${index}"><c:v>${escapeXml(value)}</c:v></c:pt>`,
+    )
+    .join('')}</c:strCache>`;
+}
+
+function numberCache(values: number[]): string {
+  return `<c:numCache><c:formatCode>#,##0</c:formatCode><c:ptCount val="${values.length}"/>${values
+    .map(
+      (value, index) =>
+        `<c:pt idx="${index}"><c:v>${Number.isFinite(value) ? value : 0}</c:v></c:pt>`,
+    )
+    .join('')}</c:numCache>`;
+}
+
+function seriesXml(
+  series: NativeWorkbookChartSeries,
+  index: number,
+  categoryFormula: string,
+  categories: string[],
+): string {
+  const lineStyle =
+    series.type === 'line'
+      ? `<c:marker><c:symbol val="circle"/><c:size val="5"/><c:spPr><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:marker>`
+      : '';
+  const shapeStyle =
+    series.type === 'line'
+      ? `<c:spPr><a:ln w="28575"><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill></a:ln></c:spPr>`
+      : `<c:spPr><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>`;
+
+  return `<c:ser><c:idx val="${index}"/><c:order val="${index}"/><c:tx><c:strRef><c:f>${cellReference(series.nameFormula ?? series.name)}</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${escapeXml(series.name)}</c:v></c:pt></c:strCache></c:strRef></c:tx>${shapeStyle}${lineStyle}<c:cat><c:strRef><c:f>${cellReference(categoryFormula)}</c:f>${pointCache(categories)}</c:strRef></c:cat><c:val><c:numRef><c:f>${cellReference(series.formula)}</c:f>${numberCache(series.values)}</c:numRef></c:val>${series.type === 'line' ? '<c:smooth val="0"/>' : ''}</c:ser>`;
+}
+
+function chartTitleXml(title: string): string {
+  return `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1400" b="1"><a:solidFill><a:srgbClr val="${COLORS.text.slice(2)}"/></a:solidFill><a:latin typeface="${REPORT_WORKBOOK_STYLE.font}"/></a:defRPr></a:pPr><a:r><a:rPr lang="id-ID" sz="1400" b="1"><a:solidFill><a:srgbClr val="${COLORS.text.slice(2)}"/></a:solidFill><a:latin typeface="${REPORT_WORKBOOK_STYLE.font}"/></a:rPr><a:t>${escapeXml(title)}</a:t></a:r><a:endParaRPr lang="id-ID"/></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>`;
+}
+
+function chartXml(chart: NativeWorkbookChart): string {
+  const barSeries = chart.series.filter((series) => series.type === 'bar');
+  const lineSeries = chart.series.filter((series) => series.type === 'line');
+  const barDirection = chart.direction === 'column' ? 'col' : 'bar';
+  const catOrientation = chart.direction === 'column' ? 'minMax' : 'maxMin';
+  const categoryCrossing = chart.direction === 'column' ? 'autoZero' : 'max';
+  const barChart =
+    barSeries.length === 0
+      ? ''
+      : `<c:barChart><c:barDir val="${barDirection}"/><c:grouping val="clustered"/><c:varyColors val="0"/>${barSeries
+          .map((series, index) =>
+            seriesXml(series, index, chart.categoryFormula, chart.categories),
+          )
+          .join(
+            '',
+          )}<c:gapWidth val="75"/><c:overlap val="0"/><c:axId val="10"/><c:axId val="20"/></c:barChart>`;
+  const lineChart =
+    lineSeries.length === 0
+      ? ''
+      : `<c:lineChart><c:grouping val="standard"/>${lineSeries
+          .map((series, index) =>
+            seriesXml(
+              series,
+              barSeries.length + index,
+              chart.categoryFormula,
+              chart.categories,
+            ),
+          )
+          .join(
+            '',
+          )}<c:marker val="1"/><c:smooth val="0"/><c:axId val="10"/><c:axId val="20"/></c:lineChart>`;
+  const axes =
+    chart.direction === 'column'
+      ? `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`
+      : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart>${chartTitleXml(chart.title)}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>${barChart}${lineChart}${axes}</c:plotArea><c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" h="0.3" f="0.3"/><c:pageSetup/></c:printSettings></c:chartSpace>`;
+}
+
+function drawingXml(
+  chart: NativeWorkbookChart,
+  chartRelationshipId: string,
+  chartNumber: number,
+): string {
+  const anchor = (point: { col: number; row: number }) =>
+    `<xdr:col>${point.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${point.row}</xdr:row><xdr:rowOff>0</xdr:rowOff>`;
+  return `<xdr:twoCellAnchor editAs="oneCell"><xdr:from>${anchor(chart.anchor.from)}</xdr:from><xdr:to>${anchor(chart.anchor.to)}</xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${chartNumber + 1}" name="Chart ${chartNumber}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="${CHART_NS}"><c:chart xmlns:c="${CHART_NS}" xmlns:r="${OFFICE_RELATIONSHIPS_NS}" r:id="${chartRelationshipId}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+}
+
+function appendRelationship(
+  xml: string,
+  relationship: { id: string; type: string; target: string },
+): string {
+  const entry = `<Relationship Id="${relationship.id}" Type="${relationship.type}" Target="${relationship.target}"/>`;
+  if (xml.includes('</Relationships>')) {
+    return xml.replace('</Relationships>', `${entry}</Relationships>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELATIONSHIPS_NS}">${entry}</Relationships>`;
+}
+
+function addWorksheetDrawing(
+  xml: string,
+  drawingRelationshipId: string,
+): string {
+  let worksheetXml = xml;
+  if (!worksheetXml.includes(`xmlns:r="${OFFICE_RELATIONSHIPS_NS}"`)) {
+    worksheetXml = worksheetXml.replace(
+      /<worksheet\b/,
+      `<worksheet xmlns:r="${OFFICE_RELATIONSHIPS_NS}"`,
+    );
+  }
+  const drawing = `<drawing r:id="${drawingRelationshipId}"/>`;
+  if (/<extLst\b/.test(worksheetXml)) {
+    return worksheetXml.replace(/<extLst\b/, `${drawing}<extLst`);
+  }
+  return worksheetXml.replace('</worksheet>', `${drawing}</worksheet>`);
+}
+
+async function readZipText(zip: JSZip, path: string): Promise<string> {
+  const file = zip.file(path);
+  if (!file) throw new Error(`Missing XLSX component: ${path}`);
+  return file.async('string');
+}
+
+export async function addNativeWorkbookCharts(
+  workbookBuffer: Buffer,
+  charts: NativeWorkbookChart[],
+): Promise<Buffer> {
+  if (charts.length === 0) return workbookBuffer;
+
+  const zip = await JSZip.loadAsync(workbookBuffer);
+  const contentTypes = await readZipText(zip, '[Content_Types].xml');
+  const drawingsBySheet = new Map<number, NativeWorkbookChart[]>();
+  for (const chart of charts) {
+    const entries = drawingsBySheet.get(chart.sheetIndex) ?? [];
+    entries.push(chart);
+    drawingsBySheet.set(chart.sheetIndex, entries);
+  }
+
+  let chartNumber = 0;
+  const contentTypeEntries: string[] = [];
+  for (const [sheetIndex, sheetCharts] of drawingsBySheet) {
+    const sheetPath = `xl/worksheets/sheet${sheetIndex}.xml`;
+    const sheetRelsPath = `xl/worksheets/_rels/sheet${sheetIndex}.xml.rels`;
+    const drawingNumber = sheetIndex;
+    const drawingPath = `xl/drawings/drawing${drawingNumber}.xml`;
+    const drawingRelsPath = `xl/drawings/_rels/drawing${drawingNumber}.xml.rels`;
+    const existingSheetRels = zip.file(sheetRelsPath)
+      ? await readZipText(zip, sheetRelsPath)
+      : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELATIONSHIPS_NS}"></Relationships>`;
+    const drawingRelationship = `rId${relationshipId(existingSheetRels)}`;
+    zip.file(
+      sheetRelsPath,
+      appendRelationship(existingSheetRels, {
+        id: drawingRelationship,
+        type: DRAWING_REL_TYPE,
+        target: `../drawings/drawing${drawingNumber}.xml`,
+      }),
+    );
+    zip.file(
+      sheetPath,
+      addWorksheetDrawing(
+        await readZipText(zip, sheetPath),
+        drawingRelationship,
+      ),
+    );
+
+    const drawingEntries: string[] = [];
+    const drawingRelationships: string[] = [];
+    for (let index = 0; index < sheetCharts.length; index += 1) {
+      const chart = sheetCharts[index];
+      if (!chart || chart.series.length === 0) continue;
+      chartNumber += 1;
+      const chartPath = `xl/charts/chart${chartNumber}.xml`;
+      const chartRelationship = `rId${index + 1}`;
+      zip.file(chartPath, chartXml(chart));
+      contentTypeEntries.push(
+        `<Override PartName="/${chartPath}" ContentType="${CHART_CONTENT_TYPE}"/>`,
+      );
+      drawingEntries.push(drawingXml(chart, chartRelationship, chartNumber));
+      drawingRelationships.push(
+        `<Relationship Id="${chartRelationship}" Type="${CHART_REL_TYPE}" Target="../charts/chart${chartNumber}.xml"/>`,
+      );
+    }
+
+    if (drawingEntries.length === 0) continue;
+    zip.file(
+      drawingPath,
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="${DRAWING_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}">${drawingEntries.join('')}</xdr:wsDr>`,
+    );
+    zip.file(
+      drawingRelsPath,
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELATIONSHIPS_NS}">${drawingRelationships.join('')}</Relationships>`,
+    );
+    contentTypeEntries.push(
+      `<Override PartName="/${drawingPath}" ContentType="${DRAWING_CONTENT_TYPE}"/>`,
+    );
+  }
+
+  if (contentTypeEntries.length > 0) {
+    zip.file(
+      '[Content_Types].xml',
+      contentTypes.replace(
+        '</Types>',
+        `${contentTypeEntries.join('')}</Types>`,
+      ),
+    );
+  }
+  return zip.generateAsync({ type: 'nodebuffer' });
+}

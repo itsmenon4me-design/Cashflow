@@ -966,14 +966,39 @@ describe('ReportExportService', () => {
     expect(workbook.getWorksheet('Ringkasan')?.getCell('A14').isMerged).toBe(
       true,
     );
-    for (const sheetName of [
-      'Tren Arus Kas',
-      'Pengeluaran per Kategori',
-      'Pemasukan per Kategori',
-    ]) {
-      expect(workbook.getWorksheet(sheetName)?.getImages()).toHaveLength(1);
+    for (const sheet of workbook.worksheets) {
+      expect(sheet.getImages()).toHaveLength(0);
     }
-    expect(workbook.getWorksheet('Ringkasan')?.getImages()).toHaveLength(0);
+    const xlsxZip = await JSZip.loadAsync(result.content as Buffer);
+    const chartPaths = Object.keys(xlsxZip.files).filter((path) =>
+      /^xl\/charts\/chart\d+\.xml$/.test(path),
+    );
+    expect(chartPaths).toHaveLength(4);
+    const summaryChart = await xlsxZip
+      .file('xl/charts/chart1.xml')
+      ?.async('string');
+    const trendChart = await xlsxZip
+      .file('xl/charts/chart2.xml')
+      ?.async('string');
+    const expenseSheetXml = await xlsxZip
+      .file('xl/worksheets/sheet3.xml')
+      ?.async('string');
+    expect(summaryChart).toContain('<c:barChart>');
+    expect(summaryChart).toContain('Pemasukan vs Pengeluaran');
+    expect(summaryChart?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$B$2:$B$2",
+    );
+    expect(trendChart).toContain('<c:lineChart>');
+    expect(trendChart?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$D$2:$D$2",
+    );
+    expect(
+      await xlsxZip.file('xl/worksheets/sheet1.xml')?.async('string'),
+    ).toContain('<drawing r:id=');
+    expect(expenseSheetXml).toMatch(/<c\b[^>]*\br="H2"[^>]*>[\s\S]*?<v>0<\/v>/);
+    expect(
+      Object.keys(xlsxZip.files).filter((path) => path.startsWith('xl/media/')),
+    ).toHaveLength(0);
     expect(
       workbook.getWorksheet('Ringkasan')?.getCell('A5').value,
     ).toMatchObject({
@@ -1033,6 +1058,26 @@ describe('ReportExportService', () => {
       result: 1,
     });
     expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('G2').value,
+    ).toBe('Makanan');
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H2').value,
+    ).toMatchObject({
+      formula: expect.stringContaining('"Pembanding"'),
+    });
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('I2').value,
+    ).toMatchObject({
+      formula: expect.stringContaining('"Laporan"'),
+      result: 47_000,
+    });
+    expect(
+      workbook.getWorksheet('Ringkasan')?.getCell('G12').value,
+    ).toMatchObject({
+      formula: expect.stringContaining("'Pengeluaran per Kategori'!A2"),
+      result: 'Makanan',
+    });
+    expect(
       (
         workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('B2')
           .value as { formula: string }
@@ -1059,7 +1104,7 @@ describe('ReportExportService', () => {
           rules: expect.arrayContaining([
             expect.objectContaining({
               type: 'dataBar',
-              color: { argb: expect.stringMatching(/E58A82$/) },
+              color: { argb: expect.stringMatching(/B76A61$/) },
             }),
           ]),
         }),
@@ -1084,7 +1129,7 @@ describe('ReportExportService', () => {
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getCell('A2').font?.color,
     ).toMatchObject({
-      argb: expect.stringMatching(/586575$/),
+      argb: expect.stringMatching(/65736F$/),
     });
     const transactionReferences = workbook
       .getWorksheet('Rincian Transaksi')
