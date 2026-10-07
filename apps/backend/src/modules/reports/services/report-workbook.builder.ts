@@ -60,6 +60,30 @@ const DETAILS_TYPE_RANGE = `$J$2:$J$`;
 const DETAILS_PERIOD_RANGE = `$K$2:$K$`;
 const TRANSACTION_REFERENCE_SUFFIX_MODULUS = 100_000_000;
 
+function formatCompactRupiah(amount: bigint): string {
+  const negative = amount < 0n;
+  const absoluteAmount = negative ? -amount : amount;
+  const units = [
+    { threshold: 1_000_000_000_000n, divisor: 1_000_000_000_000n, suffix: 'T' },
+    { threshold: 1_000_000_000n, divisor: 1_000_000_000n, suffix: 'M' },
+    { threshold: 1_000_000n, divisor: 1_000_000n, suffix: 'Jt' },
+    { threshold: 1_000n, divisor: 1_000n, suffix: 'Rb' },
+  ];
+  const unit = units.find(({ threshold }) => absoluteAmount >= threshold);
+  if (!unit) {
+    return `Rp ${negative ? '-' : ''}${absoluteAmount.toLocaleString('id-ID')}`;
+  }
+
+  const hundredths = (absoluteAmount * 100n + unit.divisor / 2n) / unit.divisor;
+  const whole = hundredths / 100n;
+  const fraction = (hundredths % 100n)
+    .toString()
+    .padStart(2, '0')
+    .replace(/0+$/, '');
+  const value = `${Number(whole).toLocaleString('id-ID')}${fraction ? `,${fraction}` : ''}`;
+  return `Rp ${negative ? '-' : ''}${value} ${unit.suffix}`;
+}
+
 function transactionReferenceIds(
   transactions: WorkbookTransaction[],
   timeZone: string,
@@ -177,11 +201,14 @@ function setupSummarySheet(
     views: [{ showGridLines: false }],
   });
   sheet.columns = Array.from({ length: 12 }, () => ({ width: 15 }));
+  sheet.getColumn(10).width = 19;
+  sheet.getColumn(11).width = 12;
+  sheet.getColumn(12).width = 19;
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 2,
+    fitToHeight: 1,
     printArea: 'A1:L46',
   };
   sheet.mergeCells('A1:H1');
@@ -489,12 +516,12 @@ function setupSummarySheet(
     input,
     'EXPENSE',
     'Laporan',
-  ).slice(0, 5);
+  ).slice(0, 16);
   const topIncomeCategories = getWorkbookCategories(
     input,
     'INCOME',
     'Laporan',
-  ).slice(0, 5);
+  ).slice(0, 16);
   sheet.mergeCells('A9:F9');
   sheet.mergeCells('G9:I9');
   sheet.mergeCells('J9:L9');
@@ -592,7 +619,7 @@ function setupSummarySheet(
       (sum, category) => sum + category.total,
       0n,
     );
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 16; index += 1) {
       const rowNumber = index + (type === 'EXPENSE' ? 11 : 30);
       const category = categories[index];
       const cellValues = category
@@ -616,6 +643,10 @@ function setupSummarySheet(
       sheet.getCell(`K${rowNumber}`).numFmt =
         REPORT_WORKBOOK_STYLE.numberFormats.percentage;
       sheet.getCell(`L${rowNumber}`).numFmt = MONEY_FORMAT;
+      sheet.getRow(rowNumber).height = Math.max(
+        20,
+        Math.ceil((category?.name.length ?? 1) / 19) * 15,
+      );
       for (const column of ['J', 'K', 'L']) {
         const cell = sheet.getCell(`${column}${rowNumber}`);
         cell.alignment = {
@@ -782,11 +813,21 @@ function setupTrendSheet(
     views: [{ showGridLines: false }],
   });
   sheet.columns = Array.from({ length: 12 }, () => ({ width: 14 }));
+  sheet.getColumn(1).width = 16;
+  for (const column of [2, 3, 4]) sheet.getColumn(column).width = 20;
+  sheet.getColumn(5).width = 3;
+  sheet.getColumn(6).width = 24;
+  sheet.getColumn(7).width = 20;
+  sheet.getColumn(8).width = 12;
+  sheet.getColumn(9).width = 3;
+  sheet.getColumn(10).width = 26;
+  sheet.getColumn(11).width = 14;
+  sheet.getColumn(12).width = 20;
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 0,
+    fitToHeight: 1,
     printArea: `A1:L${Math.max(38, input.trend.length + 34)}`,
   };
   sheet.mergeCells('A1:I1');
@@ -1218,7 +1259,7 @@ function setupCategorySheet(
   const comparisonHeaderRow = Math.max(totalRow + 3, 46);
   const comparisonStartRow = comparisonHeaderRow + 1;
   const comparisonEndRow = comparisonStartRow + comparisonCategories.length - 1;
-  const bottomRow = Math.max(comparisonHeaderRow + 20, comparisonEndRow + 2);
+  const bottomRow = Math.max(52, comparisonEndRow + 5);
   const sheet = workbook.addWorksheet(title, {
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
@@ -1551,7 +1592,7 @@ function setupCategorySheet(
     orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 0,
+    fitToHeight: 1,
     printArea: `A1:J${bottomRow}`,
     printTitlesRow: '1:5',
   };
@@ -1792,12 +1833,8 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
           ? { from: { col: 6, row: 10 }, to: { col: 9, row: 26 } }
           : { from: { col: 6, row: 28 }, to: { col: 9, row: 45 } },
       centerText: {
-        value: new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          maximumFractionDigits: 0,
-        }).format(Number(total)),
-        label: 'Total',
+        value: formatCompactRupiah(total),
+        label: type === 'EXPENSE' ? 'Total Pengeluaran' : 'Total Pemasukan',
       },
       categoryFormula: `'${sheetName}'!$G$6:$G$${lastRow}`,
       categories: chartCategories.map((category) => category.name),
@@ -1833,7 +1870,7 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       kind: 'bar',
       anchor: {
         from: { col: 0, row: 9 },
-        to: { col: 12, row: 27 },
+        to: { col: 11, row: 26 },
       },
       categoryFormula: `'Tren Arus Kas'!$A$31:$A$${trendEndOfData}`,
       categories: trendLabels,
@@ -1856,7 +1893,7 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
           type: 'bar',
         },
         {
-          name: 'Arus Kas Bersih',
+          name: 'Net Cash Flow',
           nameFormula: "'Tren Arus Kas'!$D$30",
           formula: `'Tren Arus Kas'!$D$31:$D$${trendEndOfData}`,
           values: input.trend.length
@@ -1920,12 +1957,8 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
         to: { col: 6, row: 21 },
       },
       centerText: {
-        value: new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          maximumFractionDigits: 0,
-        }).format(Number(chartTotal)),
-        label: 'Total',
+        value: formatCompactRupiah(chartTotal),
+        label: type === 'INCOME' ? 'Total Pemasukan' : 'Total Pengeluaran',
       },
       categoryFormula,
       categories: labels,

@@ -99,15 +99,19 @@ function seriesXml(
     series.type === 'line'
       ? `<c:spPr><a:ln w="28575"><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill></a:ln></c:spPr>`
       : `<c:spPr><a:solidFill><a:srgbClr val="${series.color.slice(2)}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>`;
-  const pointStyles =
-    isDoughnut && series.pointColors
-      ? series.pointColors
-          .map(
-            (color, pointIndex) =>
-              `<c:dPt><c:idx val="${pointIndex}"/><c:spPr><a:solidFill><a:srgbClr val="${color.slice(2)}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>`,
-          )
-          .join('')
-      : '';
+  const pointColors = isDoughnut
+    ? series.pointColors
+    : series.type === 'bar'
+      ? (series.pointColors ?? series.values.map(() => series.color))
+      : undefined;
+  const pointStyles = pointColors
+    ? pointColors
+        .map(
+          (color, pointIndex) =>
+            `<c:dPt><c:idx val="${pointIndex}"/><c:spPr><a:solidFill><a:srgbClr val="${color.slice(2)}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>`,
+        )
+        .join('')
+    : '';
 
   return `<c:ser><c:idx val="${index}"/><c:order val="${index}"/><c:tx><c:strRef><c:f>${cellReference(series.nameFormula ?? series.name)}</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${escapeXml(series.name)}</c:v></c:pt></c:strCache></c:strRef></c:tx>${shapeStyle}${lineStyle}${pointStyles}<c:cat><c:strRef><c:f>${cellReference(categoryFormula)}</c:f>${pointCache(categories)}</c:strRef></c:cat><c:val><c:numRef><c:f>${cellReference(series.formula)}</c:f>${numberCache(series.values)}</c:numRef></c:val>${series.type === 'line' ? '<c:smooth val="0"/>' : ''}</c:ser>`;
 }
@@ -127,7 +131,7 @@ function chartXml(chart: NativeWorkbookChart): string {
   const lineSeries = chart.series.filter((series) => series.type === 'line');
   const barDirection = chart.direction === 'column' ? 'col' : 'bar';
   const catOrientation = chart.direction === 'column' ? 'minMax' : 'maxMin';
-  const categoryCrossing = chart.direction === 'column' ? 'autoZero' : 'max';
+  const categoryCrossing = 'autoZero';
   const barChart =
     barSeries.length === 0
       ? ''
@@ -156,9 +160,13 @@ function chartXml(chart: NativeWorkbookChart): string {
   const axes =
     chart.direction === 'column'
       ? `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`
-      : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+      : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="none"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+  const legend =
+    chart.direction === 'bar'
+      ? ''
+      : '<c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend>';
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart>${chart.title ? chartTitleXml(chart.title) : ''}<c:autoTitleDeleted val="${chart.title ? 0 : 1}"/><c:plotArea><c:layout/>${barChart}${lineChart}${axes}</c:plotArea><c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings></c:chartSpace>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart>${chart.title ? chartTitleXml(chart.title) : ''}<c:autoTitleDeleted val="${chart.title ? 0 : 1}"/><c:plotArea><c:layout/>${barChart}${lineChart}${axes}</c:plotArea>${legend}<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings></c:chartSpace>`;
 }
 
 function chartUserShapesXml(chart: NativeWorkbookChart): string {
@@ -171,7 +179,7 @@ function chartUserShapesXml(chart: NativeWorkbookChart): string {
       '\u00a0',
       ' ',
     );
-  return `<c:userShapes xmlns:c="${CHART_NS}"><cdr:relSizeAnchor xmlns:cdr="http://schemas.openxmlformats.org/drawingml/2006/chartDrawing"><cdr:from><cdr:x>0.385</cdr:x><cdr:y>0.41333</cdr:y></cdr:from><cdr:to><cdr:x>0.635</cdr:x><cdr:y>0.59667</cdr:y></cdr:to><cdr:sp macro="" textlink=""><cdr:nvSpPr><cdr:cNvPr id="2" name="TextBox 1"><a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="${creationId}"/></a:ext></a:extLst></cdr:cNvPr><cdr:cNvSpPr txBox="1"/></cdr:nvSpPr><cdr:spPr><a:xfrm xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:off x="1955800" y="1574800"/><a:ext cx="1270000" cy="698500"/></a:xfrm><a:prstGeom xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" prst="rect"><a:avLst/></a:prstGeom></cdr:spPr><cdr:txBody><a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" vertOverflow="clip" vert="horz" rtlCol="0" anchor="ctr"/><a:lstStyle xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:pPr algn="ctr"/><a:r><a:rPr lang="id-ID" sz="1100" kern="1200"/><a:t>${escapeXml(centerLabel)}</a:t></a:r></a:p></cdr:txBody></cdr:sp></cdr:relSizeAnchor></c:userShapes>`;
+  return `<c:userShapes xmlns:c="${CHART_NS}"><cdr:relSizeAnchor xmlns:cdr="http://schemas.openxmlformats.org/drawingml/2006/chartDrawing"><cdr:from><cdr:x>0.3</cdr:x><cdr:y>0.35</cdr:y></cdr:from><cdr:to><cdr:x>0.7</cdr:x><cdr:y>0.65</cdr:y></cdr:to><cdr:sp macro="" textlink=""><cdr:nvSpPr><cdr:cNvPr id="2" name="TextBox 1"><a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="${creationId}"/></a:ext></a:extLst></cdr:cNvPr><cdr:cNvSpPr txBox="1"/></cdr:nvSpPr><cdr:spPr><a:xfrm xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:off x="1524000" y="1333500"/><a:ext cx="2032000" cy="1143000"/></a:xfrm><a:prstGeom xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" prst="rect"><a:avLst/></a:prstGeom></cdr:spPr><cdr:txBody><a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" wrap="none" vertOverflow="clip" vert="horz" rtlCol="0" anchor="ctr"/><a:lstStyle xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:pPr algn="ctr"/><a:r><a:rPr lang="id-ID" sz="1000" kern="1200"/><a:t>${escapeXml(centerLabel)}</a:t></a:r></a:p></cdr:txBody></cdr:sp></cdr:relSizeAnchor></c:userShapes>`;
 }
 
 function drawingXml(

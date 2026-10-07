@@ -84,6 +84,195 @@ const makeMocks = (): {
 };
 
 describe('ReportExportService', () => {
+  it.each([
+    [999n, 'Rp 999'],
+    [750_000n, 'Rp 750 Rb'],
+    [8_420_000n, 'Rp 8,42 Jt'],
+    [850_000_000n, 'Rp 850 Jt'],
+    [1_200_000_000n, 'Rp 1,2 M'],
+    [2_500_000_000_000n, 'Rp 2,5 T'],
+  ])(
+    'formats doughnut totals compactly for %s rupiah',
+    async (amount, expected) => {
+      const content = await buildReportWorkbook({
+        startDate: new Date('2026-09-01T00:00:00+07:00'),
+        endDate: new Date('2026-09-01T23:59:59+07:00'),
+        previousStartDate: new Date('2026-08-01T00:00:00+07:00'),
+        previousEndDate: new Date('2026-08-31T23:59:59+07:00'),
+        generatedAt: new Date('2026-10-01T00:00:00Z'),
+        transactions: [
+          {
+            id: 'compact-amount',
+            transactionDate: new Date('2026-09-01T12:00:00+07:00'),
+            type: 'EXPENSE',
+            amount,
+            categoryId: 'category',
+            categoryName: 'Contoh',
+            note: 'Nilai asli tetap utuh',
+            period: 'Laporan',
+          },
+        ],
+        trendType: 'daily',
+        trend: [],
+        timeZone: 'Asia/Jakarta',
+      });
+      const zip = await JSZip.loadAsync(content);
+      const centerLabel = await zip
+        .file('xl/drawings/drawing5.xml')
+        ?.async('string');
+      expect(centerLabel).toContain(expected);
+    },
+  );
+
+  it('uses every trend period and category in charts and keeps print layouts to one page', async () => {
+    const transactions: WorkbookTransaction[] = [
+      {
+        id: 'expense-food',
+        transactionDate: new Date('2026-09-01T12:00:00+07:00'),
+        type: 'EXPENSE',
+        amount: 8_420_000n,
+        categoryId: 'food',
+        categoryName: 'Makanan',
+        note: 'Belanja bulanan',
+        period: 'Laporan',
+      },
+      {
+        id: 'expense-transport',
+        transactionDate: new Date('2026-09-02T12:00:00+07:00'),
+        type: 'EXPENSE',
+        amount: 3_000_000n,
+        categoryId: 'transport',
+        categoryName: 'Transportasi',
+        note: 'Transportasi',
+        period: 'Laporan',
+      },
+      {
+        id: 'income-salary',
+        transactionDate: new Date('2026-09-01T12:00:00+07:00'),
+        type: 'INCOME',
+        amount: 12_750_000n,
+        categoryId: 'salary',
+        categoryName: 'Gaji',
+        note: 'Gaji bulanan',
+        period: 'Laporan',
+      },
+      {
+        id: 'income-bonus',
+        transactionDate: new Date('2026-09-02T12:00:00+07:00'),
+        type: 'INCOME',
+        amount: 2_500_000n,
+        categoryId: 'bonus',
+        categoryName: 'Bonus',
+        note: 'Bonus',
+        period: 'Laporan',
+      },
+    ];
+    const content = await buildReportWorkbook({
+      startDate: new Date('2026-09-01T00:00:00+07:00'),
+      endDate: new Date('2026-09-02T23:59:59+07:00'),
+      previousStartDate: new Date('2026-08-30T00:00:00+07:00'),
+      previousEndDate: new Date('2026-08-31T23:59:59+07:00'),
+      generatedAt: new Date('2026-10-01T00:00:00Z'),
+      transactions,
+      trendType: 'daily',
+      trend: [
+        {
+          period: '2026-09-01',
+          income: '12750000',
+          expense: '8420000',
+          netCashFlow: '4330000',
+        },
+        {
+          period: '2026-09-02',
+          income: '2500000',
+          expense: '3000000',
+          netCashFlow: '-500000',
+        },
+      ],
+      timeZone: 'Asia/Jakarta',
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(content);
+    const zip = await JSZip.loadAsync(content);
+    const chart1 = await zip.file('xl/charts/chart1.xml')?.async('string');
+    const chart2 = await zip.file('xl/charts/chart2.xml')?.async('string');
+    const chart4 = await zip.file('xl/charts/chart4.xml')?.async('string');
+    const chart5 = await zip.file('xl/charts/chart5.xml')?.async('string');
+    const chart6 = await zip.file('xl/charts/chart6.xml')?.async('string');
+    const chart7 = await zip.file('xl/charts/chart7.xml')?.async('string');
+    const chart8 = await zip.file('xl/charts/chart8.xml')?.async('string');
+    const expenseCenter = await zip
+      .file('xl/drawings/drawing5.xml')
+      ?.async('string');
+    const incomeCenter = await zip
+      .file('xl/drawings/drawing6.xml')
+      ?.async('string');
+
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      'Ringkasan',
+      'Tren Arus Kas',
+      'Pengeluaran per Kategori',
+      'Pemasukan per Kategori',
+      'Rincian Transaksi',
+    ]);
+    expect(chart1?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$A$31:$A$32",
+    );
+    expect(chart1?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$B$31:$B$32",
+    );
+    expect(chart1?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$C$31:$C$32",
+    );
+    expect(chart1).toContain('<c:ptCount val="2"/>');
+    expect(chart2).toContain('<c:doughnutChart>');
+    expect(chart4).toContain('<c:barChart>');
+    expect(chart4).toContain('<c:lineChart>');
+    expect(chart4?.replaceAll('&apos;', "'")).toContain(
+      "'Tren Arus Kas'!$D$31:$D$32",
+    );
+    expect(chart5).toContain('<c:doughnutChart>');
+    expect(chart6).toContain('<c:barDir val="bar"/>');
+    expect(chart6).toContain('<c:tickLblPos val="none"/>');
+    expect(chart6).toContain('<c:crosses val="autoZero"/>');
+    expect(chart6).toContain('<c:dPt><c:idx val="0"/>');
+    expect(chart6).toContain('<a:srgbClr val="B76A61"/>');
+    expect(chart6).not.toContain('<c:legend>');
+    expect(chart7).toContain('<c:doughnutChart>');
+    expect(chart8).toContain('<c:barDir val="bar"/>');
+    expect(chart8).toContain('<c:tickLblPos val="none"/>');
+    expect(chart8).toContain('<c:dPt><c:idx val="0"/>');
+    expect(chart8).toContain('<a:srgbClr val="4E8B70"/>');
+    expect(chart8).not.toContain('<c:legend>');
+    expect(chart5?.replaceAll('&apos;', "'")).toContain(
+      "'Pengeluaran per Kategori'!$H$6:$H$7",
+    );
+    expect(chart8?.replaceAll('&apos;', "'")).toContain(
+      "'Pemasukan per Kategori'!$H$6:$H$7",
+    );
+    expect(expenseCenter).toContain('Rp 11,42 Jt');
+    expect(expenseCenter).toContain('Total Pengeluaran');
+    expect(expenseCenter).toContain('wrap="none"');
+    expect(incomeCenter).toContain('Rp 15,25 Jt');
+    expect(incomeCenter).toContain('Total Pemasukan');
+    expect(workbook.getWorksheet('Ringkasan')?.pageSetup.fitToHeight).toBe(1);
+    expect(workbook.getWorksheet('Tren Arus Kas')?.pageSetup.fitToHeight).toBe(
+      1,
+    );
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.pageSetup.fitToHeight,
+    ).toBe(1);
+    expect(
+      workbook.getWorksheet('Pemasukan per Kategori')?.pageSetup.fitToHeight,
+    ).toBe(1);
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getTables(),
+    ).toHaveLength(1);
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getImages(),
+    ).toHaveLength(0);
+  });
+
   it('keeps user-zone transaction dates, trend buckets, and formula caches aligned', async () => {
     const transactions = [
       {
