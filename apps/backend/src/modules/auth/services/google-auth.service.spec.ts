@@ -78,6 +78,7 @@ describe('GoogleAuthService', () => {
   it('returns native OAuth callbacks only for the registered app redirect', async () => {
     const url = await service.getLoginUrl('neraca://auth/callback');
     expect(url).toContain('https://accounts.google.com/o/oauth2/v2/auth');
+    expect(new URL(url).searchParams.get('prompt')).toBe('select_account');
     const state = new URL(url).searchParams.get('state');
     await expect(service.getCallbackFailureRedirectUrl(state ?? undefined)).resolves.toBe(
       'neraca://auth/callback?oauth_error=google_auth_failed',
@@ -178,6 +179,76 @@ describe('GoogleAuthService', () => {
       'google',
       undefined,
     );
+  });
+
+  it('creates a backend session from a Google account selected in the native app', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sub: 'google-native-123',
+        email: 'native@example.com',
+        name: 'Native User',
+        email_verified: true,
+        picture: null,
+      }),
+    });
+    provider.validateProviderUser.mockReturnValue({
+      provider: 'google',
+      providerUserId: 'google-native-123',
+      email: 'native@example.com',
+      fullName: 'Native User',
+      avatarUrl: null,
+      verifiedEmail: true,
+    });
+    oauthAccountService.findProviderAccount.mockResolvedValue({
+      user_id: 'native-user',
+    });
+    usersService.findById.mockResolvedValue({
+      id: 'native-user',
+      email: 'native@example.com',
+      full_name: 'Native User',
+      avatar_url: null,
+      status: 'ACTIVE',
+      role_code: 'USER',
+    });
+    authService.issueSessionForUser.mockResolvedValue({
+      success: true,
+      data: { accessToken: 'native-access', refreshToken: 'native-refresh' },
+      user: { id: 'native-user', email: 'native@example.com' },
+    });
+
+    const context = {
+      deviceId: '00000000-0000-4000-8000-000000000001',
+      clientPlatform: 'android' as const,
+    };
+    const result = await service.handleNativeSignIn('google-access-token', context);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openidconnect.googleapis.com/v1/userinfo',
+      { headers: { Authorization: 'Bearer google-access-token' } },
+    );
+    expect(authService.issueSessionForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'native-user' }),
+      'google',
+      context,
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: { accessToken: 'native-access', refreshToken: 'native-refresh' },
+    });
+  });
+
+  it('rejects an invalid native Google access token without creating a session', async () => {
+    const mockedFetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'invalid_token' }),
+    });
+    (global as any).fetch = mockedFetch;
+
+    await expect(
+      service.handleNativeSignIn('expired-google-token'),
+    ).rejects.toThrow('Google authentication failed. Please try again.');
+    expect(authService.issueSessionForUser).not.toHaveBeenCalled();
   });
 
   it('creates a new user and provider record for a first-time Google login', async () => {

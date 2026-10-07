@@ -204,6 +204,165 @@ export class GoogleAuthService {
     return refreshed;
   }
 
+  private async authenticateGoogleProfile(
+    profile: GoogleProfile,
+    context?: AuthRequestContext,
+    setStage?: (stage: string) => void,
+  ) {
+    const providerUser = this.provider.validateProviderUser(profile);
+
+    if (!providerUser.verifiedEmail) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Google email was not verified by Google.',
+      );
+    }
+
+    let user: Awaited<ReturnType<UsersService['findByEmail']>> = null;
+    let welcome: 'new' | 'returning' = 'returning';
+    let existingProviderAccount =
+      await this.oauthAccountService.findProviderAccount(
+        providerUser.provider,
+        providerUser.providerUserId,
+      );
+
+    if (existingProviderAccount) {
+      user = await this.usersService.findById(existingProviderAccount.user_id);
+      if (!user) {
+        throw ErrorService.create(
+          ErrorCode.UNAUTHORIZED,
+          'Google-linked account is unavailable.',
+        );
+      }
+    } else {
+      const existingUser = await this.usersService.findByEmail(
+        providerUser.email,
+      );
+      if (existingUser) {
+        throw ErrorService.create(
+          ErrorCode.CONFLICT,
+          'This Google account matches an existing CashFlow account. Please sign in to that account and link Google from settings.',
+        );
+      }
+
+      user = await this.createGoogleUser(providerUser);
+      welcome = 'new';
+      existingProviderAccount =
+        await this.oauthAccountService.linkProviderAccount({
+          userId: user.id,
+          provider: providerUser.provider,
+          providerAccountId: providerUser.providerUserId,
+          email: providerUser.email,
+          emailVerified: true,
+        });
+      if (!existingProviderAccount) {
+        throw ErrorService.create(
+          ErrorCode.INTERNAL,
+          'Google account link could not be created.',
+        );
+      }
+    }
+
+    if (!user) {
+      throw ErrorService.create(
+        ErrorCode.UNAUTHORIZED,
+        'Google-linked user could not be resolved.',
+      );
+    }
+
+    if (user.status === 'PENDING_VERIFICATION') {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: 'ACTIVE',
+          email_verified_at: new Date(),
+        },
+      });
+      user = await this.usersService.findById(user.id);
+    }
+
+    if (!user) {
+      throw ErrorService.create(
+        ErrorCode.UNAUTHORIZED,
+        'Google-linked user could not be resolved after activation.',
+      );
+    }
+
+    if (user.avatar_url !== providerUser.avatarUrl) {
+      user = await this.usersService.updateOAuthAvatar(
+        user.id,
+        providerUser.avatarUrl ?? null,
+      );
+    }
+
+    setStage?.('create_session');
+    const session = await this.authService.issueSessionForUser(
+      user,
+      'google',
+      context,
+    );
+    return { session, user, welcome };
+  }
+
+  async handleNativeSignIn(
+    accessToken: string | undefined,
+    context?: AuthRequestContext,
+  ) {
+    if (
+      typeof accessToken !== 'string' ||
+      accessToken.trim().length === 0 ||
+      accessToken.length > 8192
+    ) {
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'A valid Google access token is required.',
+      );
+    }
+
+    let callbackStage = 'profile_lookup';
+    try {
+      const profileResponse = await fetch(
+        'https://openidconnect.googleapis.com/v1/userinfo',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+      if (!profileResponse.ok) {
+        throw new Error('Google profile lookup failed');
+      }
+
+      const profile = (await profileResponse.json()) as GoogleProfile;
+      callbackStage = 'resolve_user';
+      const { session } = await this.authenticateGoogleProfile(
+        profile,
+        context,
+        (stage) => {
+          callbackStage = stage;
+        },
+      );
+      return { success: true, data: session.data, user: session.user };
+    } catch (error) {
+      const errorCode =
+        error instanceof AppError
+          ? error.errorCode
+          : 'UPSTREAM_OR_INTERNAL_ERROR';
+      this.logger.error(
+        `Native Google authentication failed during ${callbackStage} (${errorCode}).`,
+      );
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      throw ErrorService.create(
+        ErrorCode.INVALID_INPUT,
+        'Google authentication failed. Please try again.',
+      );
+    }
+  }
+
   async getLoginUrl(redirectUri?: string, deviceId?: string | null): Promise<string> {
     const config = this.provider.getConfigurationStatus();
     if (!config.isConfigured) {
@@ -222,7 +381,7 @@ export class GoogleAuthService {
       response_type: 'code',
       scope: 'openid email profile',
       access_type: 'offline',
-      prompt: 'consent',
+      prompt: 'select_account',
       state,
     });
 
@@ -287,100 +446,13 @@ export class GoogleAuthService {
       }
 
       const profile = (await profileResponse.json()) as GoogleProfile;
-      const providerUser = this.provider.validateProviderUser(profile);
-
-      if (!providerUser.verifiedEmail) {
-        throw ErrorService.create(
-          ErrorCode.INVALID_INPUT,
-          'Google email was not verified by Google.',
-        );
-      }
-
       callbackStage = 'resolve_user';
-      let user: Awaited<ReturnType<UsersService['findByEmail']>> = null;
-      let welcome: 'new' | 'returning' = 'returning';
-      let existingProviderAccount =
-        await this.oauthAccountService.findProviderAccount(
-          providerUser.provider,
-          providerUser.providerUserId,
-        );
-
-      if (existingProviderAccount) {
-        user = await this.usersService.findById(
-          existingProviderAccount.user_id,
-        );
-        if (!user) {
-          throw ErrorService.create(
-            ErrorCode.UNAUTHORIZED,
-            'Google-linked account is unavailable.',
-          );
-        }
-      } else {
-        const existingUser = await this.usersService.findByEmail(
-          providerUser.email,
-        );
-        if (existingUser) {
-          throw ErrorService.create(
-            ErrorCode.CONFLICT,
-            'This Google account matches an existing CashFlow account. Please sign in to that account and link Google from settings.',
-          );
-        }
-
-        user = await this.createGoogleUser(providerUser);
-        welcome = 'new';
-        existingProviderAccount =
-          await this.oauthAccountService.linkProviderAccount({
-            userId: user.id,
-            provider: providerUser.provider,
-            providerAccountId: providerUser.providerUserId,
-            email: providerUser.email,
-            emailVerified: true,
-          });
-        if (!existingProviderAccount) {
-          throw ErrorService.create(
-            ErrorCode.INTERNAL,
-            'Google account link could not be created.',
-          );
-        }
-      }
-
-      if (!user) {
-        throw ErrorService.create(
-          ErrorCode.UNAUTHORIZED,
-          'Google-linked user could not be resolved.',
-        );
-      }
-
-      if (user.status === 'PENDING_VERIFICATION') {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            status: 'ACTIVE',
-            email_verified_at: new Date(),
-          },
-        });
-        user = await this.usersService.findById(user.id);
-      }
-
-      if (!user) {
-        throw ErrorService.create(
-          ErrorCode.UNAUTHORIZED,
-          'Google-linked user could not be resolved after activation.',
-        );
-      }
-
-      if (user.avatar_url !== providerUser.avatarUrl) {
-        user = await this.usersService.updateOAuthAvatar(
-          user.id,
-          providerUser.avatarUrl ?? null,
-        );
-      }
-
-      callbackStage = 'create_session';
-      const session = await this.authService.issueSessionForUser(
-        user,
-        'google',
+      const { session, user, welcome } = await this.authenticateGoogleProfile(
+        profile,
         deviceId ? { ...input.context, deviceId } : input.context,
+        (stage) => {
+          callbackStage = stage;
+        },
       );
       return {
         success: true,

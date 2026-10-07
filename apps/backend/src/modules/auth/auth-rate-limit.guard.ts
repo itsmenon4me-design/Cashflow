@@ -59,7 +59,7 @@ export class AuthRateLimitGuard implements CanActivate {
     let limit = cfg.loginLimit;
     let windowSec = cfg.loginWindowSeconds;
 
-    if (path.endsWith('/login')) {
+    if (path.endsWith('/login') || path.endsWith('/google/native')) {
       limit = cfg.loginLimit;
       windowSec = cfg.loginWindowSeconds;
     } else if (path.endsWith('/register')) {
