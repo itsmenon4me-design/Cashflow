@@ -54,6 +54,7 @@ export interface ReportWorkbookInput {
 
 const COLORS = REPORT_WORKBOOK_STYLE.colors;
 const MONEY_FORMAT = REPORT_WORKBOOK_STYLE.numberFormats.idr;
+const PERCENT_FORMAT = REPORT_WORKBOOK_STYLE.numberFormats.percentage;
 const DETAILS_SHEET = "'Rincian Transaksi'";
 const DETAILS_TYPE_RANGE = `$J$2:$J$`;
 const DETAILS_PERIOD_RANGE = `$K$2:$K$`;
@@ -166,18 +167,6 @@ function periodBounds(period: string, type: WorkbookTrendType): [Date, Date] {
   return [start, new Date(start.getTime() + 7 * 86_400_000)];
 }
 
-function applyTableView(worksheet: ExcelJS.Worksheet, filter: string): void {
-  worksheet.views = [
-    {
-      showGridLines: false,
-      state: 'frozen',
-      ySplit: 1,
-      topLeftCell: 'A2',
-    },
-  ];
-  worksheet.autoFilter = filter;
-}
-
 function setupSummarySheet(
   workbook: ExcelJS.Workbook,
   input: ReportWorkbookInput,
@@ -193,25 +182,38 @@ function setupSummarySheet(
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 2,
-    printArea: 'A1:L41',
+    printArea: 'A1:L46',
   };
-  sheet.mergeCells('A1:L1');
-  sheet.getCell('A1').value = 'NERACA | LAPORAN KEUANGAN';
+  sheet.mergeCells('A1:H1');
+  sheet.mergeCells('I1:L1');
+  sheet.mergeCells('A2:H2');
+  sheet.mergeCells('I2:L2');
+  sheet.getCell('A1').value = 'CashFlow';
   sheet.getCell('A1').font = {
     name: REPORT_WORKBOOK_STYLE.font,
-    size: 20,
+    size: 19,
     bold: true,
     color: { argb: COLORS.white },
   };
   sheet.getCell('A1').alignment = { vertical: 'middle', indent: 1 };
-  sheet.getRow(1).height = 38;
-  sheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: COLORS.teal },
-    };
-  });
+  sheet.getCell('A2').value = 'Laporan Keuangan Pribadi';
+  sheet.getCell('A2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 10,
+    color: { argb: 'FFE1EEEA' },
+  };
+  sheet.getCell('A2').alignment = { vertical: 'middle', indent: 2 };
+  sheet.getRow(1).height = 32;
+  sheet.getRow(2).height = 24;
+  for (const rowNumber of [1, 2]) {
+    sheet.getRow(rowNumber).eachCell({ includeEmpty: true }, (cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: COLORS.teal },
+      };
+    });
+  }
 
   const timeZone = input.timeZone ?? 'Asia/Jakarta';
   const dateOptions: Intl.DateTimeFormatOptions = {
@@ -220,28 +222,61 @@ function setupSummarySheet(
     year: 'numeric',
     timeZone,
   };
-  const periodText = `${input.startDate.toLocaleDateString('id-ID', dateOptions)} - ${input.endDate.toLocaleDateString('id-ID', dateOptions)}`;
-  const comparisonText = `${input.previousStartDate.toLocaleDateString('id-ID', dateOptions)} - ${input.previousEndDate.toLocaleDateString('id-ID', dateOptions)}`;
+  const periodText = `${input.startDate.toLocaleDateString('id-ID', dateOptions)} – ${input.endDate.toLocaleDateString('id-ID', dateOptions)}`;
+  const comparisonText = `${input.previousStartDate.toLocaleDateString('id-ID', dateOptions)} – ${input.previousEndDate.toLocaleDateString('id-ID', dateOptions)}`;
   const generatedText = input.generatedAt.toLocaleString('id-ID', {
-    dateStyle: 'long',
+    dateStyle: 'short',
     timeStyle: 'short',
     timeZone,
   });
-  sheet.mergeCells('A2:L2');
-  sheet.getCell('A2').value =
-    `Periode: ${periodText} | Pembanding: ${comparisonText} | Dibuat: ${generatedText}`;
-  sheet.getCell('A2').font = {
+  sheet.getCell('I1').value = 'Periode Laporan';
+  sheet.getCell('I1').font = {
     name: REPORT_WORKBOOK_STYLE.font,
-    size: 10,
-    color: { argb: COLORS.muted },
+    size: 9,
+    bold: true,
+    color: { argb: 'FFE1EEEA' },
   };
-  sheet.getCell('A2').alignment = {
+  sheet.getCell('I1').alignment = {
     vertical: 'middle',
+    horizontal: 'right',
+    indent: 1,
+  };
+  sheet.getCell('I2').value = periodText;
+  sheet.getCell('I2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 11,
+    bold: true,
+    color: { argb: COLORS.white },
+  };
+  sheet.getCell('I2').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
     wrapText: true,
     indent: 1,
   };
-  sheet.getRow(2).height = 30;
-  sheet.getRow(2).eachCell({ includeEmpty: true }, (cell) => {
+  sheet.mergeCells('A3:H3');
+  sheet.mergeCells('I3:L3');
+  sheet.getCell('A3').value = 'Ringkasan Keuangan';
+  sheet.getCell('A3').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 12,
+    bold: true,
+    color: { argb: COLORS.teal },
+  };
+  sheet.getCell('I3').value =
+    `Pembanding: ${comparisonText} | Dibuat ${generatedText}`;
+  sheet.getCell('I3').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 8,
+    color: { argb: COLORS.muted },
+  };
+  sheet.getCell('I3').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
+    wrapText: true,
+  };
+  sheet.getRow(3).height = 24;
+  sheet.getRow(3).eachCell({ includeEmpty: true }, (cell) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -252,13 +287,15 @@ function setupSummarySheet(
     };
   });
   if (!input.transactions.some((row) => row.period === 'Laporan')) {
-    sheet.mergeCells('A9:L9');
-    sheet.getCell('A9').value = 'Belum ada transaksi pada periode laporan.';
-    sheet.getCell('A9').font = {
+    sheet.mergeCells('A8:L8');
+    sheet.getCell('A8').value = 'Belum ada transaksi pada periode laporan.';
+    sheet.getCell('A8').font = {
       name: REPORT_WORKBOOK_STYLE.font,
       italic: true,
       color: { argb: COLORS.muted },
     };
+    sheet.getCell('A8').alignment = { vertical: 'middle', indent: 1 };
+    sheet.getRow(8).height = 20;
   }
 
   const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
@@ -435,84 +472,18 @@ function setupSummarySheet(
   sheet.getRow(6).height = 25;
   sheet.getRow(7).height = 26;
 
-  const tableHeaderRow = 10;
+  const tableHeaderRow = 29;
   sheet.addRow([]);
   sheet.getRow(tableHeaderRow).values = [
     'Metrik',
     null,
-    'Nilai',
-    null,
+    'Pembanding',
+    'Periode Laporan',
+    'Selisih',
     'Perubahan',
-    null,
   ];
-  sheet.mergeCells('A10:B10');
-  sheet.mergeCells('C10:D10');
-  sheet.mergeCells('E10:F10');
+  sheet.mergeCells('A29:B29');
   styleTableHeader(sheet.getRow(tableHeaderRow), COLORS.teal);
-  const summaryRows = [
-    [
-      'Total Pemasukan',
-      { formula: 'A5', result: Number(cards[0].result) },
-      {
-        formula: 'A7',
-        result:
-          sheet.getCell('A7').value &&
-          typeof sheet.getCell('A7').value === 'object'
-            ? (sheet.getCell('A7').value as ExcelJS.CellFormulaValue).result
-            : '',
-      },
-    ],
-    [
-      'Total Pengeluaran',
-      { formula: 'D5', result: Number(cards[1].result) },
-      {
-        formula: 'D7',
-        result:
-          sheet.getCell('D7').value &&
-          typeof sheet.getCell('D7').value === 'object'
-            ? (sheet.getCell('D7').value as ExcelJS.CellFormulaValue).result
-            : '',
-      },
-    ],
-    [
-      'Arus Kas Bersih',
-      { formula: 'G5', result: Number(cards[2].result) },
-      {
-        formula: 'G7',
-        result:
-          sheet.getCell('G7').value &&
-          typeof sheet.getCell('G7').value === 'object'
-            ? (sheet.getCell('G7').value as ExcelJS.CellFormulaValue).result
-            : '',
-      },
-    ],
-    [
-      'Jumlah Transaksi',
-      { formula: 'J5', result: Number(cards[3].result) },
-      {
-        formula: 'J7',
-        result:
-          sheet.getCell('J7').value &&
-          typeof sheet.getCell('J7').value === 'object'
-            ? (sheet.getCell('J7').value as ExcelJS.CellFormulaValue).result
-            : '',
-      },
-    ],
-  ];
-  summaryRows.forEach((values) =>
-    sheet.addRow([values[0], null, values[1], null, values[2], null]),
-  );
-  for (let rowNumber = 11; rowNumber <= 14; rowNumber += 1) {
-    sheet.mergeCells(`A${rowNumber}:B${rowNumber}`);
-    sheet.mergeCells(`C${rowNumber}:D${rowNumber}`);
-    sheet.mergeCells(`E${rowNumber}:F${rowNumber}`);
-    sheet.getCell(`C${rowNumber}`).numFmt =
-      rowNumber === 14
-        ? REPORT_WORKBOOK_STYLE.numberFormats.count
-        : MONEY_FORMAT;
-    sheet.getRow(rowNumber).height = 30;
-  }
-  styleBandedRows(sheet, 11, 14, 6);
 
   const topExpenseCategories = getWorkbookCategories(
     input,
@@ -524,11 +495,13 @@ function setupSummarySheet(
     'INCOME',
     'Laporan',
   ).slice(0, 5);
-  sheet.mergeCells('G10:I10');
-  sheet.mergeCells('J10:L10');
-  sheet.getCell('G10').value = 'Pengeluaran per Kategori';
-  sheet.getCell('J10').value = 'Pemasukan per Kategori';
-  for (const address of ['G10', 'J10']) {
+  sheet.mergeCells('A9:F9');
+  sheet.mergeCells('G9:I9');
+  sheet.mergeCells('J9:L9');
+  sheet.getCell('A9').value = 'Pemasukan vs Pengeluaran';
+  sheet.getCell('G9').value = 'Kategori Pengeluaran';
+  sheet.getCell('J9').value = 'Rincian Pengeluaran';
+  for (const address of ['A9', 'G9', 'J9']) {
     const cell = sheet.getCell(address);
     cell.fill = {
       type: 'pattern',
@@ -543,15 +516,54 @@ function setupSummarySheet(
     };
     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   }
-  sheet.getRow(11).height = 24;
-  ['G', 'H', 'I', 'J', 'K', 'L'].forEach((column) => {
-    const cell = sheet.getCell(`${column}11`);
+  sheet.mergeCells('A28:F28');
+  sheet.mergeCells('G28:I28');
+  sheet.mergeCells('J28:L28');
+  sheet.getCell('A28').value = 'Perbandingan dengan Periode Sebelumnya';
+  sheet.getCell('G28').value = 'Kategori Pemasukan';
+  sheet.getCell('J28').value = 'Rincian Pemasukan';
+  for (const address of ['A28', 'G28', 'J28']) {
+    const cell = sheet.getCell(address);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.tealLight },
+    };
+    cell.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: COLORS.teal },
+      size: 10,
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  }
+  sheet.getRow(28).height = 24;
+  sheet.getRow(10).height = 24;
+  sheet.getRow(29).height = 24;
+  ['J', 'K', 'L'].forEach((column) => {
+    const cell = sheet.getCell(`${column}10`);
     cell.value =
-      column === 'G' || column === 'J'
-        ? 'Kategori'
-        : column === 'H' || column === 'K'
-          ? 'Persentase'
-          : 'Nominal';
+      column === 'J' ? 'Kategori' : column === 'K' ? 'Persentase' : 'Nominal';
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.band },
+    };
+    cell.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: COLORS.text },
+      size: 9,
+    };
+    cell.alignment = { vertical: 'middle', wrapText: true };
+    cell.border = {
+      bottom: { style: 'thin', color: { argb: COLORS.border } },
+    };
+  });
+  ['J', 'K', 'L'].forEach((column) => {
+    const cell = sheet.getCell(`${column}29`);
+    cell.value =
+      column === 'J' ? 'Kategori' : column === 'K' ? 'Persentase' : 'Nominal';
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -571,7 +583,6 @@ function setupSummarySheet(
   const fillCategorySummary = (
     categories: WorkbookCategoryTotal[],
     type: WorkbookTransactionType,
-    firstColumn: 'G' | 'J',
   ) => {
     const sheetName =
       type === 'EXPENSE'
@@ -581,40 +592,35 @@ function setupSummarySheet(
       (sum, category) => sum + category.total,
       0n,
     );
-    const columns =
-      firstColumn === 'G'
-        ? { name: 'G', percentage: 'H', amount: 'I' }
-        : { name: 'J', percentage: 'K', amount: 'L' };
     for (let index = 0; index < 5; index += 1) {
-      const rowNumber = index + 12;
+      const rowNumber = index + (type === 'EXPENSE' ? 11 : 30);
       const category = categories[index];
       const cellValues = category
         ? {
-            name: excelFormula(`'${sheetName}'!A${index + 2}`, category.name),
+            name: excelFormula(`'${sheetName}'!G${index + 6}`, category.name),
             percentage: excelFormula(
-              `'${sheetName}'!C${index + 2}`,
+              `'${sheetName}'!I${index + 6}`,
               grandTotal === 0n
                 ? 0
                 : Number(category.total) / Number(grandTotal),
             ),
             amount: excelFormula(
-              `'${sheetName}'!B${index + 2}`,
+              `'${sheetName}'!H${index + 6}`,
               Number(category.total),
             ),
           }
         : { name: '-', percentage: 0, amount: 0 };
-      sheet.getCell(`${columns.name}${rowNumber}`).value = cellValues.name;
-      sheet.getCell(`${columns.percentage}${rowNumber}`).value =
-        cellValues.percentage;
-      sheet.getCell(`${columns.amount}${rowNumber}`).value = cellValues.amount;
-      sheet.getCell(`${columns.percentage}${rowNumber}`).numFmt =
+      sheet.getCell(`J${rowNumber}`).value = cellValues.name;
+      sheet.getCell(`K${rowNumber}`).value = cellValues.percentage;
+      sheet.getCell(`L${rowNumber}`).value = cellValues.amount;
+      sheet.getCell(`K${rowNumber}`).numFmt =
         REPORT_WORKBOOK_STYLE.numberFormats.percentage;
-      sheet.getCell(`${columns.amount}${rowNumber}`).numFmt = MONEY_FORMAT;
-      for (const column of Object.values(columns)) {
+      sheet.getCell(`L${rowNumber}`).numFmt = MONEY_FORMAT;
+      for (const column of ['J', 'K', 'L']) {
         const cell = sheet.getCell(`${column}${rowNumber}`);
         cell.alignment = {
           vertical: 'middle',
-          horizontal: column === columns.name ? 'left' : 'right',
+          horizontal: column === 'J' ? 'left' : 'right',
           wrapText: true,
         };
         cell.border = {
@@ -630,33 +636,9 @@ function setupSummarySheet(
       }
     }
   };
-  fillCategorySummary(topExpenseCategories, 'EXPENSE', 'G');
-  fillCategorySummary(topIncomeCategories, 'INCOME', 'J');
+  fillCategorySummary(topExpenseCategories, 'EXPENSE');
+  fillCategorySummary(topIncomeCategories, 'INCOME');
 
-  sheet.mergeCells('A36:F36');
-  sheet.getCell('A36').value = 'Perbandingan Periode';
-  sheet.getCell('A36').fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: COLORS.teal },
-  };
-  sheet.getCell('A36').font = {
-    name: REPORT_WORKBOOK_STYLE.font,
-    bold: true,
-    color: { argb: COLORS.white },
-  };
-  sheet.getCell('A36').alignment = { vertical: 'middle', indent: 1 };
-  sheet.getRow(36).height = 26;
-  sheet.getRow(37).values = [
-    'Metrik',
-    null,
-    'Pembanding',
-    'Periode Laporan',
-    'Selisih',
-    'Perubahan',
-  ];
-  sheet.mergeCells('A37:B37');
-  styleTableHeader(sheet.getRow(37), COLORS.teal);
   const periodComparisons = [
     {
       label: 'Total Pemasukan',
@@ -714,7 +696,7 @@ function setupSummarySheet(
     },
   ];
   periodComparisons.forEach((comparison, index) => {
-    const rowNumber = index + 38;
+    const rowNumber = index + 30;
     sheet.getCell(`A${rowNumber}`).value = comparison.label;
     sheet.mergeCells(`A${rowNumber}:B${rowNumber}`);
     sheet.getCell(`C${rowNumber}`).value = excelFormula(
@@ -730,7 +712,7 @@ function setupSummarySheet(
       Number(comparison.currentValue - comparison.previousValue),
     );
     sheet.getCell(`F${rowNumber}`).value = excelFormula(
-      comparison.change,
+      `IF(C${rowNumber}=0,IF(ABS(D${rowNumber})>0,"Baru","-"),TEXT((D${rowNumber}-C${rowNumber})/ABS(C${rowNumber}),"+0.0%;-0.0%;0.0%"))`,
       comparison.changeValue,
     );
     for (const column of ['C', 'D', 'E']) {
@@ -750,9 +732,9 @@ function setupSummarySheet(
       sheet.getCell(`E${rowNumber}`),
       Number(comparison.currentValue - comparison.previousValue),
     );
-    sheet.getRow(rowNumber).height = 26;
+    sheet.getRow(rowNumber).height = 30;
   });
-  styleBandedRows(sheet, 38, 41, 6);
+  styleBandedRows(sheet, 30, 33, 6);
   sheet.getCell('N1').value =
     'Sumber pembanding dihitung dari transaksi pada tabel rincian.';
   sheet.getColumn(14).hidden = true;
@@ -799,24 +781,212 @@ function setupTrendSheet(
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
   });
-  sheet.columns = [{ width: 18 }, { width: 22 }, { width: 22 }, { width: 23 }];
+  sheet.columns = Array.from({ length: 12 }, () => ({ width: 14 }));
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
-    printTitlesRow: '1:1',
+    printArea: `A1:L${Math.max(38, input.trend.length + 34)}`,
   };
-  sheet.addRow(['Periode', 'Pemasukan', 'Pengeluaran', 'Arus Kas Bersih']);
-  styleTableHeader(sheet.getRow(1), COLORS.teal);
-  applyTableView(sheet, `A1:D${Math.max(1, input.trend.length + 1)}`);
+  sheet.mergeCells('A1:I1');
+  sheet.mergeCells('J1:L1');
+  sheet.mergeCells('A2:I2');
+  sheet.mergeCells('J2:L2');
+  sheet.getCell('A1').value = 'Tren Arus Kas';
+  sheet.getCell('A1').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 18,
+    bold: true,
+    color: { argb: COLORS.white },
+  };
+  sheet.getCell('A1').alignment = { vertical: 'middle', indent: 1 };
+  sheet.getCell('A2').value =
+    'Melihat perkembangan pemasukan, pengeluaran dan arus kas bersih.';
+  sheet.getCell('A2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 10,
+    color: { argb: 'FFE1EEEA' },
+  };
+  sheet.getCell('A2').alignment = { vertical: 'middle', indent: 2 };
+  sheet.getCell('J1').value = 'Periode Laporan';
+  sheet.getCell('J1').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 9,
+    bold: true,
+    color: { argb: 'FFE1EEEA' },
+  };
+  sheet.getCell('J1').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
+  };
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    timeZone: input.timeZone ?? 'Asia/Jakarta',
+  };
+  sheet.getCell('J2').value =
+    `${input.startDate.toLocaleDateString('id-ID', dateOptions)} – ${input.endDate.toLocaleDateString('id-ID', dateOptions)}`;
+  sheet.getCell('J2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 11,
+    bold: true,
+    color: { argb: COLORS.white },
+  };
+  sheet.getCell('J2').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
+  };
+  for (const rowNumber of [1, 2]) {
+    sheet.getRow(rowNumber).height = rowNumber === 1 ? 32 : 24;
+    sheet.getRow(rowNumber).eachCell({ includeEmpty: true }, (cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: COLORS.teal },
+      };
+    });
+  }
 
   const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
   const typeRange = `${DETAILS_SHEET}!${DETAILS_TYPE_RANGE}${sourceEndRow}`;
   const periodRange = `${DETAILS_SHEET}!${DETAILS_PERIOD_RANGE}${sourceEndRow}`;
   const dateRange = `${DETAILS_SHEET}!$B$2:$B$${sourceEndRow}`;
-  input.trend.forEach((point) => {
-    const rowNumber = sheet.rowCount + 1;
+  const cardLastDataRow = Math.max(31, 30 + input.trend.length);
+  const cardTotalRowNumber = 31 + Math.max(1, input.trend.length);
+  const cardIncomeTotal = input.trend.reduce(
+    (sum, point) => sum + BigInt(point.income),
+    0n,
+  );
+  const cardExpenseTotal = input.trend.reduce(
+    (sum, point) => sum + BigInt(point.expense),
+    0n,
+  );
+  const netTotal = cardIncomeTotal - cardExpenseTotal;
+  const cards = [
+    {
+      label: 'Total Pemasukan',
+      start: 'A',
+      end: 'C',
+      color: COLORS.income,
+      value: cardIncomeTotal,
+      formula: input.trend.length ? `SUM(B31:B${cardLastDataRow})` : 'SUM(0)',
+    },
+    {
+      label: 'Total Pengeluaran',
+      start: 'D',
+      end: 'F',
+      color: COLORS.expense,
+      value: cardExpenseTotal,
+      formula: input.trend.length ? `SUM(C31:C${cardLastDataRow})` : 'SUM(0)',
+    },
+    {
+      label: 'Arus Kas Bersih',
+      start: 'G',
+      end: 'I',
+      color: COLORS.net,
+      value: netTotal,
+      formula: `B${cardTotalRowNumber}-C${cardTotalRowNumber}`,
+    },
+  ];
+  for (const card of cards) {
+    sheet.mergeCells(`${card.start}4:${card.end}4`);
+    sheet.mergeCells(`${card.start}5:${card.end}6`);
+    const label = sheet.getCell(`${card.start}4`);
+    label.value = card.label;
+    const value = sheet.getCell(`${card.start}5`);
+    value.value = excelFormula(card.formula, Number(card.value));
+    value.numFmt = MONEY_FORMAT;
+    value.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      size: 16,
+      bold: true,
+      color: { argb: card.color },
+    };
+    value.alignment = { vertical: 'middle', horizontal: 'center' };
+    for (
+      let column = card.start.charCodeAt(0) - 64;
+      column <= card.end.charCodeAt(0) - 64;
+      column += 1
+    ) {
+      for (let rowNumber = 4; rowNumber <= 6; rowNumber += 1) {
+        const cell = sheet.getRow(rowNumber).getCell(column);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: rowNumber === 4 ? COLORS.tealLight : COLORS.white },
+        };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: COLORS.border } },
+        };
+      }
+    }
+    label.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      size: 10,
+      bold: true,
+      color: { argb: COLORS.teal },
+    };
+    label.alignment = { vertical: 'middle', horizontal: 'center' };
+  }
+  sheet.getRow(4).height = 24;
+  sheet.getRow(5).height = 26;
+  sheet.getRow(6).height = 18;
+  sheet.mergeCells('A8:L8');
+  sheet.getCell('A8').value = 'Grafik Arus Kas';
+  sheet.getCell('A8').fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: COLORS.tealLight },
+  };
+  sheet.getCell('A8').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    bold: true,
+    color: { argb: COLORS.teal },
+  };
+  sheet.getCell('A8').alignment = { vertical: 'middle', indent: 1 };
+  sheet.getRow(8).height = 25;
+
+  sheet.mergeCells('A28:D28');
+  sheet.mergeCells('F28:H28');
+  sheet.mergeCells('J28:L28');
+  sheet.getCell('A28').value = 'Detail Bulanan';
+  sheet.getCell('F28').value = 'Ringkasan Bulanan';
+  sheet.getCell('J28').value = 'Ringkasan Tren';
+  for (const address of ['A28', 'F28', 'J28']) {
+    const cell = sheet.getCell(address);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.tealLight },
+    };
+    cell.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: COLORS.teal },
+    };
+    cell.alignment = { vertical: 'middle', indent: 1 };
+  }
+  sheet.getRow(28).height = 25;
+  sheet.getRow(30).values = [
+    'Periode',
+    'Pemasukan',
+    'Pengeluaran',
+    'Arus Kas Bersih',
+    null,
+    'Jenis',
+    'Nominal',
+    'Persentase',
+    null,
+    'Metrik',
+    'Periode',
+    'Nominal',
+  ];
+  styleTableHeader(sheet.getRow(30), COLORS.teal);
+
+  input.trend.forEach((point, index) => {
+    const rowNumber = 31 + index;
     const [start, end] = periodBounds(point.period, input.trendType);
     const incomeFormula = sumByDateFormula(
       'INCOME',
@@ -853,7 +1023,6 @@ function setupTrendSheet(
     );
   });
 
-  const totalRowNumber = sheet.rowCount + 1;
   const incomeTotal = input.trend.reduce(
     (sum, point) => sum + BigInt(point.income),
     0n,
@@ -862,11 +1031,16 @@ function setupTrendSheet(
     (sum, point) => sum + BigInt(point.expense),
     0n,
   );
+  if (input.trend.length === 0) {
+    sheet.getRow(31).values = ['Tidak ada data', 0, 0, 0];
+  }
+  const lastDataRow = Math.max(31, 30 + input.trend.length);
+  const totalRowNumber = lastDataRow + 1;
   const totalIncomeFormula =
-    input.trend.length > 0 ? `SUM(B2:B${totalRowNumber - 1})` : 'SUM(0)';
+    input.trend.length > 0 ? `SUM(B31:B${lastDataRow})` : 'SUM(B31:B31)';
   const totalExpenseFormula =
-    input.trend.length > 0 ? `SUM(C2:C${totalRowNumber - 1})` : 'SUM(0)';
-  sheet.addRow([
+    input.trend.length > 0 ? `SUM(C31:C${lastDataRow})` : 'SUM(C31:C31)';
+  sheet.getRow(totalRowNumber).values = [
     'Total',
     excelFormula(totalIncomeFormula, Number(incomeTotal)),
     excelFormula(totalExpenseFormula, Number(expenseTotal)),
@@ -874,15 +1048,100 @@ function setupTrendSheet(
       `B${totalRowNumber}-C${totalRowNumber}`,
       Number(incomeTotal - expenseTotal),
     ),
-  ]);
-  styleBandedRows(sheet, 2, totalRowNumber - 1, 4);
+  ];
+  styleBandedRows(sheet, 31, lastDataRow, 4);
   styleTotalRow(sheet.getRow(totalRowNumber), 4);
-  for (let rowNumber = 2; rowNumber <= totalRowNumber; rowNumber += 1) {
+  const summaries = [
+    ['Pemasukan', `B${totalRowNumber}`, incomeTotal, 1, COLORS.income],
+    [
+      'Pengeluaran',
+      `C${totalRowNumber}`,
+      expenseTotal,
+      incomeTotal === 0n
+        ? 0
+        : Number((expenseTotal * 10_000n) / incomeTotal) / 10_000,
+      COLORS.expense,
+    ],
+    [
+      'Arus Kas Bersih',
+      `D${totalRowNumber}`,
+      incomeTotal - expenseTotal,
+      incomeTotal === 0n
+        ? 0
+        : Number(((incomeTotal - expenseTotal) * 10_000n) / incomeTotal) /
+          10_000,
+      COLORS.net,
+    ],
+  ] as const;
+  summaries.forEach(([label, formula, result, percentage, color], index) => {
+    const rowNumber = 31 + index;
+    sheet.getCell(`F${rowNumber}`).value = label;
+    sheet.getCell(`G${rowNumber}`).value = excelFormula(
+      formula,
+      Number(result),
+    );
+    sheet.getCell(`G${rowNumber}`).numFmt = MONEY_FORMAT;
+    sheet.getCell(`G${rowNumber}`).font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: color },
+    };
+    sheet.getCell(`H${rowNumber}`).value = excelFormula(
+      `IF(B${totalRowNumber}=0,0,G${rowNumber}/B${totalRowNumber})`,
+      percentage,
+    );
+    sheet.getCell(`H${rowNumber}`).numFmt = PERCENT_FORMAT;
+  });
+  const peakMetrics = [
+    {
+      label: 'Pemasukan tertinggi',
+      period: input.trend.reduce(
+        (peak, point) =>
+          !peak || BigInt(point.income) > BigInt(peak.income) ? point : peak,
+        input.trend[0],
+      ),
+      value: 'income',
+      column: 'B',
+    },
+    {
+      label: 'Pengeluaran tertinggi',
+      period: input.trend.reduce(
+        (peak, point) =>
+          !peak || BigInt(point.expense) > BigInt(peak.expense) ? point : peak,
+        input.trend[0],
+      ),
+      value: 'expense',
+      column: 'C',
+    },
+    {
+      label: 'Arus kas bersih tertinggi',
+      period: input.trend.reduce(
+        (peak, point) =>
+          !peak || BigInt(point.netCashFlow) > BigInt(peak.netCashFlow)
+            ? point
+            : peak,
+        input.trend[0],
+      ),
+      value: 'netCashFlow',
+      column: 'D',
+    },
+  ] as const;
+  peakMetrics.forEach((metric, index) => {
+    const rowNumber = 31 + index;
+    sheet.getCell(`J${rowNumber}`).value = metric.label;
+    sheet.getCell(`K${rowNumber}`).value = metric.period?.period ?? '-';
+    sheet.getCell(`L${rowNumber}`).value = metric.period
+      ? excelFormula(
+          `MAX(${metric.column}31:${metric.column}${lastDataRow})`,
+          Number(BigInt(metric.period[metric.value])),
+        )
+      : 0;
+    sheet.getCell(`L${rowNumber}`).numFmt = MONEY_FORMAT;
+  });
+  for (let rowNumber = 31; rowNumber <= totalRowNumber; rowNumber += 1) {
     sheet.getCell(`B${rowNumber}`).numFmt = MONEY_FORMAT;
     sheet.getCell(`C${rowNumber}`).numFmt = MONEY_FORMAT;
     sheet.getCell(`D${rowNumber}`).numFmt = MONEY_FORMAT;
-  }
-  for (let rowNumber = 2; rowNumber <= totalRowNumber; rowNumber += 1) {
     sheet.getCell(`B${rowNumber}`).font = {
       name: REPORT_WORKBOOK_STYLE.font,
       bold: rowNumber === totalRowNumber,
@@ -899,6 +1158,7 @@ function setupTrendSheet(
       color: { argb: COLORS.teal },
     };
   }
+  sheet.autoFilter = `A30:D${lastDataRow}`;
   applyWorkbookBaseFont(sheet);
 }
 
@@ -947,116 +1207,190 @@ function setupCategorySheet(
   type: WorkbookTransactionType,
   sourceEndRow: number,
 ): void {
-  const title =
-    type === 'INCOME' ? 'Pemasukan per Kategori' : 'Pengeluaran per Kategori';
+  const income = type === 'INCOME';
+  const title = income ? 'Pemasukan per Kategori' : 'Pengeluaran per Kategori';
+  const categories = getWorkbookCategories(input, type, 'Laporan');
+  const comparisonCategories = getWorkbookCategories(input, type);
+  const total = categories.reduce((sum, category) => sum + category.total, 0n);
+  const dataStartRow = 6;
+  const dataEndRow = dataStartRow + Math.max(categories.length, 1) - 1;
+  const totalRow = dataEndRow + 1;
+  const comparisonHeaderRow = Math.max(totalRow + 3, 46);
+  const comparisonStartRow = comparisonHeaderRow + 1;
+  const comparisonEndRow = comparisonStartRow + comparisonCategories.length - 1;
+  const bottomRow = Math.max(comparisonHeaderRow + 20, comparisonEndRow + 2);
   const sheet = workbook.addWorksheet(title, {
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
   });
   sheet.columns = [
-    { width: 36 },
+    { width: 13 },
+    { width: 13 },
+    { width: 13 },
+    { width: 13 },
+    { width: 13 },
+    { width: 13 },
+    { width: 34 },
     { width: 22 },
     { width: 16 },
     { width: 22 },
     { width: 38, hidden: true },
     { width: 3 },
-    { width: 36 },
-    { width: 22 },
-    { width: 22 },
-    { width: 20 },
   ];
-  sheet.pageSetup = {
-    orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 0,
-    printTitlesRow: '1:1',
+  sheet.mergeCells('A1:F1');
+  sheet.mergeCells('G1:J1');
+  sheet.mergeCells('A2:F2');
+  sheet.mergeCells('G2:J2');
+  sheet.getCell('A1').value = title;
+  sheet.getCell('A1').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 18,
+    bold: true,
+    color: { argb: COLORS.white },
   };
-  sheet.addRow([
-    'Kategori',
-    'Total',
-    'Persentase',
-    'Jumlah Transaksi',
-    'ID Kategori',
+  sheet.getCell('A1').alignment = { vertical: 'middle', indent: 1 };
+  sheet.getCell('A2').value = income
+    ? 'Rincian sumber pemasukan berdasarkan kategori.'
+    : 'Rincian pengeluaran berdasarkan kategori.';
+  sheet.getCell('A2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 10,
+    color: { argb: 'FFE1EEEA' },
+  };
+  sheet.getCell('A2').alignment = { vertical: 'middle', indent: 2 };
+  sheet.getCell('G1').value = 'Periode Laporan';
+  sheet.getCell('G1').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 9,
+    bold: true,
+    color: { argb: 'FFE1EEEA' },
+  };
+  sheet.getCell('G1').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
+    indent: 1,
+  };
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    timeZone: input.timeZone ?? 'Asia/Jakarta',
+  };
+  sheet.getCell('G2').value =
+    `${input.startDate.toLocaleDateString('id-ID', dateOptions)} – ${input.endDate.toLocaleDateString('id-ID', dateOptions)}`;
+  sheet.getCell('G2').font = {
+    name: REPORT_WORKBOOK_STYLE.font,
+    size: 11,
+    bold: true,
+    color: { argb: COLORS.white },
+  };
+  sheet.getCell('G2').alignment = {
+    vertical: 'middle',
+    horizontal: 'right',
+    indent: 1,
+  };
+  for (const rowNumber of [1, 2]) {
+    sheet.getRow(rowNumber).height = rowNumber === 1 ? 32 : 24;
+    sheet.getRow(rowNumber).eachCell({ includeEmpty: true }, (cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: COLORS.teal },
+      };
+    });
+  }
+
+  sheet.mergeCells('A4:F4');
+  sheet.mergeCells('G4:J4');
+  sheet.getCell('A4').value = 'Komposisi Kategori';
+  sheet.getCell('G4').value = 'Rincian Kategori';
+  for (const address of ['A4', 'G4']) {
+    const cell = sheet.getCell(address);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.tealLight },
+    };
+    cell.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: COLORS.teal },
+    };
+    cell.alignment = { vertical: 'middle', indent: 1 };
+  }
+  sheet.getRow(4).height = 25;
+  sheet.getRow(5).values = [
+    null,
+    null,
+    null,
+    null,
+    null,
     null,
     'Kategori',
-    'Pembanding',
-    'Periode Laporan',
-    'Perubahan',
-  ]);
-  styleTableHeader(sheet.getRow(1), COLORS.teal);
+    'Nominal',
+    'Persentase',
+    'Jumlah Transaksi',
+  ];
+  styleTableHeader(sheet.getRow(5), COLORS.teal);
 
-  const categories = getWorkbookCategories(input, type, 'Laporan');
-  const comparisonCategories = getWorkbookCategories(input, type);
   const amountRange = `${DETAILS_SHEET}!$F$2:$F$${sourceEndRow}`;
   const typeRange = `${DETAILS_SHEET}!${DETAILS_TYPE_RANGE}${sourceEndRow}`;
   const periodRange = `${DETAILS_SHEET}!${DETAILS_PERIOD_RANGE}${sourceEndRow}`;
   const categoryRange = `${DETAILS_SHEET}!$I$2:$I$${sourceEndRow}`;
-  const firstDataRow = 2;
-  const allTypeTotal = categories.reduce((sum, row) => sum + row.total, 0n);
-  categories.forEach((category) => {
-    const rowNumber = sheet.rowCount + 1;
-    const categoryFormula = `SUMIFS(${amountRange},${typeRange},"${type}",${periodRange},"Laporan",${categoryRange},E${rowNumber})`;
-    const countFormula = `COUNTIFS(${typeRange},"${type}",${periodRange},"Laporan",${categoryRange},E${rowNumber})`;
-    sheet.addRow([
-      category.name,
-      excelFormula(categoryFormula, Number(category.total)),
-      excelFormula(
-        `IFERROR(B${rowNumber}/$B$${categories.length + 2},0)`,
-        allTypeTotal === 0n ? 0 : Number(category.total) / Number(allTypeTotal),
-      ),
-      excelFormula(countFormula, category.count),
-      category.id,
-    ]);
+  categories.forEach((category, index) => {
+    const rowNumber = dataStartRow + index;
+    const categoryFormula = `SUMIFS(${amountRange},${typeRange},"${type}",${periodRange},"Laporan",${categoryRange},K${rowNumber})`;
+    const countFormula = `COUNTIFS(${typeRange},"${type}",${periodRange},"Laporan",${categoryRange},K${rowNumber})`;
+    sheet.getCell(`G${rowNumber}`).value = category.name;
+    sheet.getCell(`H${rowNumber}`).value = excelFormula(
+      categoryFormula,
+      Number(category.total),
+    );
+    sheet.getCell(`I${rowNumber}`).value = excelFormula(
+      `IFERROR(H${rowNumber}/$H$${totalRow},0)`,
+      total === 0n ? 0 : Number(category.total) / Number(total),
+    );
+    sheet.getCell(`J${rowNumber}`).value = excelFormula(
+      countFormula,
+      category.count,
+    );
+    sheet.getCell(`K${rowNumber}`).value = category.id;
   });
   if (categories.length === 0) {
-    sheet.addRow([
-      '',
-      excelFormula('0', 0),
-      excelFormula('0', 0),
-      excelFormula('0', 0),
-      '',
-    ]);
+    sheet.getCell(`G${dataStartRow}`).value = 'Belum ada data';
+    sheet.getCell(`H${dataStartRow}`).value = excelFormula('0', 0);
+    sheet.getCell(`I${dataStartRow}`).value = excelFormula('0', 0);
+    sheet.getCell(`J${dataStartRow}`).value = excelFormula('0', 0);
   }
-  const totalRowNumber = sheet.rowCount + 1;
-  const finalDataRow = Math.max(firstDataRow, totalRowNumber - 1);
-  sheet.addRow([
-    'Total',
-    excelFormula(
-      `SUM(B${firstDataRow}:B${finalDataRow})`,
-      Number(allTypeTotal),
-    ),
-    excelFormula(
-      `SUM(C${firstDataRow}:C${finalDataRow})`,
-      categories.length === 0 ? 0 : 1,
-    ),
-    excelFormula(
-      `SUM(D${firstDataRow}:D${finalDataRow})`,
-      categories.reduce((sum, row) => sum + row.count, 0),
-    ),
-    '',
-  ]);
-  applyTableView(sheet, `A1:D${totalRowNumber - 1}`);
-  styleBandedRows(sheet, firstDataRow, totalRowNumber - 1, 4);
-  styleTotalRow(sheet.getRow(totalRowNumber), 4);
-  for (
-    let rowNumber = firstDataRow;
-    rowNumber <= totalRowNumber;
-    rowNumber += 1
-  ) {
-    sheet.getCell(`B${rowNumber}`).numFmt = MONEY_FORMAT;
-    sheet.getCell(`C${rowNumber}`).numFmt =
+  sheet.getCell(`G${totalRow}`).value = 'Total';
+  sheet.getCell(`H${totalRow}`).value = excelFormula(
+    `SUM(H${dataStartRow}:H${dataEndRow})`,
+    Number(total),
+  );
+  sheet.getCell(`I${totalRow}`).value = excelFormula(
+    `SUM(I${dataStartRow}:I${dataEndRow})`,
+    categories.length > 0 ? 1 : 0,
+  );
+  sheet.getCell(`J${totalRow}`).value = excelFormula(
+    `SUM(J${dataStartRow}:J${dataEndRow})`,
+    categories.reduce((sum, category) => sum + category.count, 0),
+  );
+  styleBandedRows(sheet, dataStartRow, dataEndRow, 10);
+  styleTotalRow(sheet.getRow(totalRow), 10);
+  for (let rowNumber = dataStartRow; rowNumber <= totalRow; rowNumber += 1) {
+    sheet.getCell(`H${rowNumber}`).numFmt = MONEY_FORMAT;
+    sheet.getCell(`I${rowNumber}`).numFmt =
       REPORT_WORKBOOK_STYLE.numberFormats.percentage;
-    sheet.getCell(`D${rowNumber}`).numFmt =
+    sheet.getCell(`J${rowNumber}`).numFmt =
       REPORT_WORKBOOK_STYLE.numberFormats.count;
-    sheet.getCell(`A${rowNumber}`).alignment = {
+    sheet.getCell(`G${rowNumber}`).alignment = {
       vertical: 'middle',
       wrapText: true,
     };
-    const category = categories[rowNumber - firstDataRow];
+    const category = categories[rowNumber - dataStartRow];
     sheet.getRow(rowNumber).height = Math.max(
-      20,
-      Math.ceil((category?.name.length ?? 0) / 36) * 15,
+      22,
+      Math.ceil((category?.name.length ?? 0) / 34) * 15,
     );
   }
 
@@ -1073,21 +1407,60 @@ function setupCategorySheet(
     totals[transaction.period === 'Laporan' ? 'current' : 'previous'] +=
       transaction.amount;
   }
+  sheet.mergeCells(`A${comparisonHeaderRow}:F${comparisonHeaderRow}`);
+  sheet.mergeCells(`G${comparisonHeaderRow}:J${comparisonHeaderRow}`);
+  sheet.getCell(`A${comparisonHeaderRow}`).value = 'Perbandingan Kategori';
+  sheet.getCell(`G${comparisonHeaderRow}`).value =
+    'Periode laporan dibanding periode sebelumnya';
+  for (const address of [
+    `A${comparisonHeaderRow}`,
+    `G${comparisonHeaderRow}`,
+  ]) {
+    const cell = sheet.getCell(address);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.tealLight },
+    };
+    cell.font = {
+      name: REPORT_WORKBOOK_STYLE.font,
+      bold: true,
+      color: { argb: COLORS.teal },
+    };
+    cell.alignment = { vertical: 'middle', indent: 1, wrapText: true };
+  }
+  const comparisonTableHeader = comparisonHeaderRow + 1;
+  const comparisonTableEnd =
+    comparisonTableHeader + comparisonCategories.length;
+  sheet.getRow(comparisonTableHeader).values = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    'Kategori',
+    'Pembanding',
+    'Periode Laporan',
+    'Selisih',
+  ];
+  styleTableHeader(sheet.getRow(comparisonTableHeader), COLORS.teal);
   comparisonCategories.forEach((category, index) => {
-    const rowNumber = index + 2;
+    const rowNumber = comparisonTableHeader + 1 + index;
     const totals = comparisonTotals.get(category.id);
     if (!totals) {
       throw new Error('Unable to calculate a category comparison total.');
     }
-    const comparisonFormula = (periodName: WorkbookTransactionPeriod) =>
-      `SUMIFS(${amountRange},${typeRange},"${type}",${periodRange},"${periodName}",${categoryRange},${category.id})`;
+    const criteria = category.id.replaceAll('"', '""');
+    const formula = (periodName: WorkbookTransactionPeriod) =>
+      `SUMIFS(${amountRange},${typeRange},"${type}",${periodRange},"${periodName}",${categoryRange},"${criteria}")`;
     sheet.getCell(`G${rowNumber}`).value = category.name;
     sheet.getCell(`H${rowNumber}`).value = excelFormula(
-      comparisonFormula('Pembanding'),
+      formula('Pembanding'),
       Number(totals.previous),
     );
     sheet.getCell(`I${rowNumber}`).value = excelFormula(
-      comparisonFormula('Laporan'),
+      formula('Laporan'),
       Number(totals.current),
     );
     sheet.getCell(`J${rowNumber}`).value = excelFormula(
@@ -1107,61 +1480,46 @@ function setupCategorySheet(
       vertical: 'middle',
       wrapText: true,
     };
+    sheet.getRow(rowNumber).height = 22;
   });
-  const comparisonTotalRow = comparisonCategories.length + 2;
+  const comparisonGrandRow = comparisonTableEnd + 1;
+  const previousGrandTotal = comparisonCategories.reduce(
+    (sum, category) =>
+      sum + (comparisonTotals.get(category.id)?.previous ?? 0n),
+    0n,
+  );
+  const currentGrandTotal = comparisonCategories.reduce(
+    (sum, category) => sum + (comparisonTotals.get(category.id)?.current ?? 0n),
+    0n,
+  );
+  sheet.getCell(`G${comparisonGrandRow}`).value = 'Total';
+  sheet.getCell(`H${comparisonGrandRow}`).value = excelFormula(
+    comparisonCategories.length > 0
+      ? `SUM(H${comparisonTableHeader + 1}:H${comparisonTableEnd})`
+      : 'SUM(0)',
+    Number(previousGrandTotal),
+  );
+  sheet.getCell(`I${comparisonGrandRow}`).value = excelFormula(
+    comparisonCategories.length > 0
+      ? `SUM(I${comparisonTableHeader + 1}:I${comparisonTableEnd})`
+      : 'SUM(0)',
+    Number(currentGrandTotal),
+  );
+  sheet.getCell(`J${comparisonGrandRow}`).value = excelFormula(
+    `I${comparisonGrandRow}-H${comparisonGrandRow}`,
+    Number(currentGrandTotal - previousGrandTotal),
+  );
+  for (const column of ['H', 'I', 'J']) {
+    sheet.getCell(`${column}${comparisonGrandRow}`).numFmt = MONEY_FORMAT;
+  }
   if (comparisonCategories.length > 0) {
-    const previousGrandTotal = comparisonCategories.reduce(
-      (sum, row) => sum + (comparisonTotals.get(row.id)?.previous ?? 0n),
-      0n,
+    styleBandedRows(
+      sheet,
+      comparisonTableHeader + 1,
+      comparisonGrandRow - 1,
+      10,
     );
-    sheet.getCell(`G${comparisonTotalRow}`).value = 'Total';
-    sheet.getCell(`H${comparisonTotalRow}`).value = excelFormula(
-      `SUM(H2:H${comparisonTotalRow - 1})`,
-      Number(previousGrandTotal),
-    );
-    sheet.getCell(`I${comparisonTotalRow}`).value = excelFormula(
-      `SUM(I2:I${comparisonTotalRow - 1})`,
-      Number(allTypeTotal),
-    );
-    sheet.getCell(`J${comparisonTotalRow}`).value = excelFormula(
-      `I${comparisonTotalRow}-H${comparisonTotalRow}`,
-      Number(allTypeTotal - previousGrandTotal),
-    );
-    for (let rowNumber = 2; rowNumber < comparisonTotalRow; rowNumber += 1) {
-      for (let column = 7; column <= 10; column += 1) {
-        const cell = sheet.getRow(rowNumber).getCell(column);
-        if (rowNumber % 2 === 1) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: COLORS.band },
-          };
-        }
-        cell.border = {
-          bottom: { style: 'hair', color: { argb: COLORS.border } },
-        };
-        cell.alignment = { vertical: 'middle', wrapText: true };
-      }
-    }
-    for (let column = 7; column <= 10; column += 1) {
-      const cell = sheet.getRow(comparisonTotalRow).getCell(column);
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: COLORS.total },
-      };
-      cell.font = {
-        ...cell.font,
-        bold: true,
-        color: { argb: COLORS.text },
-      };
-      cell.border = {
-        top: { style: 'thin', color: { argb: COLORS.border } },
-      };
-    }
-    for (const column of ['H', 'I', 'J']) {
-      sheet.getCell(`${column}${comparisonTotalRow}`).numFmt = MONEY_FORMAT;
-    }
+    styleTotalRow(sheet.getRow(comparisonGrandRow), 10);
   }
 
   if (categories.length > 0) {
@@ -1172,14 +1530,31 @@ function setupCategorySheet(
       priority: 1,
       cfvo: [{ type: 'min' }, { type: 'max' }],
       color: {
-        argb: type === 'INCOME' ? COLORS.incomeBar : COLORS.expenseBar,
+        argb: income ? COLORS.incomeBar : COLORS.expenseBar,
       },
     };
     sheet.addConditionalFormatting({
-      ref: `C${firstDataRow}:C${totalRowNumber - 1}`,
+      ref: `I${dataStartRow}:I${dataEndRow}`,
       rules: [dataBarRule],
     });
   }
+  sheet.views = [
+    {
+      showGridLines: false,
+      state: 'frozen',
+      ySplit: 5,
+      topLeftCell: 'A6',
+    },
+  ];
+  sheet.autoFilter = `G5:J${totalRow}`;
+  sheet.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    printArea: `A1:J${bottomRow}`,
+    printTitlesRow: '1:5',
+  };
   applyWorkbookBaseFont(sheet);
 }
 
@@ -1208,7 +1583,7 @@ function setupTransactionSheet(
     { width: 16, hidden: true },
     { width: 16, hidden: true },
   ];
-  sheet.addRow([
+  const headers = [
     'ID Transaksi',
     'Tanggal',
     'Jenis Transaksi',
@@ -1220,8 +1595,7 @@ function setupTransactionSheet(
     'ID Kategori',
     'Jenis Data',
     'Kunci Periode',
-  ]);
-  styleTableHeader(sheet.getRow(1), COLORS.navy);
+  ];
   const transactionRows = input.transactions.map((row) => {
     const referenceId = referenceIds.get(row.id);
     if (!referenceId) {
@@ -1246,11 +1620,35 @@ function setupTransactionSheet(
       row.period,
     ];
   });
-  transactionRows.forEach((row) => sheet.addRow(row));
+  sheet.addTable({
+    name: 'TransactionDetails',
+    ref: 'A1',
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: 'TableStyleMedium4',
+      showRowStripes: true,
+      showColumnStripes: false,
+    },
+    columns: headers.slice(0, 8).map((name) => ({ name, filterButton: true })),
+    rows: transactionRows.map((row) => row.slice(0, 8)),
+  });
+  styleTableHeader(sheet.getRow(1), COLORS.navy);
+  transactionRows.forEach((row, index) => {
+    for (let column = 9; column <= 11; column += 1) {
+      sheet.getRow(index + 2).getCell(column).value = row[column - 1];
+    }
+  });
   sheet.getColumn(1).numFmt = '@';
-  if (transactionRows.length === 0) sheet.addRow([]);
   const lastRow = Math.max(1, transactionRows.length + 1);
-  applyTableView(sheet, `A1:H${lastRow}`);
+  sheet.views = [
+    {
+      showGridLines: false,
+      state: 'frozen',
+      ySplit: 1,
+      topLeftCell: 'A2',
+    },
+  ];
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
@@ -1325,11 +1723,11 @@ function setupTransactionSheet(
 }
 
 function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
-  const trendEndRow = Math.max(2, input.trend.length + 1);
+  const trendEndRow = Math.max(31, input.trend.length + 30);
   const trendLabels =
     input.trend.length > 0
       ? input.trend.map((point) => point.period)
-      : ['Total'];
+      : ['Tidak ada data'];
   const incomeValues =
     input.trend.length > 0
       ? input.trend.map((point) => Number(BigInt(point.income)))
@@ -1342,26 +1740,27 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
     {
       sheetIndex: 1,
       title: 'Pemasukan vs Pengeluaran',
+      kind: 'bar',
       anchor: {
-        from: { col: 0, row: 17 },
-        to: { col: 12, row: 34 },
+        from: { col: 0, row: 10 },
+        to: { col: 6, row: 26 },
       },
-      categoryFormula: `'Tren Arus Kas'!$A$2:$A$${trendEndRow}`,
+      categoryFormula: `'Tren Arus Kas'!$A$31:$A$${trendEndRow}`,
       categories: trendLabels,
       direction: 'column',
       series: [
         {
           name: 'Pemasukan',
-          nameFormula: "'Tren Arus Kas'!$B$1",
-          formula: `'Tren Arus Kas'!$B$2:$B$${trendEndRow}`,
+          nameFormula: "'Tren Arus Kas'!$B$30",
+          formula: `'Tren Arus Kas'!$B$31:$B$${trendEndRow}`,
           values: incomeValues,
           color: COLORS.incomeBar,
           type: 'bar',
         },
         {
           name: 'Pengeluaran',
-          nameFormula: "'Tren Arus Kas'!$C$1",
-          formula: `'Tren Arus Kas'!$C$2:$C$${trendEndRow}`,
+          nameFormula: "'Tren Arus Kas'!$C$30",
+          formula: `'Tren Arus Kas'!$C$31:$C$${trendEndRow}`,
           values: expenseValues,
           color: COLORS.expenseBar,
           type: 'bar',
@@ -1369,40 +1768,100 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       ],
     },
   ];
-  if (input.trend.length > 0) {
-    const trendEndOfData = input.trend.length + 1;
+  for (const type of ['EXPENSE', 'INCOME'] as const) {
+    const categories = getWorkbookCategories(input, type, 'Laporan');
+    const sheetName =
+      type === 'EXPENSE'
+        ? 'Pengeluaran per Kategori'
+        : 'Pemasukan per Kategori';
+    const chartCategories =
+      categories.length > 0
+        ? categories
+        : [{ name: 'Belum ada data', total: 0n }];
+    const lastRow = 5 + chartCategories.length;
+    const total = categories.reduce(
+      (sum, category) => sum + category.total,
+      0n,
+    );
+    trendCharts.push({
+      sheetIndex: 1,
+      title: type === 'EXPENSE' ? 'Kategori Pengeluaran' : 'Kategori Pemasukan',
+      kind: 'doughnut',
+      anchor:
+        type === 'EXPENSE'
+          ? { from: { col: 6, row: 10 }, to: { col: 9, row: 26 } }
+          : { from: { col: 6, row: 28 }, to: { col: 9, row: 45 } },
+      centerText: {
+        value: new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          maximumFractionDigits: 0,
+        }).format(Number(total)),
+        label: 'Total',
+      },
+      categoryFormula: `'${sheetName}'!$G$6:$G$${lastRow}`,
+      categories: chartCategories.map((category) => category.name),
+      direction: 'column',
+      series: [
+        {
+          name: 'Nominal',
+          nameFormula: `'${sheetName}'!$H$5`,
+          formula: `'${sheetName}'!$H$6:$H$${lastRow}`,
+          values: chartCategories.map((category) => Number(category.total)),
+          color: type === 'INCOME' ? COLORS.incomeBar : COLORS.expenseBar,
+          pointColors: chartCategories.map(
+            (_, index) =>
+              [
+                'FF4E8B70',
+                'FF71968A',
+                'FF527F78',
+                'FF879B8F',
+                'FF68818C',
+                'FFA9B6AD',
+              ][index % 6] ?? COLORS.teal,
+          ),
+          type: 'bar',
+        },
+      ],
+    });
+  }
+  {
+    const trendEndOfData = Math.max(31, input.trend.length + 30);
     trendCharts.push({
       sheetIndex: 2,
-      title: 'Tren Arus Kas',
+      title: 'Pemasukan, Pengeluaran dan Arus Kas Bersih',
+      kind: 'bar',
       anchor: {
-        from: { col: 0, row: input.trend.length + 3 },
-        to: { col: 11, row: input.trend.length + 24 },
+        from: { col: 0, row: 9 },
+        to: { col: 12, row: 27 },
       },
-      categoryFormula: `'Tren Arus Kas'!$A$2:$A$${trendEndOfData}`,
+      categoryFormula: `'Tren Arus Kas'!$A$31:$A$${trendEndOfData}`,
       categories: trendLabels,
       direction: 'column',
       series: [
         {
           name: 'Pemasukan',
-          nameFormula: "'Tren Arus Kas'!$B$1",
-          formula: `'Tren Arus Kas'!$B$2:$B$${trendEndOfData}`,
-          values: incomeValues,
+          nameFormula: "'Tren Arus Kas'!$B$30",
+          formula: `'Tren Arus Kas'!$B$31:$B$${trendEndOfData}`,
+          values: input.trend.length ? incomeValues : [0],
           color: COLORS.incomeBar,
           type: 'bar',
         },
         {
           name: 'Pengeluaran',
-          nameFormula: "'Tren Arus Kas'!$C$1",
-          formula: `'Tren Arus Kas'!$C$2:$C$${trendEndOfData}`,
-          values: expenseValues,
+          nameFormula: "'Tren Arus Kas'!$C$30",
+          formula: `'Tren Arus Kas'!$C$31:$C$${trendEndOfData}`,
+          values: input.trend.length ? expenseValues : [0],
           color: COLORS.expenseBar,
           type: 'bar',
         },
         {
           name: 'Arus Kas Bersih',
-          nameFormula: "'Tren Arus Kas'!$D$1",
-          formula: `'Tren Arus Kas'!$D$2:$D$${trendEndOfData}`,
-          values: input.trend.map((point) => Number(BigInt(point.netCashFlow))),
+          nameFormula: "'Tren Arus Kas'!$D$30",
+          formula: `'Tren Arus Kas'!$D$31:$D$${trendEndOfData}`,
+          values: input.trend.length
+            ? input.trend.map((point) => Number(BigInt(point.netCashFlow)))
+            : [0],
           color: COLORS.chartNet,
           type: 'line',
         },
@@ -1415,39 +1874,85 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
     [4, 'INCOME'],
   ] as const) {
     const categories = getWorkbookCategories(input, type, 'Laporan');
-    if (categories.length === 0) continue;
     const sheetName =
       type === 'EXPENSE'
         ? 'Pengeluaran per Kategori'
         : 'Pemasukan per Kategori';
-    const comparisonCount = getWorkbookCategories(input, type).length;
-    const lastRow = categories.length + 1;
+    const chartCategories =
+      categories.length > 0
+        ? categories
+        : [{ name: 'Belum ada data', total: 0n }];
+    const lastRow = 5 + chartCategories.length;
+    const values = chartCategories.map((category) => Number(category.total));
+    const labels = chartCategories.map((category) => category.name);
+    const categoryFormula = `'${sheetName}'!$G$6:$G$${lastRow}`;
+    const valueFormula = `'${sheetName}'!$H$6:$H$${lastRow}`;
+    const chartTotal = categories.reduce(
+      (sum, category) => sum + category.total,
+      0n,
+    );
+    const pointColors = chartCategories.map(
+      (_, index) =>
+        [
+          'FF4E8B70',
+          'FF71968A',
+          'FF527F78',
+          'FF879B8F',
+          'FF68818C',
+          'FFA9B6AD',
+        ][index % 6] ?? COLORS.teal,
+    );
+    const chartSeries = {
+      name: 'Nominal',
+      nameFormula: `'${sheetName}'!$H$5`,
+      formula: valueFormula,
+      values,
+      color: type === 'INCOME' ? COLORS.incomeBar : COLORS.expenseBar,
+      type: 'bar' as const,
+    };
     trendCharts.push({
       sheetIndex,
-      title: sheetName,
+      title:
+        type === 'INCOME' ? 'Komposisi Pemasukan' : 'Komposisi Pengeluaran',
+      kind: 'doughnut',
+      anchor: {
+        from: { col: 0, row: 5 },
+        to: { col: 6, row: 21 },
+      },
+      centerText: {
+        value: new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          maximumFractionDigits: 0,
+        }).format(Number(chartTotal)),
+        label: 'Total',
+      },
+      categoryFormula,
+      categories: labels,
+      direction: 'column',
+      series: [{ ...chartSeries, pointColors }],
+    });
+    trendCharts.push({
+      sheetIndex,
+      title:
+        type === 'INCOME'
+          ? 'Nominal Pemasukan per Kategori'
+          : 'Nominal Pengeluaran per Kategori',
+      kind: 'bar',
       anchor: {
         from: {
           col: 0,
-          row: Math.max(lastRow + 2, comparisonCount + 3),
+          row: 22,
         },
         to: {
-          col: 9,
-          row: Math.max(lastRow + 23, comparisonCount + 24),
+          col: 6,
+          row: 40,
         },
       },
-      categoryFormula: `'${sheetName}'!$A$2:$A$${lastRow}`,
-      categories: categories.map((category) => category.name),
+      categoryFormula,
+      categories: labels,
       direction: 'bar',
-      series: [
-        {
-          name: 'Total',
-          nameFormula: `'${sheetName}'!$B$1`,
-          formula: `'${sheetName}'!$B$2:$B$${lastRow}`,
-          values: categories.map((category) => Number(category.total)),
-          color: type === 'INCOME' ? COLORS.incomeBar : COLORS.expenseBar,
-          type: 'bar',
-        },
-      ],
+      series: [chartSeries],
     });
   }
   return trendCharts;
