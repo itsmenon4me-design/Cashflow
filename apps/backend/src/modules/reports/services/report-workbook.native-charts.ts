@@ -134,7 +134,7 @@ function chartXml(chart: NativeWorkbookChart): string {
       ? `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`
       : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart>${chartTitleXml(chart.title)}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>${barChart}${lineChart}${axes}</c:plotArea><c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" h="0.3" f="0.3"/><c:pageSetup/></c:printSettings></c:chartSpace>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${OFFICE_RELATIONSHIPS_NS}"><c:lang val="id-ID"/><c:chart>${chartTitleXml(chart.title)}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>${barChart}${lineChart}${axes}</c:plotArea><c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings></c:chartSpace>`;
 }
 
 function drawingXml(
@@ -170,8 +170,28 @@ function addWorksheetDrawing(
     );
   }
   const drawing = `<drawing r:id="${drawingRelationshipId}"/>`;
-  if (/<extLst\b/.test(worksheetXml)) {
-    return worksheetXml.replace(/<extLst\b/, `${drawing}<extLst`);
+  let depth = 0;
+  for (const match of worksheetXml.matchAll(/<\/?[\w:.-]+\b[^>]*>/g)) {
+    const tag = match[0];
+    if (!tag || tag.startsWith('<?') || tag.startsWith('<!')) continue;
+    const closing = tag.startsWith('</');
+    const selfClosing = /\/\s*>$/.test(tag);
+    const name = tag.match(/^<\/?([\w:.-]+)/)?.[1];
+    if (!name) continue;
+
+    if (!closing && depth === 1 && name === 'extLst') {
+      const offset = match.index;
+      if (offset === undefined) {
+        throw new Error('Unable to locate the worksheet extension list.');
+      }
+      return `${worksheetXml.slice(0, offset)}${drawing}${worksheetXml.slice(offset)}`;
+    }
+
+    if (closing) {
+      depth -= 1;
+    } else if (!selfClosing) {
+      depth += 1;
+    }
   }
   return worksheetXml.replace('</worksheet>', `${drawing}</worksheet>`);
 }

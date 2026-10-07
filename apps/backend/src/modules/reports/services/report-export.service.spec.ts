@@ -618,9 +618,7 @@ describe('ReportExportService', () => {
             .mockResolvedValueOnce(transactions)
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce(transactions);
-          (
-            mocks.prisma.transaction.count as jest.Mock
-          )
+          (mocks.prisma.transaction.count as jest.Mock)
             .mockResolvedValueOnce(transactions.length)
             .mockResolvedValueOnce(0);
 
@@ -694,8 +692,7 @@ describe('ReportExportService', () => {
                   date instanceof Date ? excelSerialForDay(date) : NaN;
                 const type = details?.getCell(i + 2, 10).value;
                 const periodKey = details?.getCell(i + 2, 11).value;
-                const formulaType =
-                  column === 2 ? 'INCOME' : 'EXPENSE';
+                const formulaType = column === 2 ? 'INCOME' : 'EXPENSE';
                 return type === formulaType &&
                   periodKey === 'Laporan' &&
                   serial >= bounds[0] &&
@@ -708,9 +705,8 @@ describe('ReportExportService', () => {
                   `<c\\b[^>]*\\br="${String.fromCharCode(64 + column)}${row}"[^>]*>([\\s\\S]*?)</c>`,
                 ),
               );
-              const cachedValue = cachedCell?.[1].match(
-                /<v>([\s\S]*?)<\/v>/,
-              )?.[1];
+              const cachedValue =
+                cachedCell?.[1].match(/<v>([\s\S]*?)<\/v>/)?.[1];
               expect(cachedValue).toBeDefined();
               expect(Number(cachedValue)).toBe(expected);
               expect(recomputed).toBe(expected);
@@ -995,6 +991,9 @@ describe('ReportExportService', () => {
     expect(
       await xlsxZip.file('xl/worksheets/sheet1.xml')?.async('string'),
     ).toContain('<drawing r:id=');
+    expect(expenseSheetXml).toMatch(
+      /<pageSetup\b[^>]*\/><drawing r:id="rId1"\/><extLst\b/,
+    );
     expect(expenseSheetXml).toMatch(/<c\b[^>]*\br="H2"[^>]*>[\s\S]*?<v>0<\/v>/);
     expect(
       Object.keys(xlsxZip.files).filter((path) => path.startsWith('xl/media/')),
@@ -1138,7 +1137,8 @@ describe('ReportExportService', () => {
     expect(transactionReferences).toHaveLength(10);
     expect(
       transactionReferences?.every(
-        (reference) => typeof reference === 'string' && /^\d{16}$/.test(reference),
+        (reference) =>
+          typeof reference === 'string' && /^\d{16}$/.test(reference),
       ),
     ).toBe(true);
     expect(new Set(transactionReferences).size).toBe(
