@@ -52,7 +52,11 @@ export function styleTableHeader(
       bold: true,
       color: { argb: REPORT_WORKBOOK_STYLE.colors.white },
     };
-    cell.alignment = { vertical: 'middle', wrapText: true };
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: true,
+    };
     cell.border = {
       bottom: {
         style: 'thin',

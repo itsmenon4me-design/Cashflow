@@ -205,6 +205,12 @@ describe('ReportExportService', () => {
     const summaryDrawing = await zip
       .file('xl/drawings/drawing1.xml')
       ?.async('string');
+    const expenseDrawing = await zip
+      .file('xl/drawings/drawing3.xml')
+      ?.async('string');
+    const incomeDrawing = await zip
+      .file('xl/drawings/drawing4.xml')
+      ?.async('string');
     const expenseCenter = await zip
       .file('xl/drawings/drawing5.xml')
       ?.async('string');
@@ -249,20 +255,34 @@ describe('ReportExportService', () => {
         ?.match(/<c:lineChart>[\s\S]*?<\/c:lineChart>/)?.[0]
         .match(/<c:ser>/g),
     ).toHaveLength(1);
-    expect(chart4).toContain('<c:v>Net Cash Flow</c:v>');
+    expect(chart4).toContain('<c:v>Arus Kas Bersih</c:v>');
     expect(chart5).toContain('<c:doughnutChart>');
     expect(chart6).toContain('<c:barDir val="bar"/>');
-    expect(chart6).toContain('<c:tickLblPos val="none"/>');
+    expect(chart6).toContain('<c:tickLblPos val="nextTo"/>');
+    expect(chart6).toContain('<c:showVal val="1"/>');
+    expect(chart6).toContain('<c:numFmt formatCode=\'"Rp" #,##0\'');
     expect(chart6).toContain('<c:crosses val="autoZero"/>');
     expect(chart6).toContain('<c:dPt><c:idx val="0"/>');
     expect(chart6).toContain('<a:srgbClr val="B76A61"/>');
     expect(chart6).not.toContain('<c:legend>');
+    expect(expenseDrawing).toContain(
+      '<xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>5</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>13</xdr:row>',
+    );
+    expect(expenseDrawing).toContain(
+      '<xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>15</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>10</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>27</xdr:row>',
+    );
     expect(chart7).toContain('<c:doughnutChart>');
     expect(chart8).toContain('<c:barDir val="bar"/>');
-    expect(chart8).toContain('<c:tickLblPos val="none"/>');
+    expect(chart8).toContain('<c:tickLblPos val="nextTo"/>');
     expect(chart8).toContain('<c:dPt><c:idx val="0"/>');
     expect(chart8).toContain('<a:srgbClr val="4E8B70"/>');
     expect(chart8).not.toContain('<c:legend>');
+    expect(incomeDrawing).toContain(
+      '<xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>5</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>13</xdr:row>',
+    );
+    expect(incomeDrawing).toContain(
+      '<xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>15</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>10</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>27</xdr:row>',
+    );
     expect(chart5).toContain('ExpenseCategoryData[Kategori]');
     expect(chart5).toContain('ExpenseCategoryData[Nominal]');
     expect(chart8).toContain('IncomeCategoryData[Kategori]');
@@ -307,9 +327,34 @@ describe('ReportExportService', () => {
     expect(
       workbook.getWorksheet('Pemasukan per Kategori')?.pageSetup.fitToHeight,
     ).toBe(1);
+    expect(workbook.getWorksheet('Ringkasan')?.pageSetup.printArea).toBe(
+      'A1:L38',
+    );
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.pageSetup.printArea,
+    ).toBe(
+      workbook.getWorksheet('Pemasukan per Kategori')?.pageSetup.printArea,
+    );
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getRow(6).height,
+    ).toBe(workbook.getWorksheet('Pemasukan per Kategori')?.getRow(6).height);
+    expect(
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H6').alignment
+        ?.horizontal,
+    ).toBe('right');
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getTables(),
     ).toHaveLength(1);
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getCell('B2').numFmt,
+    ).toBe('[$-421]dd mmm yyyy');
+    expect(workbook.getWorksheet('Rincian Transaksi')?.getRow(2).height).toBe(
+      24,
+    );
+    expect(
+      workbook.getWorksheet('Rincian Transaksi')?.getCell('F2').alignment
+        ?.horizontal,
+    ).toBe('right');
     expect(
       workbook.getWorksheet('Rincian Transaksi')?.getImages(),
     ).toHaveLength(0);
@@ -1386,12 +1431,12 @@ describe('ReportExportService', () => {
       workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('G6').value,
     ).toBe('Makanan');
     expect(
-      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H48').value,
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('H31').value,
     ).toMatchObject({
       formula: expect.stringContaining('"Pembanding"'),
     });
     expect(
-      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('I48').value,
+      workbook.getWorksheet('Pengeluaran per Kategori')?.getCell('I31').value,
     ).toMatchObject({
       formula: expect.stringContaining('"Laporan"'),
       result: 47_000,

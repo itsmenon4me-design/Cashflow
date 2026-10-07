@@ -140,6 +140,10 @@ function chartXml(chart: NativeWorkbookChart): string {
   const barDirection = chart.direction === 'column' ? 'col' : 'bar';
   const catOrientation = chart.direction === 'column' ? 'minMax' : 'maxMin';
   const categoryCrossing = 'autoZero';
+  const dataLabels =
+    chart.direction === 'bar'
+      ? `<c:dLbls><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showLeaderLines val="0"/></c:dLbls>`
+      : '';
   const barChart =
     barSeries.length === 0
       ? ''
@@ -149,7 +153,7 @@ function chartXml(chart: NativeWorkbookChart): string {
           )
           .join(
             '',
-          )}<c:gapWidth val="75"/><c:overlap val="0"/><c:axId val="10"/><c:axId val="20"/></c:barChart>`;
+          )}${dataLabels}<c:gapWidth val="75"/><c:overlap val="0"/><c:axId val="10"/><c:axId val="20"/></c:barChart>`;
   const lineChart =
     lineSeries.length === 0
       ? ''
@@ -168,7 +172,7 @@ function chartXml(chart: NativeWorkbookChart): string {
   const axes =
     chart.direction === 'column'
       ? `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`
-      : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="none"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+      : `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="${catOrientation}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="20"/><c:crosses val="${categoryCrossing}"/><c:auto val="1"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="20"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${COLORS.chartGrid.slice(2)}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode='"Rp" #,##0' sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
   const legend =
     chart.direction === 'bar'
       ? ''

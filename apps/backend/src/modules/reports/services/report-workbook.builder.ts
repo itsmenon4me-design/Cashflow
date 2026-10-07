@@ -625,40 +625,36 @@ function setupSummarySheet(
       (sum, category) => sum + category.total,
       0n,
     );
-    for (let index = 0; index < 16; index += 1) {
+    for (let index = 0; index < categories.length; index += 1) {
       const rowNumber = index + (type === 'EXPENSE' ? 11 : 30);
       const category = categories[index];
-      const cellValues = category
-        ? {
-            name: excelFormula(`'${sheetName}'!G${index + 6}`, category.name),
-            percentage: excelFormula(
-              `'${sheetName}'!I${index + 6}`,
-              grandTotal === 0n
-                ? 0
-                : Number(category.total) / Number(grandTotal),
-            ),
-            amount: excelFormula(
-              `'${sheetName}'!H${index + 6}`,
-              Number(category.total),
-            ),
-          }
-        : { name: null, percentage: null, amount: null };
+      if (!category) {
+        throw new Error('Unable to build the category summary row.');
+      }
+      const cellValues = {
+        name: excelFormula(`'${sheetName}'!G${index + 6}`, category.name),
+        percentage: excelFormula(
+          `'${sheetName}'!I${index + 6}`,
+          grandTotal === 0n ? 0 : Number(category.total) / Number(grandTotal),
+        ),
+        amount: excelFormula(
+          `'${sheetName}'!H${index + 6}`,
+          Number(category.total),
+        ),
+      };
       sheet.getCell(`J${rowNumber}`).value = cellValues.name;
       sheet.getCell(`K${rowNumber}`).value = cellValues.percentage;
       sheet.getCell(`L${rowNumber}`).value = cellValues.amount;
       sheet.getCell(`K${rowNumber}`).numFmt =
         REPORT_WORKBOOK_STYLE.numberFormats.percentage;
       sheet.getCell(`L${rowNumber}`).numFmt = MONEY_FORMAT;
-      sheet.getRow(rowNumber).height = Math.max(
-        20,
-        Math.ceil((category?.name.length ?? 1) / 19) * 15,
-      );
+      sheet.getRow(rowNumber).height = 22;
       for (const column of ['J', 'K', 'L']) {
         const cell = sheet.getCell(`${column}${rowNumber}`);
         cell.alignment = {
           vertical: 'middle',
           horizontal: column === 'J' ? 'left' : 'right',
-          wrapText: true,
+          shrinkToFit: column === 'J',
         };
         cell.border = {
           bottom: { style: 'hair', color: { argb: COLORS.border } },
@@ -675,6 +671,10 @@ function setupSummarySheet(
   };
   fillCategorySummary(topExpenseCategories, 'EXPENSE');
   fillCategorySummary(topIncomeCategories, 'INCOME');
+  sheet.pageSetup = {
+    ...sheet.pageSetup,
+    printArea: `A1:L${Math.max(38, 29 + topIncomeCategories.length)}`,
+  };
 
   const periodComparisons = [
     {
@@ -1251,6 +1251,34 @@ function getWorkbookCategories(
   );
 }
 
+function categorySheetLayout(
+  categoryCount: number,
+  comparisonCategoryCount: number,
+): {
+  comparisonHeaderRow: number;
+  comparisonGrandRow: number;
+  doughnutEndRow: number;
+  barChartStartRow: number;
+  barChartEndRow: number;
+  bottomRow: number;
+} {
+  const totalRow = Math.max(6, 6 + categoryCount);
+  const doughnutEndRow = 13;
+  const barChartStartRow = Math.max(doughnutEndRow + 2, totalRow + 3);
+  const barChartEndRow = barChartStartRow + Math.max(12, categoryCount * 2);
+  const comparisonHeaderRow = barChartEndRow + 2;
+  const comparisonGrandRow = comparisonHeaderRow + comparisonCategoryCount + 2;
+
+  return {
+    comparisonHeaderRow,
+    comparisonGrandRow,
+    doughnutEndRow,
+    barChartStartRow,
+    barChartEndRow,
+    bottomRow: comparisonGrandRow + 2,
+  };
+}
+
 interface WorkbookCategoryTotal {
   id: string;
   name: string;
@@ -1271,21 +1299,22 @@ function setupCategorySheet(
   const dataStartRow = 6;
   const dataEndRow = dataStartRow + categories.length - 1;
   const totalRow = Math.max(dataStartRow, dataEndRow + 1);
-  const comparisonHeaderRow = Math.max(totalRow + 3, 46);
-  const comparisonStartRow = comparisonHeaderRow + 1;
-  const comparisonEndRow = comparisonStartRow + comparisonCategories.length - 1;
-  const bottomRow = Math.max(52, comparisonEndRow + 5);
+  const { comparisonHeaderRow, comparisonGrandRow, bottomRow } =
+    categorySheetLayout(categories.length, comparisonCategories.length);
+  const comparisonTableHeader = comparisonHeaderRow + 1;
+  const comparisonTableEnd =
+    comparisonTableHeader + comparisonCategories.length;
   const sheet = workbook.addWorksheet(title, {
     properties: { tabColor: { argb: COLORS.teal }, defaultRowHeight: 20 },
     views: [{ showGridLines: false }],
   });
   sheet.columns = [
-    { width: 13 },
-    { width: 13 },
-    { width: 13 },
-    { width: 13 },
-    { width: 13 },
-    { width: 13 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
     { width: 34 },
     { width: 22 },
     { width: 16 },
@@ -1456,13 +1485,15 @@ function setupCategorySheet(
       REPORT_WORKBOOK_STYLE.numberFormats.count;
     sheet.getCell(`G${rowNumber}`).alignment = {
       vertical: 'middle',
-      wrapText: true,
+      shrinkToFit: true,
     };
-    const category = categories[rowNumber - dataStartRow];
-    sheet.getRow(rowNumber).height = Math.max(
-      22,
-      Math.ceil((category?.name.length ?? 1) / 34) * 15,
-    );
+    sheet.getRow(rowNumber).height = 22;
+    for (const column of ['H', 'I', 'J']) {
+      sheet.getCell(`${column}${rowNumber}`).alignment = {
+        vertical: 'middle',
+        horizontal: 'right',
+      };
+    }
   }
 
   const comparisonTotals = new Map(
@@ -1500,9 +1531,6 @@ function setupCategorySheet(
     };
     cell.alignment = { vertical: 'middle', indent: 1, wrapText: true };
   }
-  const comparisonTableHeader = comparisonHeaderRow + 1;
-  const comparisonTableEnd =
-    comparisonTableHeader + comparisonCategories.length;
   sheet.getRow(comparisonTableHeader).values = [
     null,
     null,
@@ -1553,7 +1581,6 @@ function setupCategorySheet(
     };
     sheet.getRow(rowNumber).height = 22;
   });
-  const comparisonGrandRow = comparisonTableEnd + 1;
   const previousGrandTotal = comparisonCategories.reduce(
     (sum, category) =>
       sum + (comparisonTotals.get(category.id)?.previous ?? 0n),
@@ -1641,13 +1668,13 @@ function setupTransactionSheet(
     input.timeZone ?? 'Asia/Jakarta',
   );
   sheet.columns = [
-    { width: 22 },
     { width: 18 },
+    { width: 16 },
+    { width: 19 },
+    { width: 28 },
+    { width: 50 },
     { width: 20 },
-    { width: 30 },
-    { width: 42 },
-    { width: 24 },
-    { width: 15 },
+    { width: 12 },
     { width: 20 },
     { width: 40, hidden: true },
     { width: 16, hidden: true },
@@ -1704,6 +1731,13 @@ function setupTransactionSheet(
     rows: transactionRows,
   });
   styleTableHeader(sheet.getRow(1), COLORS.navy);
+  sheet.getRow(1).eachCell((cell) => {
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: true,
+    };
+  });
   sheet.getColumn(1).numFmt = '@';
   const lastRow = Math.max(1, transactionRows.length + 1);
   sheet.views = [
@@ -1724,28 +1758,30 @@ function setupTransactionSheet(
   };
   styleBandedRows(sheet, 2, lastRow, 8);
   for (let rowNumber = 2; rowNumber <= lastRow; rowNumber += 1) {
+    sheet.getRow(rowNumber).height = 24;
     sheet.getCell(`A${rowNumber}`).font = {
       name: REPORT_WORKBOOK_STYLE.font,
       color: { argb: COLORS.muted },
     };
-    sheet.getCell(`B${rowNumber}`).numFmt =
-      REPORT_WORKBOOK_STYLE.numberFormats.date;
+    sheet.getCell(`B${rowNumber}`).numFmt = '[$-421]dd mmm yyyy';
     sheet.getCell(`F${rowNumber}`).numFmt = MONEY_FORMAT;
-    sheet.getCell(`D${rowNumber}`).alignment = {
+    for (const column of ['A', 'B', 'C', 'G', 'H']) {
+      sheet.getCell(`${column}${rowNumber}`).alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
+    }
+    for (const column of ['D', 'E']) {
+      sheet.getCell(`${column}${rowNumber}`).alignment = {
+        vertical: 'middle',
+        horizontal: 'left',
+        shrinkToFit: true,
+      };
+    }
+    sheet.getCell(`F${rowNumber}`).alignment = {
       vertical: 'middle',
-      wrapText: true,
+      horizontal: 'right',
     };
-    sheet.getCell(`E${rowNumber}`).alignment = {
-      vertical: 'middle',
-      wrapText: true,
-    };
-    const transaction = transactionRows[rowNumber - 2];
-    const categoryLines = Math.ceil(String(transaction?.[3] ?? '').length / 30);
-    const noteLines = Math.ceil(String(transaction?.[4] ?? '').length / 42);
-    sheet.getRow(rowNumber).height = Math.min(
-      409,
-      Math.max(20, Math.max(categoryLines, noteLines) * 15),
-    );
   }
   if (transactionRows.length > 0) {
     sheet.addConditionalFormatting({
@@ -1933,7 +1969,7 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
           type: 'bar',
         },
         {
-          name: 'Net Cash Flow',
+          name: 'Arus Kas Bersih',
           nameFormula: "'Tren Arus Kas'!$D$30",
           formula: `${TREND_TABLE}[Arus Kas Bersih]`,
           values: input.trend.map((point) => Number(BigInt(point.netCashFlow))),
@@ -1949,6 +1985,9 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
     [4, 'INCOME'],
   ] as const) {
     const categories = getWorkbookCategories(input, type, 'Laporan');
+    const comparisonCategories = getWorkbookCategories(input, type);
+    const { doughnutEndRow, barChartStartRow, barChartEndRow } =
+      categorySheetLayout(categories.length, comparisonCategories.length);
     const sheetName =
       type === 'EXPENSE'
         ? 'Pengeluaran per Kategori'
@@ -1989,7 +2028,7 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
       kind: 'doughnut',
       anchor: {
         from: { col: 0, row: 5 },
-        to: { col: 6, row: 21 },
+        to: { col: 6, row: doughnutEndRow },
       },
       centerText: {
         value: formatCompactRupiah(chartTotal),
@@ -2008,14 +2047,8 @@ function buildNativeCharts(input: ReportWorkbookInput): NativeWorkbookChart[] {
           : 'Nominal Pengeluaran per Kategori',
       kind: 'bar',
       anchor: {
-        from: {
-          col: 0,
-          row: 22,
-        },
-        to: {
-          col: 6,
-          row: 40,
-        },
+        from: { col: 0, row: barChartStartRow },
+        to: { col: 10, row: barChartEndRow },
       },
       categoryFormula,
       categories: labels,
