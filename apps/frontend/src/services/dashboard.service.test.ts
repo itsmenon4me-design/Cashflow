@@ -16,28 +16,27 @@ const mockedApi = apiClient as unknown as {
 };
 
 describe("dashboard.service", () => {
-  it("getFlowSeries maps the wrapped { type, data } trend contract", async () => {
+  it("getFlowSeries requests only the current year's trend and maps its points", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-26T11:00:00.000Z"));
     mockedApi.get.mockResolvedValue({
-      summary: {},
-      cashFlow: {},
-      monthlyReport: {},
-      categoryBreakdown: [],
-      trend: {
-        type: "monthly",
-        data: [
+      type: "monthly",
+      data: [
           { period: "2026-03", income: "100000", expense: "50000", netCashFlow: "50000" },
           { period: "2026-04", income: "200000", expense: "80000", netCashFlow: "120000" },
-        ],
-      },
-      budget: null,
+      ],
     });
 
     try {
       const series = await dashboardService.getFlowSeries();
 
-      expect(apiClient.get).toHaveBeenCalledWith("/dashboard/widgets");
+      expect(apiClient.get).toHaveBeenCalledWith("/reports/cashflow-trend", {
+        params: {
+          type: "monthly",
+          startDate: "2026-01-01",
+          endDate: "2026-12-31",
+        },
+      });
       expect(series.cashFlow).toHaveLength(12);
       expect(series.cashFlow.map(({ month }) => month)).toEqual([
         "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
@@ -65,29 +64,18 @@ describe("dashboard.service", () => {
     }
   });
 
-  it("getFlowSeries rejects when trend is null (widget failure)", async () => {
-    mockedApi.get.mockResolvedValue({
-      summary: {},
-      cashFlow: {},
-      monthlyReport: {},
-      categoryBreakdown: [],
-      trend: null,
-      budget: null,
-    });
+  it("getFlowSeries propagates trend request failures", async () => {
+    mockedApi.get.mockRejectedValue(new Error("trend request failed"));
 
     await expect(dashboardService.getFlowSeries()).rejects.toThrow(
-      "Dashboard trend widget failed",
+      "trend request failed",
     );
   });
 
   it("getFlowSeries returns an empty series when the trend has no points", async () => {
     mockedApi.get.mockResolvedValue({
-      summary: {},
-      cashFlow: {},
-      monthlyReport: {},
-      categoryBreakdown: [],
-      trend: { type: "monthly", data: [] },
-      budget: null,
+      type: "monthly",
+      data: [],
     });
 
     vi.useFakeTimers();

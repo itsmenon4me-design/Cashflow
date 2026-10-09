@@ -35,16 +35,99 @@ test("offline cache falls back for transient errors only within the same account
   const cached = [{ id: "transaction-1" }];
   await cache.withCache("user-a", "transactions", "list:all", async () => cached);
 
-  const restored = await cache.withCache("user-a", "transactions", "list:all", async () => {
-    throw new TypeError("Network request failed");
-  });
+  let refreshError;
+  const restored = await cache.withCache(
+    "user-a",
+    "transactions",
+    "list:all",
+    async () => {
+      throw new TypeError("Network request failed");
+    },
+    undefined,
+    (error) => { refreshError = error; },
+  );
   assert.deepEqual(restored, cached);
+  assert.match(refreshError.message, /Network request failed/);
   await assert.rejects(
     cache.withCache("user-b", "transactions", "list:all", async () => {
       throw new TypeError("Network request failed");
     }),
     /Network request failed/,
   );
+});
+
+test("offline cache publishes saved data before refreshing it", async () => {
+  const storage = new MemoryStorage();
+  const cache = new NativeOfflineCache(storage);
+  const saved = [{ id: "saved" }];
+  const fresh = [{ id: "fresh" }];
+  const delivered = [];
+  await cache.withCache("user-a", "transactions", "list:all", async () => saved);
+
+  const refreshed = await cache.withCache(
+    "user-a",
+    "transactions",
+    "list:all",
+    async () => fresh,
+    (value) => delivered.push(value),
+  );
+
+  assert.deepEqual(delivered, [saved]);
+  assert.deepEqual(refreshed, fresh);
+  assert.deepEqual(
+    JSON.parse(await storage.getItem(nativeOfflineCacheKey("user-a", "transactions", "list:all"))),
+    fresh,
+  );
+});
+
+test("cache-backed list updates preserve saved data after successful mutations", async () => {
+  const storage = new MemoryStorage();
+  const cache = new NativeOfflineCache(storage);
+  const key = nativeOfflineCacheKey("user-a", "budgets", "list");
+  await storage.setItem(key, JSON.stringify([{ id: "budget-1" }]));
+
+  await cache.updateCachedValue("user-a", "budgets", "list", (budgets) => [
+    ...budgets.filter((budget) => budget.id !== "budget-1"),
+    { id: "budget-1", amount: 500 },
+  ]);
+
+  assert.deepEqual(JSON.parse(await storage.getItem(key)), [{ id: "budget-1", amount: 500 }]);
+});
+
+test("an in-flight stale refresh cannot overwrite a successful cache mutation", async () => {
+  const storage = new MemoryStorage();
+  const cache = new NativeOfflineCache(storage);
+  const key = nativeOfflineCacheKey("user-a", "transactions", "list:all");
+  const cached = [{ id: "older" }];
+  await storage.setItem(key, JSON.stringify(cached));
+
+  let resolveFetch;
+  let markFetchStarted;
+  const fetchStarted = new Promise((resolve) => {
+    markFetchStarted = resolve;
+  });
+  const refresh = cache.withCache(
+    "user-a",
+    "transactions",
+    "list:all",
+    () => new Promise((resolve) => {
+      resolveFetch = resolve;
+      markFetchStarted();
+    }),
+  );
+  await fetchStarted;
+
+  await cache.updateCachedValue("user-a", "transactions", "list:all", (transactions) => [
+    { id: "newly-created" },
+    ...transactions,
+  ]);
+  resolveFetch([{ id: "older" }]);
+  await refresh;
+
+  assert.deepEqual(JSON.parse(await storage.getItem(key)), [
+    { id: "newly-created" },
+    { id: "older" },
+  ]);
 });
 
 test("offline cache does not hide client errors", async () => {

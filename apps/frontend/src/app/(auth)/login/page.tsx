@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { GoogleIcon, GithubIcon } from "@/components/icons";
@@ -24,7 +24,16 @@ import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 
 export default function Page() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" aria-busy="true" />}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const loginSession = useAuthStore((state) => state.loginSession);
   const t = uiText.auth;
 
@@ -39,56 +48,24 @@ export default function Page() {
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [githubSubmitting, setGithubSubmitting] = useState(false);
+  const oauthError = searchParams.get("oauth_error");
+  const visibleGoogleError = googleError ?? (
+    oauthError && !oauthError.startsWith("github_") ? t.oauthError : null
+  );
+  const visibleGithubError = githubError ?? (
+    oauthError?.startsWith("github_") ? t.githubOauthUnavailable : null
+  );
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const oauthError = new URLSearchParams(window.location.search).get(
-      "oauth_error",
-    );
-    if (oauthError) {
-      setGoogleError(t.oauthError);
-    }
-  }, []);
-
-  const handleGoogleClick = async () => {
+  const handleGoogleClick = () => {
     setGoogleError(null);
     setGoogleSubmitting(true);
-
-    try {
-      const response = await authService.googleLogin();
-      if (!response.success || !response.url) {
-        setGoogleError(response.message ?? t.oauthUnavailable);
-        return;
-      }
-
-      window.location.assign(response.url);
-    } catch {
-      setGoogleError(t.oauthUnavailable);
-    } finally {
-      setGoogleSubmitting(false);
-    }
+    window.location.assign(authService.googleRedirectUrl());
   };
 
-  const handleGithubClick = async () => {
+  const handleGithubClick = () => {
     setGithubError(null);
     setGithubSubmitting(true);
-
-    try {
-      const response = await authService.githubLogin();
-      if (!response.success || !response.url) {
-        setGithubError(response.message ?? t.githubOauthUnavailable);
-        return;
-      }
-
-      window.location.assign(response.url);
-    } catch {
-      setGithubError(t.githubOauthUnavailable);
-    } finally {
-      setGithubSubmitting(false);
-    }
+    window.location.assign(authService.githubRedirectUrl());
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -312,15 +289,15 @@ export default function Page() {
                 {githubSubmitting ? t.preparing : t.continueGithub}
               </Button>
 
-              {googleError && (
+              {visibleGoogleError && (
                 <p className="text-sm text-destructive" role="alert">
-                  {googleError}
+                  {visibleGoogleError}
                 </p>
               )}
 
-              {githubError && (
+              {visibleGithubError && (
                 <p className="text-sm text-destructive" role="alert">
-                  {githubError}
+                  {visibleGithubError}
                 </p>
               )}
             </div>

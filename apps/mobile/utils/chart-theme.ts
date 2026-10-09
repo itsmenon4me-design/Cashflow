@@ -1,0 +1,15 @@
+export const nativeChartTheme = {
+  card: "#171717",
+  cardBorder: "rgba(255,255,255,0.08)",
+  text: "#f2f2f0",
+  subtitle: "#9a9a96",
+  axis: "#8a8a86",
+  grid: "#2c2c2f",
+  baseline: "#6b6b70",
+  income: "#34d399",
+  expense: "#fb7185",
+  net: "#60a5fa",
+  warning: "#fbbf24",
+  expenseCategories: ["#60a5fa", "#fbbf24", "#a78bfa", "#f472b6", "#2dd4bf", "#fb923c"],
+  incomeCategories: ["#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#2dd4bf", "#fb923c"],
+} as const;

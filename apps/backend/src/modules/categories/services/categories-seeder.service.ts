@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { DEFAULT_CATEGORIES } from '../default-categories';
 
 @Injectable()
 export class CategoriesSeederService implements OnModuleInit {
@@ -11,26 +12,6 @@ export class CategoriesSeederService implements OnModuleInit {
       // Default system categories per user.
       // Internal names stay in English for database consistency; the UI maps
       // them to Indonesian labels (see apps/frontend/src/lib/categories.ts).
-      const income = [
-        'Salary',
-        'Bonus',
-        'Gift',
-        'Investment',
-        'Other Income',
-      ];
-      const expense = [
-        'Housing',
-        'Bills',
-        'Food',
-        'Transport',
-        'Shopping',
-        'Entertainment',
-        'Travel',
-        'Health',
-        'Education',
-        'Other Expense',
-      ];
-
       const users = await this.prisma.user.findMany();
       for (const u of users) {
         // Seed defaults only for users that have no system categories at all.
@@ -41,23 +22,13 @@ export class CategoriesSeederService implements OnModuleInit {
           where: { user_id: u.id, is_system: true },
         });
         if (systemCount > 0) continue;
-        for (const name of income) {
+        for (const { name, type } of DEFAULT_CATEGORIES) {
           const exists = await this.prisma.category.findFirst({
-            where: { user_id: u.id, name, type: 'INCOME' },
+            where: { user_id: u.id, name, type },
           });
           if (!exists) {
             await this.prisma.category.create({
-              data: { user_id: u.id, name, type: 'INCOME', is_system: true },
-            });
-          }
-        }
-        for (const name of expense) {
-          const exists = await this.prisma.category.findFirst({
-            where: { user_id: u.id, name, type: 'EXPENSE' },
-          });
-          if (!exists) {
-            await this.prisma.category.create({
-              data: { user_id: u.id, name, type: 'EXPENSE', is_system: true },
+              data: { user_id: u.id, name, type, is_system: true },
             });
           }
         }

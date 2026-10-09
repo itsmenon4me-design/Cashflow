@@ -50,6 +50,7 @@ describe('SessionsController (security)', () => {
     const sessionEntity = {
       id: 'session-auth',
       user_id: 'user-auth',
+      device_id: 'device-auth',
       refresh_token_id: 'rt1',
       device_name: 'Chrome',
       device_type: 'desktop',
@@ -87,10 +88,13 @@ describe('SessionsController (security)', () => {
   });
 
   it('list: passes authenticated userId to service', async () => {
-    await request(app.getHttpServer() as Server)
+    const response = await request(app.getHttpServer() as Server)
       .get('/auth/sessions')
       .expect(200);
 
+    expect(response.body).toEqual([
+      expect.objectContaining({ device_id: 'device-auth' }),
+    ]);
     expect(
       (sessionsServiceMock as unknown as { listForUser: jest.Mock })
         .listForUser,

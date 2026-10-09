@@ -18,7 +18,7 @@ export const API_REQUEST_TIMEOUT_MS = 20_000;
 const DEVICE_ID_STORAGE_KEY = "cashflow.auth.device-id";
 let cachedDeviceId: string | null = null;
 
-function getBrowserDeviceId(): string | null {
+export function getBrowserDeviceId(): string | null {
   if (typeof window === "undefined") return null;
   if (cachedDeviceId) return cachedDeviceId;
 
@@ -37,6 +37,11 @@ function getBrowserDeviceId(): string | null {
   window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
   cachedDeviceId = deviceId;
   return deviceId;
+}
+
+export function buildApiUrl(path: string, params?: URLSearchParams): string {
+  const query = params?.toString();
+  return `${BASE_URL.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}${query ? `?${query}` : ""}`;
 }
 
 export class ApiError extends Error {

@@ -2,6 +2,7 @@
 import { categoryService } from "@/services/category.service";
 import { transactionService, toTransactionItem } from "@/services/transaction.service";
 import { DEFAULT_USER_TIMEZONE } from "@/lib/user-timezone";
+import { reportService } from "@/services/report.service";
 import type { DashboardSummaryResponse } from "@/types/backend";
 import type {
   CashFlowPoint,
@@ -167,13 +168,15 @@ export const dashboardService = {
   getFlowSeries: async (
     timeZone = DEFAULT_USER_TIMEZONE,
   ): Promise<FlowSeries> => {
-    const widgets = await dashboardService.getWidgets();
-    if (!widgets.trend) throw new Error("Dashboard trend widget failed");
-    const points = widgets.trend.data;
+    const currentPeriod = currentPeriodInTimezone(timeZone);
+    const trend = await reportService.getCashflowTrend("monthly", {
+      startDate: `${currentPeriod.year}-01-01`,
+      endDate: `${currentPeriod.year}-12-31`,
+    });
+    const points = trend.data;
     if (points.length === 0) return { cashFlow: [], flow: [] };
 
-    const currentPeriod = currentPeriodInTimezone(timeZone);
-    const year = (points[0] && parseMonth(points[0].period)?.year) ?? currentPeriod.year;
+    const year = currentPeriod.year;
     const monthlyPoints = Array.from({ length: 12 }, (_, index) => ({
       month: MONTH_LABELS[index],
       cashFlow: year === currentPeriod.year && index + 1 > currentPeriod.month ? null : 0,

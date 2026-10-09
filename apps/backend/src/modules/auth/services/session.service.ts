@@ -57,15 +57,55 @@ export class SessionService {
   async listForUser(userId: string): Promise<SessionEntity[]> {
     const sessions = await this.repo.findActiveByUserId(userId);
     return sessions.map((session) => {
-      const deviceInfo = deriveDeviceInfo(session.user_agent ?? null);
+      const normalizedPlatform = session.operating_system?.toLowerCase();
+      const clientPlatform =
+        normalizedPlatform === 'android'
+          ? 'android'
+          : normalizedPlatform === 'ios' || normalizedPlatform === 'ipados'
+            ? 'ios'
+            : undefined;
+      const deviceInfo = deriveDeviceInfo(
+        session.user_agent ?? null,
+        clientPlatform,
+      );
+      const isUnknown = (value: string | null | undefined) =>
+        !value || value.toLowerCase() === UNKNOWN_DEVICE_OS.toLowerCase();
       if (
-        deviceInfo.operating_system === UNKNOWN_DEVICE_OS ||
-        deviceInfo.browser === UNKNOWN_DEVICE_OS
+        !isUnknown(session.device_name) &&
+        !isUnknown(session.device_type) &&
+        !isUnknown(session.browser) &&
+        !isUnknown(session.operating_system)
       ) {
         return session;
       }
-      return Object.assign(session, deviceInfo);
+      return Object.assign(session, {
+        device_name: isUnknown(session.device_name)
+          ? deviceInfo.device_name
+          : session.device_name,
+        device_type: isUnknown(session.device_type)
+          ? deviceInfo.device_type
+          : session.device_type,
+        browser: isUnknown(session.browser)
+          ? deviceInfo.browser
+          : session.browser,
+        operating_system: isUnknown(session.operating_system)
+          ? deviceInfo.operating_system
+          : session.operating_system,
+      });
     });
+  }
+
+  async isAccessSessionActive(
+    sessionId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const session = await this.repo.findById(sessionId);
+    return Boolean(
+      session &&
+      session.user_id === userId &&
+      !session.revoked_at &&
+      session.expires_at > new Date(),
+    );
   }
 
   async revoke(sessionId: string, userId: string): Promise<void> {

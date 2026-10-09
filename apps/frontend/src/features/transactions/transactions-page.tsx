@@ -123,9 +123,17 @@ export function TransactionsPage({ transactionType }: { transactionType?: Transa
   }, [lookupsReady, refreshKey, dataVersion, page, pageSize, sort, search, queryConfig, categoryNames, timeZone]);
 
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
-    const types = transactionType === "income" ? ["INCOME"] : transactionType === "expense" ? ["EXPENSE"] : ["INCOME", "EXPENSE"];
+    const types = transactionType === "income"
+      ? ["INCOME"]
+      : transactionType === "expense"
+        ? ["EXPENSE"]
+        : filters.type === "income"
+          ? ["INCOME"]
+          : filters.type === "expense"
+            ? ["EXPENSE"]
+            : ["INCOME", "EXPENSE"];
     return types.map((type) => ({ label: type === "INCOME" ? uiText.transactions.typeIncome : uiText.transactions.typeExpense, items: Object.entries(categoryTypes).filter(([, categoryTypes]) => categoryTypes.includes(type as "INCOME" | "EXPENSE")).map(([name]) => name).sort() })).filter((group) => group.items.length);
-  }, [categoryTypes, transactionType]);
+  }, [categoryTypes, filters.type, transactionType]);
   const refresh = () => setRefreshKey((value) => value + 1);
   const openForm = (mode: TransactionFormMode, transaction: TransactionItem | null) => setFormState((state) => ({ open: true, mode, transaction, session: state.session + 1 }));
   const getReturnPath = () =>

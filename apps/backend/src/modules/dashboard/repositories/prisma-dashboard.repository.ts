@@ -7,6 +7,11 @@ import { FIXED_CURRENCY } from '../../../common/currencies';
 import { toMinorUnitsExact } from '../../../common/types/money';
 import { DateHelper } from '../../../common/utils/date.util';
 
+type GroupedTransactionTotals = ReadonlyArray<{
+  transaction_type: TransactionType;
+  _sum: { amount_cents: bigint | null };
+}>;
+
 @Injectable()
 export class PrismaDashboardRepository implements IDashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -22,104 +27,74 @@ export class PrismaDashboardRepository implements IDashboardRepository {
       previousMonthEnd,
       timeZone,
     );
-    const [txIncome, txExpense, allTimeIncome, allTimeExpense, previousIncome, previousExpense, catsCount, txTotalCount] =
-      await Promise.all([
-        this.prisma.transaction.findMany({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.INCOME,
-            transaction_date: { gte: monthStart, lte: monthEnd },
-          },
-          select: {
-            amount_cents: true,
-            updated_at: true,
-          },
-        }),
-        this.prisma.transaction.findMany({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.EXPENSE,
-            transaction_date: { gte: monthStart, lte: monthEnd },
-          },
-          select: {
-            amount_cents: true,
-            updated_at: true,
-          },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.INCOME,
-          },
-          _sum: { amount_cents: true },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.EXPENSE,
-          },
-          _sum: { amount_cents: true },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.INCOME,
-            transaction_date: { gte: previousMonthStart, lt: monthStart },
-          },
-          _sum: { amount_cents: true },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-            transaction_type: TransactionType.EXPENSE,
-            transaction_date: { gte: previousMonthStart, lt: monthStart },
-          },
-          _sum: { amount_cents: true },
-        }),
-        this.prisma.category.count({
-          where: { user_id: userId, deleted_at: null },
-        }),
-        this.prisma.transaction.count({
-          where: {
-            user_id: userId,
-            deleted_at: null,
-          },
-        }),
-      ]);
+    const [
+      monthlyTotals,
+      allTimeTotals,
+      previousTotals,
+      catsCount,
+      txTotalCount,
+    ] = await Promise.all([
+      this.prisma.transaction.groupBy({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+          transaction_date: { gte: monthStart, lte: monthEnd },
+        },
+        by: ['transaction_type'],
+        _sum: { amount_cents: true },
+        _max: { updated_at: true },
+      }),
+      this.prisma.transaction.groupBy({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+        },
+        by: ['transaction_type'],
+        _sum: { amount_cents: true },
+      }),
+      this.prisma.transaction.groupBy({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+          transaction_date: { gte: previousMonthStart, lt: monthStart },
+        },
+        by: ['transaction_type'],
+        _sum: { amount_cents: true },
+      }),
+      this.prisma.category.count({
+        where: { user_id: userId, deleted_at: null },
+      }),
+      this.prisma.transaction.count({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+        },
+      }),
+    ]);
 
-    let income = 0n;
-    let expense = 0n;
-
-    for (const tx of txIncome) {
-      income += toMinorUnitsExact(tx.amount_cents);
-    }
-
-    for (const tx of txExpense) {
-      expense += toMinorUnitsExact(tx.amount_cents);
-    }
-
-    const candidates: Date[] = [];
-    for (const t of txIncome) if (t.updated_at) candidates.push(t.updated_at);
-    for (const t of txExpense) if (t.updated_at) candidates.push(t.updated_at);
-
+    const sumFor = (rows: GroupedTransactionTotals, type: TransactionType) =>
+      toMinorUnitsExact(
+        rows.find((row) => row.transaction_type === type)?._sum.amount_cents,
+      );
+    const income = sumFor(monthlyTotals, TransactionType.INCOME);
+    const expense = sumFor(monthlyTotals, TransactionType.EXPENSE);
+    const allTimeIncomeTotal = sumFor(allTimeTotals, TransactionType.INCOME);
+    const allTimeExpenseTotal = sumFor(allTimeTotals, TransactionType.EXPENSE);
+    const previousIncome = sumFor(previousTotals, TransactionType.INCOME);
+    const previousExpense = sumFor(previousTotals, TransactionType.EXPENSE);
+    const candidates = monthlyTotals
+      .map((row) => row._max.updated_at)
+      .filter((updatedAt): updatedAt is Date => updatedAt !== null);
     const lastUpdatedAt =
       candidates.length > 0
-        ? new Date(Math.max(...candidates.map((d) => d.getTime())))
+        ? new Date(
+            Math.max(...candidates.map((updatedAt) => updatedAt.getTime())),
+          )
         : null;
 
     const netCashFlow = income - expense;
-    const balance =
-      toMinorUnitsExact(allTimeIncome._sum.amount_cents) -
-      toMinorUnitsExact(allTimeExpense._sum.amount_cents);
-    const previousNetCashFlow =
-      toMinorUnitsExact(previousIncome._sum.amount_cents) -
-      toMinorUnitsExact(previousExpense._sum.amount_cents);
+    const balance = allTimeIncomeTotal - allTimeExpenseTotal;
+    const previousNetCashFlow = previousIncome - previousExpense;
 
     return new DashboardSummaryResponseDto({
       currency: FIXED_CURRENCY,

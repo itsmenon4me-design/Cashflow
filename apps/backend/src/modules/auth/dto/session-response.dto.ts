@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SessionResponseDto {
+  @ApiProperty({ nullable: true })
+  device_id: string | null = null;
   @ApiProperty()
   id!: string;
 

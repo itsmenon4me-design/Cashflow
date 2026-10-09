@@ -91,12 +91,21 @@ export class GithubOauthController {
     @Res() res: Response,
     @Query('code') code?: string,
     @Query('state') state?: string,
+    @Query('error') oauthError?: string,
   ) {
     let failureRedirectUrl =
       this.githubAuthService.handleGithubCallbackError().redirectUrl;
     try {
       failureRedirectUrl =
         await this.githubAuthService.getCallbackFailureRedirectUrl(state);
+      if (oauthError === 'access_denied') {
+        return res.redirect(
+          await this.githubAuthService.getCallbackCancellationRedirectUrl(
+            state,
+          ),
+        );
+      }
+
       const result = await this.githubAuthService.handleGithubCallback({
         code,
         state,

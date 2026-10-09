@@ -1,7 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import {
-  invalidateNativeOfflineEntity,
+  getNativeOfflineCacheScope,
+  invalidateNativeFinancialAggregates,
+  updateNativeOfflineCache,
   withNativeOfflineCache,
 } from "./native-offline-cache";
 
@@ -22,6 +24,7 @@ export type AuthUser = {
 export type NativeSession = {
   id: string;
   user_id: string;
+  device_id?: string | null;
   device_name: string | null;
   device_type: string | null;
   browser: string | null;
@@ -554,6 +557,8 @@ function jsonRequest<T>(path: string, method: string, payload?: unknown) {
 export const authApi = {
   login: (email: string, password: string) =>
     jsonRequest<LoginResponse>("/auth/login", "POST", { email, password }),
+  googleNative: (accessToken: string) =>
+    jsonRequest<LoginResponse>("/auth/google/native", "POST", { accessToken }),
   register: (payload: { full_name: string; email: string; password: string }) =>
     jsonRequest<ApiEnvelope<AuthUser> & { verificationEmailSent?: boolean }>(
       "/auth/register",
@@ -582,6 +587,11 @@ export const authApi = {
     request<{ success: boolean; message?: string; url?: string }>(
       `/auth/${provider}?redirectUri=${encodeURIComponent(redirectUri)}`,
     ),
+  oauthRedirectUrl: async (provider: "google" | "github", redirectUri: string) => {
+    const deviceId = await getDeviceId();
+    const query = new URLSearchParams({ redirectUri, deviceId });
+    return `${API_BASE_URL}/auth/${provider}/redirect?${query.toString()}`;
+  },
   logout: () => jsonRequest<ApiEnvelope<never>>("/auth/logout", "DELETE"),
 };
 
@@ -676,11 +686,11 @@ function requireData<T>(response: ApiEnvelope<T>, resource: string): T {
 export const financeApi = {
     getDashboardSummary: () =>
       request<NativeDashboardSummary>("/dashboard/summary"),
-    async listCategories() {
+    async listCategories(onCached?: (categories: NativeCategory[]) => void, onRefreshError?: (error: unknown) => void) {
       return withNativeOfflineCache("categories", "list", async () => {
         const response = await request<ApiEnvelope<NativeCategory[]>>("/categories");
         return requireData(response, "categories");
-      });
+      }, onCached, onRefreshError);
     },
     createCategory: (payload: {
       name: string;
@@ -688,32 +698,52 @@ export const financeApi = {
       icon?: string;
       color?: string;
       description?: string;
-    }) => jsonRequest<ApiEnvelope<NativeCategory>>("/categories", "POST", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeCategory>>("/categories", "POST", payload).then(async (response) => {
         const category = requireData(response, "category");
-        await invalidateNativeOfflineEntity("categories");
+        await updateNativeOfflineCache<NativeCategory[]>("categories", "list", (categories) => [
+          ...categories.filter((item) => item.id !== category.id),
+          category,
+        ], cacheUserId);
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return category;
-      }),
+      });
+    },
     updateCategory: (id: string, payload: {
       name?: string;
       type?: "INCOME" | "EXPENSE";
       icon?: string;
       color?: string;
       description?: string;
-    }) => jsonRequest<ApiEnvelope<NativeCategory>>(`/categories/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeCategory>>(`/categories/${encodeURIComponent(id)}`, "PATCH", payload).then(async (response) => {
         const category = requireData(response, "category");
-        await invalidateNativeOfflineEntity("categories");
+        await updateNativeOfflineCache<NativeCategory[]>("categories", "list", (categories) =>
+          categories.map((item) => item.id === category.id ? category : item),
+          cacheUserId,
+        );
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return category;
-      }),
-    removeCategory: (id: string) =>
-      request<ApiEnvelope<never>>(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" })
-        .then(async (response) => {
-          await invalidateNativeOfflineEntity("categories");
+      });
+    },
+    removeCategory: (id: string) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return request<ApiEnvelope<never>>(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (response) => {
+          if (!response.success) throw new ApiError("The server could not delete the category.", 500, response);
+          await updateNativeOfflineCache<NativeCategory[]>(
+            "categories",
+            "list",
+            (categories) => categories.filter((item) => item.id !== id),
+            cacheUserId,
+          );
+          await invalidateNativeFinancialAggregates(cacheUserId);
           return response;
-        }),
+      });
+    },
 
-    async listTransactions() {
+    async listTransactions(onCached?: (transactions: NativeTransaction[]) => void, onRefreshError?: (error: unknown) => void) {
       return withNativeOfflineCache("transactions", "list:all", async () => {
         const result: NativeTransaction[] = [];
         let page = 1;
@@ -735,7 +765,7 @@ export const financeApi = {
           }
         }
         return result;
-      });
+      }, onCached, onRefreshError);
     },
     createTransaction: (payload: {
       category_id: string;
@@ -744,71 +774,111 @@ export const financeApi = {
       transaction_date: string;
       note?: string;
       reference_number?: string;
-    }) => jsonRequest<ApiEnvelope<NativeTransaction>>("/transactions", "POST", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeTransaction>>("/transactions", "POST", payload).then(async (response) => {
         const transaction = requireData(response, "transaction");
-        await invalidateNativeOfflineEntity("transactions");
+        await updateNativeOfflineCache<NativeTransaction[]>("transactions", "list:all", (transactions) => [
+          transaction,
+          ...transactions.filter((item) => item.id !== transaction.id),
+        ], cacheUserId);
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return transaction;
-      }),
+      });
+    },
     updateTransaction: (id: string, payload: {
       category_id?: string;
       transaction_type?: "INCOME" | "EXPENSE";
       amount_cents?: number;
       transaction_date?: string;
       note?: string;
-    }) => jsonRequest<ApiEnvelope<NativeTransaction>>(`/transactions/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeTransaction>>(`/transactions/${encodeURIComponent(id)}`, "PATCH", payload).then(async (response) => {
         const transaction = requireData(response, "transaction");
-        await invalidateNativeOfflineEntity("transactions");
+        await updateNativeOfflineCache<NativeTransaction[]>("transactions", "list:all", (transactions) =>
+          transactions.map((item) => item.id === transaction.id ? transaction : item),
+          cacheUserId,
+        );
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return transaction;
-      }),
-    removeTransaction: (id: string) =>
-      request<ApiEnvelope<never>>(`/transactions/${encodeURIComponent(id)}`, { method: "DELETE" })
-        .then(async (response) => {
-          await invalidateNativeOfflineEntity("transactions");
-          return response;
-        }),
+      });
+    },
+    removeTransaction: (id: string) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return request<ApiEnvelope<never>>(`/transactions/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (response) => {
+        if (!response.success) throw new ApiError("The server could not delete the transaction.", 500, response);
+        await updateNativeOfflineCache<NativeTransaction[]>(
+          "transactions",
+          "list:all",
+          (transactions) => transactions.filter((item) => item.id !== id),
+          cacheUserId,
+        );
+        await invalidateNativeFinancialAggregates(cacheUserId);
+        return response;
+      });
+    },
 
-    async listBudgets() {
+    async listBudgets(onCached?: (budgets: NativeBudget[]) => void, onRefreshError?: (error: unknown) => void) {
       return withNativeOfflineCache("budgets", "list", async () => {
         const response = await request<ApiEnvelope<NativeBudget[]>>("/budgets");
         return requireData(response, "budgets");
-      });
+      }, onCached, onRefreshError);
     },
     createBudget: (payload: {
       category_id: string;
       budget_amount_cents: number;
       month: number;
       year: number;
-    }) => jsonRequest<ApiEnvelope<NativeBudget>>("/budgets", "POST", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeBudget>>("/budgets", "POST", payload).then(async (response) => {
         const budget = requireData(response, "budget");
-        await invalidateNativeOfflineEntity("budgets");
+        await updateNativeOfflineCache<NativeBudget[]>("budgets", "list", (budgets) => [
+          ...budgets.filter((item) => item.id !== budget.id),
+          budget,
+        ], cacheUserId);
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return budget;
-      }),
+      });
+    },
     updateBudget: (id: string, payload: {
       category_id?: string;
       budget_amount_cents?: number;
       month?: number;
       year?: number;
-    }) => jsonRequest<ApiEnvelope<NativeBudget>>(`/budgets/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeBudget>>(`/budgets/${encodeURIComponent(id)}`, "PATCH", payload).then(async (response) => {
         const budget = requireData(response, "budget");
-        await invalidateNativeOfflineEntity("budgets");
+        await updateNativeOfflineCache<NativeBudget[]>("budgets", "list", (budgets) =>
+          budgets.map((item) => item.id === budget.id ? budget : item),
+          cacheUserId,
+        );
+        await invalidateNativeFinancialAggregates(cacheUserId);
         return budget;
-      }),
-    removeBudget: (id: string) =>
-      request<ApiEnvelope<never>>(`/budgets/${encodeURIComponent(id)}`, { method: "DELETE" })
-        .then(async (response) => {
-          await invalidateNativeOfflineEntity("budgets");
-          return response;
-        }),
+      });
+    },
+    removeBudget: (id: string) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return request<ApiEnvelope<never>>(`/budgets/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (response) => {
+        if (!response.success) throw new ApiError("The server could not delete the budget.", 500, response);
+        await updateNativeOfflineCache<NativeBudget[]>(
+          "budgets",
+          "list",
+          (budgets) => budgets.filter((item) => item.id !== id),
+          cacheUserId,
+        );
+        await invalidateNativeFinancialAggregates(cacheUserId);
+        return response;
+      });
+    },
 
-    async listSavingGoals() {
+    async listSavingGoals(onCached?: (goals: NativeSavingGoal[]) => void, onRefreshError?: (error: unknown) => void) {
       return withNativeOfflineCache("saving-goals", "list", async () => {
         const response = await request<ApiEnvelope<NativeSavingGoal[]>>("/saving-goals");
         return requireData(response, "saving goals");
-      });
+      }, onCached, onRefreshError);
     },
     createSavingGoal: (payload: {
       name: string;
@@ -819,12 +889,17 @@ export const financeApi = {
       start_date: string;
       target_date: string;
       status?: NativeSavingGoal["status"];
-    }) => jsonRequest<ApiEnvelope<NativeSavingGoal>>("/saving-goals", "POST", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeSavingGoal>>("/saving-goals", "POST", payload).then(async (response) => {
         const goal = requireData(response, "saving goal");
-        await invalidateNativeOfflineEntity("saving-goals");
+        await updateNativeOfflineCache<NativeSavingGoal[]>("saving-goals", "list", (goals) => [
+          ...goals.filter((item) => item.id !== goal.id),
+          goal,
+        ], cacheUserId);
         return goal;
-      }),
+      });
+    },
     updateSavingGoal: (id: string, payload: {
       name?: string;
       category_id?: string | null;
@@ -834,22 +909,36 @@ export const financeApi = {
       start_date?: string;
       target_date?: string;
       status?: NativeSavingGoal["status"];
-    }) => jsonRequest<ApiEnvelope<NativeSavingGoal>>(`/saving-goals/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then(async (response) => {
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeSavingGoal>>(`/saving-goals/${encodeURIComponent(id)}`, "PATCH", payload).then(async (response) => {
         const goal = requireData(response, "saving goal");
-        await invalidateNativeOfflineEntity("saving-goals");
+        await updateNativeOfflineCache<NativeSavingGoal[]>("saving-goals", "list", (goals) =>
+          goals.map((item) => item.id === goal.id ? goal : item),
+          cacheUserId,
+        );
         return goal;
-      }),
-    removeSavingGoal: (id: string) =>
-      request<ApiEnvelope<never>>(`/saving-goals/${encodeURIComponent(id)}`, { method: "DELETE" })
-        .then(async (response) => {
-          await invalidateNativeOfflineEntity("saving-goals");
-          return response;
-        }),
+      });
+    },
+    removeSavingGoal: (id: string) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return request<ApiEnvelope<never>>(`/saving-goals/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (response) => {
+        if (!response.success) throw new ApiError("The server could not delete the saving goal.", 500, response);
+        await updateNativeOfflineCache<NativeSavingGoal[]>(
+          "saving-goals",
+          "list",
+          (goals) => goals.filter((item) => item.id !== id),
+          cacheUserId,
+        );
+        return response;
+      });
+    },
 
-    async listInvestments() {
-      const response = await request<ApiEnvelope<NativeInvestment[]>>("/investments");
-      return requireData(response, "investments");
+    async listInvestments(onCached?: (investments: NativeInvestment[]) => void, onRefreshError?: (error: unknown) => void) {
+      return withNativeOfflineCache("investments", "list", async () => {
+        const response = await request<ApiEnvelope<NativeInvestment[]>>("/investments");
+        return requireData(response, "investments");
+      }, onCached, onRefreshError);
     },
     createInvestment: (payload: {
       investment_type: NativeInvestment["investment_type"];
@@ -863,8 +952,17 @@ export const financeApi = {
       notes?: string;
       purchase_date: string;
       status?: NativeInvestment["status"];
-    }) => jsonRequest<ApiEnvelope<NativeInvestment>>("/investments", "POST", payload)
-      .then((response) => requireData(response, "investment")),
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeInvestment>>("/investments", "POST", payload).then(async (response) => {
+      const investment = requireData(response, "investment");
+      await updateNativeOfflineCache<NativeInvestment[]>("investments", "list", (items) => [
+        investment,
+        ...items.filter((item) => item.id !== investment.id),
+      ], cacheUserId);
+      return investment;
+      });
+    },
     updateInvestment: (id: string, payload: {
       investment_type?: NativeInvestment["investment_type"];
       platform?: string;
@@ -877,10 +975,30 @@ export const financeApi = {
       notes?: string | null;
       purchase_date?: string;
       status?: NativeInvestment["status"];
-    }) => jsonRequest<ApiEnvelope<NativeInvestment>>(`/investments/${encodeURIComponent(id)}`, "PATCH", payload)
-      .then((response) => requireData(response, "investment")),
-    removeInvestment: (id: string) =>
-      request<ApiEnvelope<never>>(`/investments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    }) => {
+      const cacheUserId = getNativeOfflineCacheScope();
+      return jsonRequest<ApiEnvelope<NativeInvestment>>(`/investments/${encodeURIComponent(id)}`, "PATCH", payload).then(async (response) => {
+      const investment = requireData(response, "investment");
+      await updateNativeOfflineCache<NativeInvestment[]>("investments", "list", (items) =>
+        items.map((item) => item.id === investment.id ? investment : item),
+        cacheUserId,
+      );
+      return investment;
+      });
+    },
+    removeInvestment: (id: string) => {
+    const cacheUserId = getNativeOfflineCacheScope();
+    return request<ApiEnvelope<never>>(`/investments/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (response) => {
+      if (!response.success) throw new ApiError("The server could not delete the investment.", 500, response);
+      await updateNativeOfflineCache<NativeInvestment[]>(
+        "investments",
+        "list",
+        (items) => items.filter((item) => item.id !== id),
+        cacheUserId,
+      );
+      return response;
+    });
+    },
 
     getAnalyticsOverview: (startDate: string, endDate: string) =>
       request<NativeAnalyticsOverview>(queryPath("/analytics/overview", { startDate, endDate })),

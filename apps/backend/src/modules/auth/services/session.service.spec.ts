@@ -81,6 +81,65 @@ describe('SessionService', () => {
     ]);
   });
 
+  it('recovers native platform names for older sessions', async () => {
+    (repo.findActiveByUserId as jest.Mock).mockResolvedValue([
+      {
+        id: 'native-session',
+        user_id: 'u1',
+        device_name: 'Unknown',
+        device_type: 'Unknown',
+        browser: 'Unknown',
+        operating_system: 'Android',
+        user_agent: 'Neraca/1 okhttp/5.0',
+        last_activity_at: now,
+      },
+    ]);
+
+    const [session] = await svc.listForUser('u1');
+
+    expect(session).toMatchObject({
+      device_name: 'Android',
+      device_type: 'Mobile',
+      operating_system: 'Android',
+    });
+  });
+
+  it('accepts only an active session owned by the token user', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 's1',
+      user_id: 'u1',
+      expires_at: new Date(Date.now() + 60_000),
+      revoked_at: null,
+    });
+
+    await expect(svc.isAccessSessionActive('s1', 'u1')).resolves.toBe(true);
+    await expect(svc.isAccessSessionActive('s1', 'u2')).resolves.toBe(false);
+    expect(repo.findById).toHaveBeenCalledWith('s1');
+  });
+
+  it('rejects revoked and expired access-token sessions', async () => {
+    (repo.findById as jest.Mock)
+      .mockResolvedValueOnce({
+        id: 'revoked',
+        user_id: 'u1',
+        expires_at: new Date(Date.now() + 60_000),
+        revoked_at: now,
+      })
+      .mockResolvedValueOnce({
+        id: 'expired',
+        user_id: 'u1',
+        expires_at: new Date(Date.now() - 60_000),
+        revoked_at: null,
+      });
+
+    await expect(svc.isAccessSessionActive('revoked', 'u1')).resolves.toBe(
+      false,
+    );
+    await expect(svc.isAccessSessionActive('expired', 'u1')).resolves.toBe(
+      false,
+    );
+  });
+
   it('revokes session only if owned', async () => {
     (repo.findById as jest.Mock).mockResolvedValue({
       id: 's1',

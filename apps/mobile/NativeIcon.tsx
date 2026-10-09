@@ -68,6 +68,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import type { ComponentProps } from "react";
+import { useResponsive } from "./utils/responsive";
 
 type IconName = keyof typeof GlyphIcons.glyphMap;
 type NativeIconProps = Pick<ComponentProps<typeof GlyphIcons>, "name" | "size" | "color">;
@@ -152,12 +153,14 @@ const lucideIcons: Partial<Record<IconName, LucideIcon>> = {
 
 // Unmapped saved or user-selected glyphs keep their original Material icon.
 function NativeIcon({ name, size = 24, color = "#000000" }: NativeIconProps) {
+  const { moderateScale } = useResponsive();
+  const responsiveSize = moderateScale(size);
   const LucideIcon = lucideIcons[name];
   if (LucideIcon) {
-    return <LucideIcon size={size} color={color} strokeWidth={2} />;
+    return <LucideIcon size={responsiveSize} color={color} strokeWidth={2} />;
   }
 
-  return <GlyphIcons name={name} size={size} color={color} />;
+  return <GlyphIcons name={name} size={responsiveSize} color={color} />;
 }
 
 export const MaterialCommunityIcons = Object.assign(NativeIcon, {

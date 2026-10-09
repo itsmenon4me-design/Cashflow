@@ -67,4 +67,42 @@ describe('GithubOauthController', () => {
       'neraca://auth/callback?oauth_error=github_auth_failed',
     );
   });
+
+  it('returns GitHub access denial to the native callback as a cancellation', async () => {
+    const service = {
+      handleGithubCallbackError: jest.fn().mockReturnValue({
+        redirectUrl: 'https://app.example/login?oauth_error=github_auth_failed',
+      }),
+      getCallbackFailureRedirectUrl: jest
+        .fn()
+        .mockResolvedValue(
+          'neraca://auth/callback?oauth_error=github_auth_failed',
+        ),
+      getCallbackCancellationRedirectUrl: jest
+        .fn()
+        .mockResolvedValue('neraca://auth/callback?oauth_cancelled=github'),
+      handleGithubCallback: jest.fn(),
+    };
+    const controller = new GithubOauthController(
+      service as unknown as GithubAuthService,
+    );
+    const redirect = jest.fn();
+    const res = { redirect } as unknown as Response;
+
+    await controller.githubCallback(
+      { headers: {} } as Request,
+      res,
+      undefined,
+      'oauth-state',
+      'access_denied',
+    );
+
+    expect(service.getCallbackCancellationRedirectUrl).toHaveBeenCalledWith(
+      'oauth-state',
+    );
+    expect(service.handleGithubCallback).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith(
+      'neraca://auth/callback?oauth_cancelled=github',
+    );
+  });
 });

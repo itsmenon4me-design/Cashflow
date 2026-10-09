@@ -134,6 +134,21 @@ export class GithubAuthService {
     return this.failureUrl(parsedState.valid ? parsedState.redirectUri : null);
   }
 
+  async getCallbackCancellationRedirectUrl(state?: string) {
+    if (!state) return this.failureUrl();
+    const key = this.getStateKey(state);
+    const value = await this.redis.get(key);
+    if (value === null) return this.failureUrl();
+
+    const parsedState = parseOAuthState(value, state);
+    if (!parsedState.valid) return this.failureUrl();
+
+    await this.redis.del(key);
+    const callbackUrl =
+      parsedState.redirectUri ?? `${this.getFrontendBaseUrl()}/login`;
+    return `${callbackUrl}?oauth_cancelled=github`;
+  }
+
   private async uniqueUsername(baseName: string): Promise<string> {
     const root =
       (baseName || 'githubuser')

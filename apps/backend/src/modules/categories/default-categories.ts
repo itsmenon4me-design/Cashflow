@@ -1,0 +1,17 @@
+export const DEFAULT_CATEGORIES = [
+  { name: 'Salary', type: 'INCOME' },
+  { name: 'Bonus', type: 'INCOME' },
+  { name: 'Gift', type: 'INCOME' },
+  { name: 'Investment', type: 'INCOME' },
+  { name: 'Other Income', type: 'INCOME' },
+  { name: 'Housing', type: 'EXPENSE' },
+  { name: 'Bills', type: 'EXPENSE' },
+  { name: 'Food', type: 'EXPENSE' },
+  { name: 'Transport', type: 'EXPENSE' },
+  { name: 'Shopping', type: 'EXPENSE' },
+  { name: 'Entertainment', type: 'EXPENSE' },
+  { name: 'Travel', type: 'EXPENSE' },
+  { name: 'Health', type: 'EXPENSE' },
+  { name: 'Education', type: 'EXPENSE' },
+  { name: 'Other Expense', type: 'EXPENSE' },
+] as const;

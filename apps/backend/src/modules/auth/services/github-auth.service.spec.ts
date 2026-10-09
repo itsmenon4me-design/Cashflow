@@ -76,6 +76,19 @@ describe('GithubAuthService', () => {
     );
   });
 
+  it('returns an intentional cancellation to the registered native callback', async () => {
+    process.env.GITHUB_CLIENT_ID = 'test-client-id';
+    process.env.GITHUB_CLIENT_SECRET = 'test-client-secret';
+
+    const url = await service.getLoginUrl('neraca://auth/callback');
+    const state = new URL(url).searchParams.get('state');
+
+    await expect(
+      service.getCallbackCancellationRedirectUrl(state ?? undefined),
+    ).resolves.toBe('neraca://auth/callback?oauth_cancelled=github');
+    expect(redis.del).toHaveBeenCalledWith(`oauth:github:state:${state}`);
+  });
+
   it('persists the GitHub profile name for a new user', async () => {
     const usersService = {
       create: jest.fn().mockResolvedValue({ id: 'user-1' }),

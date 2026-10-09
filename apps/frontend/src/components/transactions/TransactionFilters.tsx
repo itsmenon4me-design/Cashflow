@@ -91,7 +91,10 @@ export function TransactionFilters({
             <div className="min-w-0 max-w-40">
               <Select
                 value={filters.type}
-                onValueChange={(type) => update({ type: type as TransactionType | "all" })}
+                onValueChange={(type) => update({
+                  type: type as TransactionType | "all",
+                  category: "all",
+                })}
               >
                 <SelectTrigger className="min-h-11 w-full max-w-40 rounded-xl" aria-label={uiText.table.type}>
                   <SelectValue placeholder={uiText.common.allTypes} />

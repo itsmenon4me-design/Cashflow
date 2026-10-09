@@ -1,4 +1,4 @@
-﻿import { apiClient } from "@/lib/axios";
+import { ApiError, apiClient, buildApiUrl, getBrowserDeviceId } from "@/lib/axios";
 import type {
   LoginResponse,
   UserResponse,
@@ -31,8 +31,14 @@ export interface ResetPasswordPayload {
   new_password: string;
 }
 
-import { ApiError } from "@/lib/axios";
 import { getStoredUser } from "@/lib/auth-token";
+
+function oauthRedirectUrl(provider: "google" | "github"): string {
+  const params = new URLSearchParams();
+  const deviceId = getBrowserDeviceId();
+  if (deviceId) params.set("deviceId", deviceId);
+  return buildApiUrl(`/auth/${provider}/redirect`, params);
+}
 
 export const authService = {
   login: (payload: LoginPayload): Promise<LoginResponse> =>
@@ -63,6 +69,10 @@ export const authService = {
         message:
           "GitHub OAuth belum dikonfigurasi. Harap aktifkan GitHub Client ID dan secret terlebih dahulu.",
       })),
+
+  googleRedirectUrl: (): string => oauthRedirectUrl("google"),
+
+  githubRedirectUrl: (): string => oauthRedirectUrl("github"),
 
   updateProfile: async (payload: {
     full_name?: string;

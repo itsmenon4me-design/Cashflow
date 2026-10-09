@@ -6,6 +6,7 @@ import { categoryService } from "@/services/category.service";
 import { uiText } from "@/locales";
 import { ApiError, ApiTimeoutError } from "@/lib/axios";
 import { toInputDate } from "@/lib/date";
+import type { CategoryResponse } from "@/types/backend";
 
 const searchParamsMock = vi.hoisted(() => ({ value: new URLSearchParams() }));
 const syncClientMocks = vi.hoisted(() => ({
@@ -15,6 +16,10 @@ const syncClientMocks = vi.hoisted(() => ({
   getPendingTransactionRecords: vi.fn(async () => []),
   pendingRecordsToItems: vi.fn(async () => []),
 }));
+const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  "scrollIntoView",
+);
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsMock.value,
@@ -27,6 +32,15 @@ describe("TransactionsPage", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    if (scrollIntoViewDescriptor) {
+      Object.defineProperty(
+        HTMLElement.prototype,
+        "scrollIntoView",
+        scrollIntoViewDescriptor,
+      );
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    }
     searchParamsMock.value = new URLSearchParams();
   });
 
@@ -74,6 +88,70 @@ describe("TransactionsPage", () => {
       const call = listSpy.mock.calls.find((c) => (c[0] || {}).type === "EXPENSE");
       expect(call).toBeTruthy();
     });
+  });
+
+  it("limits history categories to the selected transaction type", async () => {
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const categories: CategoryResponse[] = [
+      {
+        id: "income-category",
+        name: "Income Custom",
+        type: "INCOME",
+        icon: null,
+        color: null,
+        description: null,
+        is_system: false,
+        is_active: true,
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "expense-category",
+        name: "Expense Custom",
+        type: "EXPENSE",
+        icon: null,
+        color: null,
+        description: null,
+        is_system: false,
+        is_active: true,
+        created_at: "",
+        updated_at: "",
+      },
+    ];
+    vi.spyOn(categoryService, "list").mockResolvedValue(categories);
+    vi.spyOn(transactionService, "list").mockResolvedValue({
+      data: [],
+      pagination: { totalItems: 0, totalPages: 0, page: 1 },
+    } as any);
+
+    render(<TransactionsPage />);
+
+    const typeFilter = screen.getByRole("combobox", { name: uiText.table.type });
+    fireEvent.click(typeFilter);
+    fireEvent.click(await screen.findByRole("option", {
+      name: uiText.transactions.typeIncome,
+    }));
+
+    const categoryFilter = screen.getByRole("combobox", {
+      name: uiText.table.category,
+    });
+    fireEvent.click(categoryFilter);
+    expect(await screen.findByRole("option", { name: "Income Custom" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Expense Custom" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "Income Custom" }));
+
+    fireEvent.click(typeFilter);
+    fireEvent.click(await screen.findByRole("option", {
+      name: uiText.transactions.typeExpense,
+    }));
+    expect(categoryFilter).toHaveTextContent(uiText.transactions.allCategories);
+
+    fireEvent.click(categoryFilter);
+    expect(await screen.findByRole("option", { name: "Expense Custom" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Income Custom" })).not.toBeInTheDocument();
   });
 
   it.each([

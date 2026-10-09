@@ -8,6 +8,7 @@ import type {
   Prisma,
 } from '../../../generated/prisma/client';
 import type { UserStatus } from '../entities/user.entity';
+import { DEFAULT_CATEGORIES } from '../../categories/default-categories';
 
 type UserWithRole = PrismaUser & {
   role?: PrismaRole | null;
@@ -64,6 +65,13 @@ export class PrismaUsersRepository implements IUsersRepository {
         avatar_url: user.avatar_url ?? null,
         phone_number: user.phone_number ?? null,
         role_id: user.role_id,
+        categories: {
+          create: DEFAULT_CATEGORIES.map(({ name, type }) => ({
+            name,
+            type,
+            is_system: true,
+          })),
+        },
       },
       include: { role: true },
     });

@@ -1,8 +1,11 @@
 import { StatusBar } from "expo-status-bar";
 import { isRunningInExpoGo } from "expo";
+import * as SplashScreen from "expo-splash-screen";
+import * as Network from "expo-network";
 import { createContext, Fragment, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Constants from "expo-constants";
 import type * as NotificationsModule from "expo-notifications";
 import {
@@ -10,17 +13,16 @@ import {
   AppState,
   FlatList,
   Animated,
-  Alert,
   BackHandler,
   Easing,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Pressable as NativePressable,
   Platform,
   ScrollView,
   StyleSheet,
-  Text as NativeText,
   TextInput as NativeTextInput,
   type ListRenderItemInfo,
   type PressableProps,
@@ -34,8 +36,9 @@ import {
 } from "react-native";
 import { MaterialCommunityGlyphIcons, MaterialCommunityIcons } from "./NativeIcon";
 import * as Linking from "expo-linking";
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { MAX_CONTENT_WIDTH, ResponsiveText, useResponsive } from "./utils/responsive";
 import { AuthScreen } from "./AuthScreen";
 import { translateMobileText, type MobileLanguage } from "./mobile-locale";
 import {
@@ -82,7 +85,15 @@ import {
 import {
   clearNativeOfflineCache,
   setNativeOfflineCacheScope,
+  withNativeOfflineCache,
 } from "./services/native-offline-cache";
+import { nativeChartTheme } from "./utils/chart-theme";
+
+let nativeSplashHidePromise: Promise<void> | null = null;
+
+void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  console.error("Could not keep the native splash screen visible during startup.", error);
+});
 
 type RouteKey =
   | "dashboard"
@@ -112,13 +123,13 @@ type DemoTransaction = NativeTransactionDraft & {
 type TransactionFieldErrors = { date?: string; category?: string; amount?: string };
 type DemoNotification = { id: string; title: string; message: string; createdAt: string; isRead: boolean };
 type SessionDialogState =
-  | { kind: "single"; session: NativeSession; device: string }
+  | { kind: "single"; sessions: NativeSession[]; device: string }
   | { kind: "others" }
   | { kind: "error"; title: string; description: string };
-type DashboardSnapshot = {
-  overview: NativeDashboardSummary | null;
-  cashflowTrend: NativeTrendPoint[];
-  insights: string[];
+type NativeSessionGroup = {
+  key: string;
+  sessions: NativeSession[];
+  latest: NativeSession;
 };
 type NativeToast = { id: number; message: string; tone: "success" | "error" | "info" };
 const getTransactionAmount = (transaction: { amount: string }) => Number(transaction.amount.replace(/[^\d]/g, ""));
@@ -151,16 +162,32 @@ const BackendOfflineContext = createContext(true);
 const LANGUAGE_STORAGE_KEY = "cashflow.language";
 const NATIVE_PUSH_TOKEN_STORAGE_KEY = "cashflow.native.push-token";
 const NATIVE_PENDING_TRANSACTION_PREFIX = "native-pending-";
-const dashboardSnapshots = new Map<string, DashboardSnapshot>();
+const DASHBOARD_SUMMARY_CACHE_PREFIX = "cashflow.native.dashboard-summary.v1";
+
+async function clearNativeGoogleSignInSession() {
+  try {
+    await GoogleSignin.revokeAccess();
+  } catch (revokeError) {
+    console.warn("Could not revoke native Google Sign-In access; trying local sign-out.", revokeError);
+    await GoogleSignin.signOut();
+  }
+}
 const reportSnapshots = new Map<string, NativeReportPageData>();
 const analyticsSnapshots = new Map<string, NativeAnalyticsPageData>();
 const forecastSnapshots = new Map<string, NativeForecastPageData>();
+type DashboardSnapshot = {
+  financeRevision: number;
+  overview: NativeDashboardSummary | null;
+  cashflowTrend: NativeTrendPoint[];
+  insights: string[];
+};
+const dashboardSnapshots = new Map<string, DashboardSnapshot>();
 const budgetSnapshots = new Map<string, DemoBudget[]>();
 const goalSnapshots = new Map<string, DemoGoal[]>();
 const investmentSnapshots = new Map<string, DemoInvestment[]>();
 
-function clearFinancialSnapshots(userId: string) {
-  dashboardSnapshots.delete(userId);
+function clearFinancialSnapshots(userId: string, preserveDashboard = false) {
+  if (!preserveDashboard) dashboardSnapshots.delete(userId);
   reportSnapshots.forEach((_snapshot, key) => {
     if (key.startsWith(`${userId}:`)) reportSnapshots.delete(key);
   });
@@ -173,6 +200,102 @@ function clearFinancialSnapshots(userId: string) {
   budgetSnapshots.delete(userId);
   goalSnapshots.delete(userId);
   investmentSnapshots.delete(userId);
+}
+
+function isNativeDashboardSummary(value: unknown): value is NativeDashboardSummary {
+  if (!value || typeof value !== "object") return false;
+  const summary = value as Partial<NativeDashboardSummary>;
+  const amountFields = [
+    "total_assets_cents",
+    "total_income_cents",
+    "total_expense_cents",
+    "net_cash_flow_cents",
+    "previous_net_cash_flow_cents",
+  ] as const;
+  const countFields = [
+    "total_accounts",
+    "total_categories",
+    "total_transactions",
+  ] as const;
+  return summary.currency === "IDR" &&
+    amountFields.every((field) =>
+      typeof summary[field] === "string" && /^-?\d+$/.test(summary[field]),
+    ) &&
+    countFields.every((field) =>
+      typeof summary[field] === "number" &&
+      Number.isInteger(summary[field]) &&
+      summary[field] >= 0,
+    ) &&
+    (summary.last_updated_at === null || typeof summary.last_updated_at === "string");
+}
+
+function updateDashboardSnapshot(
+  userId: string,
+  financeRevision: number,
+  update: Partial<Omit<DashboardSnapshot, "financeRevision">>,
+) {
+  const current = dashboardSnapshots.get(userId);
+  const snapshot = current ?? {
+    financeRevision,
+    overview: null,
+    cashflowTrend: [],
+    insights: [],
+  };
+  dashboardSnapshots.set(userId, { ...snapshot, financeRevision, ...update });
+}
+
+function adjustDashboardSnapshotForTransaction(
+  userId: string | undefined,
+  transaction: DemoTransaction,
+  direction: 1 | -1,
+  timeZone?: string | null,
+) {
+  if (!userId) return;
+  const snapshot = dashboardSnapshots.get(userId);
+  if (!snapshot?.overview) return;
+
+  const amount = BigInt(getTransactionAmount(transaction)) * BigInt(direction);
+  const signedBalanceChange = transaction.income ? amount : -amount;
+  const currentMonth = formatInputDateInTimezone(new Date(), timeZone).slice(0, 7);
+  const isCurrentMonth = transaction.dateISO.slice(0, 7) === currentMonth;
+  const [year, month] = currentMonth.split("-").map(Number);
+  const previousMonth = new Date(Date.UTC(year, month - 2, 1))
+    .toISOString()
+    .slice(0, 7);
+  const isPreviousMonth = transaction.dateISO.slice(0, 7) === previousMonth;
+  const incomeChange =
+    isCurrentMonth && transaction.income ? amount : 0n;
+  const expenseChange =
+    isCurrentMonth && !transaction.income ? amount : 0n;
+  const previousNetCashFlowChange = isPreviousMonth
+    ? signedBalanceChange
+    : 0n;
+
+  dashboardSnapshots.set(userId, {
+    ...snapshot,
+    overview: {
+      ...snapshot.overview,
+      total_assets_cents: (
+        BigInt(snapshot.overview.total_assets_cents) + signedBalanceChange
+      ).toString(),
+      total_income_cents: (
+        BigInt(snapshot.overview.total_income_cents) + incomeChange
+      ).toString(),
+      total_expense_cents: (
+        BigInt(snapshot.overview.total_expense_cents) + expenseChange
+      ).toString(),
+      net_cash_flow_cents: (
+        BigInt(snapshot.overview.net_cash_flow_cents) +
+        incomeChange -
+        expenseChange
+      ).toString(),
+      previous_net_cash_flow_cents: (
+        BigInt(snapshot.overview.previous_net_cash_flow_cents) +
+        previousNetCashFlowChange
+      ).toString(),
+      total_transactions: snapshot.overview.total_transactions + direction,
+    },
+  });
 }
 
 function withPendingTransactionSync(
@@ -247,11 +370,11 @@ const TransientPopupDismissAllContext = createContext(() => {});
 function Text({ children, ...props }: TextProps) {
   const language = useContext(MobileLanguageContext);
   const localizedChildren = localizeTextChildren(children, language);
-  return <NativeText {...props}>{localizedChildren}</NativeText>;
+  return <ResponsiveText {...props}>{localizedChildren}</ResponsiveText>;
 }
 
 function RawText(props: TextProps) {
-  return <NativeText {...props} />;
+  return <ResponsiveText {...props} />;
 }
 
 function localizeTextChildren(children: ReactNode, language: MobileLanguage): ReactNode {
@@ -280,9 +403,19 @@ function localizeTextChildren(children: ReactNode, language: MobileLanguage): Re
 
 function TextInput({ placeholder, accessibilityLabel, ...props }: TextInputProps) {
   const language = useContext(MobileLanguageContext);
+  const { scale, moderateScale } = useResponsive();
+  const inputStyle = StyleSheet.flatten(props.style);
   return (
     <NativeTextInput
       {...props}
+      maxFontSizeMultiplier={1.2}
+      style={[
+        props.style,
+        typeof inputStyle?.height === "number" ? { height: scale(inputStyle.height) } : undefined,
+        typeof inputStyle?.minHeight === "number" ? { minHeight: scale(inputStyle.minHeight) } : undefined,
+        inputStyle?.fontSize === undefined ? undefined : { fontSize: moderateScale(inputStyle.fontSize) },
+        inputStyle?.lineHeight === undefined ? undefined : { lineHeight: moderateScale(inputStyle.lineHeight) },
+      ]}
       placeholder={placeholder ? translateMobileText(placeholder, language) : placeholder}
       accessibilityLabel={accessibilityLabel ? translateMobileText(accessibilityLabel, language) : accessibilityLabel}
     />
@@ -386,11 +519,28 @@ function NumericInput({ value, onChangeValue, mode = "grouped", separator, ...pr
   />;
 }
 
-function Pressable({ accessibilityLabel, ...props }: PressableProps) {
+function Pressable({ accessibilityLabel, style: pressableStyle, ...props }: PressableProps) {
   const language = useContext(MobileLanguageContext);
+  const { scale } = useResponsive();
   return (
     <NativePressable
       {...props}
+      style={(state) => {
+        const resolvedStyle = typeof pressableStyle === "function" ? pressableStyle(state) : pressableStyle;
+        const dimensions = StyleSheet.flatten(resolvedStyle);
+
+        return [
+          resolvedStyle,
+          dimensions && {
+            width: typeof dimensions.width === "number" ? scale(dimensions.width) : dimensions.width,
+            height: typeof dimensions.height === "number" ? scale(dimensions.height) : dimensions.height,
+            minWidth: typeof dimensions.minWidth === "number" ? scale(dimensions.minWidth) : dimensions.minWidth,
+            minHeight: typeof dimensions.minHeight === "number" ? scale(dimensions.minHeight) : dimensions.minHeight,
+            maxWidth: typeof dimensions.maxWidth === "number" ? scale(dimensions.maxWidth) : dimensions.maxWidth,
+            maxHeight: typeof dimensions.maxHeight === "number" ? scale(dimensions.maxHeight) : dimensions.maxHeight,
+          },
+        ];
+      }}
       accessibilityLabel={accessibilityLabel ? translateMobileText(accessibilityLabel, language) : accessibilityLabel}
     />
   );
@@ -407,7 +557,9 @@ function TransientPopupSurface({ children, style }: { children: ReactNode; style
   const registerPopupRegion = useContext(TransientPopupRegionContext);
   const dismissAll = useContext(TransientPopupDismissAllContext);
   const language = useContext(MobileLanguageContext);
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const visibleBottom = useKeyboardVisibleBottom();
+  const availablePopupHeight = Math.max(0, visibleBottom - 16);
   const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const updateAnchor = useCallback(() => {
     popupRef.current?.measureInWindow((left, top, width, height) => {
@@ -454,9 +606,9 @@ function TransientPopupSurface({ children, style }: { children: ReactNode; style
             style,
             {
               left: Math.max(8, Math.min(anchor.left, windowWidth - Math.min(anchor.width, windowWidth - 16) - 8)),
-              top: Math.max(8, Math.min(anchor.top, windowHeight - anchor.height - 8)),
+              top: Math.max(8, Math.min(anchor.top, visibleBottom - Math.min(anchor.height, availablePopupHeight) - 8)),
               width: Math.min(anchor.width, windowWidth - 16),
-              maxHeight: Math.min(anchor.height, windowHeight - 16),
+              maxHeight: Math.min(anchor.height, availablePopupHeight),
               position: "absolute",
               right: undefined,
               bottom: undefined,
@@ -490,12 +642,43 @@ function PopupAwareScrollView(props: ScrollViewProps) {
 const monthOptions = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const oauthAvatarUrlPattern = /^https:\/\/(?:[a-z0-9-]+\.)*(?:googleusercontent|githubusercontent)\.com(?:[/:?#]|$)/i;
 const formatBudgetMoney = (value: number, spaced = false) => `Rp${spaced ? " " : ""}${Math.round(value).toLocaleString("id-ID")}`;
+const formatKpiMoney = (value: string | bigint) =>
+  `Rp${BigInt(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 const formatMobileDate = (value: string, language: MobileLanguage = "id") =>
   new Date(`${value}T00:00:00`).toLocaleDateString(language === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
+type NativeAlertButton = {
+  text?: string;
+  style?: "default" | "cancel" | "destructive";
+  onPress?: () => void;
+};
+type NativeAlertRequest = {
+  title: string;
+  message?: string | null;
+  buttons: NativeAlertButton[];
+  palette: Palette;
+};
+let nativeAlertPalette: Palette | null = null;
+let nativeAlertPresenter: ((request: NativeAlertRequest) => void) | null = null;
+const pendingNativeAlertRequests: NativeAlertRequest[] = [];
+function showNativeAlert(
+  title: string,
+  message?: string | null,
+  buttons?: NativeAlertButton[],
+) {
+  const request: NativeAlertRequest = {
+    title,
+    message,
+    buttons: buttons?.length ? buttons : [{ text: "OK" }],
+    palette: nativeAlertPalette ?? themes.dark,
+  };
+  if (nativeAlertPresenter) nativeAlertPresenter(request);
+  else pendingNativeAlertRequests.push(request);
+}
+const Alert = { alert: showNativeAlert };
 const showLocalizedAlert = (title: string, message: string, language: MobileLanguage) =>
   Alert.alert(translateMobileText(title, language), translateMobileText(message, language));
 const localizedActionLabel = (action: "Lihat" | "Ubah" | "Hapus", name: string, language: MobileLanguage) =>
@@ -718,15 +901,88 @@ const bottomTabs: { key: RouteKey | "add"; label: string; icon: string }[] = [
   { key: "profile", label: "Profil", icon: "account-outline" },
 ];
 
+const TAB_BAR_CONTENT_HEIGHT = 68;
+
+function useBottomTabContentStyle(): ViewStyle {
+  const { bottom } = useSafeAreaInsets();
+  const { scale } = useResponsive();
+  return { paddingBottom: scale(TAB_BAR_CONTENT_HEIGHT) + bottom + 16 };
+}
+
+function useKeyboardVisibleBottom() {
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardTop, setKeyboardTop] = useState<number | null>(
+    () => Keyboard.metrics()?.screenY ?? null,
+  );
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardTop(event.endCoordinates.screenY);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardTop(null);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  return keyboardTop === null
+    ? windowHeight
+    : Math.max(0, Math.min(windowHeight, keyboardTop));
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppShell />
+      <View style={styles.appContentFrame}>
+        <AppShell />
+        <NativeAlertHost />
+      </View>
     </SafeAreaProvider>
   );
 }
 
+function NativeAlertHost() {
+  const [activeRequest, setActiveRequest] = useState<NativeAlertRequest | null>(null);
+  const activeRequestRef = useRef<NativeAlertRequest | null>(null);
+  const queuedRequests = useRef<NativeAlertRequest[]>([]);
+  const present = useCallback((request: NativeAlertRequest) => {
+    if (activeRequestRef.current) {
+      queuedRequests.current.push(request);
+      return;
+    }
+    activeRequestRef.current = request;
+    setActiveRequest(request);
+  }, []);
+  const dismiss = useCallback(() => {
+    const nextRequest = queuedRequests.current.shift() ?? null;
+    activeRequestRef.current = nextRequest;
+    setActiveRequest(nextRequest);
+  }, []);
+
+  useEffect(() => {
+    nativeAlertPresenter = present;
+    pendingNativeAlertRequests.splice(0).forEach(present);
+    return () => {
+      if (nativeAlertPresenter === present) nativeAlertPresenter = null;
+    };
+  }, [present]);
+
+  if (!activeRequest) return null;
+  return (
+    <NativeAlertDialog
+      request={activeRequest}
+      onDismiss={dismiss}
+    />
+  );
+}
+
 function AppShell() {
+  const { scale } = useResponsive();
+  const { width: viewportWidth } = useWindowDimensions();
   const [route, setRoute] = useState<RouteKey>("dashboard");
   const [darkMode, setDarkMode] = useState(true);
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
@@ -740,6 +996,9 @@ function AppShell() {
   const [initialReset, setInitialReset] = useState<{ token: string; id: string } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [fixedAddTransactionType, setFixedAddTransactionType] = useState<
+    "Pemasukan" | "Pengeluaran" | null
+  >(null);
   const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<DemoTransaction | null>(null);
   const [transactionToView, setTransactionToView] = useState<DemoTransaction | null>(null);
@@ -747,20 +1006,24 @@ function AppShell() {
   const [rawTransactions, setRawTransactions] = useState<NativeTransaction[]>([]);
   const [syncQueueRecords, setSyncQueueRecords] = useState<NativeTransactionSyncRecord[]>([]);
   const [categories, setCategories] = useState<DemoCategory[]>([]);
+  const categoriesRef = useRef(categories);
   const [financeLoading, setFinanceLoading] = useState(false);
   const [financeError, setFinanceError] = useState<string | null>(null);
   const [financeRevision, setFinanceRevision] = useState(0);
   const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
+  const [deviceNetworkOffline, setDeviceNetworkOffline] = useState(false);
   const [notifications, setNotifications] = useState<DemoNotification[]>([]);
   const [notificationError, setNotificationError] = useState(false);
   const [toast, setToast] = useState<NativeToast | null>(null);
   const [language, setLanguage] = useState<MobileLanguage>("id");
   const authUserRef = useRef(authUser);
   const syncQueueRecordsRef = useRef(syncQueueRecords);
+  const transactionDataRevision = useRef(0);
   const languageRef = useRef(language);
   const handledAuthLinks = useRef(new Set<string>());
   const notificationRefreshRef = useRef<() => Promise<void>>(async () => {});
   const optimisticTransactionSequence = useRef(0);
+  const bottomTabPressIn = useRef<{ key: RouteKey | "add"; timestamp: number } | null>(null);
   const transactionSyncUserId = authUser?.id;
   const transactionSyncQueue = useMemo(
     () => transactionSyncUserId ? new NativeTransactionSyncQueue(transactionSyncUserId, AsyncStorage) : null,
@@ -790,6 +1053,15 @@ function AppShell() {
     authUserRef.current = authUser;
   }, [authUser]);
   useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
+  useEffect(() => {
+    if (authStatus === "loading" || nativeSplashHidePromise) return;
+    nativeSplashHidePromise = SplashScreen.hideAsync().catch((error: unknown) => {
+      console.error("Could not hide the native splash screen after startup.", error);
+    });
+  }, [authStatus]);
+  useEffect(() => {
     setNativeOfflineCacheScope(authUser?.id);
   }, [authUser?.id]);
   useEffect(() => {
@@ -798,7 +1070,7 @@ function AppShell() {
   const invalidateFinancialSnapshots = useCallback(() => {
     const userId = authUserRef.current?.id;
     if (!userId) return;
-    clearFinancialSnapshots(userId);
+    clearFinancialSnapshots(userId, true);
     setFinanceRevision((revision) => revision + 1);
   }, []);
   const restoreAuthSession = useCallback(async () => {
@@ -1010,10 +1282,26 @@ function AppShell() {
     }
     if (path !== "auth/callback") return false;
     handledAuthLinks.current.add(url);
+    const oauthError = parsed.queryParams?.oauth_error;
+    if (oauthError === "google_auth_failed" || oauthError === "github_auth_failed") {
+      setAuthError(translateMobileText(
+        oauthError === "github_auth_failed"
+          ? "Login GitHub gagal. Silakan coba lagi."
+          : "Login Google gagal. Silakan coba lagi.",
+        languageRef.current,
+      ));
+      setAuthStatus("signedOut");
+      return true;
+    }
+    if (parsed.queryParams?.oauth_cancelled === "github") {
+      setAuthError(null);
+      setAuthStatus("signedOut");
+      return true;
+    }
     const accessToken = parsed.queryParams?.accessToken;
     const refreshToken = parsed.queryParams?.refreshToken;
     if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
-      setAuthError(translateMobileText("Login Google gagal. Silakan coba lagi.", languageRef.current));
+      setAuthError(translateMobileText("Login tidak dapat diselesaikan. Silakan coba lagi.", languageRef.current));
       setAuthStatus("signedOut");
       return true;
     }
@@ -1126,6 +1414,13 @@ function AppShell() {
       setLogoutLoading(false);
       return;
     }
+    if (Platform.OS === "android") {
+      try {
+        await clearNativeGoogleSignInSession();
+      } catch (error) {
+        console.error("Could not clear the native Google Sign-In session during logout.", error);
+      }
+    }
     if (authUser) clearFinancialSnapshots(authUser.id);
     setAuthUser(null);
     setPushError(null);
@@ -1147,15 +1442,34 @@ function AppShell() {
     setNotifications([]);
     setAuthStatus("signedOut");
     setRoute("dashboard");
-    const cleanup = await Promise.allSettled([
+    const [
+      pushRegistrationCleanup,
+      authTokenCleanup,
+      googleSignOutCleanup,
+      transactionQueueCleanup,
+      offlineCacheCleanup,
+    ] = await Promise.allSettled([
       AsyncStorage.removeItem(NATIVE_PUSH_TOKEN_STORAGE_KEY),
       clearAuthTokens(),
+      Platform.OS === "android"
+        ? clearNativeGoogleSignInSession()
+        : Promise.resolve(),
       transactionSyncQueue?.clear() ?? Promise.resolve(),
       authUser ? clearNativeOfflineCache(authUser.id) : Promise.resolve(),
     ]);
-    const cleanupError = cleanup.find((result) => result.status === "rejected");
-    if (cleanupError?.status === "rejected") {
-      console.error("The account was deleted, but native local account data could not be cleared.", cleanupError.reason);
+    const localCleanupError = [
+      pushRegistrationCleanup,
+      authTokenCleanup,
+      transactionQueueCleanup,
+      offlineCacheCleanup,
+    ].find((result) => result.status === "rejected");
+    if (localCleanupError?.status === "rejected") {
+      console.error("The account was deleted, but native local account data could not be cleared.", localCleanupError.reason);
+    }
+    if (googleSignOutCleanup.status === "rejected") {
+      console.error("The account was deleted, but the native Google Sign-In session could not be cleared.", googleSignOutCleanup.reason);
+    }
+    if (localCleanupError?.status === "rejected") {
       Alert.alert(
         translateMobileText("Akun sudah dihapus.", language),
         translateMobileText("Data sesi di perangkat tidak dapat dibersihkan. Tutup dan buka kembali aplikasi.", language),
@@ -1199,22 +1513,37 @@ function AppShell() {
     };
   }, [handleNativeAuthLink, restoreAuthSession]);
   const refreshFinanceData = useCallback(async () => {
+    const transactionsRevisionAtStart = transactionDataRevision.current;
     invalidateFinancialSnapshots();
     setFinanceLoading(true);
     setFinanceError(null);
     try {
+      const applyCategories = (response: NativeCategory[]) => {
+        const nextCategories = response.filter((item) => item.is_active).map(toDemoCategory);
+        categoriesRef.current = nextCategories;
+        setCategories(nextCategories);
+      };
+      const applyTransactions = (response: NativeTransaction[]) => {
+        if (transactionsRevisionAtStart !== transactionDataRevision.current) return;
+        const categoryNames = new Map(categoriesRef.current.map((item) => [item.id, item.name]));
+        const nextTransactions = response
+          .map((item) => toDemoTransaction(item, categoryNames, language, userSettings?.timezone))
+          .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date));
+        setTransactions(withPendingTransactionSync(nextTransactions, syncQueueRecordsRef.current));
+        setRawTransactions(response);
+      };
       const [categoryResponse, transactionResponse] = await Promise.all([
-        financeApi.listCategories(),
-        financeApi.listTransactions(),
+        financeApi.listCategories(
+          applyCategories,
+          (error) => setFinanceError(error instanceof Error ? error.message : "Silakan coba lagi."),
+        ),
+        financeApi.listTransactions(
+          applyTransactions,
+          (error) => setFinanceError(error instanceof Error ? error.message : "Silakan coba lagi."),
+        ),
       ]);
-      const categoryNames = new Map(categoryResponse.map((item) => [item.id, item.name]));
-      const nextCategories = categoryResponse.filter((item) => item.is_active).map(toDemoCategory);
-      const nextTransactions = transactionResponse
-        .map((item) => toDemoTransaction(item, categoryNames, language, userSettings?.timezone))
-        .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date));
-      setCategories(nextCategories);
-      setTransactions(withPendingTransactionSync(nextTransactions, syncQueueRecordsRef.current));
-      setRawTransactions(transactionResponse);
+      applyCategories(categoryResponse);
+      applyTransactions(transactionResponse);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
       console.error("Failed to load native finance data.", error);
@@ -1329,6 +1658,51 @@ function AppShell() {
   useEffect(() => {
     if (authStatus !== "authenticated" || !transactionSyncUserId) return;
     let active = true;
+    let offlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let networkStateRevision = 0;
+    const updateNetworkState = (state: Network.NetworkState) => {
+      const revision = ++networkStateRevision;
+      if (state.type === Network.NetworkStateType.NONE) {
+        if (offlineTimer) clearTimeout(offlineTimer);
+        offlineTimer = setTimeout(() => {
+          offlineTimer = undefined;
+          void Network.getNetworkStateAsync()
+            .then((confirmedState) => {
+              if (
+                active &&
+                revision === networkStateRevision &&
+                confirmedState.type === Network.NetworkStateType.NONE
+              ) {
+                setDeviceNetworkOffline(true);
+              }
+            })
+            .catch((error: unknown) => {
+              console.error("Could not confirm the device network state.", error);
+            });
+        }, 1500);
+        return;
+      }
+      if (state.isConnected === true) {
+        if (offlineTimer) clearTimeout(offlineTimer);
+        offlineTimer = undefined;
+        setDeviceNetworkOffline(false);
+      }
+    };
+    const subscription = Network.addNetworkStateListener(updateNetworkState);
+    void Network.getNetworkStateAsync()
+      .then(updateNetworkState)
+      .catch((error: unknown) => {
+        console.error("Could not read the device network state.", error);
+      });
+    return () => {
+      active = false;
+      if (offlineTimer) clearTimeout(offlineTimer);
+      subscription.remove();
+    };
+  }, [authStatus, transactionSyncUserId]);
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !transactionSyncUserId) return;
+    let active = true;
     let checking = false;
     const probe = async () => {
       if (checking) return;
@@ -1409,8 +1783,17 @@ function AppShell() {
     };
   }, [authStatus, flushTransactionSync, showToast, syncQueueRecords, transactionSyncQueue]);
   const refreshCategories = useCallback(async () => {
-    const response = await financeApi.listCategories();
-    setCategories(response.filter((item) => item.is_active).map(toDemoCategory));
+    const response = await financeApi.listCategories(
+      (cached) => {
+        const nextCategories = cached.filter((item) => item.is_active).map(toDemoCategory);
+        categoriesRef.current = nextCategories;
+        setCategories(nextCategories);
+      },
+      (error) => setFinanceError(error instanceof Error ? error.message : "Silakan coba lagi."),
+    );
+    const nextCategories = response.filter((item) => item.is_active).map(toDemoCategory);
+    categoriesRef.current = nextCategories;
+    setCategories(nextCategories);
   }, []);
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -1422,6 +1805,7 @@ function AppShell() {
         setRawTransactions([]);
         syncQueueRecordsRef.current = [];
         setSyncQueueRecords([]);
+        categoriesRef.current = [];
         setCategories([]);
         setFinanceError(null);
         setFinanceLoading(false);
@@ -1468,6 +1852,7 @@ function AppShell() {
     };
   }, [categories, userSettings]);
   const addTransaction = useCallback(async (transaction: NewDemoTransaction) => {
+    transactionDataRevision.current += 1;
     const optimisticId = `${NATIVE_PENDING_TRANSACTION_PREFIX}${Date.now()}-${++optimisticTransactionSequence.current}`;
     const payload: NativeTransactionPayload = {
       ...transactionPayload(transaction),
@@ -1482,6 +1867,12 @@ function AppShell() {
     const amount = formatBudgetMoney(getTransactionAmount(transaction));
     const optimisticNotificationId = `local-${optimisticId}`;
     setTransactions((current) => [optimisticTransaction, ...current]);
+    adjustDashboardSnapshotForTransaction(
+      transactionSyncUserId,
+      optimisticTransaction,
+      1,
+      userSettings?.timezone,
+    );
     setNotifications((current) => [{
       id: optimisticNotificationId,
       title: `Transaksi ${typeLabel} baru`,
@@ -1491,10 +1882,12 @@ function AppShell() {
     }, ...current]);
     try {
       const created = await financeApi.createTransaction(payload);
+      transactionDataRevision.current += 1;
       const categoryNames = new Map(categories.map((item) => [item.id, item.name]));
       const mapped = toDemoTransaction(created, categoryNames, language, userSettings?.timezone);
       setTransactions((current) => current
-        .map((item) => item.id === optimisticId ? mapped : item)
+        .filter((item) => item.id !== optimisticId && item.id !== mapped.id)
+        .concat(mapped)
         .sort((left, right) => right.dateISO.localeCompare(left.dateISO) || right.date.localeCompare(left.date)));
       setRawTransactions((current) => [created, ...current]);
       invalidateFinancialSnapshots();
@@ -1509,17 +1902,32 @@ function AppShell() {
             payload,
             draft: transaction,
           }, 1);
-          publishSyncQueueRecords(records, transactionSyncUserId);
+            transactionDataRevision.current += 1;
+            publishSyncQueueRecords(records, transactionSyncUserId);
           showToast(translateMobileText("Perubahan transaksi menunggu koneksi.", language), "info");
           return;
         } catch (queueError) {
           console.error("Could not persist the pending native transaction.", queueError);
+          transactionDataRevision.current += 1;
           setTransactions((current) => current.filter((item) => item.id !== optimisticId));
+          adjustDashboardSnapshotForTransaction(
+            transactionSyncUserId,
+            optimisticTransaction,
+            -1,
+            userSettings?.timezone,
+          );
           setNotifications((current) => current.filter((item) => item.id !== optimisticNotificationId));
           throw new Error(`${translateMobileText("Transaksi tidak dapat disimpan.", language)} ${queueError instanceof Error ? queueError.message : "Antrean lokal tidak dapat disimpan."}`);
         }
       }
+      transactionDataRevision.current += 1;
       setTransactions((current) => current.filter((item) => item.id !== optimisticId));
+      adjustDashboardSnapshotForTransaction(
+        transactionSyncUserId,
+        optimisticTransaction,
+        -1,
+        userSettings?.timezone,
+      );
       setNotifications((current) => current.filter((item) => item.id !== optimisticNotificationId));
       const message = error instanceof Error ? error.message : "Silakan coba lagi.";
       console.error("Failed to create native transaction.", error);
@@ -1833,6 +2241,7 @@ function AppShell() {
     if (addOpen) {
       setAddOpen(false);
       setTransactionToEdit(null);
+      setFixedAddTransactionType(null);
       return true;
     }
     if (transactionToView) {
@@ -1857,6 +2266,16 @@ function AppShell() {
     dismissTransientUi();
     setRoute(next);
   }, [dismissTransientUi]);
+  const activateBottomTab = useCallback((key: RouteKey | "add") => {
+    if (key === "add") {
+      dismissTransientUi();
+      setTransactionToEdit(null);
+      setFixedAddTransactionType(null);
+      setAddOpen(true);
+      return;
+    }
+    navigateToTab(key);
+  }, [dismissTransientUi, navigateToTab]);
   const handledNotificationResponses = useRef(new Set<string>());
   useEffect(() => {
     if (!Notifications) return;
@@ -1879,12 +2298,16 @@ function AppShell() {
       });
     return () => subscription.remove();
   }, [authStatus, navigateToTab]);
-  const openAddTransaction = () => {
+  const openAddTransaction = (
+    fixedType: "Pemasukan" | "Pengeluaran" | null = null,
+  ) => {
     setTransactionToEdit(null);
+    setFixedAddTransactionType(fixedType);
     setAddOpen(true);
   };
   const openEditTransaction = (transaction: DemoTransaction) => {
     setTransactionToEdit(transaction);
+    setFixedAddTransactionType(null);
     setAddOpen(true);
   };
   const openViewTransaction = (transaction: DemoTransaction) => {
@@ -1893,15 +2316,20 @@ function AppShell() {
   const closeTransactionForm = () => {
     setAddOpen(false);
     setTransactionToEdit(null);
+    setFixedAddTransactionType(null);
   };
   const palette = useMemo<Palette>(() => (darkMode ? themes.dark : themes.light), [darkMode]);
+  useEffect(() => {
+    nativeAlertPalette = palette;
+  }, [palette]);
   const insets = useSafeAreaInsets();
+  const tabBarContentHeight = scale(TAB_BAR_CONTENT_HEIGHT);
   const unreadNotificationCount = notifications.filter((item) => !item.isRead).length;
 
   if (authStatus === "loading") {
     return (
-      <SafeAreaView style={[styles.safe, styles.launchScreen, { backgroundColor: palette.background }]}>
-        <StatusBar style={darkMode ? "light" : "dark"} />
+      <SafeAreaView style={[styles.safe, styles.launchScreen, { backgroundColor: "#0B2A4A" }]}>
+        <StatusBar style="light" />
         <Image
           accessibilityLabel="Neraca"
           source={require("./assets/neraca-splash.png")}
@@ -1967,7 +2395,7 @@ function AppShell() {
 
   return (
     <MobileLanguageContext.Provider value={language}>
-    <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
+    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: palette.background }]}>
       <StatusBar style={darkMode ? "light" : "dark"} />
       <DemoTransactionsContext.Provider value={transactionContext}>
       <TransientDismissContext.Provider value={registerTransientDismiss}>
@@ -1976,25 +2404,25 @@ function AppShell() {
       <TransientPopupDismissAllContext.Provider value={dismissTransientUi}>
       <View style={styles.screen}>
         <Header palette={palette} user={authUser} notificationItems={notifications} unreadNotificationCount={unreadNotificationCount} searchOpen={headerSearchOpen} onSearchOpenChange={setHeaderSearchOpen} onDismissTransient={dismissTransientUi} onNavigate={navigateToRoute} onMenu={() => { dismissTransientUi(); setDrawerOpen(true); }} onNotifications={() => navigateToRoute("notifications")} onMarkAllNotificationsRead={markAllNotificationsRead} onProfile={() => navigateToRoute("profile")} onSettings={() => navigateToRoute("settings")} />
-        {(backendReachable === false || syncQueueRecords.length > 0) && <View
+        {(deviceNetworkOffline || syncQueueRecords.length > 0) && <View
           accessibilityRole="summary"
           style={[styles.nativeSyncBanner, { backgroundColor: palette.muted, borderColor: palette.border }]}
         >
           <MaterialCommunityIcons
-            name={backendReachable === false ? "cloud-off-outline" : failedSyncCount > 0 ? "alert-circle-outline" : "cloud-sync-outline"}
+            name={deviceNetworkOffline ? "cloud-off-outline" : failedSyncCount > 0 ? "alert-circle-outline" : "cloud-sync-outline"}
             size={18}
-            color={backendReachable === false || failedSyncCount > 0 ? palette.warning : palette.accent}
+            color={deviceNetworkOffline || failedSyncCount > 0 ? palette.warning : palette.accent}
           />
           <View style={styles.nativeSyncBannerCopy}>
-            {backendReachable === false
-              ? <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Koneksi ke server terputus.", language)}</Text>
+            {deviceNetworkOffline
+              ? <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Tidak ada koneksi jaringan.", language)}</Text>
               : failedSyncCount > 0
                 ? <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{failedSyncCount} • {translateMobileText("Sinkronisasi gagal", language)}</Text>
                 : <Text style={[styles.nativeSyncBannerText, { color: palette.text }]}>{translateMobileText("Menyinkronkan transaksi...", language)}</Text>}
             {pendingSyncCount > 0 && <Text style={[styles.nativeSyncBannerDetail, { color: palette.secondaryText }]}>
               {pendingSyncCount} {translateMobileText("transaksi menunggu sinkronisasi.", language)}
             </Text>}
-            {backendReachable === false && <Text style={[styles.nativeSyncBannerDetail, { color: palette.secondaryText }]}>{translateMobileText("Periksa koneksi lalu tunggu server dapat dijangkau kembali.", language)}</Text>}
+            {deviceNetworkOffline && <Text style={[styles.nativeSyncBannerDetail, { color: palette.secondaryText }]}>{translateMobileText("Aktifkan Wi-Fi atau data seluler untuk menyambung kembali.", language)}</Text>}
           </View>
           {failedSyncCount > 0 && <View style={styles.nativeSyncBannerActions}>
             <Pressable accessibilityRole="button" onPress={() => { void retryPendingSync(); }} style={[styles.nativeSyncAction, { borderColor: palette.border, backgroundColor: palette.card }]}>
@@ -2017,35 +2445,59 @@ function AppShell() {
             )}
           </BackendOfflineContext.Provider>
         </View>
-        <View style={[styles.bottomNav, { backgroundColor: palette.background, borderColor: palette.border, paddingBottom: Math.max(insets.bottom, 2) }]}>
+        <View style={[styles.bottomNav, { backgroundColor: palette.background, borderColor: palette.border, height: tabBarContentHeight + insets.bottom, paddingBottom: insets.bottom }]}>
           {bottomTabs.map((tab) => {
             const selected = addOpen ? tab.key === "add" : route === tab.key;
             const isAddAction = tab.key === "add";
-            return <Pressable key={tab.key} accessibilityRole={isAddAction ? "button" : "tab"} accessibilityLabel={tab.label} accessibilityState={{ selected }} onPress={() => { if (tab.key === "add") { dismissTransientUi(); setTransactionToEdit(null); setAddOpen(true); } else navigateToTab(tab.key); }} style={({ pressed }) => [styles.navItem, isAddAction && styles.navAddItem, pressed && styles.navItemPressed]}>
+            return <Pressable
+              key={tab.key}
+              accessibilityRole={isAddAction ? "button" : "tab"}
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected }}
+              onPressIn={() => {
+                bottomTabPressIn.current = { key: tab.key, timestamp: Date.now() };
+                activateBottomTab(tab.key);
+              }}
+              onPress={() => {
+                const pressIn = bottomTabPressIn.current;
+                bottomTabPressIn.current = null;
+                if (pressIn?.key === tab.key && Date.now() - pressIn.timestamp < 1000) return;
+                activateBottomTab(tab.key);
+              }}
+              style={({ pressed }) => [
+                styles.navItem,
+                pressed && styles.navItemPressed,
+              ]}
+            >
               <View style={[
                 styles.navIconWrap,
-                isAddAction ? styles.navAddIcon : undefined,
+                isAddAction && { borderRadius: scale(25), height: scale(50), width: scale(50) },
+                isAddAction && { transform: [{ translateY: -scale(TAB_BAR_CONTENT_HEIGHT * 0.3) }] },
                 isAddAction && { backgroundColor: palette.accent },
               ]}>
                 <MaterialCommunityIcons name={tab.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={isAddAction ? 25 : 20} color={isAddAction ? palette.accentText : selected ? palette.accent : palette.secondaryText} />
               </View>
-              <Text style={[styles.navText, { color: isAddAction ? palette.accent : selected ? palette.accent : palette.secondaryText }]}>{tab.label}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[
+                styles.navText,
+                isAddAction && { transform: [{ translateY: -((scale(50) - 32) / 2) }] },
+                { color: isAddAction ? palette.accent : selected ? palette.accent : palette.secondaryText },
+              ]}>{tab.label}</Text>
             </Pressable>;
           })}
         </View>
-        {toast && <View pointerEvents="none" style={styles.toastRegion}>
-          <View accessibilityRole="alert" style={[styles.toast, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        {toast && <View pointerEvents="none" style={[styles.toastRegion, { top: insets.top + 8 }]}>
+          <View accessibilityRole="alert" style={[styles.toast, { maxWidth: Math.min(512, Math.max(0, viewportWidth - 32)), backgroundColor: palette.surface, borderColor: palette.border }]}>
             <MaterialCommunityIcons
               name={toast.tone === "error" ? "alert-circle" : toast.tone === "info" ? "progress-clock" : "check-circle"}
               size={19}
               color={toast.tone === "error" ? palette.expenseAmount : toast.tone === "info" ? palette.info : palette.incomeAmount}
             />
-            <Text style={[styles.toastText, { color: palette.text }]}>{toast.message}</Text>
+            <Text numberOfLines={3} ellipsizeMode="tail" style={[styles.toastText, { color: palette.text }]}>{toast.message}</Text>
           </View>
         </View>}
       </View>
       <Drawer open={drawerOpen} route={route} palette={palette} onClose={() => setDrawerOpen(false)} onNavigate={(next) => { navigateToRoute(next); setDrawerOpen(false); }} />
-      <AddTransactionModal open={addOpen} palette={palette} initialTransaction={transactionToEdit} onClose={closeTransactionForm} />
+      <AddTransactionModal open={addOpen} palette={palette} initialTransaction={transactionToEdit} fixedTransactionType={fixedAddTransactionType} onClose={closeTransactionForm} />
       <TransactionDetailModal transaction={transactionToView} palette={palette} onClose={() => setTransactionToView(null)} />
       </TransientPopupDismissAllContext.Provider>
       </TransientPopupOutsideTouchContext.Provider>
@@ -2060,6 +2512,8 @@ function AppShell() {
 function Header({ palette, user, notificationItems, unreadNotificationCount, searchOpen, onSearchOpenChange, onDismissTransient, onNavigate, onMenu, onNotifications, onMarkAllNotificationsRead, onProfile, onSettings }: { palette: Palette; user: AuthUser; notificationItems: DemoNotification[]; unreadNotificationCount: number; searchOpen: boolean; onSearchOpenChange: (open: boolean) => void; onDismissTransient: () => void; onNavigate: (route: RouteKey) => void; onMenu: () => void; onNotifications: () => void; onMarkAllNotificationsRead: () => void; onProfile: () => void; onSettings: () => void }) {
   const language = useContext(MobileLanguageContext);
   const { width: viewportWidth } = useWindowDimensions();
+  const visibleBottom = useKeyboardVisibleBottom();
+  const { scale } = useResponsive();
   const [query, setQuery] = useState("");
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -2068,6 +2522,7 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
   const userInitials = userName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   const avatarUrl = user.avatar_url && oauthAvatarUrlPattern.test(user.avatar_url) ? user.avatar_url : null;
   const notificationMenuWidth = Math.min(300, viewportWidth - 24);
+  const headerMenuMaxHeight = Math.max(0, visibleBottom - 74);
   const menuMatches = useMemo(() => matchMobileMenuRoutes(query), [query]);
   const dismissHeaderMenus = useCallback(() => {
     const wasOpen = notificationOpen || profileOpen;
@@ -2106,7 +2561,7 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
   };
 
   return (
-    <View style={[styles.header, { borderBottomColor: palette.border, zIndex: searchOpen ? 30 : 1, elevation: searchOpen ? 12 : 0 }]}>
+    <View style={[styles.header, { minHeight: scale(60), borderBottomColor: palette.border, zIndex: searchOpen ? 30 : 1, elevation: searchOpen ? 12 : 0 }]}>
       {searchOpen ? (
         <View style={[styles.globalSearch, { borderColor: palette.border, backgroundColor: palette.background }]}>
           <MaterialCommunityIcons name="magnify" size={19} color={palette.secondaryText} />
@@ -2127,7 +2582,7 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
             <MaterialCommunityIcons name="close" size={18} color={palette.secondaryText} />
           </Pressable>
           {menuMatches.length > 0 && <ScrollView
-            style={[styles.globalSearchResults, { backgroundColor: palette.popover, borderColor: palette.border }]}
+            style={[styles.globalSearchResults, { maxHeight: Math.min(288, Math.max(0, visibleBottom - 68)), backgroundColor: palette.popover, borderColor: palette.border }]}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
             accessibilityRole="list"
@@ -2153,18 +2608,19 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
       )}
       <View style={styles.headerActions}>
         {!searchOpen && <Pressable accessibilityRole="button" accessibilityLabel="Pencarian menu" onPress={openSearch} style={styles.iconButton}><MaterialCommunityIcons name="magnify" size={22} color={palette.text} /></Pressable>}
-        <Pressable accessibilityRole="button" accessibilityLabel="Notifikasi" onPress={toggleNotifications} style={styles.iconButton}><MaterialCommunityIcons name="bell-outline" size={20} color={palette.text} />{unreadNotificationCount > 0 && <View style={styles.notificationDot}><Text style={styles.notificationCount}>{unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}</Text></View>}</Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Notifikasi" onPress={toggleNotifications} style={styles.iconButton}><MaterialCommunityIcons name="bell-outline" size={20} color={palette.text} />{unreadNotificationCount > 0 && <View style={[styles.notificationDot, { height: scale(16), width: scale(16), borderRadius: scale(8), right: scale(3), top: scale(5) }]}><Text numberOfLines={1} adjustsFontSizeToFit style={styles.notificationCount}>{unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}</Text></View>}</Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Profil" onPress={toggleProfile} style={styles.avatar}>
-          <View style={[styles.avatarCircle, { backgroundColor: palette.accent }]}>
+          <View style={[styles.avatarCircle, { backgroundColor: palette.accent, height: scale(36), width: scale(36), borderRadius: scale(18) }]}>
             {avatarUrl && avatarFailedUrl !== avatarUrl
-              ? <Image accessibilityLabel="Foto profil" source={{ uri: avatarUrl }} onError={() => setAvatarFailedUrl(avatarUrl)} style={styles.avatarImage} />
-              : <Text style={{ color: palette.accentText, fontSize: 13, fontWeight: "700" }}>{userInitials}</Text>}
+              ? <Image accessibilityLabel="Foto profil" source={{ uri: avatarUrl }} onError={() => setAvatarFailedUrl(avatarUrl)} style={{ height: scale(36), width: scale(36) }} />
+              : <Text numberOfLines={1} style={{ color: palette.accentText, fontSize: 13, fontWeight: "700" }}>{userInitials}</Text>}
           </View>
         </Pressable>
       </View>
-      {notificationOpen && <View style={[styles.headerMenu, { backgroundColor: palette.surface, borderColor: palette.border, width: notificationMenuWidth }]}>
+      {notificationOpen && <View style={[styles.headerMenu, { backgroundColor: palette.surface, borderColor: palette.border, width: notificationMenuWidth, maxHeight: headerMenuMaxHeight }]}>
         <Text style={[styles.menuHeading, { color: palette.text }]}>Notifikasi</Text>
         <View style={[styles.menuDivider, { backgroundColor: palette.border }]} />
+        <ScrollView style={{ flexShrink: 1, maxHeight: Math.max(0, headerMenuMaxHeight - 132) }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
         {notificationItems.length ? notificationItems.slice(0, 5).map((item) => {
           const relativeTime = formatNotificationRelativeTime(item.createdAt, language);
           return <Pressable
@@ -2179,9 +2635,10 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
               {!item.isRead && <View style={[styles.notificationPreviewUnreadDot, { backgroundColor: palette.accent }]} />}
               <Text numberOfLines={1} style={[styles.menuItemTitle, styles.notificationPreviewTitleText, { color: palette.text }]}>{item.title}</Text>
             </View>
-            {relativeTime ? <Text style={[styles.menuItemMeta, { color: palette.secondaryText }]}>{relativeTime}</Text> : null}
+            {relativeTime ? <Text numberOfLines={1} style={[styles.menuItemMeta, { color: palette.secondaryText }]}>{relativeTime}</Text> : null}
           </Pressable>;
         }) : <Text style={[styles.menuItemMeta, { color: palette.secondaryText, paddingHorizontal: 12, paddingVertical: 14 }]}>Belum ada notifikasi.</Text>}
+        </ScrollView>
         {unreadNotificationCount > 0 && <Pressable
           accessibilityRole="button"
           onPress={markAllNotificationsRead}
@@ -2193,11 +2650,13 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
         <Pressable accessibilityRole="button" onPress={onNotifications} style={styles.notificationMenuAction}><Text style={{ color: palette.accent }}>Lihat Semua</Text></Pressable>
       </View>}
       {profileOpen && <View style={[styles.headerMenu, styles.profileMenu, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-        <Text style={[styles.menuItemTitle, { color: palette.text }]}>{userName}</Text>
-        <Text style={[styles.menuItemMeta, { color: palette.secondaryText }]}>{user.email}</Text>
+        <ScrollView style={{ maxHeight: headerMenuMaxHeight }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.menuItemTitle, { color: palette.text }]}>{userName}</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.menuItemMeta, { color: palette.secondaryText }]}>{user.email}</Text>
         <View style={[styles.menuDivider, { backgroundColor: palette.border }]} />
         <Pressable onPress={onProfile} style={styles.menuRow}><MaterialCommunityIcons name="account-outline" size={18} color={palette.secondaryText} /><Text style={{ color: palette.text }}>Profil</Text></Pressable>
         <Pressable onPress={() => { setProfileOpen(false); onSettings(); }} style={styles.menuRow}><MaterialCommunityIcons name="cog-outline" size={18} color={palette.secondaryText} /><Text style={{ color: palette.text }}>Pengaturan</Text></Pressable>
+        </ScrollView>
       </View>}
     </View>
   );
@@ -2205,13 +2664,54 @@ function Header({ palette, user, notificationItems, unreadNotificationCount, sea
 
 function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Palette; userId: string; displayName: string; onNavigate: (route: RouteKey) => void }) {
   const { width: viewportWidth } = useWindowDimensions();
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const { transactions, financeLoading, financeError, financeRevision, refreshFinanceData } = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
-  const [overview, setOverview] = useState(() => dashboardSnapshots.get(userId)?.overview ?? null);
-  const [cashflowTrend, setCashflowTrend] = useState(() => dashboardSnapshots.get(userId)?.cashflowTrend ?? []);
-  const [insights, setInsights] = useState(() => dashboardSnapshots.get(userId)?.insights ?? []);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const initialSnapshot = dashboardSnapshots.get(userId);
+  const canRestoreSnapshot = initialSnapshot !== undefined;
   const [dashboardRefresh, setDashboardRefresh] = useState(0);
+  const [overviewResult, setOverviewResult] = useState<{
+    key: string;
+    data: NativeDashboardSummary | null;
+  } | null>(() =>
+    canRestoreSnapshot && initialSnapshot.overview
+      ? { key: `${userId}:${financeRevision}:0`, data: initialSnapshot.overview }
+      : null,
+  );
+  const [cashflowResult, setCashflowResult] = useState<{
+    key: string;
+    data: NativeTrendPoint[];
+  } | null>(() =>
+    canRestoreSnapshot
+      ? { key: `${userId}:${financeRevision}:0`, data: initialSnapshot.cashflowTrend }
+      : null,
+  );
+  const [insightsResult, setInsightsResult] = useState<{
+    key: string;
+    data: string[];
+  } | null>(() =>
+    canRestoreSnapshot
+      ? { key: `${userId}:${financeRevision}:0`, data: initialSnapshot.insights }
+      : null,
+  );
+  const [dashboardErrorResult, setDashboardErrorResult] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
+  const dashboardRequestKey = `${userId}:${financeRevision}:${dashboardRefresh}`;
+  const currentDashboardSnapshot = dashboardSnapshots.get(userId);
+  const overview =
+    currentDashboardSnapshot?.overview ??
+    (overviewResult?.key.startsWith(`${userId}:`) ? overviewResult.data : null);
+  const cashflowTrend =
+    currentDashboardSnapshot?.cashflowTrend ??
+    (cashflowResult?.key.startsWith(`${userId}:`) ? cashflowResult.data : []);
+  const insights =
+    currentDashboardSnapshot?.insights ??
+    (insightsResult?.key.startsWith(`${userId}:`) ? insightsResult.data : []);
+  const dashboardError = dashboardErrorResult?.key === dashboardRequestKey
+    ? dashboardErrorResult.message
+    : null;
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending" | "cancelled">("all");
@@ -2231,61 +2731,119 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
     const today = toDateKey(now);
     const monthStart = toDateKey(new Date(now.getFullYear(), now.getMonth(), 1));
     const yearStart = toDateKey(new Date(now.getFullYear(), 0, 1));
+    const requestKey = dashboardRequestKey;
+    const summaryCacheKey =
+      `${DASHBOARD_SUMMARY_CACHE_PREFIX}:${encodeURIComponent(userId)}`;
     let active = true;
-    const cached = dashboardSnapshots.get(userId) ?? {
-      overview: null,
-      cashflowTrend: [],
-      insights: [],
-    };
-    dashboardSnapshots.set(userId, cached);
+    let overviewResolved = false;
+    let fallbackApplied = false;
+      const hasPreviousOverview =
+        dashboardSnapshots.get(userId)?.overview !== null &&
+        dashboardSnapshots.get(userId)?.overview !== undefined;
+    const fallbackTimer = setTimeout(() => {
+      void AsyncStorage.getItem(summaryCacheKey)
+        .then((cachedSummary) => {
+          if (!active || overviewResolved || !cachedSummary) return;
+          let parsedSummary: unknown;
+          try {
+            parsedSummary = JSON.parse(cachedSummary);
+          } catch (error) {
+            console.error("Saved native dashboard summary is corrupted.", error);
+            void AsyncStorage.removeItem(summaryCacheKey).catch((removeError: unknown) => {
+              console.error("Could not remove the corrupted native dashboard summary.", removeError);
+            });
+            return;
+          }
+          if (!isNativeDashboardSummary(parsedSummary)) {
+            console.error("Saved native dashboard summary has an invalid shape.");
+            void AsyncStorage.removeItem(summaryCacheKey).catch((error: unknown) => {
+              console.error("Could not remove the invalid native dashboard summary.", error);
+            });
+            return;
+          }
+          fallbackApplied = true;
+          updateDashboardSnapshot(userId, financeRevision, {
+            overview: parsedSummary,
+          });
+          setOverviewResult({ key: requestKey, data: parsedSummary });
+        })
+        .catch((error: unknown) => {
+          console.error("Could not read the saved native dashboard summary.", error);
+        });
+    }, 1000);
     void financeApi.getDashboardSummary()
       .then((nextOverview) => {
-        cached.overview = nextOverview;
-        dashboardSnapshots.set(userId, cached);
+        overviewResolved = true;
         if (active) {
-          setOverview(nextOverview);
+          updateDashboardSnapshot(userId, financeRevision, {
+            overview: nextOverview,
+          });
+          setOverviewResult({ key: requestKey, data: nextOverview });
+          void AsyncStorage.setItem(summaryCacheKey, JSON.stringify(nextOverview))
+            .catch((error: unknown) => {
+              console.error("Could not cache the latest native dashboard summary.", error);
+            });
         }
       })
       .catch((error: unknown) => {
+        overviewResolved = true;
+        if (!active) return;
         const message = error instanceof Error ? error.message : "Silakan coba lagi.";
         console.error("Failed to load native dashboard overview.", error);
-        if (active) setDashboardError(message);
+        if (!fallbackApplied && !hasPreviousOverview) {
+          setOverviewResult({ key: requestKey, data: null });
+        }
+        setDashboardErrorResult({ key: requestKey, message });
       });
     void financeApi.getCashflowTrend(yearStart, today, "monthly")
       .then((nextTrend) => {
-        cached.cashflowTrend = nextTrend.trend;
-        dashboardSnapshots.set(userId, cached);
-        if (active) setCashflowTrend(nextTrend.trend);
+        if (active) {
+          updateDashboardSnapshot(userId, financeRevision, {
+            cashflowTrend: nextTrend.trend,
+          });
+          setCashflowResult({ key: requestKey, data: nextTrend.trend });
+        }
       })
       .catch((error: unknown) => {
+        if (!active) return;
         const message = error instanceof Error ? error.message : "Silakan coba lagi.";
         console.error("Failed to load native dashboard cashflow trend.", error);
-        if (active) setDashboardError(message);
+        setDashboardErrorResult({ key: requestKey, message });
       });
     void financeApi.getInsights(monthStart, today)
       .then((nextInsights) => {
-        cached.insights = nextInsights;
-        dashboardSnapshots.set(userId, cached);
-        if (active) setInsights(nextInsights);
+        if (active) {
+          updateDashboardSnapshot(userId, financeRevision, {
+            insights: nextInsights,
+          });
+          setInsightsResult({ key: requestKey, data: nextInsights });
+        }
       })
       .catch((error: unknown) => {
+        if (!active) return;
         const message = error instanceof Error ? error.message : "Silakan coba lagi.";
         console.error("Failed to load native dashboard insights.", error);
-        if (active) setDashboardError(message);
+        setDashboardErrorResult({ key: requestKey, message });
       });
-    return () => { active = false; };
-  }, [dashboardRefresh, financeRevision, userId]);
-  const kpiWidth = (viewportWidth - 32 - 12) / 2;
+    return () => {
+      active = false;
+      clearTimeout(fallbackTimer);
+    };
+  }, [dashboardRequestKey, financeRevision, userId]);
+  const kpiWidth = (Math.min(viewportWidth, MAX_CONTENT_WIDTH) - 32 - 12) / 2;
   const keyword = query.trim().toLowerCase();
-  const filteredTransactions = transactions.filter((item) => {
-    const searchableStatus = item.status === "completed" ? "selesai lunas completed" : item.status;
-    const searchable = `${item.note} ${item.category} ${item.amount} ${item.amount.replace(/\D/g, "")} ${item.date} ${item.dateISO} ${item.income ? "pemasukan income" : "pengeluaran expense"} ${item.status} ${searchableStatus}`.toLowerCase();
-    const matchesQuery = keyword === "" || searchable.includes(keyword);
-    const matchesType = typeFilter === "all" || (typeFilter === "income" ? item.income : !item.income);
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchesQuery && matchesType && matchesStatus;
-  });
-  const recentTransactions = filteredTransactions.slice(0, 5);
+  const filteredTransactions = useMemo(
+    () => transactions.filter((item) => {
+      if (typeFilter !== "all" && (typeFilter === "income" ? !item.income : item.income)) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (!keyword) return true;
+      const searchableStatus = item.status === "completed" ? "selesai lunas completed" : item.status;
+      const searchable = `${item.note} ${item.category} ${item.amount} ${item.amount.replace(/\D/g, "")} ${item.date} ${item.dateISO} ${item.income ? "pemasukan income" : "pengeluaran expense"} ${item.status} ${searchableStatus}`.toLowerCase();
+      return searchable.includes(keyword);
+    }),
+    [keyword, statusFilter, transactions, typeFilter],
+  );
+  const recentTransactions = filteredTransactions;
   const greetingHour = new Date().getHours();
   const greeting = greetingHour >= 4 && greetingHour < 11
     ? "pagi"
@@ -2297,11 +2855,14 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
   const netCashFlowChange = overview
     ? BigInt(overview.net_cash_flow_cents) - BigInt(overview.previous_net_cash_flow_cents)
     : 0n;
+  const kpiNoComparison = overview
+    ? translateMobileText("Belum ada data pembanding", language)
+    : "";
   const kpis = [
-    [translateMobileText("SALDO SAAT INI", language), formatBudgetMoney(Number(overview?.total_assets_cents ?? 0)), translateMobileText("Total pemasukan dikurangi pengeluaran", language)],
-    [translateMobileText("ARUS KAS", language), formatBudgetMoney(Number(overview?.net_cash_flow_cents ?? 0)), `${netCashFlowChange >= 0n ? "+" : "-"}${formatBudgetMoney(Number(netCashFlowChange >= 0n ? netCashFlowChange : -netCashFlowChange))} ${translateMobileText("dibanding bulan lalu", language)}`],
-    [translateMobileText("PEMASUKAN", language), formatBudgetMoney(Number(overview?.total_income_cents ?? 0)), translateMobileText("Periode bulan ini", language)],
-    [translateMobileText("PENGELUARAN", language), formatBudgetMoney(Number(overview?.total_expense_cents ?? 0)), translateMobileText("Periode bulan ini", language)],
+    [translateMobileText("SALDO SAAT INI", language), overview ? formatKpiMoney(overview.total_assets_cents) : "", kpiNoComparison],
+    [translateMobileText("ARUS KAS", language), overview ? formatKpiMoney(overview.net_cash_flow_cents) : "", overview ? `${netCashFlowChange > 0n ? "+" : netCashFlowChange < 0n ? "-" : ""}${formatKpiMoney(netCashFlowChange < 0n ? -netCashFlowChange : netCashFlowChange)} ${translateMobileText("dibanding bulan lalu", language)}` : ""],
+    [translateMobileText("PEMASUKAN", language), overview ? formatKpiMoney(overview.total_income_cents) : "", kpiNoComparison],
+    [translateMobileText("PENGELUARAN", language), overview ? formatKpiMoney(overview.total_expense_cents) : "", kpiNoComparison],
   ];
   return (
     <FlatList
@@ -2309,15 +2870,14 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
       renderItem={() => null}
       keyExtractor={(item) => item}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, bottomTabContentStyle]}
       ListHeaderComponent={
         <View>
-          <Text style={[styles.greeting, { color: palette.text }]}>{translateMobileText(`Selamat ${greeting}, ${displayName}`, language)}</Text>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.greeting, { color: palette.text }]}>{translateMobileText(`Selamat ${greeting}, ${displayName}`, language)}</Text>
           <Text style={[styles.subtitle, { color: palette.secondaryText }]}>Berikut ringkasan keuangan Anda bulan ini.</Text>
           <FinanceDataState palette={palette} loading={false} error={financeError ?? dashboardError} onRetry={() => {
             if (financeError) void refreshFinanceData();
             else {
-              setDashboardError(null);
               setDashboardRefresh((current) => current + 1);
             }
           }} />
@@ -2326,8 +2886,8 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
             <View style={styles.cardRow}>
               <View><Text style={[styles.dashboardCardTitle, { color: palette.text }]}>Arus Kas Bulanan</Text><Text style={[styles.cardSubtitle, { color: palette.secondaryText }]}>Tren bulanan</Text></View>
               <View style={[styles.legend, { backgroundColor: palette.muted }]}>
-                <View style={[styles.legendDot, { backgroundColor: palette.chart1 }]} /><Text style={[styles.legendText, { color: palette.secondaryText }]}>Positif</Text>
-                <View style={[styles.legendDot, { backgroundColor: palette.chart4 }]} /><Text style={[styles.legendText, { color: palette.secondaryText }]}>Negatif</Text>
+                <View style={[styles.legendDot, { backgroundColor: palette.chart1 }]} /><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.legendText, { color: palette.secondaryText }]}>Positif</Text>
+                <View style={[styles.legendDot, { backgroundColor: palette.chart4 }]} /><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.legendText, { color: palette.secondaryText }]}>Negatif</Text>
               </View>
             </View>
             <CashflowLineChart palette={palette} trend={cashflowTrend} />
@@ -2370,13 +2930,15 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
               <MaterialCommunityIcons name="magnify" size={19} color={palette.secondaryText} />
               <TextInput value={query} onChangeText={setQuery} onFocus={() => { setSearchFocused(true); setFilterOpen(false); }} onBlur={() => setSearchFocused(false)} placeholder="Cari deskripsi, kategori, akun, jumlah, atau status..." placeholderTextColor={palette.secondaryText} style={[styles.searchInput, { color: palette.text }]} accessibilityLabel="Pencarian transaksi" numberOfLines={1} returnKeyType="search" />
             </View>
-            <View style={[styles.transactionList, { borderColor: palette.border }]}>
-              {recentTransactions.length > 0 ? recentTransactions.map((item, index) => <View key={item.id} style={[styles.demoTransaction, { borderBottomColor: palette.border, borderBottomWidth: index < recentTransactions.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
-                <View style={styles.demoTransactionCopy}><RawText style={[styles.demoTransactionCategory, { color: palette.text }]}>{item.category}</RawText><Text style={[styles.demoTransactionDate, { color: palette.secondaryText }]}>{formatTransactionDate(item, language)}</Text></View>
-                <Text style={[styles.demoTransactionAmount, { color: item.income ? palette.incomeAmount : palette.expenseAmount }]}>{item.amount}</Text>
-              </View>) : !financeLoading && <View style={styles.transactionEmptyState}><Text style={[styles.emptyText, { color: palette.secondaryText }]}>Belum ada data.</Text></View>}
-            </View>
-            {!financeLoading && <Text style={[styles.emptyText, { color: palette.secondaryText }]}>Menampilkan {recentTransactions.length} dari {Math.min(filteredTransactions.length, 5)}</Text>}
+            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator style={styles.dashboardRecentTransactionsScroll}>
+              <View style={[styles.transactionList, { borderColor: palette.border }]}>
+                {recentTransactions.length > 0 ? recentTransactions.map((item, index) => <View key={item.id} style={[styles.demoTransaction, { borderBottomColor: palette.border, borderBottomWidth: index < recentTransactions.length - 1 ? StyleSheet.hairlineWidth : 0 }]}>
+                  <View style={styles.demoTransactionCopy}><RawText numberOfLines={1} ellipsizeMode="tail" style={[styles.demoTransactionCategory, { color: palette.text }]}>{item.category}</RawText><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.demoTransactionDate, { color: palette.secondaryText }]}>{formatTransactionDate(item, language)}</Text></View>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.demoTransactionAmount, { color: item.income ? palette.incomeAmount : palette.expenseAmount }]}>{item.amount}</Text>
+                </View>) : !financeLoading && <View style={styles.transactionEmptyState}><Text style={[styles.emptyText, { color: palette.secondaryText }]}>Belum ada data.</Text></View>}
+              </View>
+            </ScrollView>
+            {!financeLoading && <Text style={[styles.emptyText, { color: palette.secondaryText }]}>Menampilkan {filteredTransactions.length} transaksi</Text>}
           </Card>
           <Card palette={palette} style={styles.insightCard}>
             <View style={styles.insightHeader}>
@@ -2397,7 +2959,7 @@ function Dashboard({ palette, userId, displayName, onNavigate }: { palette: Pale
 
 function CashflowLineChart({ palette, trend }: { palette: Palette; trend: NativeTrendPoint[] }) {
   const language = useContext(MobileLanguageContext);
-  const { width } = useWindowDimensions();
+  const [chartWidth, setChartWidth] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const dismissTooltip = useCallback(() => {
     if (selectedMonth === null) return false;
@@ -2433,16 +2995,25 @@ function CashflowLineChart({ palette, trend }: { palette: Palette; trend: Native
   const slotWidth = plotWidth / points.length;
   const barWidth = Math.min(18, slotWidth * 0.62);
   const yForMagnitude = (value: number) => chart.bottom - (Math.abs(value) / chart.max) * (chart.bottom - chart.top);
-  const tooltipWidth = 176;
-  const chartWidth = Math.max(260, width - 72);
+  const measuredWidth = chartWidth || 360;
+  const chartScale = measuredWidth / 360;
+  const chartHeight = measuredWidth * 220 / 360;
+  const tooltipWidth = Math.min(176, Math.max(0, measuredWidth - 8));
   const selectedPoint = selectedMonth === null ? null : points[selectedMonth];
   const selectedX = selectedMonth === null
     ? 0
     : chart.left + selectedMonth * slotWidth + slotWidth / 2;
-  const tooltipLeft = Math.max(4, Math.min(chartWidth - tooltipWidth - 4, selectedX * chartWidth / 360 - tooltipWidth / 2));
+  const tooltipLeft = Math.max(4, Math.min(measuredWidth - tooltipWidth - 4, selectedX * chartScale - tooltipWidth / 2));
 
-  return <View style={[styles.lineChartWrap, { width: "100%" }]}>
-    <Svg width="100%" height={200} viewBox="0 0 360 220">
+  return <View
+    onLayout={(event) => {
+      const nextWidth = event.nativeEvent.layout.width;
+      setChartWidth((currentWidth) => currentWidth === nextWidth ? currentWidth : nextWidth);
+    }}
+    style={styles.lineChartWrap}
+  >
+    <Svg width="100%" height={chartHeight} viewBox={`0 0 ${measuredWidth} ${chartHeight}`}>
+      <G transform={`scale(${chartScale})`}>
       {[0, step, step * 2, step * 3, max].map((value) => {
         const y = yForMagnitude(value);
         const label = value === 0 ? "0" : value >= 1_000_000
@@ -2492,6 +3063,7 @@ function CashflowLineChart({ palette, trend }: { palette: Palette; trend: Native
           onPress={() => setSelectedMonth((current) => current === index ? null : index)}
         />;
       })}
+      </G>
     </Svg>
     {selectedPoint && selectedPoint.value !== null && selectedMonth !== null && (
       <View
@@ -2499,7 +3071,7 @@ function CashflowLineChart({ palette, trend }: { palette: Palette; trend: Native
         accessibilityLiveRegion="polite"
         style={[
           styles.cashflowTooltip,
-          { left: tooltipLeft, top: 25, backgroundColor: palette.popover, borderColor: palette.border },
+          { left: tooltipLeft, top: 25 * chartScale, width: tooltipWidth, backgroundColor: palette.popover, borderColor: palette.border },
         ]}
       >
         <Text style={[styles.cashflowTooltipTitle, { color: palette.text }]}>{fullMonthLabels[selectedMonth]}</Text>
@@ -2515,7 +3087,7 @@ function CashflowLineChart({ palette, trend }: { palette: Palette; trend: Native
   </View>;
 }
 
-function FeaturePage({ route, palette, onNavigate, onAddTransaction, onEditTransaction, onViewTransaction, onThemeChange, onLanguageChange, language, user, onUserChange, onLogout, onAccountDeleted, logoutLoading, userSettings, onSettingsChange, pushEnabled, pushError, onPushEnabledChange, pushSaving }: { route: RouteKey; palette: Palette; onNavigate: (route: RouteKey) => void; onAddTransaction: () => void; onEditTransaction: (transaction: DemoTransaction) => void; onViewTransaction: (transaction: DemoTransaction) => void; onThemeChange: (dark: boolean) => void; onLanguageChange: (language: MobileLanguage) => Promise<void>; language: MobileLanguage; user: AuthUser; onUserChange: (user: AuthUser) => void; onLogout: () => Promise<void>; onAccountDeleted: () => Promise<void>; logoutLoading: boolean; userSettings: NativeUserSettings | null; onSettingsChange: (patch: NativeSettingsPatch) => Promise<boolean>; pushEnabled: boolean; pushError: string | null; onPushEnabledChange: (enabled: boolean) => Promise<boolean>; pushSaving: boolean }) {
+function FeaturePage({ route, palette, onNavigate, onAddTransaction, onEditTransaction, onViewTransaction, onThemeChange, onLanguageChange, language, user, onUserChange, onLogout, onAccountDeleted, logoutLoading, userSettings, onSettingsChange, pushEnabled, pushError, onPushEnabledChange, pushSaving }: { route: RouteKey; palette: Palette; onNavigate: (route: RouteKey) => void; onAddTransaction: (fixedType?: "Pemasukan" | "Pengeluaran" | null) => void; onEditTransaction: (transaction: DemoTransaction) => void; onViewTransaction: (transaction: DemoTransaction) => void; onThemeChange: (dark: boolean) => void; onLanguageChange: (language: MobileLanguage) => Promise<void>; language: MobileLanguage; user: AuthUser; onUserChange: (user: AuthUser) => void; onLogout: () => Promise<void>; onAccountDeleted: () => Promise<void>; logoutLoading: boolean; userSettings: NativeUserSettings | null; onSettingsChange: (patch: NativeSettingsPatch) => Promise<boolean>; pushEnabled: boolean; pushError: string | null; onPushEnabledChange: (enabled: boolean) => Promise<boolean>; pushSaving: boolean }) {
   if (route === "categories") return <CategoriesPage palette={palette} />;
   if (route === "transactions" || route === "incomes" || route === "expenses") return <TransactionsPage route={route} palette={palette} onAddTransaction={onAddTransaction} onEditTransaction={onEditTransaction} onViewTransaction={onViewTransaction} />;
   if (route === "budgets") return <BudgetsPage palette={palette} userId={user.id} />;
@@ -2544,6 +3116,7 @@ function Toolbar({ palette, count, action, onAction, showAction = true, showCoun
 }
 
 function CategoriesPage({ palette }: { palette: Palette }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const language = useContext(MobileLanguageContext);
   const { categories, financeLoading, financeError, refreshCategories, refreshFinanceData, showToast } = useDemoTransactions();
   const [query, setQuery] = useState("");
@@ -2647,7 +3220,7 @@ function CategoriesPage({ palette }: { palette: Palette }) {
   };
 
   return <>
-  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.categoryContent]} showsVerticalScrollIndicator={false}>
+  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.categoryContent, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
     <PageHeader palette={palette} title="Kategori" description="Susun kategori untuk mengelompokkan transaksi Anda." />
     <FinanceDataState palette={palette} loading={financeLoading} error={financeError} onRetry={() => { void refreshFinanceData(); }} />
     <Toolbar palette={palette} count={`${filteredCategories.length} kategori`} action="Tambah Kategori" onAction={() => openEditor(null)} />
@@ -2789,7 +3362,9 @@ function NativeSelect<T extends string | number>({ label, value, options, palett
   placeholder?: string;
 }) {
   const triggerRef = useRef<View>(null);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const visibleBottom = useKeyboardVisibleBottom();
+  const { scale } = useResponsive();
   const [selectState, setSelectState] = useState<{
     active: boolean;
     open: boolean;
@@ -2803,18 +3378,19 @@ function NativeSelect<T extends string | number>({ label, value, options, palett
     triggerRef.current?.measureInWindow((left, top, width, height) => {
       const margin = 12;
       const gap = 6;
-      const maxHeight = Math.min(240, Math.max(0, windowHeight - margin * 2));
-      const panelHeight = Math.min(maxHeight, options.length * 44 + 8);
-      const spaceBelow = windowHeight - top - height - margin;
+      const maxHeight = Math.min(scale(240), Math.max(0, visibleBottom - margin * 2));
+      const requestedHeight = Math.min(maxHeight, options.length * scale(44) + scale(8));
+      const spaceBelow = visibleBottom - top - height - margin;
       const spaceAbove = top - margin;
-      const fitsBelow = spaceBelow >= panelHeight || spaceBelow >= spaceAbove;
+      const fitsBelow = spaceBelow >= requestedHeight || spaceBelow >= spaceAbove;
+      const panelHeight = Math.max(0, Math.min(requestedHeight, fitsBelow ? spaceBelow : spaceAbove));
       const requestedTop = fitsBelow ? top + height + gap : top - panelHeight - gap;
       const panelWidth = Math.min(width, Math.max(0, windowWidth - margin * 2));
       const panelLeft = Math.max(margin, Math.min(left, windowWidth - panelWidth - margin));
-      const panelTop = Math.max(margin, Math.min(requestedTop, windowHeight - panelHeight - margin));
+      const panelTop = Math.max(margin, Math.min(requestedTop, visibleBottom - panelHeight - margin));
       setSelectState({ active, open: true, anchor: { left: panelLeft, top: panelTop, width: panelWidth, height: panelHeight } });
     });
-  }, [active, options.length, windowHeight, windowWidth]);
+  }, [active, options.length, scale, visibleBottom, windowWidth]);
   const closeOptions = useCallback(() => {
     setSelectState({ active, open: false, anchor: null });
   }, [active]);
@@ -2915,7 +3491,11 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
 }) {
   const language = useContext(MobileLanguageContext);
   const triggerRef = useRef<View>(null);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const visibleBottom = useKeyboardVisibleBottom();
+  const popupRegionId = useId();
+  const registerPopupRegion = useContext(TransientPopupRegionContext);
+  const [calendarView, setCalendarView] = useState<"days" | "months" | "years">("days");
   const [calendarState, setCalendarState] = useState<{
     value: string;
     anchor: { left: number; top: number; width: number; height: number } | null;
@@ -2929,9 +3509,23 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
     setCalendarState({ value, anchor: null, visibleMonth: new Date(selected.getFullYear(), selected.getMonth(), 1) });
   }
   const { anchor, visibleMonth } = calendarState;
+  useEffect(() => {
+    if (!active || !anchor) {
+      registerPopupRegion(popupRegionId, null);
+      return;
+    }
+    registerPopupRegion(popupRegionId, {
+      left: anchor.left,
+      top: anchor.top,
+      right: anchor.left + anchor.width,
+      bottom: anchor.top + anchor.height,
+    });
+    return () => registerPopupRegion(popupRegionId, null);
+  }, [active, anchor, popupRegionId, registerPopupRegion]);
   const setAnchor = (nextAnchor: typeof anchor) => setCalendarState((current) => ({ ...current, anchor: nextAnchor }));
   const closeCalendar = () => {
     setAnchor(null);
+    setCalendarView("days");
     onOpenChange(false);
   };
   const setVisibleMonth = (nextMonth: Date | ((previous: Date) => Date)) => setCalendarState((current) => ({
@@ -2940,7 +3534,14 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
   }));
   const today = getLocalDateInput();
   const locale = language === "en" ? "en-US" : "id-ID";
-  const monthTitle = visibleMonth.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  const monthTitle = visibleMonth.toLocaleDateString(locale, { month: "long" });
+  const yearTitle = String(visibleMonth.getFullYear());
+  const yearRangeStart = Math.floor(visibleMonth.getFullYear() / 12) * 12;
+  const calendarMonths = Array.from({ length: 12 }, (_, month) => ({
+    index: month,
+    label: new Date(visibleMonth.getFullYear(), month, 1).toLocaleDateString(locale, { month: "long" }),
+  }));
+  const calendarYears = Array.from({ length: 12 }, (_, index) => yearRangeStart + index);
   const weekdays = language === "en"
     ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
     : ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -2957,18 +3558,20 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
       const margin = 12;
       const gap = 8;
       const panelWidth = Math.max(0, Math.min(340, windowWidth - margin * 2));
-      const panelHeight = Math.min(412, Math.max(0, windowHeight - margin * 2));
-      const spaceBelow = windowHeight - top - height - margin;
+      const availableHeight = Math.max(0, visibleBottom - margin * 2);
+      const panelHeight = Math.min(412, availableHeight);
+      const spaceBelow = visibleBottom - top - height - margin;
       const spaceAbove = top - margin;
       const fitsBelow = spaceBelow >= panelHeight || spaceBelow >= spaceAbove;
-      const requestedTop = fitsBelow ? top + height + gap : top - panelHeight - gap;
-      const panelTop = Math.max(margin, Math.min(requestedTop, windowHeight - panelHeight - margin));
+      const availablePanelHeight = Math.max(0, Math.min(panelHeight, fitsBelow ? spaceBelow : spaceAbove));
+      const requestedTop = fitsBelow ? top + height + gap : top - availablePanelHeight - gap;
+      const panelTop = Math.max(margin, Math.min(requestedTop, visibleBottom - availablePanelHeight - margin));
 
       setAnchor({
         left: Math.max(margin, Math.min(left, windowWidth - panelWidth - margin)),
         top: panelTop,
         width: panelWidth,
-        height: Math.max(0, panelHeight),
+        height: availablePanelHeight,
       });
     });
   };
@@ -2976,6 +3579,31 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
   const displayDate = value
     ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`
     : "Pilih tanggal";
+  const shiftCalendarPeriod = (amount: number) => {
+    setVisibleMonth((month) => new Date(
+      month.getFullYear() + (calendarView === "years" ? amount * 12 : calendarView === "months" ? amount : 0),
+      month.getMonth() + (calendarView === "days" ? amount : 0),
+      1,
+    ));
+  };
+  const renderCalendarChoices = (choices: { key: string | number; label: string; selected: boolean; accessibilityLabel: string; onPress: () => void }[]) => (
+    <View style={styles.nativeCalendarGrid}>
+      {Array.from({ length: 4 }, (_, row) => <View key={row} style={styles.nativeCalendarWeek}>
+        {choices.slice(row * 3, row * 3 + 3).map((choice) => <Pressable
+          key={choice.key}
+          accessibilityRole="button"
+          accessibilityLabel={choice.accessibilityLabel}
+          accessibilityState={{ selected: choice.selected }}
+          onPress={choice.onPress}
+          style={[styles.nativeCalendarChoice, choice.selected && { backgroundColor: palette.text }]}
+        >
+          <Text numberOfLines={1} style={{ color: choice.selected ? palette.background : palette.text, fontSize: 13, textAlign: "center" }}>
+            {choice.label}
+          </Text>
+        </Pressable>)}
+      </View>)}
+    </View>
+  );
 
   return <>
     <View ref={triggerRef} collapsable={false} style={styles.transactionFilterFullWidth}>
@@ -2988,6 +3616,7 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
           if (active) {
             closeCalendar();
           } else {
+            setCalendarView("days");
             setAnchor(null);
             openCalendar();
             onOpenChange(true);
@@ -3017,7 +3646,6 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
           accessibilityRole="button"
           accessibilityLabel={`Tutup ${label}`}
           onPress={closeCalendar}
-          onTouchMove={closeCalendar}
           style={StyleSheet.absoluteFill}
         />
         {anchor && <View
@@ -3028,68 +3656,119 @@ function NativeCalendarPicker({ label, value, palette, onChange, active = false,
               top: anchor.top,
               width: anchor.width,
               height: anchor.height,
+              zIndex: 50,
               backgroundColor: palette.muted,
               borderColor: palette.border,
             },
           ]}
         >
-          <View style={styles.nativeCalendarHeader}>
-            <Text style={[styles.nativeCalendarMonth, { color: palette.text }]}>{monthTitle}</Text>
-            <View style={styles.nativeCalendarNavigation}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Bulan sebelumnya"
-                onPress={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-                style={styles.nativeCalendarNavButton}
-              >
-                <MaterialCommunityIcons name="chevron-left" size={22} color={palette.text} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Bulan berikutnya"
-                onPress={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-                style={styles.nativeCalendarNavButton}
-              >
-                <MaterialCommunityIcons name="chevron-right" size={22} color={palette.text} />
-              </Pressable>
-            </View>
-          </View>
-          <ScrollView style={styles.nativeCalendarDays} showsVerticalScrollIndicator={false}>
-            <View style={styles.nativeCalendarWeek}>
-              {weekdays.map((day) => (
-                <Text key={day} style={[styles.nativeCalendarWeekday, { color: palette.text }]}>{day}</Text>
-              ))}
-            </View>
-            {Array.from({ length: weeksInMonth }, (_, week) => <View key={week} style={styles.nativeCalendarWeek}>
-              {calendarDays.slice(week * 7, week * 7 + 7).map(({ date, dateValue, inMonth }) => {
-                const selected = dateValue === value;
-                return <Pressable
-                  key={dateValue}
+          <ScrollView style={styles.nativeCalendarDays} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.nativeCalendarHeader}>
+              <View style={styles.nativeCalendarHeading}>
+                {calendarView === "years"
+                  ? <Text style={[styles.nativeCalendarMonth, { color: palette.text }]}>{yearRangeStart}–{yearRangeStart + 11}</Text>
+                  : <>
+                    {calendarView === "days"
+                      ? <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={language === "en" ? "Choose month" : "Pilih bulan"}
+                        onPress={() => setCalendarView("months")}
+                        style={styles.nativeCalendarHeadingButton}
+                      >
+                        <Text style={[styles.nativeCalendarMonth, { color: palette.text }]}>{monthTitle}</Text>
+                        <MaterialCommunityIcons name="chevron-down" size={16} color={palette.text} />
+                      </Pressable>
+                      : <Text style={[styles.nativeCalendarMonth, { color: palette.text }]}>{language === "en" ? "Select month" : "Pilih bulan"}</Text>}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={language === "en" ? "Choose year" : "Pilih tahun"}
+                      onPress={() => setCalendarView("years")}
+                      style={styles.nativeCalendarHeadingButton}
+                    >
+                      <Text style={[styles.nativeCalendarMonth, { color: palette.text }]}>{yearTitle}</Text>
+                      <MaterialCommunityIcons name="chevron-down" size={16} color={palette.text} />
+                    </Pressable>
+                  </>}
+              </View>
+              <View style={styles.nativeCalendarNavigation}>
+                <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={date.toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })}
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    onChange(dateValue);
-                    closeCalendar();
-                  }}
-                  style={[
-                    styles.nativeCalendarDay,
-                    selected && { backgroundColor: palette.text },
-                    dateValue === today && !selected && { borderColor: palette.secondaryText, borderWidth: 1 },
-                  ]}
+                  accessibilityLabel={language === "en" ? "Previous period" : "Periode sebelumnya"}
+                  onPress={() => shiftCalendarPeriod(-1)}
+                  style={styles.nativeCalendarNavButton}
                 >
-                  <Text style={{ color: selected ? palette.background : inMonth ? palette.text : palette.secondaryText, fontSize: 14, textAlign: "center" }}>
-                    {date.getDate()}
-                  </Text>
-                </Pressable>;
-              })}
-            </View>)}
+                  <MaterialCommunityIcons name="chevron-left" size={22} color={palette.text} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={language === "en" ? "Next period" : "Periode berikutnya"}
+                  onPress={() => shiftCalendarPeriod(1)}
+                  style={styles.nativeCalendarNavButton}
+                >
+                  <MaterialCommunityIcons name="chevron-right" size={22} color={palette.text} />
+                </Pressable>
+              </View>
+            </View>
+            {calendarView === "days"
+              ? <>
+              <View style={styles.nativeCalendarWeek}>
+                {weekdays.map((day) => (
+                  <Text key={day} style={[styles.nativeCalendarWeekday, { color: palette.text }]}>{day}</Text>
+                ))}
+              </View>
+              {Array.from({ length: weeksInMonth }, (_, week) => <View key={week} style={styles.nativeCalendarWeek}>
+                {calendarDays.slice(week * 7, week * 7 + 7).map(({ date, dateValue, inMonth }) => {
+                  const selected = dateValue === value;
+                  return <Pressable
+                    key={dateValue}
+                    accessibilityRole="button"
+                    accessibilityLabel={date.toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })}
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      onChange(dateValue);
+                      closeCalendar();
+                    }}
+                    style={[
+                      styles.nativeCalendarDay,
+                      selected && { backgroundColor: palette.text },
+                      dateValue === today && !selected && { borderColor: palette.secondaryText, borderWidth: 1 },
+                    ]}
+                  >
+                    <Text style={{ color: selected ? palette.background : inMonth ? palette.text : palette.secondaryText, fontSize: 14, textAlign: "center" }}>
+                      {date.getDate()}
+                    </Text>
+                  </Pressable>;
+                })}
+              </View>)}
+              </>
+              : calendarView === "months"
+                ? renderCalendarChoices(calendarMonths.map(({ index, label }) => ({
+                key: index,
+                label,
+                selected: index === visibleMonth.getMonth(),
+                accessibilityLabel: label,
+                onPress: () => {
+                  setVisibleMonth((month) => new Date(month.getFullYear(), index, 1));
+                  setCalendarView("days");
+                },
+              })))
+                : renderCalendarChoices(calendarYears.map((year) => ({
+                key: year,
+                label: String(year),
+                selected: year === visibleMonth.getFullYear(),
+                accessibilityLabel: String(year),
+                onPress: () => {
+                  setVisibleMonth((month) => new Date(year, month.getMonth(), 1));
+                  setCalendarView("months");
+                },
+                })))}
           </ScrollView>
           <View style={[styles.nativeCalendarFooter, { borderTopColor: palette.border }]}>
             {allowClear && <Pressable accessibilityRole="button" onPress={() => { onChange(""); closeCalendar(); }} style={styles.nativeCalendarAction}><Text style={{ color: palette.text, fontSize: 14 }}>{language === "en" ? "Clear" : "Bersihkan"}</Text></Pressable>}
             <Pressable accessibilityRole="button" onPress={() => { onChange(today); closeCalendar(); }} style={styles.nativeCalendarAction}><Text style={{ color: palette.text, fontSize: 14 }}>{language === "en" ? "Today" : "Hari ini"}</Text></Pressable>
           </View>
-        </View>}
+        </View>
+        }
       </View>
     </Modal>
   </>;
@@ -3142,8 +3821,9 @@ function CategoryEditorModal({ open, palette, title, name, description, type, ic
   </FloatingFormModal>;
 }
 
-function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction, onViewTransaction }: { route: RouteKey; palette: Palette; onAddTransaction: () => void; onEditTransaction: (transaction: DemoTransaction) => void; onViewTransaction: (transaction: DemoTransaction) => void }) {
-  const { transactions, addTransaction, removeTransaction, financeLoading, financeError, refreshFinanceData } = useDemoTransactions();
+function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction, onViewTransaction }: { route: RouteKey; palette: Palette; onAddTransaction: (fixedType?: "Pemasukan" | "Pengeluaran" | null) => void; onEditTransaction: (transaction: DemoTransaction) => void; onViewTransaction: (transaction: DemoTransaction) => void }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
+  const { transactions, categories: availableCategories, addTransaction, removeTransaction, financeLoading, financeError, refreshFinanceData } = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
   const title = route === "incomes" ? "Pemasukan" : route === "expenses" ? "Pengeluaran" : "Riwayat Transaksi";
   const [query, setQuery] = useState("");
@@ -3201,16 +3881,44 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
   const description = route === "transactions"
     ? "Lihat dan cari seluruh histori transaksi keuangan Anda."
     : `Pantau seluruh ${title.toLowerCase()} Anda dalam satu tempat.`;
-  const categories = [...new Set(transactions.map((item) => item.category))];
-  const filteredData = transactions.filter((item) => {
-    const searchableStatus = item.status === "completed" ? "selesai lunas completed" : item.status;
-    const searchable = `${item.note} ${item.category} ${item.amount} ${item.amount.replace(/\D/g, "")} ${item.date} ${item.dateISO} ${item.income ? "pemasukan income" : "pengeluaran expense"} ${searchableStatus}`.toLowerCase();
-    return (!query.trim() || searchable.includes(query.trim().toLowerCase()))
-      && (category === "Semua Kategori" || item.category === category)
-      && (isIncomePage ? item.income : isExpensePage ? !item.income : type === "Semua Jenis" || (type === "Pemasukan" ? item.income : !item.income))
-      && (!fromDate || item.dateISO >= fromDate)
-      && (!toDate || item.dateISO <= toDate);
-  });
+  const categories = useMemo(() => {
+    const categoryType = isIncomePage
+      ? "INCOME"
+      : isExpensePage
+        ? "EXPENSE"
+        : type === "Pemasukan"
+          ? "INCOME"
+          : type === "Pengeluaran"
+            ? "EXPENSE"
+            : null;
+    return [...new Set(
+      availableCategories
+        .filter((item) => categoryType === null || item.type === categoryType)
+        .map((item) => item.name),
+    )].sort((a, b) => a.localeCompare(b));
+  }, [availableCategories, isExpensePage, isIncomePage, type]);
+  const selectedCategory = categories.includes(category)
+    ? category
+    : "Semua Kategori";
+  const filteredData = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return transactions.filter((item) => {
+      if (selectedCategory !== "Semua Kategori" && item.category !== selectedCategory) return false;
+      if (isIncomePage && !item.income) return false;
+      if (isExpensePage && item.income) return false;
+      if (!isIncomePage && !isExpensePage && type !== "Semua Jenis") {
+        if (type === "Pemasukan" && !item.income) return false;
+        if (type === "Pengeluaran" && item.income) return false;
+      }
+      if (fromDate && item.dateISO < fromDate) return false;
+      if (toDate && item.dateISO > toDate) return false;
+      if (!normalizedQuery) return true;
+
+      const searchableStatus = item.status === "completed" ? "selesai lunas completed" : item.status;
+      const searchable = `${item.note} ${item.category} ${item.amount} ${item.amount.replace(/\D/g, "")} ${item.date} ${item.dateISO} ${item.income ? "pemasukan income" : "pengeluaran expense"} ${searchableStatus}`.toLowerCase();
+      return searchable.includes(normalizedQuery);
+    });
+  }, [fromDate, isExpensePage, isIncomePage, query, selectedCategory, toDate, transactions, type]);
   const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
   const visibleData = filteredData.slice((page - 1) * pageSize, page * pageSize);
   const resetFilters = () => {
@@ -3241,7 +3949,10 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
     return <TransientPopupSurface style={[styles.filterOptions, styles.transactionFilterOptions, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       {options.map((option) => <Pressable key={`${key}-${option}`} accessibilityRole="button" onPress={() => {
         if (key === "category") setCategory(option);
-        else if (key === "type") setType(option);
+        else if (key === "type") {
+          setType(option);
+          setCategory("Semua Kategori");
+        }
         setPage(1);
         setOpenFilter(null);
       }} style={styles.filterOption}><Text style={{ color: palette.text }}>{option}</Text></Pressable>)}
@@ -3250,10 +3961,10 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
   const startIndex = filteredData.length ? (page - 1) * pageSize + 1 : 0;
   const endIndex = Math.min(page * pageSize, filteredData.length);
   return <>
-  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.transactionContent]} showsVerticalScrollIndicator={false}>
+  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.transactionContent, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
     <PageHeader palette={palette} title={route === "transactions" ? "Riwayat Transaksi" : title} description={description} />
     <FinanceDataState palette={palette} loading={financeLoading} error={financeError} onRetry={() => { void refreshFinanceData(); }} />
-    <Toolbar palette={palette} count={`${filteredData.length} transaksi`} action="Tambah Transaksi" onAction={onAddTransaction} showAction={route !== "transactions"} showCount={route !== "transactions"} />
+    <Toolbar palette={palette} count={`${filteredData.length} transaksi`} action="Tambah Transaksi" onAction={() => onAddTransaction(isIncomePage ? "Pemasukan" : isExpensePage ? "Pengeluaran" : null)} showAction={route !== "transactions"} showCount={route !== "transactions"} />
     <View style={[styles.transactionFilterCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
       <View style={[styles.searchBox, styles.transactionSearchBox, { borderColor: palette.border, backgroundColor: palette.card }]}>
         <MaterialCommunityIcons name="magnify" size={19} color={palette.secondaryText} />
@@ -3266,7 +3977,7 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
           (isIncomePage || isExpensePage) && styles.transactionFilterFullColumn,
         ]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Kategori" accessibilityState={{ expanded: openFilter === "category" }} onPress={() => setOpenFilter(openFilter === "category" ? null : "category")} style={[styles.selectButton, styles.transactionFilterButton, (isIncomePage || isExpensePage) && styles.transactionFilterCategoryButton, { borderColor: palette.border, backgroundColor: palette.muted }]}>
-            <Text numberOfLines={1} style={[styles.selectText, { color: palette.text }]}>{category}</Text><MaterialCommunityIcons name="chevron-down" size={18} color={palette.secondaryText} />
+            <Text numberOfLines={1} style={[styles.selectText, { color: palette.text }]}>{selectedCategory}</Text><MaterialCommunityIcons name="chevron-down" size={18} color={palette.secondaryText} />
           </Pressable>
           {renderFilterOptions("category")}
         </View>
@@ -3295,12 +4006,12 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
     {visibleData.length ? <View style={[styles.transactionCardList, { borderColor: palette.border, backgroundColor: palette.card }]}>{visibleData.map((item, index) => <View key={item.id} style={[styles.transactionMobileCard, { borderBottomColor: palette.border, backgroundColor: palette.card }, index === visibleData.length - 1 && styles.transactionMobileCardLast]}>
       <View style={styles.transactionMobileMain}>
         <View style={styles.transactionMobileCopy}>
-          <Text style={[styles.transactionDateText, { color: palette.secondaryText }]}>{formatTransactionDate(item, language)}</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.transactionDateText, { color: palette.secondaryText }]}>{formatTransactionDate(item, language)}</Text>
           <View style={[styles.categoryBadge, { backgroundColor: palette.muted }]}><RawText numberOfLines={1} style={[styles.transactionCategoryText, { color: palette.text }]}>{item.category}</RawText></View>
-          <Text numberOfLines={1} style={[styles.transactionNoteText, { color: palette.secondaryText }]}>{item.note}</Text>
-          {item.syncState && <Text style={[styles.transactionSyncStatus, { color: palette.text }]}>{translateMobileText(item.syncState === "failed" ? "Sinkronisasi gagal" : "Belum tersinkron", language)}</Text>}
+          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.transactionNoteText, { color: palette.secondaryText }]}>{item.note}</Text>
+          {item.syncState && <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.transactionSyncStatus, { color: palette.text }]}>{translateMobileText(item.syncState === "failed" ? "Sinkronisasi gagal" : "Belum tersinkron", language)}</Text>}
         </View>
-        <Text style={[styles.transactionAmount, { color: item.income ? palette.incomeAmount : palette.expenseAmount }]}>{item.amount}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.transactionAmount, { color: item.income ? palette.incomeAmount : palette.expenseAmount }]}>{item.amount}</Text>
       </View>
       <View style={[styles.transactionMobileActions, { borderTopColor: palette.border }]}>
         <Pressable accessibilityRole="button" accessibilityLabel={localizedActionLabel("Lihat", item.note, language)} onPress={() => onViewTransaction(item)} style={styles.transactionActionButton}><MaterialCommunityIcons name="eye-outline" size={18} color={palette.text} /></Pressable>
@@ -3337,6 +4048,7 @@ function TransactionsPage({ route, palette, onAddTransaction, onEditTransaction,
 }
 
 function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const language = useContext(MobileLanguageContext);
   const { transactions, categories, financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const now = new Date();
@@ -3370,9 +4082,8 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
     setBudgetsLoading(true);
     setBudgetsError(null);
     try {
-      const response = await financeApi.listBudgets();
       const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
-      const nextBudgets = response.map((budget) => {
+      const mapBudgets = (response: NativeBudget[]) => response.map((budget) => {
         const amount = Number(budget.budget_amount_cents);
         if (!Number.isSafeInteger(amount) || amount < 0) {
           throw new Error("The server returned an invalid budget amount.");
@@ -3393,6 +4104,16 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
           year: budget.year,
         };
       });
+      const applyBudgets = (response: NativeBudget[]) => {
+        const nextBudgets = mapBudgets(response);
+        budgetSnapshots.set(userId, nextBudgets);
+        setBudgets(nextBudgets);
+      };
+      const response = await financeApi.listBudgets(
+        applyBudgets,
+        (error) => setBudgetsError(error instanceof Error ? error.message : "Silakan coba lagi."),
+      );
+      const nextBudgets = mapBudgets(response);
       budgetSnapshots.set(userId, nextBudgets);
       setBudgets(nextBudgets);
     } catch (error) {
@@ -3524,7 +4245,7 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
   };
 
   return <>
-  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.budgetContent]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+  <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, styles.budgetContent, bottomTabContentStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <PageHeader palette={palette} title="Anggaran" description="Tetapkan batas pengeluaran per kategori dan kendalikan anggaran." />
     <FinanceDataState palette={palette} loading={budgetsLoading} error={budgetsError} onRetry={() => { void loadBudgets(); }} />
     <Toolbar palette={palette} count={`${filteredBudgets.length} anggaran`} action="Tambah Anggaran" onAction={() => openEditor("create")} />
@@ -3675,6 +4396,7 @@ function BudgetsPage({ palette, userId }: { palette: Palette; userId: string }) 
 }
 
 function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const language = useContext(MobileLanguageContext);
   const { categories, financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const today = getLocalDateInput();
@@ -3710,9 +4432,8 @@ function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
     setGoalsLoading(true);
     setGoalsError(null);
     try {
-      const response = await financeApi.listSavingGoals();
       const categoryNames = new Map(categories.map((category) => [category.id, category.label]));
-      const nextGoals = response.map((goal) => {
+      const mapGoals = (response: Awaited<ReturnType<typeof financeApi.listSavingGoals>>) => response.map((goal) => {
         const target = Number(goal.target_amount_cents);
         const current = Number(goal.current_amount_cents);
         if (!Number.isFinite(target) || !Number.isFinite(current)) {
@@ -3731,6 +4452,16 @@ function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
           categoryId: goal.category_id ?? undefined,
         };
       });
+      const applyGoals = (response: Awaited<ReturnType<typeof financeApi.listSavingGoals>>) => {
+        const nextGoals = mapGoals(response);
+        goalSnapshots.set(userId, nextGoals);
+        setGoals(nextGoals);
+      };
+      const response = await financeApi.listSavingGoals(
+        applyGoals,
+        (error) => setGoalsError(error instanceof Error ? error.message : "Silakan coba lagi."),
+      );
+      const nextGoals = mapGoals(response);
       goalSnapshots.set(userId, nextGoals);
       setGoals(nextGoals);
     } catch (error) {
@@ -3885,7 +4616,7 @@ function GoalsPage({ palette, userId }: { palette: Palette; userId: string }) {
   return <>
     <FlatList
     style={styles.scroll}
-    contentContainerStyle={[styles.content, styles.goalContent]}
+    contentContainerStyle={[styles.content, styles.goalContent, bottomTabContentStyle]}
     data={pageGoals}
     keyExtractor={(item) => item.id}
     renderItem={renderGoal}
@@ -4105,6 +4836,7 @@ const GoalCardNative = memo(function GoalCardNative({ goal, palette, onView, onE
 });
 
 function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const language = useContext(MobileLanguageContext);
   const { financeRevision, invalidateFinancialSnapshots } = useDemoTransactions();
   const [items, setItems] = useState<DemoInvestment[]>(() => investmentSnapshots.get(userId) ?? []);
@@ -4143,8 +4875,7 @@ function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string
     setItemsLoading(true);
     setItemsError(null);
     try {
-      const response = await financeApi.listInvestments();
-      const nextItems = response.map((item) => {
+      const mapInvestments = (response: Awaited<ReturnType<typeof financeApi.listInvestments>>) => response.map((item) => {
         const quantity = Number(item.quantity);
         const averageBuyPrice = Number(item.average_buy_price);
         const currentPrice = Number(item.current_price);
@@ -4169,6 +4900,16 @@ function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string
           status: item.status,
         };
       });
+      const applyInvestments = (response: Awaited<ReturnType<typeof financeApi.listInvestments>>) => {
+        const nextItems = mapInvestments(response);
+        investmentSnapshots.set(userId, nextItems);
+        setItems(nextItems);
+      };
+      const response = await financeApi.listInvestments(
+        applyInvestments,
+        (error) => setItemsError(error instanceof Error ? error.message : "Silakan coba lagi."),
+      );
+      const nextItems = mapInvestments(response);
       investmentSnapshots.set(userId, nextItems);
       setItems(nextItems);
     } catch (error) {
@@ -4377,7 +5118,7 @@ function InvestmentsPage({ palette, userId }: { palette: Palette; userId: string
   return <>
     <FlatList
       style={styles.scroll}
-      contentContainerStyle={[styles.content, styles.investmentContent]}
+      contentContainerStyle={[styles.content, styles.investmentContent, bottomTabContentStyle]}
       data={pageItems}
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
@@ -4676,6 +5417,7 @@ type NativeAnalyticsPageData = {
 };
 type NativeReportPageData = {
   summary: NativeReportSummary;
+  previousSummary: NativeReportSummary | null;
   points: ReportPoint[];
   expenses: ReportCategory[];
   incomes: ReportCategory[];
@@ -4721,6 +5463,69 @@ function getReportDateRange(period: ReportPeriodKey, customRange: ReportDateRang
     return { start: toDateKey(new Date(year, 0, 1)), end: toDateKey(today) };
   }
   return { start: toDateKey(new Date(year, month, 1)), end: toDateKey(new Date(year, month + 1, 0)) };
+}
+
+function shiftReportDate(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getPreviousReportDateRange(range: ReportDateRange): ReportDateRange {
+  const start = new Date(`${range.start}T00:00:00Z`);
+  const end = new Date(`${range.end}T00:00:00Z`);
+  const isFullCalendarMonth =
+    start.getUTCDate() === 1 &&
+    start.getUTCFullYear() === end.getUTCFullYear() &&
+    start.getUTCMonth() === end.getUTCMonth() &&
+    end.getUTCDate() === new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
+
+  if (isFullCalendarMonth) {
+    const previousMonth = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 1));
+    const previousMonthEnd = new Date(Date.UTC(previousMonth.getUTCFullYear(), previousMonth.getUTCMonth() + 1, 0));
+    return {
+      start: previousMonth.toISOString().slice(0, 10),
+      end: previousMonthEnd.toISOString().slice(0, 10),
+    };
+  }
+
+  const durationDays = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  return {
+    start: shiftReportDate(range.start, -(durationDays + 1)),
+    end: shiftReportDate(range.start, -1),
+  };
+}
+
+function reportComparison(
+  current: number,
+  previous: number | null | undefined,
+  unit = "%",
+): { text: string; positive: boolean } {
+  if (previous === null || previous === undefined || previous === 0) {
+    return current > 0
+      ? { text: "Baru", positive: true }
+      : { text: "-", positive: false };
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  const sign = change >= 0 ? "+" : "−";
+  return { text: `${sign}${Math.abs(change).toFixed(1)}${unit}`, positive: change >= 0 };
+}
+
+function analyticsComparison(
+  comparison: number | null | undefined,
+  current: number,
+  unit = "%",
+): { text: string; positive: boolean } {
+  if (comparison === null || comparison === undefined) {
+    return current > 0
+      ? { text: "Baru", positive: true }
+      : { text: "-", positive: false };
+  }
+  const sign = comparison >= 0 ? "+" : "−";
+  return {
+    text: `${sign}${Math.abs(comparison).toFixed(1)}${unit}`,
+    positive: comparison >= 0,
+  };
 }
 
 function getCompleteMonthDateRange(range: ReportDateRange): ReportDateRange | null {
@@ -4938,7 +5743,7 @@ function AnalyticsTrendChart({ categories, points, palette, loading, error, onRe
   const tickStride = Math.max(1, Math.ceil(points.length / 8));
   const y = (value: number) => chart.bottom - (value / max) * (chart.bottom - chart.top);
   return (
-    <View style={[styles.reportSvgChart, { height: 322 }]}>
+    <View style={styles.reportSvgChart}>
       <ChartTapHint palette={palette} />
       <View style={styles.analyticsLegend}>
         {categories.map((name, index) => (
@@ -4948,7 +5753,8 @@ function AnalyticsTrendChart({ categories, points, palette, loading, error, onRe
           </View>
         ))}
       </View>
-      <Svg width="100%" height={260} viewBox="0 0 360 260">
+      <View style={styles.reportChartViewport}>
+      <Svg width="100%" height="100%" viewBox="0 0 360 260">
         {[0, max / 2, max].map((tick) => {
           const tickY = y(tick);
           return (
@@ -5023,6 +5829,7 @@ function AnalyticsTrendChart({ categories, points, palette, loading, error, onRe
           );
         })}
       </Svg>
+      </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </View>
   );
@@ -5066,25 +5873,67 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
   }
 
   const chart = { left: 52, right: 348, top: 20, bottom: 214 };
+  const isDark = palette.text === "#FFFFFF";
+  const gridColor = isDark ? nativeChartTheme.grid : palette.border;
+  const axisColor = isDark ? nativeChartTheme.axis : palette.secondaryText;
   const rates = points.flatMap((point) => point.savingRate === null ? [] : [point.savingRate]);
   const min = Math.min(0, Math.floor(Math.min(...rates) / 25) * 25);
   const max = Math.max(100, Math.ceil(Math.max(...rates) / 25) * 25);
   const scale = max - min || 1;
   const xStep = points.length === 1 ? 0 : (chart.right - chart.left) / (points.length - 1);
   const y = (value: number) => chart.bottom - ((value - min) / scale) * (chart.bottom - chart.top);
-  const segments: string[][] = [];
-  let currentSegment: string[] = [];
+  const segments: { x: number; y: number; value: number }[][] = [];
+  let currentSegment: { x: number; y: number; value: number }[] = [];
   points.forEach((point, index) => {
     if (point.savingRate === null) {
       if (currentSegment.length) segments.push(currentSegment);
       currentSegment = [];
       return;
     }
-    const command = `${currentSegment.length ? "L" : "M"} ${chart.left + xStep * index} ${y(point.savingRate)}`;
-    currentSegment.push(command);
+    currentSegment.push({ x: chart.left + xStep * index, y: y(point.savingRate), value: point.savingRate });
   });
   if (currentSegment.length) segments.push(currentSegment);
-  const tickValues = Array.from({ length: 5 }, (_, index) => min + (scale * index) / 4);
+  const tickValues = [...new Set([min, min + scale / 2, max])];
+  const smoothPath = (segment: { x: number; y: number; value: number }[]) => {
+    if (segment.length < 3) {
+      return segment.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+    }
+    let path = `M ${segment[0].x} ${segment[0].y}`;
+    for (let index = 1; index < segment.length; index += 1) {
+      const previous = segment[index - 1];
+      const current = segment[index];
+      const midpointX = (previous.x + current.x) / 2;
+      const midpointY = (previous.y + current.y) / 2;
+      path += ` Q ${previous.x} ${previous.y} ${midpointX} ${midpointY}`;
+      if (index === segment.length - 1) path += ` T ${current.x} ${current.y}`;
+    }
+    return path;
+  };
+  const fillAreas = segments.flatMap((segment) => {
+    const areas: { points: { x: number; y: number; value: number }[]; color: string }[] = [];
+    let area = [segment[0]];
+    for (let index = 1; index < segment.length; index += 1) {
+      const previous = segment[index - 1];
+      const current = segment[index];
+      if (previous.value * current.value < 0) {
+        const ratio = previous.value / (previous.value - current.value);
+        const crossing = {
+          x: previous.x + (current.x - previous.x) * ratio,
+          y: y(0),
+          value: 0,
+        };
+        area.push(crossing);
+        areas.push({ points: area, color: previous.value < 0 ? nativeChartTheme.expense : nativeChartTheme.income });
+        area = [crossing];
+      }
+      area.push(current);
+    }
+    if (area.length) {
+      const average = area.reduce((sum, point) => sum + point.value, 0) / area.length;
+      areas.push({ points: area, color: average < 0 ? nativeChartTheme.expense : nativeChartTheme.income });
+    }
+    return areas;
+  });
   const tickStride = Math.max(1, Math.ceil(points.length / 6));
   let latestRateIndex = -1;
   points.forEach((point, index) => {
@@ -5105,7 +5954,8 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
   return (
     <View style={styles.reportSvgChart}>
       <ChartTapHint palette={palette} />
-      <Svg width="100%" height={260} viewBox="0 0 360 260">
+      <View style={styles.reportChartViewport}>
+      <Svg width="100%" height="100%" viewBox="0 0 360 260">
         {tickValues.map((value) => (
           <Fragment key={value}>
             <Line
@@ -5113,21 +5963,41 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
               x2={chart.right}
               y1={y(value)}
               y2={y(value)}
-              stroke={value === 0 ? palette.secondaryText : palette.border}
+              stroke={value === 0 ? (isDark ? nativeChartTheme.baseline : palette.secondaryText) : gridColor}
               strokeWidth={value === 0 ? 1.5 : 1}
+              strokeDasharray={value === 0 ? "4 4" : undefined}
             />
-            <SvgText x="2" y={y(value) + 4} fill={palette.secondaryText} fontSize="9" textAnchor="start">
+            <SvgText x="2" y={y(value) + 4} fill={axisColor} fontSize="9" textAnchor="start">
               {`${Math.round(value)}%`}
             </SvgText>
           </Fragment>
         ))}
+        {!tickValues.includes(0) && (
+          <Line
+            x1={chart.left}
+            x2={chart.right}
+            y1={y(0)}
+            y2={y(0)}
+            stroke={isDark ? nativeChartTheme.baseline : palette.secondaryText}
+            strokeWidth="1.5"
+            strokeDasharray="4 4"
+          />
+        )}
+        {fillAreas.map((area, index) => (
+          <Path
+            key={`area-${index}`}
+            d={`${smoothPath(area.points)} L ${area.points[area.points.length - 1].x} ${y(0)} L ${area.points[0].x} ${y(0)} Z`}
+            fill={area.color}
+            fillOpacity="0.1"
+          />
+        ))}
         {segments.map((segment, index) => (
           <Path
             key={`segment-${index}`}
-            d={segment.join(" ")}
+            d={smoothPath(segment)}
             fill="none"
-            stroke={palette.chart2}
-            strokeWidth="3"
+            stroke={nativeChartTheme.income}
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -5154,8 +6024,8 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
                   cx={pointX}
                   cy={pointY}
                   r={index === latestRateIndex ? "5" : "3"}
-                  fill={point.savingRate < 0 ? palette.expenseAmount : palette.incomeAmount}
-                  stroke={palette.surface}
+                  fill={nativeChartTheme.income}
+                  stroke={isDark ? nativeChartTheme.card : palette.surface}
                   strokeWidth="2"
                   pointerEvents="none"
                 />
@@ -5164,7 +6034,7 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
                 <SvgText
                   x={chart.right - 4}
                   y={pointY - 12}
-                  fill={point.savingRate < 0 ? palette.expenseAmount : palette.incomeAmount}
+                  fill={nativeChartTheme.income}
                   fontSize="10"
                   fontWeight="600"
                   textAnchor="end"
@@ -5174,7 +6044,7 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
                 </SvgText>
               )}
               {(index % tickStride === 0 || points.length <= 8) && (
-                <SvgText x={pointX} y="244" fill={palette.secondaryText} fontSize="9" textAnchor="middle">
+                <SvgText x={pointX} y="244" fill={axisColor} fontSize="9" textAnchor="middle">
                   {axisLabel(point.date)}
                 </SvgText>
               )}
@@ -5205,6 +6075,7 @@ function AnalyticsSavingsRateChart({ points, palette, transactions, range, granu
           );
         })}
       </Svg>
+      </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </View>
   );
@@ -5219,6 +6090,7 @@ function AnalyticsBudgetChart({ range, budgets, categoryBreakdown, palette, tran
 }) {
   const language = useContext(MobileLanguageContext);
   const [selection, setSelection] = useState<ChartDetailSelection | null>(null);
+  const [chartWidth, setChartWidth] = useState(360);
   if (!range) {
     return (
       <View style={styles.analyticsEmptyChart}>
@@ -5265,28 +6137,39 @@ function AnalyticsBudgetChart({ range, budgets, categoryBreakdown, palette, tran
     );
   }
   const max = Math.max(1, ...rows.flatMap((row) => [row.amount, row.spent]));
-  const chart = { left: 112, right: 348, top: 12, rowHeight: 38 };
-  const bottom = chart.top + rows.length * chart.rowHeight;
-  const svgHeight = bottom + 28;
-  const x = (value: number) => chart.left + (value / max) * (chart.right - chart.left);
+  const isDark = palette.text === "#FFFFFF";
+  const axisColor = isDark ? nativeChartTheme.axis : palette.secondaryText;
+  const rowHeight = 64;
   return (
-    <View style={styles.analyticsBudgetChart}>
+    <View
+      style={styles.analyticsBudgetChart}
+      onLayout={(event) => {
+        const measuredWidth = event.nativeEvent.layout.width;
+        if (measuredWidth > 0) setChartWidth(measuredWidth);
+      }}
+    >
       <ChartTapHint palette={palette} />
-      <View style={styles.analyticsLegend}>
-        <View style={styles.analyticsLegendItem}><View style={[styles.reportLegendDot, { backgroundColor: palette.chart5, borderRadius: 2 }]} /><Text style={[styles.analyticsLegendText, { color: palette.secondaryText }]}>Anggaran</Text></View>
-        <View style={styles.analyticsLegendItem}><View style={[styles.reportLegendDot, { backgroundColor: palette.chart1, borderRadius: 2 }]} /><Text style={[styles.analyticsLegendText, { color: palette.secondaryText }]}>Pengeluaran</Text></View>
-      </View>
-      <Svg width="100%" height={svgHeight} viewBox={`0 0 360 ${svgHeight}`}>
-        {[0, max / 2, max].map((tick) => (
-          <Fragment key={tick}>
-            <Line x1={x(tick)} x2={x(tick)} y1={chart.top} y2={bottom} stroke={palette.border} strokeWidth="1" strokeDasharray="3 3" />
-            <SvgText x={x(tick)} y={svgHeight - 4} fill={palette.secondaryText} fontSize="8" textAnchor={tick === 0 ? "start" : tick === max ? "end" : "middle"}>
-              {reportCompactMoney(tick, language)}
-            </SvgText>
-          </Fragment>
-        ))}
-        {rows.map((row, index) => {
-          const centerY = chart.top + index * chart.rowHeight + chart.rowHeight / 2;
+      <View style={styles.analyticsBudgetRows}>
+        {rows.map((row) => {
+          const ratio = row.amount > 0 ? row.spent / row.amount : null;
+          const statusColor = ratio === null
+            ? axisColor
+            : ratio < 0.8
+              ? nativeChartTheme.net
+              : ratio <= 1
+                ? nativeChartTheme.warning
+                : nativeChartTheme.expense;
+          const statusText = ratio === null
+            ? ""
+            : ratio > 1
+              ? language === "en"
+                ? `Over by ${reportCompactMoney(row.spent - row.amount, language)}`
+                : `Lewat ${reportCompactMoney(row.spent - row.amount, language)} dari anggaran`
+              : language === "en"
+                ? `Remaining ${reportCompactMoney(row.amount - row.spent, language)}`
+                : `Sisa ${reportCompactMoney(row.amount - row.spent, language)}`;
+          const spentWidth = Math.min(100, row.spent / max * 100);
+          const budgetPosition = Math.min(100, row.amount / max * 100);
           const matchingTransactions = transactions.filter((transaction) =>
             !transaction.income &&
             transaction.categoryId === row.id &&
@@ -5294,35 +6177,50 @@ function AnalyticsBudgetChart({ range, budgets, categoryBreakdown, palette, tran
             transaction.dateISO <= range.end
           );
           return (
-            <Fragment key={row.id}>
-              <SvgText x={chart.left - 8} y={centerY + 3} fill={palette.secondaryText} fontSize="9" textAnchor="end">
-                {row.name.length > 17 ? `${row.name.slice(0, 16)}…` : row.name}
-              </SvgText>
-              <Rect x={chart.left} y={centerY - 10} width={x(row.amount) - chart.left} height={8} rx="3" fill={palette.chart5} pointerEvents="none" />
-              <Rect x={chart.left} y={centerY + 2} width={x(row.spent) - chart.left} height={8} rx="3" fill={palette.chart1} pointerEvents="none" />
-              <Rect
-                x="0"
-                y={centerY - chart.rowHeight / 2}
-                width="360"
-                height={chart.rowHeight}
-                fill="transparent"
-                accessible
-                accessibilityLabel={`${row.name}: ${translateMobileText("Anggaran", language)} ${formatBudgetMoney(row.amount)}, ${translateMobileText("Pengeluaran", language)} ${formatBudgetMoney(row.spent)}`}
-                onPress={() => setSelection(createChartDetail(
-                  row.name,
-                  `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
-                  [
-                    { label: translateMobileText("Anggaran", language), value: formatBudgetMoney(row.amount) },
-                    { label: translateMobileText("Pengeluaran", language), value: formatBudgetMoney(row.spent) },
-                    { label: translateMobileText("Sisa Anggaran", language), value: formatBudgetMoney(row.amount - row.spent) },
-                  ],
-                  matchingTransactions,
-                ))}
-              />
-            </Fragment>
+            <View key={row.id} style={styles.analyticsBudgetRow}>
+              <View style={styles.analyticsBudgetHeader}>
+                <Text numberOfLines={1} style={[styles.analyticsBudgetName, { color: palette.text }]}>{row.name}</Text>
+                <View style={styles.analyticsBudgetAmounts}>
+                  <Text numberOfLines={1} style={[styles.analyticsBudgetSpent, { color: palette.text }]}>{formatBudgetMoney(row.spent, true)}</Text>
+                  <Text style={[styles.analyticsBudgetAmount, { color: axisColor }]}> / {formatBudgetMoney(row.amount, true)}</Text>
+                </View>
+              </View>
+              <View style={[styles.analyticsBudgetTrack, { backgroundColor: isDark ? "#2a2a2d" : palette.muted }]}>
+                <View style={[styles.analyticsBudgetFill, { width: `${spentWidth}%`, backgroundColor: statusColor }]} />
+                {row.amount > 0 && <View style={[styles.analyticsBudgetMarker, { left: `${budgetPosition}%` }]} />}
+              </View>
+              {statusText ? <Text style={[styles.analyticsBudgetStatus, { color: statusColor }]}>{statusText}</Text> : null}
+              <Svg
+                pointerEvents="box-none"
+                style={styles.analyticsBudgetHitLayer}
+                width={chartWidth}
+                height={rowHeight}
+                viewBox="0 0 360 64"
+              >
+                <Rect
+                  x="0"
+                  y="0"
+                  width="360"
+                  height="64"
+                  fill="transparent"
+                  accessible
+                  accessibilityLabel={`${row.name}: ${translateMobileText("Anggaran", language)} ${formatBudgetMoney(row.amount)}, ${translateMobileText("Pengeluaran", language)} ${formatBudgetMoney(row.spent)}`}
+                  onPress={() => setSelection(createChartDetail(
+                    row.name,
+                    `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
+                    [
+                      { label: translateMobileText("Anggaran", language), value: formatBudgetMoney(row.amount) },
+                      { label: translateMobileText("Pengeluaran", language), value: formatBudgetMoney(row.spent) },
+                      { label: translateMobileText("Sisa Anggaran", language), value: formatBudgetMoney(row.amount - row.spent) },
+                    ],
+                    matchingTransactions,
+                  ))}
+                />
+              </Svg>
+            </View>
           );
         })}
-      </Svg>
+      </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </View>
   );
@@ -5334,10 +6232,29 @@ function ReportChartCard({ palette, title, subtitle, children }: {
   subtitle: string;
   children: ReactNode;
 }) {
+  const chartTitles = [
+    "Tren Arus Kas",
+    "Pemasukan vs Pengeluaran",
+    "Pengeluaran per Kategori",
+    "Kategori Pengeluaran Terbesar",
+    "Pemasukan per Kategori",
+    "Kategori Pemasukan Terbesar",
+    "Tren Saving Rate",
+    "Anggaran vs Pengeluaran per Kategori",
+  ];
+  const useChartSurface = chartTitles.includes(title);
+  const isDark = palette.text === "#FFFFFF";
   return (
-    <Card palette={palette} style={styles.reportCard}>
-      <Text style={[styles.cardTitle, { color: palette.text, fontSize: 16 }]}>{title}</Text>
-      <Text style={[styles.cardSubtitle, styles.reportSubtitle, { color: palette.secondaryText, fontSize: 12 }]}>{subtitle}</Text>
+    <Card
+      palette={palette}
+      style={[
+        styles.reportCard,
+        useChartSurface && styles.reportChartCard,
+        useChartSurface && isDark && { backgroundColor: nativeChartTheme.card, borderColor: nativeChartTheme.cardBorder },
+      ]}
+    >
+      <Text style={[styles.cardTitle, { color: palette.text, fontSize: useChartSurface ? 15 : 16, ...(useChartSurface ? { fontWeight: "500" as const } : {}) }]}>{title}</Text>
+      <Text style={[styles.cardSubtitle, styles.reportSubtitle, { color: isDark && useChartSurface ? nativeChartTheme.subtitle : palette.secondaryText, fontSize: 12 }]}>{subtitle}</Text>
       {children}
     </Card>
   );
@@ -5603,6 +6520,9 @@ function ReportTrendChart({
     return <View style={styles.reportEmptyChart}><EmptyPanel palette={palette} message="Belum ada data untuk menampilkan tren arus kas." /></View>;
   }
   const chart = { left: 56, right: 348, top: 16, bottom: 216 };
+  const isDark = palette.text === "#FFFFFF";
+  const gridColor = isDark ? nativeChartTheme.grid : palette.border;
+  const axisColor = isDark ? nativeChartTheme.axis : palette.secondaryText;
   const min = Math.min(0, ...points.map((point) => point.net));
   const max = Math.max(1, ...points.flatMap((point) => [point.income, point.expense, point.net]));
   const scaleRange = max - min || 1;
@@ -5614,26 +6534,65 @@ function ReportTrendChart({
   const tickValues = [...new Set([max, 0, min])];
   const tickStride = Math.max(1, Math.ceil(points.length / 8));
   const series = [
-    { key: "income", color: palette.chart2 },
-    { key: "expense", color: palette.danger },
-    { key: "net", color: palette.info },
+    { key: "income", color: nativeChartTheme.income },
+    { key: "expense", color: nativeChartTheme.expense },
+    { key: "net", color: nativeChartTheme.net },
   ] as const;
+  const zeroY = y(0);
+  const netSegments: { x: number; y: number; net: number }[][] = [];
+  let netSegment: { x: number; y: number; net: number }[] = [];
+  points.forEach((point, index) => {
+    const current = { x: chart.left + step * index, y: y(point.net), net: point.net };
+    if (netSegment.length && (netSegment[netSegment.length - 1].net < 0) !== (current.net < 0)) {
+      const previous = netSegment[netSegment.length - 1];
+      const ratio = previous.net / (previous.net - current.net);
+      const crossing = {
+        x: previous.x + (current.x - previous.x) * ratio,
+        y: zeroY,
+        net: 0,
+      };
+      netSegment.push(crossing);
+      netSegments.push(netSegment);
+      netSegment = [crossing];
+    }
+    netSegment.push(current);
+  });
+  if (netSegment.length) netSegments.push(netSegment);
   return (
-    <View style={[styles.reportSvgChart, { height: 284 }]}>
+    <View style={styles.reportSvgChart}>
       <ChartTapHint palette={palette} />
-      <Svg width="100%" height={260} viewBox="0 0 360 260">
+      <View style={styles.reportChartViewport}>
+      <Svg width="100%" height="100%" viewBox="0 0 360 260">
         {tickValues.map((value) => {
           const tickY = y(value);
           return (
             <Fragment key={value}>
-              <Line x1={chart.left} x2={chart.right} y1={tickY} y2={tickY} stroke={palette.border} strokeWidth="1" />
-              <SvgText x="2" y={tickY + 4} fill={palette.secondaryText} fontSize="9">{reportCompactMoney(value, language)}</SvgText>
+              <Line
+                x1={chart.left}
+                x2={chart.right}
+                y1={tickY}
+                y2={tickY}
+                stroke={value === 0 ? (isDark ? nativeChartTheme.baseline : palette.secondaryText) : gridColor}
+                strokeWidth={value === 0 ? 1.5 : 1}
+                strokeDasharray={value === 0 ? "4 4" : undefined}
+              />
+              <SvgText x="2" y={tickY + 4} fill={axisColor} fontSize="9">{reportCompactMoney(value, language)}</SvgText>
             </Fragment>
           );
         })}
+        {netSegments.map((segment, index) => {
+          const positive = segment.reduce((sum, point) => sum + point.net, 0) >= 0;
+          const path = [
+            `M ${segment[0].x} ${zeroY}`,
+            ...segment.map((point) => `L ${point.x} ${point.y}`),
+            `L ${segment[segment.length - 1].x} ${zeroY}`,
+            "Z",
+          ].join(" ");
+          return <Path key={`net-area-${index}`} d={path} fill={positive ? nativeChartTheme.income : nativeChartTheme.expense} fillOpacity="0.1" />;
+        })}
         {series.map(({ key, color }) => (
           <Fragment key={key}>
-            <Path d={pathFor(key)} fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+            <Path d={pathFor(key)} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             {points.map((point, index) => (
               point.income > 0 || point.expense > 0 || points.length === 1
                 ? <Circle
@@ -5649,10 +6608,6 @@ function ReportTrendChart({
           </Fragment>
         ))}
         {points.map((point, index) => {
-          const pointRange = getChartPointRange(point.date, range, granularity);
-          const matchingTransactions = transactions.filter((transaction) =>
-            transaction.dateISO >= pointRange.start && transaction.dateISO <= pointRange.end
-          );
           return (
             <Rect
               key={`hit-${point.date}`}
@@ -5663,25 +6618,32 @@ function ReportTrendChart({
               fill="transparent"
               accessible
               accessibilityLabel={`${point.label}: ${translateMobileText("Pemasukan", language)} ${formatBudgetMoney(point.income)}, ${translateMobileText("Pengeluaran", language)} ${formatBudgetMoney(point.expense)}`}
-              onPress={() => setSelection(createChartDetail(
-                point.label,
-                translateMobileText("Ringkasan transaksi pada periode grafik ini.", language),
-                [
-                  { label: translateMobileText("Pemasukan", language), value: formatBudgetMoney(point.income) },
-                  { label: translateMobileText("Pengeluaran", language), value: formatBudgetMoney(point.expense) },
-                  { label: translateMobileText("Arus Kas Bersih", language), value: formatBudgetMoney(point.net) },
-                ],
-                matchingTransactions,
-              ))}
+              onPress={() => {
+                const pointRange = getChartPointRange(point.date, range, granularity);
+                const matchingTransactions = transactions.filter((transaction) =>
+                  transaction.dateISO >= pointRange.start && transaction.dateISO <= pointRange.end
+                );
+                setSelection(createChartDetail(
+                  point.label,
+                  translateMobileText("Ringkasan transaksi pada periode grafik ini.", language),
+                  [
+                    { label: translateMobileText("Pemasukan", language), value: formatBudgetMoney(point.income) },
+                    { label: translateMobileText("Pengeluaran", language), value: formatBudgetMoney(point.expense) },
+                    { label: translateMobileText("Arus Kas Bersih", language), value: formatBudgetMoney(point.net) },
+                  ],
+                  matchingTransactions,
+                ));
+              }}
             />
           );
         })}
         {points.map((point, index) => (
           index % tickStride === 0
-            ? <SvgText key={point.date} x={chart.left + step * index} y="244" fill={palette.secondaryText} fontSize="9" textAnchor="middle">{point.label}</SvgText>
+            ? <SvgText key={point.date} x={chart.left + step * index} y="244" fill={axisColor} fontSize="9" textAnchor="middle">{point.label}</SvgText>
             : null
         ))}
       </Svg>
+      </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </View>
   );
@@ -5707,34 +6669,35 @@ function ReportIncomeExpenseChart({
   }
   const max = Math.max(1, ...points.flatMap((point) => [point.income, point.expense]));
   const chart = { left: 58, right: 348, top: 20, bottom: 218 };
+  const isDark = palette.text === "#FFFFFF";
+  const gridColor = isDark ? nativeChartTheme.grid : palette.border;
+  const axisColor = isDark ? nativeChartTheme.axis : palette.secondaryText;
   const slot = (chart.right - chart.left) / points.length;
+  const barWidth = Math.min(12, Math.max(4, (slot - 3) / 2));
   const tickStride = Math.max(1, Math.ceil(points.length / 8));
   const y = (value: number) => chart.bottom - (value / max) * (chart.bottom - chart.top);
   const x = (index: number) => chart.left + slot * index + slot / 2;
-  const linePath = (key: "income" | "expense") =>
-    points.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point[key])}`).join(" ");
   return (
     <>
       <ChartTapHint palette={palette} />
       <View style={styles.reportLegend}>
-        <View style={[styles.reportLegendDot, { backgroundColor: palette.chart2 }]} />
+        <View style={[styles.reportLegendDot, { backgroundColor: nativeChartTheme.income }]} />
         <Text style={[styles.reportLegendText, { color: palette.secondaryText }]}>Pemasukan</Text>
-        <View style={[styles.reportLegendDot, { backgroundColor: palette.chart1 }]} />
+        <View style={[styles.reportLegendDot, { backgroundColor: nativeChartTheme.expense }]} />
         <Text style={[styles.reportLegendText, { color: palette.secondaryText }]}>Pengeluaran</Text>
       </View>
-      <Svg width="100%" height={260} viewBox="0 0 360 260">
+      <View style={styles.reportChartViewport}>
+      <Svg width="100%" height="100%" viewBox="0 0 360 260">
         {[0, max / 2, max].map((tick) => (
           <Fragment key={tick}>
-            <Line x1={chart.left} x2={chart.right} y1={y(tick)} y2={y(tick)} stroke={palette.border} strokeWidth="1" />
-            <SvgText x="2" y={y(tick) + 4} fill={palette.secondaryText} fontSize="9">{reportCompactMoney(tick, language)}</SvgText>
+            <Line x1={chart.left} x2={chart.right} y1={y(tick)} y2={y(tick)} stroke={tick === 0 ? (isDark ? nativeChartTheme.baseline : palette.secondaryText) : gridColor} strokeWidth="1" strokeDasharray={tick === 0 ? "4 4" : undefined} />
+            <SvgText x="2" y={y(tick) + 4} fill={axisColor} fontSize="9">{reportCompactMoney(tick, language)}</SvgText>
           </Fragment>
         ))}
-        <Path d={linePath("income")} fill="none" stroke={palette.chart2} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
-        <Path d={linePath("expense")} fill="none" stroke={palette.chart1} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
         {points.map((point, index) => (
           <Fragment key={point.date}>
-            <Circle cx={x(index)} cy={y(point.income)} r="3.5" fill={palette.chart2} pointerEvents="none" />
-            <Circle cx={x(index)} cy={y(point.expense)} r="3.5" fill={palette.chart1} pointerEvents="none" />
+            <Rect x={x(index) - barWidth - 1.5} y={y(point.income)} width={barWidth} height={Math.max(0, chart.bottom - y(point.income))} rx="3" fill={nativeChartTheme.income} pointerEvents="none" />
+            <Rect x={x(index) + 1.5} y={y(point.expense)} width={barWidth} height={Math.max(0, chart.bottom - y(point.expense))} rx="3" fill={nativeChartTheme.expense} pointerEvents="none" />
             <Rect
               x={chart.left + slot * index}
               y={chart.top}
@@ -5759,10 +6722,11 @@ function ReportIncomeExpenseChart({
                 ));
               }}
             />
-            {index % tickStride === 0 && <SvgText x={x(index)} y="244" fill={palette.secondaryText} fontSize="9" textAnchor="middle">{point.label}</SvgText>}
+            {index % tickStride === 0 && <SvgText x={x(index)} y="244" fill={axisColor} fontSize="9" textAnchor="middle">{point.label}</SvgText>}
           </Fragment>
         ))}
       </Svg>
+      </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </>
   );
@@ -5782,86 +6746,102 @@ function ReportCategoryBreakdown({
   transactionType: "income" | "expense";
 }) {
   const language = useContext(MobileLanguageContext);
+  const { width } = useWindowDimensions();
   const [selection, setSelection] = useState<ChartDetailSelection | null>(null);
   if (!categories.length) {
     return <View style={styles.reportEmptyChart}><EmptyPanel palette={palette} message="Belum ada transaksi untuk kategori ini pada periode terpilih." /></View>;
   }
-  const colors = [palette.chart1, palette.chart2, palette.chart3, palette.chart4, palette.chart5, palette.border];
+  const colors = transactionType === "expense"
+    ? nativeChartTheme.expenseCategories
+    : nativeChartTheme.incomeCategories;
   const total = categories.reduce((sum, category) => sum + category.amount, 0);
+  const donutSize = 150;
   if (total <= 0) {
     return <View style={styles.reportEmptyChart}><EmptyPanel palette={palette} message="Belum ada transaksi untuk kategori ini pada periode terpilih." /></View>;
   }
-  const circumference = 2 * Math.PI * 68;
+  const circumference = 2 * Math.PI * 58;
+  const percentFormatter = new Intl.NumberFormat(language === "en" ? "en-US" : "id-ID", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  const isWideLayout = width >= 500;
+  const isDark = palette.text === "#FFFFFF";
   return (
     <>
       <ChartTapHint palette={palette} />
-      <View style={styles.reportDonutWrap}>
-        <Svg width={190} height={190} viewBox="0 0 190 190">
-          <Circle cx="95" cy="95" r="68" fill="none" stroke={palette.border} strokeWidth="24" />
-          {categories.map((category, index) => {
-            const length = category.amount / total * circumference;
-            const offset = categories.slice(0, index).reduce((sum, item) => sum + item.amount / total * circumference, 0);
-            const matchingTransactions = transactions.filter((transaction) =>
-              (category.categoryId ? transaction.categoryId === category.categoryId : transaction.category === category.name) &&
-              transaction.income === (transactionType === "income")
-            );
-            return <Circle
-              key={category.name}
-              cx="95"
-              cy="95"
-              r="68"
-              fill="none"
-              stroke={colors[index % colors.length]}
-              strokeWidth="24"
-              strokeDasharray={`${Math.max(0, length - 3)} ${circumference - Math.max(0, length - 3)}`}
-              strokeDashoffset={-offset}
-              rotation="-90"
-              origin="95, 95"
-              accessible
-              accessibilityLabel={`${category.name}: ${formatBudgetMoney(category.amount)}`}
-              onPress={() => setSelection(createChartDetail(
-                category.name,
-                `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
-                [
-                  { label: translateMobileText(transactionType === "income" ? "Pemasukan" : "Pengeluaran", language), value: formatBudgetMoney(category.amount) },
-                  { label: translateMobileText("Persentase dari total", language), value: `${(category.amount / total * 100).toFixed(1)}%` },
-                ],
-                matchingTransactions,
-              ))}
-            />;
-          })}
-          <SvgText x="95" y="91" fill={palette.secondaryText} fontSize="11" textAnchor="middle">Total</SvgText>
-          <SvgText x="95" y="110" fill={palette.text} fontSize="12" fontWeight="600" textAnchor="middle">{reportCompactMoney(total, language)}</SvgText>
-        </Svg>
-      </View>
-      <View style={styles.reportCategoryList}>
-        {categories.map((category, index) => (
-          <NativePressable
-            key={category.name}
-            accessibilityRole="button"
-            accessibilityLabel={`${category.name}, ${formatBudgetMoney(category.amount)}. ${translateMobileText("Ketuk untuk melihat transaksi", language)}`}
-            onPress={() => {
+      <View style={[styles.reportCategoryBreakdown, isWideLayout && styles.reportCategoryBreakdownWide]}>
+        <View style={[styles.reportDonutWrap, isWideLayout && styles.reportDonutWrapWide]}>
+          <Svg width={donutSize} height={donutSize} viewBox="0 0 150 150">
+            <Circle cx="75" cy="75" r="58" fill="none" stroke={isDark ? nativeChartTheme.grid : palette.border} strokeWidth="16" />
+            {categories.map((category, index) => {
+              const length = category.amount / total * circumference;
+              const offset = categories.slice(0, index).reduce((sum, item) => sum + item.amount / total * circumference, 0);
               const matchingTransactions = transactions.filter((transaction) =>
                 (category.categoryId ? transaction.categoryId === category.categoryId : transaction.category === category.name) &&
                 transaction.income === (transactionType === "income")
               );
-              setSelection(createChartDetail(
-                category.name,
-                `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
-                [
-                  { label: translateMobileText(transactionType === "income" ? "Pemasukan" : "Pengeluaran", language), value: formatBudgetMoney(category.amount) },
-                  { label: translateMobileText("Persentase dari total", language), value: `${(category.amount / total * 100).toFixed(1)}%` },
-                ],
-                matchingTransactions,
-              ));
-            }}
-            style={[styles.reportCategoryRow, { backgroundColor: palette.muted }]}
-          >
-            <View style={[styles.reportLegendDot, { backgroundColor: colors[index % colors.length] }]} />
-            <RawText numberOfLines={2} style={[styles.reportCategoryLabel, { color: palette.secondaryText }]}>{category.name}</RawText>
-            <Text style={[styles.reportCategoryAmount, { color: palette.text }]}>{formatBudgetMoney(category.amount)}</Text>
-          </NativePressable>
-        ))}
+              return <Circle
+                key={category.name}
+                cx="75"
+                cy="75"
+                r="58"
+                fill="none"
+                stroke={colors[index % colors.length]}
+                strokeWidth="16"
+                strokeLinecap="butt"
+                strokeDasharray={`${Math.max(0, length - 4)} ${circumference - Math.max(0, length - 4)}`}
+                strokeDashoffset={-offset}
+                rotation="-90"
+                origin="75, 75"
+                accessible
+                accessibilityLabel={`${category.name}: ${formatBudgetMoney(category.amount)}`}
+                onPress={() => setSelection(createChartDetail(
+                  category.name,
+                  `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
+                  [
+                    { label: translateMobileText(transactionType === "income" ? "Pemasukan" : "Pengeluaran", language), value: formatBudgetMoney(category.amount) },
+                    { label: translateMobileText("Persentase dari total", language), value: `${(category.amount / total * 100).toFixed(1)}%` },
+                  ],
+                  matchingTransactions,
+                ))}
+              />;
+            })}
+            <SvgText x="75" y="71" fill={isDark ? nativeChartTheme.axis : palette.secondaryText} fontSize="11" textAnchor="middle">Total</SvgText>
+            <SvgText x="75" y="91" fill={palette.text} fontSize="16" fontWeight="500" textAnchor="middle">{reportCompactMoney(total, language)}</SvgText>
+          </Svg>
+        </View>
+        <View style={[styles.reportCategoryList, isWideLayout && styles.reportCategoryListWide]}>
+          {categories.map((category, index) => (
+            <NativePressable
+              key={category.name}
+              accessibilityRole="button"
+              accessibilityLabel={`${category.name}, ${formatBudgetMoney(category.amount)}. ${translateMobileText("Ketuk untuk melihat transaksi", language)}`}
+              onPress={() => {
+                const matchingTransactions = transactions.filter((transaction) =>
+                  (category.categoryId ? transaction.categoryId === category.categoryId : transaction.category === category.name) &&
+                  transaction.income === (transactionType === "income")
+                );
+                setSelection(createChartDetail(
+                  category.name,
+                  `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`,
+                  [
+                    { label: translateMobileText(transactionType === "income" ? "Pemasukan" : "Pengeluaran", language), value: formatBudgetMoney(category.amount) },
+                    { label: translateMobileText("Persentase dari total", language), value: `${(category.amount / total * 100).toFixed(1)}%` },
+                  ],
+                  matchingTransactions,
+                ));
+              }}
+              style={[styles.reportCategoryRow, { borderBottomColor: isDark ? nativeChartTheme.grid : palette.border }]}
+            >
+              <View style={[styles.reportLegendDot, { backgroundColor: colors[index % colors.length], borderRadius: 2, height: 9, width: 9 }]} />
+              <RawText numberOfLines={1} style={[styles.reportCategoryLabel, { color: palette.secondaryText }]}>{category.name}</RawText>
+              <View style={styles.reportCategoryValues}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.reportCategoryAmount, { color: palette.text }]}>{formatBudgetMoney(category.amount)}</Text>
+                <Text style={[styles.reportCategoryPercent, { color: isDark ? nativeChartTheme.subtitle : palette.secondaryText }]}>{percentFormatter.format(category.amount / total * 100)}%</Text>
+              </View>
+            </NativePressable>
+          ))}
+        </View>
       </View>
       <ChartDetailModal selection={selection} palette={palette} onClose={() => setSelection(null)} />
     </>
@@ -5869,6 +6849,7 @@ function ReportCategoryBreakdown({
 }
 
 function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; onNavigate: (route: RouteKey) => void; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const { transactions: allTransactions, financeRevision, showToast } = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
   const [reportState, setReportState] = useState<{
@@ -5893,6 +6874,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
   const range = useMemo(() => getReportDateRange(period, customRange), [customRange, period]);
   const reportSpanDays = (Date.parse(`${range.end}T00:00:00`) - Date.parse(`${range.start}T00:00:00`)) / 86_400_000 + 1;
   const reportGranularity = reportSpanDays <= 31 ? "daily" : reportSpanDays <= 120 ? "weekly" : "monthly";
+  const previousReportRange = useMemo(() => getPreviousReportDateRange(range), [range]);
   const reportSnapshotKey = `${userId}:${language}:${range.start}:${range.end}:${reportGranularity}:${financeRevision}`;
   const reportRequestKey = `${reportSnapshotKey}:${reportRefresh}`;
   const reportData = reportState?.key === reportRequestKey
@@ -5903,47 +6885,66 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
     let active = true;
     const loadReport = async () => {
       try {
-        const [summaryResponse, expensesResponse, incomesResponse, trendResponse] = await Promise.all([
-          financeApi.getReportSummary(range.start, range.end),
-          financeApi.getReportCategoryBreakdown("expense", range.start, range.end),
-          financeApi.getReportCategoryBreakdown("income", range.start, range.end),
-          financeApi.getReportCashflowTrend(reportGranularity, range.start, range.end),
-        ]);
-        if (!active) return;
-        const mapCategories = (response: NativeReportCategoryBreakdown): ReportCategory[] =>
-          response.categories.map((item) => {
-            const amount = Number(item.totalAmount);
-            if (!Number.isFinite(amount)) throw new Error("The server returned an invalid report category amount.");
-            return { name: item.categoryName ?? "Kategori tidak tersedia", amount, categoryId: item.categoryId };
+        const fetchReportData = async (): Promise<NativeReportPageData> => {
+          const [summaryResponse, expensesResponse, incomesResponse, trendResponse, previousSummary] = await Promise.all([
+            financeApi.getReportSummary(range.start, range.end),
+            financeApi.getReportCategoryBreakdown("expense", range.start, range.end),
+            financeApi.getReportCategoryBreakdown("income", range.start, range.end),
+            financeApi.getReportCashflowTrend(reportGranularity, range.start, range.end),
+            financeApi.getReportSummary(previousReportRange.start, previousReportRange.end).catch(() => null),
+          ]);
+          const mapCategories = (response: NativeReportCategoryBreakdown): ReportCategory[] =>
+            response.categories.map((item) => {
+              const amount = Number(item.totalAmount);
+              if (!Number.isFinite(amount)) throw new Error("The server returned an invalid report category amount.");
+              return { name: item.categoryName ?? "Kategori tidak tersedia", amount, categoryId: item.categoryId };
+            });
+          const points = trendResponse.data.map((item) => {
+            const income = Number(item.income);
+            const expense = Number(item.expense);
+            const net = Number(item.netCashFlow);
+            if (![income, expense, net].every(Number.isFinite)) {
+              throw new Error("The server returned invalid report trend values.");
+            }
+            const periodDate = /^\d{4}-\d{2}/.test(item.period)
+              ? new Date(`${item.period.slice(0, 10)}T00:00:00`)
+              : new Date(item.period);
+            return {
+              date: item.period,
+              label: Number.isNaN(periodDate.getTime())
+                ? item.period
+                : periodDate.toLocaleDateString(language === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" }),
+              income,
+              expense,
+              net,
+            };
           });
-        const nextPoints = trendResponse.data.map((item) => {
-          const income = Number(item.income);
-          const expense = Number(item.expense);
-          const net = Number(item.netCashFlow);
-          if (![income, expense, net].every(Number.isFinite)) {
-            throw new Error("The server returned invalid report trend values.");
-          }
-          const periodDate = /^\d{4}-\d{2}/.test(item.period)
-            ? new Date(`${item.period.slice(0, 10)}T00:00:00`)
-            : new Date(item.period);
           return {
-            date: item.period,
-            label: Number.isNaN(periodDate.getTime())
-              ? item.period
-              : periodDate.toLocaleDateString(language === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" }),
-            income,
-            expense,
-            net,
+            summary: summaryResponse,
+            previousSummary,
+            expenses: mapCategories(expensesResponse),
+            incomes: mapCategories(incomesResponse),
+            points,
           };
-        });
-        const data = {
-          summary: summaryResponse,
-          expenses: mapCategories(expensesResponse),
-          incomes: mapCategories(incomesResponse),
-          points: nextPoints,
         };
-        reportSnapshots.set(reportSnapshotKey, data);
-        setReportState({ key: reportRequestKey, data, error: null });
+        const applyReportData = (data: NativeReportPageData) => {
+          if (!active) return;
+          reportSnapshots.set(reportSnapshotKey, data);
+          setReportState({ key: reportRequestKey, data, error: null });
+        };
+        const cacheKey = `${language}:${range.start}:${range.end}:${reportGranularity}`;
+        const data = await withNativeOfflineCache(
+          "reports",
+          cacheKey,
+          fetchReportData,
+          applyReportData,
+          (error) => setReportState({
+            key: reportRequestKey,
+            data: reportSnapshots.get(reportSnapshotKey) ?? null,
+            error: error instanceof Error ? error.message : "Silakan coba lagi.",
+          }),
+        );
+        applyReportData(data);
       } catch (error) {
         if (!active) return;
         const message = error instanceof Error ? error.message : "Silakan coba lagi.";
@@ -5957,7 +6958,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
     };
     void loadReport();
     return () => { active = false; };
-  }, [language, range.end, range.start, reportGranularity, reportRefresh, reportRequestKey, reportSnapshotKey]);
+  }, [language, previousReportRange.end, previousReportRange.start, range.end, range.start, reportGranularity, reportRefresh, reportRequestKey, reportSnapshotKey]);
   const reportSummary = reportData?.summary ?? null;
   const reportPoints = reportData?.points;
   const reportExpenses = reportData?.expenses ?? [];
@@ -5974,23 +6975,36 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
     : transactions.length === 0;
   const expenses = reportExpenses;
   const incomes = reportIncomes;
-  const localIncome = reportSummary ? 0 : transactions.filter((item) => item.income).reduce((sum, item) => sum + getTransactionAmount(item), 0);
-  const localExpense = reportSummary ? 0 : transactions.filter((item) => !item.income).reduce((sum, item) => sum + getTransactionAmount(item), 0);
-  const localCategoryBreakdown = (income: boolean): ReportCategory[] => {
-    const totals = new Map<string, ReportCategory>();
+  const localReportAggregates = useMemo(() => {
+    const incomeCategories = new Map<string, ReportCategory>();
+    const expenseCategories = new Map<string, ReportCategory>();
+    let income = 0;
+    let expense = 0;
     for (const transaction of transactions) {
-      if (transaction.income !== income) continue;
+      const amount = getTransactionAmount(transaction);
+      const categoryTotals = transaction.income ? incomeCategories : expenseCategories;
+      if (transaction.income) income += amount;
+      else expense += amount;
       const key = transaction.categoryId ?? transaction.category;
-      const existing = totals.get(key);
-      if (existing) existing.amount += getTransactionAmount(transaction);
-      else totals.set(key, {
+      const existing = categoryTotals.get(key);
+      if (existing) existing.amount += amount;
+      else categoryTotals.set(key, {
         name: transaction.category,
-        amount: getTransactionAmount(transaction),
+        amount,
         categoryId: transaction.categoryId,
       });
     }
-    return [...totals.values()].sort((left, right) => right.amount - left.amount);
-  };
+    const sortCategories = (categories: Map<string, ReportCategory>) =>
+      [...categories.values()].sort((left, right) => right.amount - left.amount);
+    return {
+      income,
+      expense,
+      incomeCategories: sortCategories(incomeCategories),
+      expenseCategories: sortCategories(expenseCategories),
+    };
+  }, [transactions]);
+  const localIncome = reportSummary ? 0 : localReportAggregates.income;
+  const localExpense = reportSummary ? 0 : localReportAggregates.expense;
   const totalIncome = Number(reportSummary?.summary.income ?? localIncome);
   const totalExpense = Number(reportSummary?.summary.expense ?? localExpense);
   const netCashFlow = Number(reportSummary?.summary.netCashFlow ?? totalIncome - totalExpense);
@@ -5999,10 +7013,33 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
     [language, range, reportGranularity, reportPoints],
   );
   const summary = [
-    { label: "TOTAL PEMASUKAN", value: formatBudgetMoney(totalIncome), icon: "cash-plus" },
-    { label: "TOTAL PENGELUARAN", value: formatBudgetMoney(totalExpense), icon: "cash-minus" },
-    { label: "ARUS KAS BERSIH", value: `${netCashFlow < 0 ? "-" : ""}${formatBudgetMoney(Math.abs(netCashFlow))}`, icon: "swap-vertical" },
-    { label: "JUMLAH TRANSAKSI", value: String(reportSummary?.summary.transactions ?? transactions.length), icon: "receipt-text-outline" },
+    {
+      label: "TOTAL PEMASUKAN",
+      value: formatBudgetMoney(totalIncome),
+      icon: "cash-plus",
+      comparison: reportComparison(totalIncome, reportData?.previousSummary ? Number(reportData.previousSummary.summary.income) : null),
+    },
+    {
+      label: "TOTAL PENGELUARAN",
+      value: formatBudgetMoney(totalExpense),
+      icon: "cash-minus",
+      comparison: reportComparison(totalExpense, reportData?.previousSummary ? Number(reportData.previousSummary.summary.expense) : null),
+    },
+    {
+      label: "ARUS KAS BERSIH",
+      value: `${netCashFlow < 0 ? "-" : ""}${formatBudgetMoney(Math.abs(netCashFlow))}`,
+      icon: "swap-vertical",
+      comparison: reportComparison(netCashFlow, reportData?.previousSummary ? Number(reportData.previousSummary.summary.netCashFlow) : null),
+    },
+    {
+      label: "JUMLAH TRANSAKSI",
+      value: String(reportSummary?.summary.transactions ?? transactions.length),
+      icon: "receipt-text-outline",
+      comparison: reportComparison(
+        reportSummary?.summary.transactions ?? transactions.length,
+        reportData?.previousSummary?.summary.transactions,
+      ),
+    },
   ] as const;
   const customDateIsValid = (value: string) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -6044,7 +7081,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
 
   return (
     <>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
         <PageHeader palette={palette} title="Laporan Keuangan" description="Ringkasan kinerja keuangan Anda dalam periode terpilih." />
         <FinanceDataState palette={palette} loading={false} error={reportError} onRetry={() => { setReportRefresh((current) => current + 1); }} />
         <View style={styles.reportPeriodBlock}>
@@ -6113,18 +7150,25 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
               {summary.map((item) => (
                 <Card key={item.label} palette={palette} style={styles.reportSummaryCard}>
                   <View style={styles.reportSummaryHeading}>
-                    <Text style={[styles.kpiLabel, styles.reportSummaryLabel, { color: palette.secondaryText }]}>{item.label}</Text>
+                    <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.kpiLabel, styles.reportSummaryLabel, { color: palette.secondaryText }]}>{item.label}</Text>
                     <View style={[styles.reportSummaryIcon, { backgroundColor: palette.muted }]}>
                       <MaterialCommunityIcons name={item.icon} size={16} color={palette.accent} />
                     </View>
                   </View>
-                  <Text style={[styles.reportSummaryValue, { color: palette.text }]}>{item.value}</Text>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.reportSummaryValue, { color: palette.text }]}>{item.value}</Text>
                   <View style={styles.reportSummaryComparison}>
                     <View style={styles.reportSummaryChange}>
-                      <MaterialCommunityIcons name="arrow-top-right" size={14} color={palette.incomeAmount} />
-                      <Text style={[styles.reportSummaryNew, { color: palette.incomeAmount }]}>Baru</Text>
+                      <MaterialCommunityIcons
+                        name={item.comparison.positive ? "arrow-top-right" : "arrow-bottom-right"}
+                        size={14}
+                        color={item.comparison.positive ? palette.incomeAmount : palette.expenseAmount}
+                      />
+                      <Text style={[
+                        styles.reportSummaryNew,
+                        { color: item.comparison.positive ? palette.incomeAmount : palette.expenseAmount },
+                      ]}>{translateMobileText(item.comparison.text, language)}</Text>
                     </View>
-                    <Text style={[styles.cardSubtitle, { color: palette.secondaryText }]}>vs periode sebelumnya</Text>
+                    <Text style={[styles.cardSubtitle, { color: palette.secondaryText }]}>{translateMobileText("vs periode sebelumnya", language)}</Text>
                   </View>
                 </Card>
               ))}
@@ -6132,11 +7176,11 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
 
             <ReportChartCard palette={palette} title="Tren Arus Kas" subtitle="Pemasukan, pengeluaran, dan arus kas bersih per periode.">
               <View style={styles.reportLegend}>
-                <View style={[styles.reportLegendLine, { borderTopColor: palette.chart2 }]} />
+                <View style={[styles.reportLegendLine, { borderTopColor: nativeChartTheme.income }]} />
                 <Text style={[styles.reportLegendText, { color: palette.secondaryText }]}>Pemasukan</Text>
-                <View style={[styles.reportLegendLine, { borderTopColor: palette.danger }]} />
+                <View style={[styles.reportLegendLine, { borderTopColor: nativeChartTheme.expense }]} />
                 <Text style={[styles.reportLegendText, { color: palette.secondaryText }]}>Pengeluaran</Text>
-                <View style={[styles.reportLegendLine, { borderTopColor: palette.info }]} />
+                <View style={[styles.reportLegendLine, { borderTopColor: nativeChartTheme.net }]} />
                 <Text style={[styles.reportLegendText, { color: palette.secondaryText }]}>Bersih</Text>
               </View>
               <ReportTrendChart points={points} palette={palette} transactions={transactions} range={range} granularity={reportGranularity} />
@@ -6147,7 +7191,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
             </ReportChartCard>
 
             <ReportChartCard palette={palette} title="Pengeluaran per Kategori" subtitle="Distribusi pengeluaran berdasarkan kategori.">
-              <ReportCategoryBreakdown categories={expenses.length ? expenses : localCategoryBreakdown(false)} palette={palette} transactions={transactions} range={range} transactionType="expense" />
+              <ReportCategoryBreakdown categories={expenses.length ? expenses : localReportAggregates.expenseCategories} palette={palette} transactions={transactions} range={range} transactionType="expense" />
             </ReportChartCard>
 
             <ReportChartCard palette={palette} title="Kategori Pengeluaran Terbesar" subtitle="Lima kategori dengan pengeluaran tertinggi pada periode terpilih.">
@@ -6178,15 +7222,15 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
                       <View style={styles.reportTopCategoryHeading}>
                         <View style={styles.reportTopCategoryName}>
                           {index === 0
-                            ? <MaterialCommunityIcons name="trophy-outline" size={16} color={palette.accent} />
-                            : <Text style={[styles.reportRank, { color: palette.secondaryText, backgroundColor: palette.muted }]}>{index + 1}</Text>}
+                            ? <MaterialCommunityIcons name="trophy-outline" size={14} color={nativeChartTheme.expenseCategories[index % nativeChartTheme.expenseCategories.length]} />
+                            : <Text style={[styles.reportRank, { color: palette.secondaryText, backgroundColor: palette.text === "#FFFFFF" ? "#242427" : palette.muted }]}>{index + 1}</Text>}
                           <RawText numberOfLines={1} style={[styles.reportCategoryLabel, { color: palette.text }]}>{category.name}</RawText>
                         </View>
-                        <Text style={[styles.reportCategoryAmount, { color: palette.text }]}>{formatBudgetMoney(category.amount)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.reportCategoryAmount, { color: palette.text }]}>{formatBudgetMoney(category.amount)}</Text>
                       </View>
                       <View style={styles.reportTopCategoryProgress}>
-                        <View style={[styles.reportProgressTrack, { backgroundColor: palette.border }]}>
-                          <View style={[styles.reportProgressFill, { width: `${Math.max(2, category.amount / expenses[0].amount * 100)}%`, backgroundColor: palette.accent }]} />
+                        <View style={[styles.reportProgressTrack, { backgroundColor: palette.text === "#FFFFFF" ? "#2a2a2d" : palette.muted }]}>
+                          <View style={[styles.reportProgressFill, { width: `${Math.max(2, category.amount / expenses[0].amount * 100)}%`, backgroundColor: nativeChartTheme.expenseCategories[index % nativeChartTheme.expenseCategories.length] }]} />
                         </View>
                         <Text style={[styles.reportPercentage, { color: palette.secondaryText }]}>{(category.amount / totalExpense * 100).toFixed(1)}%</Text>
                       </View>
@@ -6197,7 +7241,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
             </ReportChartCard>
 
             <ReportChartCard palette={palette} title="Pemasukan per Kategori" subtitle="Distribusi pemasukan berdasarkan kategori.">
-              <ReportCategoryBreakdown categories={incomes.length ? incomes : localCategoryBreakdown(true)} palette={palette} transactions={transactions} range={range} transactionType="income" />
+              <ReportCategoryBreakdown categories={incomes.length ? incomes : localReportAggregates.incomeCategories} palette={palette} transactions={transactions} range={range} transactionType="income" />
             </ReportChartCard>
 
             <Card palette={palette} style={styles.reportTransactionCard}>
@@ -6221,18 +7265,20 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
                   <MaterialCommunityIcons name="arrow-right" size={15} color={palette.accent} />
                 </Pressable>
               </View>
-              {transactions.slice(0, 8).map((transaction) => (
-                <View key={transaction.id} style={[styles.reportTransaction, { borderTopColor: palette.border }]}>
-                  <View style={[styles.reportTransactionBadge, { borderColor: palette.border }]}>
-                    <Text style={{ color: palette.secondaryText, fontSize: 9 }}>{transaction.income ? "PEMASUKAN" : "PENGELUARAN"}</Text>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator style={styles.reportTransactionsScroll}>
+                {transactions.slice(0, 10).map((transaction) => (
+                  <View key={transaction.id} style={[styles.reportTransaction, { borderTopColor: palette.border }]}>
+                    <View style={[styles.reportTransactionBadge, { borderColor: palette.border }]}>
+                      <Text style={{ color: palette.secondaryText, fontSize: 9 }}>{transaction.income ? "PEMASUKAN" : "PENGELUARAN"}</Text>
+                    </View>
+                    <View style={styles.reportTransactionCopy}>
+                      <Text numberOfLines={1} style={{ color: palette.text, fontWeight: "600" }}>{transaction.category}</Text>
+                      <Text numberOfLines={1} style={[styles.cardSubtitle, { color: palette.secondaryText }]}>{transaction.date}</Text>
+                    </View>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.reportTransactionAmount, { color: transaction.income ? palette.incomeAmount : palette.expenseAmount }]}>{transaction.amount}</Text>
                   </View>
-                  <View style={styles.reportTransactionCopy}>
-                    <Text numberOfLines={1} style={{ color: palette.text, fontWeight: "600" }}>{transaction.category}</Text>
-                    <Text numberOfLines={1} style={[styles.cardSubtitle, { color: palette.secondaryText }]}>{transaction.date}</Text>
-                  </View>
-                  <Text style={[styles.reportTransactionAmount, { color: transaction.income ? palette.incomeAmount : palette.expenseAmount }]}>{transaction.amount}</Text>
-                </View>
-              ))}
+                ))}
+              </ScrollView>
             </Card>
           </>
         )}
@@ -6336,6 +7382,7 @@ function ReportsPageNative({ palette, onNavigate, userId }: { palette: Palette; 
 }
 
 function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const language = useContext(MobileLanguageContext);
   const { rawTransactions, transactions, categories, financeError, financeRevision, refreshFinanceData } = useDemoTransactions();
   const { width } = useWindowDimensions();
@@ -6378,54 +7425,78 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
   useEffect(() => {
     let active = true;
     const loadAnalytics = async () => {
-      const overviewPromise = financeApi.getAnalyticsOverview(range.start, range.end).then((overview) => {
-        if (![overview.income, overview.expense, overview.netCashFlow, overview.transactions].every((value) => Number.isFinite(Number(value)))) {
-          throw new Error("The server returned invalid analytics overview values.");
+      const fetchAnalyticsData = async (): Promise<NativeAnalyticsPageData> => {
+        const overviewPromise = financeApi.getAnalyticsOverview(range.start, range.end).then((overview) => {
+          if (![overview.income, overview.expense, overview.netCashFlow, overview.transactions].every((value) => Number.isFinite(Number(value)))) {
+            throw new Error("The server returned invalid analytics overview values.");
+          }
+          if (active) setOverviewState({ snapshotKey: analyticsSnapshotKey, overview });
+          return overview;
+        });
+        const [
+          overview,
+          expenses,
+          incomes,
+          spending,
+          health,
+          insights,
+          budgets,
+          budgetSpending,
+        ] = await Promise.all([
+          overviewPromise,
+          financeApi.getAnalyticsExpenses(range.start, range.end, analyticsGranularity),
+          financeApi.getAnalyticsIncome(range.start, range.end, analyticsGranularity),
+          financeApi.getAnalyticsSpending(range.start, range.end),
+          financeApi.getFinancialHealth(range.start, range.end),
+          financeApi.getInsights(range.start, range.end),
+          financeApi.listBudgets(),
+          completeMonthRange
+            ? financeApi.getAnalyticsSpending(completeMonthRange.start, completeMonthRange.end)
+            : Promise.resolve(null),
+        ]);
+        const numericValues = [
+          overview.income,
+          overview.expense,
+          overview.netCashFlow,
+          spending.avgExpense,
+          spending.largestExpense,
+          spending.avgTransaction,
+          health.netCashFlow,
+          ...expenses.categories.map((item) => item.totalAmount),
+          ...incomes.categories.map((item) => item.totalAmount),
+          ...(budgetSpending?.byCategory.map((item) => item.totalAmount) ?? []),
+          ...budgets.map((item) => item.budget_amount_cents),
+        ];
+        if (numericValues.some((value) => !Number.isFinite(Number(value)))) {
+          throw new Error("The server returned invalid analytics values.");
         }
-        if (active) setOverviewState({ snapshotKey: analyticsSnapshotKey, overview });
-        return overview;
-      });
-      const [
-        overview,
-        expenses,
-        incomes,
-        spending,
-        health,
-        insights,
-        budgets,
-        budgetSpending,
-      ] = await Promise.all([
-        overviewPromise,
-        financeApi.getAnalyticsExpenses(range.start, range.end, analyticsGranularity),
-        financeApi.getAnalyticsIncome(range.start, range.end, analyticsGranularity),
-        financeApi.getAnalyticsSpending(range.start, range.end),
-        financeApi.getFinancialHealth(range.start, range.end),
-        financeApi.getInsights(range.start, range.end),
-        financeApi.listBudgets(),
-        completeMonthRange
-          ? financeApi.getAnalyticsSpending(completeMonthRange.start, completeMonthRange.end)
-          : Promise.resolve(null),
-      ]);
-      const numericValues = [
-        overview.income,
-        overview.expense,
-        overview.netCashFlow,
-        spending.avgExpense,
-        spending.largestExpense,
-        spending.avgTransaction,
-        health.netCashFlow,
-        ...expenses.categories.map((item) => item.totalAmount),
-        ...incomes.categories.map((item) => item.totalAmount),
-        ...(budgetSpending?.byCategory.map((item) => item.totalAmount) ?? []),
-        ...budgets.map((item) => item.budget_amount_cents),
-      ];
-      if (numericValues.some((value) => !Number.isFinite(Number(value)))) {
-        throw new Error("The server returned invalid analytics values.");
-      }
-      if (!active) return;
-      const data = { overview, expenses, incomes, spending, health, insights, budgets, budgetSpending };
-      analyticsSnapshots.set(analyticsSnapshotKey, data);
-      setAnalyticsState({ requestKey: analyticsRequestKey, snapshotKey: analyticsSnapshotKey, data, error: null });
+        return { overview, expenses, incomes, spending, health, insights, budgets, budgetSpending };
+      };
+      const applyAnalyticsData = (data: NativeAnalyticsPageData) => {
+        if (!active) return;
+        analyticsSnapshots.set(analyticsSnapshotKey, data);
+        setOverviewState({ snapshotKey: analyticsSnapshotKey, overview: data.overview });
+        setAnalyticsState({
+          requestKey: analyticsRequestKey,
+          snapshotKey: analyticsSnapshotKey,
+          data,
+          error: null,
+        });
+      };
+      const cacheKey = `${range.start}:${range.end}:${analyticsGranularity}`;
+      const data = await withNativeOfflineCache(
+        "analytics",
+        cacheKey,
+        fetchAnalyticsData,
+        applyAnalyticsData,
+        (error) => setAnalyticsState({
+          requestKey: analyticsRequestKey,
+          snapshotKey: analyticsSnapshotKey,
+          data: analyticsSnapshots.get(analyticsSnapshotKey) ?? null,
+          error: error instanceof Error ? error.message : "Silakan coba lagi.",
+        }),
+      );
+      applyAnalyticsData(data);
     };
     void Promise.resolve().then(loadAnalytics).catch((error: unknown) => {
       if (!active) return;
@@ -6487,11 +7558,41 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
   const expenseRatio = analyticsData?.health.expenseRatio ?? (totalIncome ? totalExpense / totalIncome * 100 : 0);
   const rangeLabel = `${formatMobileDate(range.start, language)} - ${formatMobileDate(range.end, language)}`;
   const kpis = [
-    { label: "TOTAL PEMASUKAN", value: formatBudgetMoney(totalIncome), icon: "arrow-down-bold" as const, tone: palette.incomeAmount },
-    { label: "TOTAL PENGELUARAN", value: formatBudgetMoney(totalExpense), icon: "arrow-up-bold" as const, tone: palette.expenseAmount },
-    { label: "ARUS KAS BERSIH", value: formatBudgetMoney(netCashFlow), icon: "swap-horizontal" as const, tone: netCashFlow >= 0 ? palette.incomeAmount : palette.expenseAmount },
-    { label: "SAVING RATE", value: `${savingRate.toFixed(1)}%`, icon: "content-save-outline" as const, tone: palette.accent },
-    { label: "JUMLAH TRANSAKSI", value: String(analyticsOverview?.transactions ?? rangeTransactions.length), icon: "receipt-text-outline" as const, tone: palette.secondaryText },
+    {
+      label: "TOTAL PEMASUKAN",
+      value: formatBudgetMoney(totalIncome),
+      icon: "arrow-down-bold" as const,
+      tone: palette.incomeAmount,
+      comparison: analyticsComparison(analyticsOverview?.comparison.income, totalIncome),
+    },
+    {
+      label: "TOTAL PENGELUARAN",
+      value: formatBudgetMoney(totalExpense),
+      icon: "arrow-up-bold" as const,
+      tone: palette.expenseAmount,
+      comparison: analyticsComparison(analyticsOverview?.comparison.expense, totalExpense),
+    },
+    {
+      label: "ARUS KAS BERSIH",
+      value: formatBudgetMoney(netCashFlow),
+      icon: "swap-horizontal" as const,
+      tone: netCashFlow >= 0 ? palette.incomeAmount : palette.expenseAmount,
+      comparison: analyticsComparison(analyticsOverview?.comparison.netCashFlow, netCashFlow),
+    },
+    {
+      label: "SAVING RATE",
+      value: `${savingRate.toFixed(1)}%`,
+      icon: "content-save-outline" as const,
+      tone: palette.accent,
+      comparison: analyticsComparison(analyticsOverview?.comparison.savingRate, savingRate, " pp"),
+    },
+    {
+      label: "JUMLAH TRANSAKSI",
+      value: String(analyticsOverview?.transactions ?? rangeTransactions.length),
+      icon: "receipt-text-outline" as const,
+      tone: palette.secondaryText,
+      comparison: null,
+    },
   ];
   const topExpensePercent = (amount: number) => totalExpense ? `${(amount / totalExpense * 100).toFixed(1)}%` : "0.0%";
   const topIncomePercent = (amount: number) => totalIncome ? `${(amount / totalIncome * 100).toFixed(1)}%` : "0.0%";
@@ -6525,7 +7626,7 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
   const insights = analyticsData?.insights ?? [];
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.analyticsContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.analyticsContent, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
       <PageHeader palette={palette} title="Analitik Keuangan" description="Wawasan mendalam atas performa keuangan Anda." />
       <View style={styles.analyticsPeriodRow}>
         <View style={styles.analyticsPeriodCopy}>
@@ -6545,7 +7646,7 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
       <FinanceDataState palette={palette} loading={false} error={analyticsError} onRetry={() => setRetryCount((count) => count + 1)} />
 
       <>
-      <View style={[styles.analyticsKpiGrid, { width: width - 32 }]}>
+      <View style={[styles.analyticsKpiGrid, { width: Math.min(width - 32, 608) }]}>
         {kpis.map((item) => (
           <Card key={item.label} palette={palette} style={styles.analyticsKpiCard}>
             <View style={styles.analyticsKpiHeading}>
@@ -6553,7 +7654,22 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
               <MaterialCommunityIcons name={item.icon} size={18} color={item.tone} />
             </View>
             <Text style={[styles.analyticsKpiValue, { color: palette.text }]} numberOfLines={1} adjustsFontSizeToFit>{item.value}</Text>
-            <Text style={[styles.analyticsKpiHint, { color: palette.secondaryText }]}>Data akun dari backend</Text>
+            <View style={styles.analyticsKpiComparison}>
+              {item.comparison && (
+                <View style={styles.analyticsKpiChange}>
+                  <MaterialCommunityIcons
+                    name={item.comparison.positive ? "arrow-top-right" : "arrow-bottom-right"}
+                    size={13}
+                    color={item.comparison.positive ? palette.incomeAmount : palette.expenseAmount}
+                  />
+                  <Text style={[
+                    styles.analyticsKpiHint,
+                    { color: item.comparison.positive ? palette.incomeAmount : palette.expenseAmount },
+                  ]}>{translateMobileText(item.comparison.text, language)}</Text>
+                </View>
+              )}
+              <Text style={[styles.analyticsKpiHint, { color: palette.secondaryText }]}>{translateMobileText("vs periode sebelumnya", language)}</Text>
+            </View>
           </Card>
         ))}
       </View>
@@ -6594,7 +7710,7 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
       </ReportChartCard>
 
       <View style={styles.analyticsSection}>
-        <Card palette={palette} style={styles.analyticsListCard}>
+        <Card palette={palette} style={[styles.analyticsListCard, palette.text === "#FFFFFF" && { backgroundColor: nativeChartTheme.card, borderColor: nativeChartTheme.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: palette.text }]}>Kategori Pengeluaran Terbesar</Text>
           {expenses.length ? (
             <View style={styles.analyticsTopCategoryList}>
@@ -6624,9 +7740,9 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
                   >
                     <View style={styles.analyticsTopCategoryHeader}>
                       <View style={styles.analyticsTopCategoryLead}>
-                        <View style={[styles.analyticsTopCategoryBadge, { backgroundColor: palette.muted }]}>
+                        <View style={[styles.analyticsTopCategoryBadge, { backgroundColor: palette.text === "#FFFFFF" ? "#242427" : palette.muted }]}>
                           {index === 0 ? (
-                            <MaterialCommunityIcons name="trophy-outline" size={14} color={palette.chart1} />
+                            <MaterialCommunityIcons name="trophy-outline" size={14} color={nativeChartTheme.expenseCategories[index % nativeChartTheme.expenseCategories.length]} />
                           ) : (
                             <Text style={[styles.analyticsRankText, { color: palette.secondaryText }]}>{index + 1}</Text>
                           )}
@@ -6636,8 +7752,8 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
                       <Text style={[styles.analyticsCategoryValue, { color: palette.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatBudgetMoney(item.amount, true)}</Text>
                     </View>
                     <View style={styles.analyticsTopCategoryProgress}>
-                      <View style={[styles.analyticsTopCategoryTrack, { backgroundColor: palette.muted }]}>
-                        <View style={[styles.analyticsTopCategoryFill, { width: `${percentage}%`, backgroundColor: palette.chart1 }]} />
+                      <View style={[styles.analyticsTopCategoryTrack, { backgroundColor: palette.text === "#FFFFFF" ? "#2a2a2d" : palette.muted }]}>
+                        <View style={[styles.analyticsTopCategoryFill, { width: `${percentage}%`, backgroundColor: nativeChartTheme.expenseCategories[index % nativeChartTheme.expenseCategories.length] }]} />
                       </View>
                       <Text style={[styles.analyticsCategoryPercent, { color: palette.secondaryText }]}>{topExpensePercent(item.amount)}</Text>
                     </View>
@@ -6647,7 +7763,7 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
             </View>
           ) : <EmptyPanel palette={palette} message="Belum ada pengeluaran pada periode ini." compact />}
         </Card>
-        <Card palette={palette} style={[styles.analyticsListCard, styles.analyticsListCardSpaced]}>
+        <Card palette={palette} style={[styles.analyticsListCard, styles.analyticsListCardSpaced, palette.text === "#FFFFFF" && { backgroundColor: nativeChartTheme.card, borderColor: nativeChartTheme.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: palette.text }]}>Kategori Pemasukan Terbesar</Text>
           {incomes.length ? (
             <View style={styles.analyticsTopCategoryList}>
@@ -6657,9 +7773,9 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
                   <View key={item.name} style={styles.analyticsTopCategoryItem}>
                     <View style={styles.analyticsTopCategoryHeader}>
                       <View style={styles.analyticsTopCategoryLead}>
-                        <View style={[styles.analyticsTopCategoryBadge, { backgroundColor: palette.muted }]}>
+                        <View style={[styles.analyticsTopCategoryBadge, { backgroundColor: palette.text === "#FFFFFF" ? "#242427" : palette.muted }]}>
                           {index === 0 ? (
-                            <MaterialCommunityIcons name="trophy-outline" size={14} color={palette.chart1} />
+                            <MaterialCommunityIcons name="trophy-outline" size={14} color={nativeChartTheme.incomeCategories[index % nativeChartTheme.incomeCategories.length]} />
                           ) : (
                             <Text style={[styles.analyticsRankText, { color: palette.secondaryText }]}>{index + 1}</Text>
                           )}
@@ -6669,8 +7785,8 @@ function AnalyticsPageNative({ palette, userId }: { palette: Palette; userId: st
                       <Text style={[styles.analyticsCategoryValue, { color: palette.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatBudgetMoney(item.amount, true)}</Text>
                     </View>
                     <View style={styles.analyticsTopCategoryProgress}>
-                      <View style={[styles.analyticsTopCategoryTrack, { backgroundColor: palette.muted }]}>
-                        <View style={[styles.analyticsTopCategoryFill, { width: `${percentage}%`, backgroundColor: palette.chart1 }]} />
+                      <View style={[styles.analyticsTopCategoryTrack, { backgroundColor: palette.text === "#FFFFFF" ? "#2a2a2d" : palette.muted }]}>
+                        <View style={[styles.analyticsTopCategoryFill, { width: `${percentage}%`, backgroundColor: nativeChartTheme.incomeCategories[index % nativeChartTheme.incomeCategories.length] }]} />
                       </View>
                       <Text style={[styles.analyticsCategoryPercent, { color: palette.secondaryText }]}>{topIncomePercent(item.amount)}</Text>
                     </View>
@@ -6810,6 +7926,7 @@ function AnalysisPage({ route, palette, userId }: { route: "analytics" | "foreca
 }
 
 function ForecastPageNative({ palette, title, description, userId }: { palette: Palette; title: string; description: string; userId: string }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const { financeRevision } = useDemoTransactions();
   const { width } = useWindowDimensions();
   const [horizon, setHorizon] = useState(3);
@@ -6831,28 +7948,44 @@ function ForecastPageNative({ palette, title, description, userId }: { palette: 
   useEffect(() => {
     let active = true;
     const loadForecast = async () => {
-      const [forecastResponse, spendingResponse] = await Promise.all([
-        financeApi.getForecast(horizon),
-        financeApi.getSpendingPrediction(horizon),
-      ]);
-      const values = [
-        ...forecastResponse.months.flatMap((item) => [
-          item.projectedIncomeCents,
-          item.projectedExpenseCents,
-          item.projectedNetCashflowCents,
-          item.projectedEndingBalanceCents,
-        ]),
-        spendingResponse.predictedTotalCents,
-        spendingResponse.otherCents,
-        ...spendingResponse.categories.map((item) => item.predictedAmountCents),
-      ];
-      if (values.some((value) => !Number.isFinite(Number(value)))) {
-        throw new Error("The server returned invalid forecast values.");
-      }
-      if (!active) return;
-      const data = { forecast: forecastResponse, spendingPrediction: spendingResponse };
-      forecastSnapshots.set(forecastSnapshotKey, data);
-      setForecastState({ key: forecastSnapshotKey, data, error: null });
+      const fetchForecastData = async (): Promise<NativeForecastPageData> => {
+        const [forecastResponse, spendingResponse] = await Promise.all([
+          financeApi.getForecast(horizon),
+          financeApi.getSpendingPrediction(horizon),
+        ]);
+        const values = [
+          ...forecastResponse.months.flatMap((item) => [
+            item.projectedIncomeCents,
+            item.projectedExpenseCents,
+            item.projectedNetCashflowCents,
+            item.projectedEndingBalanceCents,
+          ]),
+          spendingResponse.predictedTotalCents,
+          spendingResponse.otherCents,
+          ...spendingResponse.categories.map((item) => item.predictedAmountCents),
+        ];
+        if (values.some((value) => !Number.isFinite(Number(value)))) {
+          throw new Error("The server returned invalid forecast values.");
+        }
+        return { forecast: forecastResponse, spendingPrediction: spendingResponse };
+      };
+      const applyForecastData = (data: NativeForecastPageData) => {
+        if (!active) return;
+        forecastSnapshots.set(forecastSnapshotKey, data);
+        setForecastState({ key: forecastSnapshotKey, data, error: null });
+      };
+      const data = await withNativeOfflineCache(
+        "forecasts",
+        String(horizon),
+        fetchForecastData,
+        applyForecastData,
+        (error) => setForecastState({
+          key: forecastSnapshotKey,
+          data: forecastSnapshots.get(forecastSnapshotKey) ?? null,
+          error: error instanceof Error ? error.message : "Silakan coba lagi.",
+        }),
+      );
+      applyForecastData(data);
     };
     void Promise.resolve().then(loadForecast).catch((error: unknown) => {
       if (!active) return;
@@ -6874,7 +8007,7 @@ function ForecastPageNative({ palette, title, description, userId }: { palette: 
     : confidence >= 0.5 ? "Sedang" : "Rendah";
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
       <PageHeader palette={palette} title={title} description={description} />
       <FinanceDataState palette={palette} loading={false} error={forecastError} onRetry={() => setRetryCount((count) => count + 1)} />
 
@@ -7011,6 +8144,7 @@ function ForecastPageNative({ palette, title, description, userId }: { palette: 
 }
 
 function ActivityPage({ route, palette }: { route: RouteKey; palette: Palette }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const context = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -7045,7 +8179,7 @@ function ActivityPage({ route, palette }: { route: RouteKey; palette: Palette })
   ), [context, language, palette]);
 
   if (!isNotificationsPage) {
-    return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    return <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
       <PageHeader palette={palette} title="Log Aktivitas" description="Sesi aktif pada setiap perangkat." />
       <Card palette={palette} style={styles.listCard}>
         <EmptyPanel palette={palette} message="Belum ada sesi perangkat." compact />
@@ -7054,7 +8188,7 @@ function ActivityPage({ route, palette }: { route: RouteKey; palette: Palette })
   }
 
   if (context.notificationError && context.notifications.length === 0) {
-    return <ScrollView style={styles.scroll} contentContainerStyle={styles.notificationContent} showsVerticalScrollIndicator={false}>
+    return <ScrollView style={styles.scroll} contentContainerStyle={[styles.notificationContent, bottomTabContentStyle]} showsVerticalScrollIndicator={false}>
       <PageHeader palette={palette} title="Notifikasi" description="Pemberitahuan dan aktivitas akun Anda." />
       <View accessibilityRole="alert" style={[styles.notificationEmpty, { borderColor: palette.border, backgroundColor: palette.surface }]}>
         <MaterialCommunityIcons name="alert-circle-outline" size={30} color={palette.expenseAmount} />
@@ -7154,7 +8288,7 @@ function ActivityPage({ route, palette }: { route: RouteKey; palette: Palette })
 
   return <FlatList
     style={styles.scroll}
-    contentContainerStyle={styles.notificationContent}
+    contentContainerStyle={[styles.notificationContent, bottomTabContentStyle]}
     data={pageItems}
     keyExtractor={(item) => item.id}
     renderItem={renderNotification}
@@ -7246,6 +8380,7 @@ const NotificationCard = memo(function NotificationCard({ item, palette, languag
 });
 
 function AccountPage({ route, palette, onThemeChange, language, onLanguageChange, user, onUserChange, onLogout, onAccountDeleted, logoutLoading, userSettings, onSettingsChange, pushEnabled, pushError, onPushEnabledChange, pushSaving }: { route: RouteKey; palette: Palette; onThemeChange: (dark: boolean) => void; language: MobileLanguage; onLanguageChange: (language: MobileLanguage) => Promise<void>; user: AuthUser; onUserChange: (user: AuthUser) => void; onLogout: () => Promise<void>; onAccountDeleted: () => Promise<void>; logoutLoading: boolean; userSettings: NativeUserSettings | null; onSettingsChange: (patch: NativeSettingsPatch) => Promise<boolean>; pushEnabled: boolean; pushError: string | null; onPushEnabledChange: (enabled: boolean) => Promise<boolean>; pushSaving: boolean }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const [nameDraft, setNameDraft] = useState(user.full_name);
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -7277,7 +8412,7 @@ function AccountPage({ route, palette, onThemeChange, language, onLanguageChange
   };
 
   if (route === "profile") return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, bottomTabContentStyle]}>
       <PageHeader palette={palette} title="Profil" description="Informasi akun Anda." />
       <Card palette={palette} style={styles.profileCard}>
         <View style={styles.profileHeading}>
@@ -7335,7 +8470,7 @@ function AccountPage({ route, palette, onThemeChange, language, onLanguageChange
             </>
           ) : (
             <View style={styles.inlineValue}>
-              <Text style={[styles.fieldValue, styles.profileNameValue, { color: palette.text }]}>{user.full_name || user.username}</Text>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.fieldValue, styles.profileNameValue, { color: palette.text }]}>{user.full_name || user.username}</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={language === "en" ? "Edit profile name" : "Ubah nama profil"}
@@ -7353,33 +8488,47 @@ function AccountPage({ route, palette, onThemeChange, language, onLanguageChange
           <Text style={[styles.fieldLabel, { color: palette.secondaryText }]}>Email</Text>
           <View style={styles.inlineValue}>
             <MaterialCommunityIcons name="email-outline" size={18} color={palette.secondaryText} />
-            <Text style={[styles.fieldValue, { color: palette.text }]}>{user.email}</Text>
+            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.fieldValue, styles.profileNameValue, { color: palette.text }]}>{user.email}</Text>
           </View>
         </View>
       </Card>
       <LogoutAction palette={palette} language={language} onLogout={onLogout} loading={logoutLoading} />
     </ScrollView>
   );
-  return <SettingsPage palette={palette} onThemeChange={onThemeChange} language={language} onLanguageChange={onLanguageChange} user={user} onLogout={onLogout} onAccountDeleted={onAccountDeleted} logoutLoading={logoutLoading} userSettings={userSettings} onSettingsChange={onSettingsChange} pushEnabled={pushEnabled} pushError={pushError} onPushEnabledChange={onPushEnabledChange} pushSaving={pushSaving} />;
+  return <SettingsPage palette={palette} onThemeChange={onThemeChange} language={language} onLanguageChange={onLanguageChange} user={user} onAccountDeleted={onAccountDeleted} userSettings={userSettings} onSettingsChange={onSettingsChange} pushEnabled={pushEnabled} pushError={pushError} onPushEnabledChange={onPushEnabledChange} pushSaving={pushSaving} />;
 }
 
 function LogoutAction({ palette, language, onLogout, loading }: { palette: Palette; language: MobileLanguage; onLogout: () => Promise<void>; loading: boolean }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const label = loading
     ? language === "en" ? "Signing out..." : "Keluar..."
     : translateMobileText("Keluar", language);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: loading }}
-      disabled={loading}
-      onPress={() => void onLogout()}
-      style={[styles.profileLogoutAction, { opacity: loading ? 0.6 : 1 }]}
-    >
-      <MaterialCommunityIcons name="logout" size={20} color={palette.expenseAmount} />
-      <Text style={[styles.profileLogoutText, { color: palette.expenseAmount }]}>{label}</Text>
-    </Pressable>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: loading }}
+        disabled={loading}
+        onPress={() => setConfirmOpen(true)}
+        style={[styles.profileLogoutAction, { opacity: loading ? 0.6 : 1 }]}
+      >
+        <MaterialCommunityIcons name="logout" size={20} color={palette.expenseAmount} />
+        <Text style={[styles.profileLogoutText, { color: palette.expenseAmount }]}>{label}</Text>
+      </Pressable>
+      <NativeDeleteDialog
+        open={confirmOpen}
+        title="Logout dari akun Anda?"
+        confirmLabel="Logout"
+        palette={palette}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void onLogout();
+        }}
+      />
+    </>
   );
 }
 
@@ -7416,23 +8565,77 @@ function formatSessionDate(value: string, language: MobileLanguage) {
   }).format(date);
 }
 
+function groupNativeSessions(sessions: NativeSession[]): NativeSessionGroup[] {
+  const groups = new Map<string, NativeSessionGroup>();
+  for (const session of sessions) {
+    const key = session.device_id?.trim()
+      ? `device:${session.device_id.trim().toLowerCase()}`
+      : `session:${session.id}`;
+    const group = groups.get(key);
+    if (group) {
+      group.sessions.push(session);
+      if (
+        Date.parse(session.last_activity_at) >
+        Date.parse(group.latest.last_activity_at)
+      ) {
+        group.latest = session;
+      }
+    } else {
+      groups.set(key, { key, sessions: [session], latest: session });
+    }
+  }
+  return Array.from(groups.values());
+}
+
+function getSessionDeviceName(
+  session: NativeSession,
+  current: boolean,
+  language: MobileLanguage,
+) {
+  const deviceName = session.device_name?.trim();
+  const deviceParts = [session.operating_system, session.browser]
+    .filter((value): value is string =>
+      Boolean(value?.trim()) && value?.toLowerCase() !== "unknown",
+    );
+  const knownName =
+    (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null) ||
+    deviceParts.join(" · ");
+  if (knownName) return knownName;
+  if (current && Platform.OS === "android") return "Android";
+  if (current && Platform.OS === "ios") return "iPhone / iPad";
+
+  switch (session.device_type?.trim().toLowerCase()) {
+    case "android":
+      return "Android";
+    case "ios":
+    case "iphone":
+    case "ipad":
+      return "iPhone / iPad";
+    case "mobile":
+    case "native":
+      return translateMobileText("Perangkat seluler", language);
+    case "desktop":
+      return translateMobileText("Komputer", language);
+    case "browser":
+    case "web":
+      return translateMobileText("Browser web", language);
+    default:
+      return translateMobileText("Perangkat tidak diketahui", language);
+  }
+}
+
 const SessionRow = memo(function SessionRow({ item, palette, language, current, canRevoke, onRevoke }: {
-  item: NativeSession;
+  item: NativeSessionGroup;
   palette: Palette;
   language: MobileLanguage;
   current: boolean;
   canRevoke: boolean;
   onRevoke: () => void;
 }) {
-  const deviceName = item.device_name?.trim();
-  const deviceParts = [item.operating_system, item.browser]
-    .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
-  const device = (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
-    || deviceParts.join(" · ")
-    || translateMobileText("Perangkat tidak diketahui", language);
-  const location = [item.city, item.country].filter(Boolean).join(", ")
+  const device = getSessionDeviceName(item.latest, current, language);
+  const location = [item.latest.city, item.latest.country].filter(Boolean).join(", ")
     || translateMobileText("Lokasi tidak diketahui", language);
-  const lastActive = item.last_activity_at || item.updated_at;
+  const lastActive = item.latest.last_activity_at || item.latest.updated_at;
 
   return (
     <View style={[styles.sessionRow, { borderColor: palette.border }]}>
@@ -7465,10 +8668,12 @@ const SessionRow = memo(function SessionRow({ item, palette, language, current, 
   );
 });
 
-function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user, onLogout, onAccountDeleted, logoutLoading, userSettings, onSettingsChange, pushEnabled, pushError, onPushEnabledChange, pushSaving }: { palette: Palette; onThemeChange: (dark: boolean) => void; language: MobileLanguage; onLanguageChange: (language: MobileLanguage) => Promise<void>; user: AuthUser; onLogout: () => Promise<void>; onAccountDeleted: () => Promise<void>; logoutLoading: boolean; userSettings: NativeUserSettings | null; onSettingsChange: (patch: NativeSettingsPatch) => Promise<boolean>; pushEnabled: boolean; pushError: string | null; onPushEnabledChange: (enabled: boolean) => Promise<boolean>; pushSaving: boolean }) {
+function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user, onAccountDeleted, userSettings, onSettingsChange, pushEnabled, pushError, onPushEnabledChange, pushSaving }: { palette: Palette; onThemeChange: (dark: boolean) => void; language: MobileLanguage; onLanguageChange: (language: MobileLanguage) => Promise<void>; user: AuthUser; onAccountDeleted: () => Promise<void>; userSettings: NativeUserSettings | null; onSettingsChange: (patch: NativeSettingsPatch) => Promise<boolean>; pushEnabled: boolean; pushError: string | null; onPushEnabledChange: (enabled: boolean) => Promise<boolean>; pushSaving: boolean }) {
+  const bottomTabContentStyle = useBottomTabContentStyle();
   const [tab, setTab] = useState<NativeSettingsTab>("Umum");
   const [query, setQuery] = useState("");
   const [sessions, setSessions] = useState<NativeSession[]>([]);
+  const sessionGroups = useMemo(() => groupNativeSessions(sessions), [sessions]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -7574,14 +8779,16 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
 
   const revokeSession = useCallback((session: NativeSession) => {
     if (session.id === currentSessionId) return;
-    const deviceName = session.device_name?.trim();
-    const deviceParts = [session.operating_system, session.browser]
-      .filter((value): value is string => Boolean(value?.trim()) && value?.toLowerCase() !== "unknown");
-    const device = (deviceName && deviceName.toLowerCase() !== "unknown" ? deviceName : null)
-      || deviceParts.join(" · ")
-      || translateMobileText("Perangkat tidak diketahui", language);
-    setSessionDialog({ kind: "single", session, device });
-  }, [currentSessionId, language]);
+    const group = sessionGroups.find((candidate) =>
+      candidate.sessions.some((item) => item.id === session.id),
+    );
+    if (!group || group.sessions.some((item) => item.id === currentSessionId)) return;
+    setSessionDialog({
+      kind: "single",
+      sessions: group.sessions,
+      device: getSessionDeviceName(group.latest, false, language),
+    });
+  }, [currentSessionId, language, sessionGroups]);
 
   const revokeOtherSessions = useCallback(() => {
     setSessionDialog({ kind: "others" });
@@ -7601,13 +8808,22 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
     setSessionActionLoading(true);
     try {
       const response = sessionDialog.kind === "single"
-        ? await sessionApi.revoke(sessionDialog.session.id)
+        ? await Promise.all(
+            sessionDialog.sessions.map((session) =>
+              sessionApi.revoke(session.id),
+            ),
+          ).then((responses) =>
+            responses.every((result) => result.success)
+              ? { success: true }
+              : { success: false },
+          )
         : await sessionApi.revokeOthers();
       if (!response.success) throw new Error("Server tidak mengonfirmasi pengeluaran perangkat.");
       setSessionDialog(null);
       await loadSessions();
     } catch (error) {
       console.error("Failed to sign out a native device session.", error);
+      await loadSessions();
       setSessionDialog({
         kind: "error",
         title: translateMobileText("Perangkat tidak dapat dikeluarkan.", language),
@@ -7659,16 +8875,18 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
     }
   }, [deleteEmail, deletePassword, language, onAccountDeleted, user.email, user.has_manual_password]);
 
-  const renderSession = useCallback(({ item }: { item: NativeSession }) => (
-    <SessionRow
-      item={item}
+  const renderSession = useCallback((group: NativeSessionGroup) => {
+    const current = group.sessions.some((session) => session.id === currentSessionId);
+    return <SessionRow
+      key={group.key}
+      item={group}
       palette={palette}
       language={language}
-      current={item.id === currentSessionId}
-      canRevoke={currentSessionId !== null && item.id !== currentSessionId}
-      onRevoke={() => revokeSession(item)}
-    />
-  ), [currentSessionId, language, palette, revokeSession]);
+      current={current}
+      canRevoke={currentSessionId !== null && !current}
+      onRevoke={() => revokeSession(group.latest)}
+    />;
+  }, [currentSessionId, language, palette, revokeSession]);
 
   const renderChoice = (label: string, selected: boolean, onPress: () => void, icon?: keyof typeof MaterialCommunityIcons.glyphMap) => (
     <Pressable
@@ -7742,7 +8960,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
     <ScrollView
       ref={settingsScrollRef}
       style={styles.scroll}
-      contentContainerStyle={styles.settingsContent}
+      contentContainerStyle={[styles.settingsContent, bottomTabContentStyle]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       onScroll={(event) => { settingsScrollOffsetRef.current = event.nativeEvent.contentOffset.y; }}
@@ -7776,7 +8994,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
                 <View style={[styles.settingsNavigationIcon, { backgroundColor: selected ? navigationColors.selectedIcon : navigationColors.unselectedIcon }]}>
                   <MaterialCommunityIcons name={item.icon} size={17} color={selected ? palette.accent : palette.secondaryText} />
                 </View>
-                <Text style={[styles.settingsNavigationLabel, { color: palette.text }]}>{translateMobileText(item.label, language)}</Text>
+                <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.settingsNavigationLabel, { color: palette.text }]}>{translateMobileText(item.label, language)}</Text>
               </Pressable>
             );
           }) : (
@@ -7824,7 +9042,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
                       style={[styles.settingsChoice, { borderColor: palette.border }]}
                     >
                       <View style={styles.settingsChoiceLabel}>
-                        <Text style={[styles.settingsChoiceText, { color: palette.text }]}>{label}</Text>
+                        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.settingsChoiceText, { color: palette.text }]}>{label}</Text>
                       </View>
                       <View accessible={false} style={[styles.settingsRadio, { borderColor: palette.secondaryText }]}>
                         <View style={[styles.settingsRadioDot, { backgroundColor: palette.accent, opacity: selected ? 1 : 0 }]} />
@@ -7848,12 +9066,11 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
             {sectionHeader("account-outline", "Profil", "Informasi akun Anda")}
             <View style={styles.settingsAccountDetails}>
               <Text style={[styles.fieldLabel, { color: palette.secondaryText }]}>Nama</Text>
-              <Text style={[styles.fieldValue, { color: palette.text }]}>{user.full_name || user.username}</Text>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.fieldValue, { color: palette.text }]}>{user.full_name || user.username}</Text>
               <Text style={[styles.fieldLabel, { color: palette.secondaryText }]}>Email</Text>
-              <Text style={[styles.fieldValue, { color: palette.text }]}>{user.email}</Text>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.fieldValue, { color: palette.text }]}>{user.email}</Text>
             </View>
           </Card>
-          <LogoutAction palette={palette} language={language} onLogout={onLogout} loading={logoutLoading} />
           <Card palette={palette} style={styles.settingsContentCard}>
             {sectionHeader("laptop", "Sesi Aktif", "Perangkat yang sedang login dengan akun Anda")}
             {sessionsLoading ? null : sessionsError ? (
@@ -7873,27 +9090,21 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
             ) : (
               <View style={styles.sessionList}>
                 <Text style={[styles.cardSubtitle, { color: palette.secondaryText }]}>
-                  {translateMobileText("Sesi aktif pada perangkat", language)}: {sessions.length}
+                  {translateMobileText("Sesi aktif pada perangkat", language)}: {sessionGroups.length}
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  disabled={sessionsLoading || sessions.length <= 1}
+                  disabled={sessionsLoading || sessionGroups.length <= 1}
                   onPress={revokeOtherSessions}
                   style={[
                     styles.sessionActionButton,
-                    { borderColor: palette.border, opacity: sessionsLoading || sessions.length <= 1 ? 0.55 : 1 },
+                    { borderColor: palette.border, opacity: sessionsLoading || sessionGroups.length <= 1 ? 0.55 : 1 },
                   ]}
                 >
                   <MaterialCommunityIcons name="logout-variant" size={17} color={palette.expenseAmount} />
                   <Text style={[styles.sessionActionText, { color: palette.expenseAmount }]}>{translateMobileText("Keluar dari perangkat lain", language)}</Text>
                 </Pressable>
-                <FlatList
-                  data={sessions}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderSession}
-                  scrollEnabled={false}
-                  removeClippedSubviews={false}
-                />
+                {sessionGroups.map(renderSession)}
               </View>
             )}
           </Card>
@@ -8109,7 +9320,7 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
         />
         {user.has_manual_password === false ? (
           <Text style={[styles.accountDeleteNote, { color: palette.secondaryText }]}>
-            {translateMobileText("Akun ini menggunakan login Google. Konfirmasi email saja sudah cukup.", language)}
+            {translateMobileText("Akun ini tidak menggunakan kata sandi manual. Konfirmasi email saja sudah cukup.", language)}
           </Text>
         ) : (
           <>
@@ -8117,18 +9328,20 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
             <View style={styles.securePasswordField}>
               <TextInput
                 accessibilityLabel="Kata sandi saat ini"
+                autoComplete="current-password"
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry
-                selectionColor={palette.accent}
+                selectionColor="transparent"
                 value={deletePassword}
                 onChangeText={setDeletePassword}
                 placeholder={translateMobileText("Kata sandi saat ini", language)}
                 placeholderTextColor={palette.secondaryText}
-                style={[styles.settingsTextInput, styles.floatingModalInput, { backgroundColor: palette.input, borderColor: palette.border, color: "transparent" }]}
+                editable={!deletingAccount}
+                style={[styles.settingsTextInput, styles.floatingModalInput, styles.deleteAccountPasswordInput, { backgroundColor: palette.input, borderColor: palette.border, color: "transparent" }]}
               />
               {deletePassword.length > 0 && (
-                <Text accessible={false} pointerEvents="none" style={[styles.securePasswordMask, { color: palette.text }]}>
+                <Text accessible={false} pointerEvents="none" style={[styles.securePasswordMask, styles.deleteAccountPasswordMask, { color: palette.text }]}>
                   {"•".repeat(deletePassword.length)}
                 </Text>
               )}
@@ -8168,6 +9381,92 @@ function SettingsPage({ palette, onThemeChange, language, onLanguageChange, user
       />
     )}
     </>
+  );
+}
+
+function NativeAlertDialog({ request, onDismiss }: {
+  request: NativeAlertRequest;
+  onDismiss: () => void;
+}) {
+  const { palette } = request;
+  const destructiveColor = palette.background === "#020202" ? "#F87171" : "#B91C1C";
+  const destructiveButtonTint = palette.background === "#020202"
+    ? "rgba(248,113,113,0.2)"
+    : "rgba(185,28,28,0.1)";
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      visible
+      onRequestClose={onDismiss}
+    >
+      <View style={styles.deleteDialogBackdrop}>
+        <View
+          accessibilityViewIsModal
+          style={[styles.deleteDialog, { backgroundColor: palette.card, borderColor: palette.border }]}
+        >
+          <NativePressable
+            accessibilityRole="button"
+            accessibilityLabel="Tutup dialog"
+            onPress={onDismiss}
+            style={styles.deleteDialogClose}
+          >
+            <MaterialCommunityIcons name="close" size={19} color={palette.secondaryText} />
+          </NativePressable>
+          <Text accessibilityRole="header" style={[styles.deleteDialogTitle, { color: palette.text }]}>
+            {request.title}
+          </Text>
+          {request.message ? (
+            <Text style={[styles.deleteDialogDescription, { color: palette.secondaryText, maxWidth: 420 }]}>
+              {request.message}
+            </Text>
+          ) : null}
+          <View style={styles.nativeAlertActions}>
+            {request.buttons.map((button, index) => {
+              const buttonStyle = button.style ?? "default";
+              const destructive = buttonStyle === "destructive";
+              const cancel = buttonStyle === "cancel";
+              const backgroundColor = destructive
+                ? destructiveButtonTint
+                : cancel
+                  ? palette.card
+                  : palette.accent;
+              const borderColor = destructive
+                ? destructiveColor
+                : cancel
+                  ? "#71717A"
+                  : palette.accent;
+              const textColor = destructive
+                ? destructiveColor
+                : cancel
+                  ? palette.text
+                  : palette.accentText;
+              return (
+                <NativePressable
+                  key={`${button.text ?? "OK"}-${index}`}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    onDismiss();
+                    button.onPress?.();
+                  }}
+                  style={[
+                    styles.nativeAlertButton,
+                    { backgroundColor, borderColor },
+                  ]}
+                >
+                  <Text style={[styles.nativeAlertButtonText, { color: textColor }]}>
+                    {button.text ?? "OK"}
+                  </Text>
+                </NativePressable>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -8234,7 +9533,8 @@ function Card({ palette, style, children }: { palette: Palette; style?: object; 
 }
 
 function KpiCard({ palette, label, value, note, width }: { palette: Palette; label: string; value: string; note: string; width: number }) {
-  return <Card palette={palette} style={[styles.kpiCard, { width }]}><Text style={[styles.kpiLabel, { color: palette.secondaryText }]}>{label}</Text><Text style={[styles.kpiValue, { color: palette.text }]}>{value}</Text><Text style={[styles.kpiNote, { color: palette.secondaryText }]}>{note}</Text></Card>;
+  const { scale } = useResponsive();
+  return <Card palette={palette} style={[styles.kpiCard, { minHeight: scale(124), width }]}><Text numberOfLines={1} ellipsizeMode="tail" style={[styles.kpiLabel, { color: palette.secondaryText }]}>{label}</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.kpiValue, { color: palette.text }]}>{value}</Text><Text numberOfLines={3} ellipsizeMode="tail" style={[styles.kpiNote, { color: palette.secondaryText }]}>{note}</Text></Card>;
 }
 
 function EmptyPanel({ palette, message, compact = false }: { palette: Palette; message: string; compact?: boolean }) {
@@ -8286,6 +9586,7 @@ function FinanceDataState({ palette, error, onRetry }: {
 
 function Drawer({ open, route, palette, onClose, onNavigate }: { open: boolean; route: RouteKey; palette: Palette; onClose: () => void; onNavigate: (route: RouteKey) => void }) {
   const { width: viewportWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const drawerWidth = Math.min(viewportWidth * 0.74, 320);
   const [translateX] = useState(() => new Animated.Value(-drawerWidth));
   const [mounted, setMounted] = useState(open);
@@ -8305,9 +9606,9 @@ function Drawer({ open, route, palette, onClose, onNavigate }: { open: boolean; 
   return <Modal animationType="fade" transparent visible={mounted} onRequestClose={onClose}>
     <View style={styles.drawerBackdrop}>
       <Pressable accessibilityRole="button" accessibilityLabel="Tutup menu navigasi" onPress={onClose} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.drawer, { backgroundColor: palette.surface, width: drawerWidth, transform: [{ translateX }] }]}>
+      <Animated.View style={[styles.drawer, { backgroundColor: palette.surface, width: drawerWidth, paddingTop: insets.top + 12, transform: [{ translateX }] }]}>
         <View style={styles.drawerHeader}><Text style={[styles.drawerTitle, { color: palette.text }]}>Neraca</Text><Pressable accessibilityRole="button" accessibilityLabel="Tutup menu" onPress={onClose}><MaterialCommunityIcons name="close" size={18} color={palette.secondaryText} /></Pressable></View>
-        <ScrollView contentContainerStyle={styles.drawerList}>{drawerGroups.map((group, groupIndex) => <View key={`${group.title || "home"}-${groupIndex}`} style={styles.drawerGroupBlock}>
+        <ScrollView contentContainerStyle={[styles.drawerList, { paddingBottom: 24 + insets.bottom }]}>{drawerGroups.map((group, groupIndex) => <View key={`${group.title || "home"}-${groupIndex}`} style={styles.drawerGroupBlock}>
           {group.title && <Text style={[styles.drawerGroupTitle, { color: palette.secondaryText }]}>{group.title}</Text>}
           {group.items.map((item) => <Pressable key={item.key} accessibilityRole="button" accessibilityState={{ selected: route === item.key }} onPress={() => onNavigate(item.key)} style={[styles.drawerItem, route === item.key && { backgroundColor: palette.accent }]}>
             <MaterialCommunityIcons name={item.icon} size={16} color={route === item.key ? palette.accentText : palette.secondaryText} />
@@ -8319,16 +9620,16 @@ function Drawer({ open, route, palette, onClose, onNavigate }: { open: boolean; 
   </Modal>;
 }
 
-function AddTransactionModal({ open, palette, initialTransaction, onClose }: { open: boolean; palette: Palette; initialTransaction: DemoTransaction | null; onClose: () => void }) {
+function AddTransactionModal({ open, palette, initialTransaction, fixedTransactionType, onClose }: { open: boolean; palette: Palette; initialTransaction: DemoTransaction | null; fixedTransactionType: "Pemasukan" | "Pengeluaran" | null; onClose: () => void }) {
   const { addTransaction, updateTransaction, categories, showToast } = useDemoTransactions();
   const language = useContext(MobileLanguageContext);
   const text = (value: string) => translateMobileText(value, language);
-  const formKey = open ? initialTransaction?.id ?? "new" : null;
+  const formKey = open ? `${initialTransaction?.id ?? "new"}:${fixedTransactionType ?? "selectable"}` : null;
   const createFormState = () => ({
     key: formKey,
     date: initialTransaction?.dateISO ?? getLocalDateInput(),
     dateOpen: false,
-    type: initialTransaction?.income ? "Pemasukan" as const : "Pengeluaran" as const,
+    type: fixedTransactionType ?? (initialTransaction?.income ? "Pemasukan" as const : "Pengeluaran" as const),
     category: initialTransaction?.category ?? "",
     amount: initialTransaction ? initialTransaction.amount.replace(/[^\d]/g, "") : "",
     note: initialTransaction?.note ?? "",
@@ -8439,6 +9740,7 @@ function AddTransactionModal({ open, palette, initialTransaction, onClose }: { o
       value={type}
       options={[{ value: "Pemasukan", label: text("Pemasukan") }, { value: "Pengeluaran", label: text("Pengeluaran") }]}
       palette={palette}
+      disabled={fixedTransactionType !== null}
       active={open}
       optionsStyle={styles.transactionSelectOptions}
       onChange={(value) => setFormState((current) => ({ ...current, type: value }))}
@@ -8476,18 +9778,19 @@ function AddTransactionModal({ open, palette, initialTransaction, onClose }: { o
   </FloatingFormModal>;
 }
 
-function NativeDeleteDialog({ open, title, description, palette, onClose, onConfirm }: {
+function NativeDeleteDialog({ open, title, description, confirmLabel = "Hapus", palette, onClose, onConfirm }: {
   open: boolean;
   title: string;
-  description: string;
+  description?: string;
+  confirmLabel?: string;
   palette: Palette;
   onClose: () => void;
   onConfirm: () => void;
 }) {
   const language = useContext(MobileLanguageContext);
   const text = (value: string) => translateMobileText(value, language);
-  const destructiveColor = palette.background === "#020202" ? "#F87171" : "#DC2626";
-  const destructiveButtonTint = palette.background === "#020202" ? "rgba(248,113,113,0.2)" : "rgba(220,38,38,0.1)";
+  const destructiveColor = palette.background === "#020202" ? "#F87171" : "#B91C1C";
+  const destructiveButtonTint = palette.background === "#020202" ? "rgba(248,113,113,0.2)" : "rgba(185,28,28,0.1)";
 
   return <Modal
     animationType="fade"
@@ -8504,13 +9807,13 @@ function NativeDeleteDialog({ open, title, description, palette, onClose, onConf
         <MaterialCommunityIcons name="close" size={19} color={palette.secondaryText} />
         </Pressable>
         <Text style={[styles.deleteDialogTitle, { color: palette.text }]}>{text(title)}</Text>
-        <Text style={[styles.deleteDialogDescription, { color: palette.secondaryText }]}>{text(description)}</Text>
+        {description ? <Text style={[styles.deleteDialogDescription, { color: palette.secondaryText }]}>{text(description)}</Text> : null}
         <View style={styles.deleteDialogActions}>
-          <Pressable accessibilityRole="button" onPress={onClose} style={[styles.deleteDialogCancel, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={{ color: palette.text, fontWeight: "600" }}>{text("Batal")}</Text>
+          <Pressable accessibilityRole="button" onPress={onConfirm} style={[styles.deleteDialogConfirm, { backgroundColor: destructiveButtonTint, borderColor: destructiveColor, borderWidth: 1 }]}>
+            <Text style={{ color: destructiveColor, fontWeight: "600" }}>{text(confirmLabel)}</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={onConfirm} style={[styles.deleteDialogConfirm, { backgroundColor: destructiveButtonTint }]}>
-            <Text style={{ color: destructiveColor, fontWeight: "600" }}>{text("Hapus")}</Text>
+          <Pressable accessibilityRole="button" onPress={onClose} style={[styles.deleteDialogCancel, { backgroundColor: palette.card, borderColor: "#71717A" }]}>
+            <Text style={{ color: palette.text, fontWeight: "600" }}>{text("Batal")}</Text>
           </Pressable>
         </View>
       </View>
@@ -8519,6 +9822,7 @@ function NativeDeleteDialog({ open, title, description, palette, onClose, onConf
 }
 
 const styles = StyleSheet.create({
+  appContentFrame: { alignSelf: "center", flex: 1, maxWidth: MAX_CONTENT_WIDTH, width: "100%" },
   safe: { flex: 1 },
   launchScreen: { alignItems: "center", justifyContent: "center" },
   launchMark: { width: 112, height: 112 },
@@ -8541,7 +9845,7 @@ const styles = StyleSheet.create({
   notificationCount: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
   headerMenu: { borderRadius: 10, borderWidth: 1, elevation: 8, padding: 12, position: "absolute", right: 12, top: 58, zIndex: 20 },
   transientPopupAnchor: { opacity: 0 },
-  transientPopupScroll: { flexGrow: 0, maxHeight: 232 },
+  transientPopupScroll: { flexGrow: 0, flexShrink: 1, maxHeight: 232 },
   profileMenu: { width: 230 },
   menuHeading: { fontSize: 14, fontWeight: "700" },
   menuDivider: { height: StyleSheet.hairlineWidth, marginVertical: 10 },
@@ -8551,7 +9855,7 @@ const styles = StyleSheet.create({
   notificationPreviewTitleText: { flex: 1 },
   notificationPreviewUnreadDot: { borderRadius: 4, height: 6, width: 6 },
   notificationMenuAction: { alignItems: "center", justifyContent: "center", minHeight: 40 },
-  toastRegion: { alignItems: "center", left: 16, position: "absolute", right: 16, top: 64, zIndex: 100 },
+  toastRegion: { alignItems: "center", left: 16, position: "absolute", right: 16, zIndex: 100 },
   toast: { alignItems: "center", borderRadius: 12, borderWidth: 1, elevation: 8, flexDirection: "row", gap: 10, maxWidth: 512, minHeight: 48, paddingHorizontal: 14, paddingVertical: 10 },
   toastText: { flexShrink: 1, fontSize: 14, fontWeight: "600" },
   menuItemTitle: { fontSize: 13, fontWeight: "600" },
@@ -8564,7 +9868,7 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 24, fontWeight: "700", lineHeight: 30 },
   subtitle: { fontSize: 14, lineHeight: 21, marginTop: 5 },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 24 },
-  kpiCard: { borderRadius: 16, height: 124, justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 12 },
+  kpiCard: { borderRadius: 16, justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 12 },
   kpiLabel: { fontSize: 10, fontWeight: "500" },
   kpiValue: { fontSize: 14, fontWeight: "700" },
   kpiNote: { fontSize: 12, lineHeight: 16 },
@@ -8574,14 +9878,15 @@ const styles = StyleSheet.create({
   chartCard: { minHeight: 296, marginTop: 24, paddingHorizontal: 20, paddingVertical: 16 },
   demoChart: { alignItems: "flex-end", flexDirection: "row", gap: 10, height: 120, justifyContent: "center", marginTop: 28 },
   demoBar: { borderRadius: 5, width: 28 },
-  lineChartWrap: { marginTop: 16, position: "relative", width: "100%" },
-  cashflowTooltip: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, position: "absolute", width: 176 },
+  lineChartWrap: { alignSelf: "stretch", marginTop: 16, position: "relative" },
+  cashflowTooltip: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, position: "absolute" },
   cashflowTooltipTitle: { fontSize: 12, fontWeight: "700", marginBottom: 7 },
   cashflowTooltipRow: { alignItems: "center", flexDirection: "row", gap: 6 },
   cashflowTooltipDot: { borderRadius: 4, height: 8, width: 8 },
   cashflowTooltipLabel: { flex: 1, fontSize: 11 },
   cashflowTooltipValue: { fontSize: 11, fontWeight: "700" },
   transactionList: { borderRadius: 14, borderWidth: 1, marginTop: 14, overflow: "hidden" },
+  dashboardRecentTransactionsScroll: { maxHeight: 7 * 64 },
   demoList: { gap: 12, marginTop: 16 },
   transactionItem: { minHeight: 140, padding: 14 },
   transactionRows: { borderRadius: 14, borderWidth: 1, marginTop: 16, overflow: "hidden" },
@@ -8932,6 +10237,7 @@ const styles = StyleSheet.create({
   reportSummaryChange: { alignItems: "center", flexDirection: "row", gap: 2 },
   reportSummaryNew: { fontSize: 12, fontWeight: "600" },
   reportCard: { marginTop: 16, padding: 16 },
+  reportChartCard: { borderRadius: 16, borderWidth: 1, padding: 16 },
   analyticsContent: { padding: 16, paddingBottom: 28 },
   analyticsPeriodRow: { alignItems: "center", flexDirection: "row", gap: 12, justifyContent: "space-between", marginTop: 20 },
   analyticsPeriodCopy: { flex: 1, minWidth: 0 },
@@ -8942,11 +10248,25 @@ const styles = StyleSheet.create({
   analyticsKpiHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   analyticsKpiValue: { fontSize: 18, fontWeight: "600", letterSpacing: -0.3, marginTop: 10 },
   analyticsKpiHint: { fontSize: 11, marginTop: 4 },
+  analyticsKpiComparison: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  analyticsKpiChange: { alignItems: "center", flexDirection: "row", gap: 1 },
   analyticsLegend: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   analyticsLegendItem: { alignItems: "center", flexDirection: "row", gap: 5, maxWidth: "100%" },
   analyticsLegendText: { flexShrink: 1, fontSize: 10 },
   analyticsEmptyChart: { justifyContent: "center", minHeight: 220, paddingHorizontal: 12 },
   analyticsBudgetChart: { marginTop: 12 },
+  analyticsBudgetRows: { gap: 8, marginTop: 10, position: "relative" },
+  analyticsBudgetRow: { gap: 5, minHeight: 64, justifyContent: "center", position: "relative" },
+  analyticsBudgetHeader: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between" },
+  analyticsBudgetName: { flex: 1, fontSize: 12, minWidth: 0 },
+  analyticsBudgetAmounts: { alignItems: "baseline", flexDirection: "row", flexShrink: 0, maxWidth: "62%" },
+  analyticsBudgetSpent: { fontSize: 12, fontWeight: "600" },
+  analyticsBudgetAmount: { fontSize: 11 },
+  analyticsBudgetTrack: { borderRadius: 4, height: 8, overflow: "visible", position: "relative" },
+  analyticsBudgetFill: { borderRadius: 4, height: "100%", overflow: "hidden" },
+  analyticsBudgetMarker: { backgroundColor: "#f2f2f0", height: 12, marginLeft: -1, position: "absolute", top: -2, width: 2 },
+  analyticsBudgetStatus: { fontSize: 11, lineHeight: 14 },
+  analyticsBudgetHitLayer: { left: 0, position: "absolute", top: 0 },
   analyticsSection: { marginTop: 16 },
   analyticsListCard: { minHeight: 300, padding: 16 },
   analyticsListCardSpaced: { marginTop: 16 },
@@ -8954,9 +10274,9 @@ const styles = StyleSheet.create({
   analyticsTopCategoryItem: { gap: 10 },
   analyticsTopCategoryHeader: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" },
   analyticsTopCategoryLead: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, minWidth: 0 },
-  analyticsTopCategoryBadge: { alignItems: "center", borderRadius: 11, height: 22, justifyContent: "center", width: 22 },
+  analyticsTopCategoryBadge: { alignItems: "center", borderRadius: 4, height: 18, justifyContent: "center", width: 18 },
   analyticsTopCategoryProgress: { alignItems: "center", flexDirection: "row", gap: 8 },
-  analyticsTopCategoryTrack: { borderRadius: 4, flex: 1, height: 6, overflow: "hidden" },
+  analyticsTopCategoryTrack: { borderRadius: 4, flex: 1, height: 8, overflow: "hidden" },
   analyticsTopCategoryFill: { borderRadius: 4, height: "100%" },
   analyticsCategoryRow: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between", minHeight: 58, paddingVertical: 8 },
   analyticsCategoryLead: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, minWidth: 0 },
@@ -8981,29 +10301,37 @@ const styles = StyleSheet.create({
   reportSubtitle: { marginTop: 4 },
   chartTapHint: { fontSize: 11, lineHeight: 16, marginTop: 8 },
   reportLegendText: { fontSize: 11 },
-  reportSvgChart: { height: 260, marginTop: 8, width: "100%" },
+  reportSvgChart: { marginTop: 8, width: "100%" },
+  reportChartViewport: { aspectRatio: 360 / 260, width: "100%" },
   reportEmptyChart: { justifyContent: "center", marginTop: 14, minHeight: 150 },
   reportBarChart: { alignItems: "flex-end", flexDirection: "row", gap: 6, height: 190, justifyContent: "space-around", marginTop: 12 },
   reportDateGroup: { alignItems: "center", flex: 1, height: "100%", justifyContent: "flex-end", minWidth: 0 },
   reportBars: { alignItems: "flex-end", flex: 1, flexDirection: "row", gap: 4, justifyContent: "center", width: "100%" },
   reportValueBar: { borderTopLeftRadius: 4, borderTopRightRadius: 4, maxWidth: 18, minWidth: 8, width: "36%" },
   reportAxisLabel: { fontSize: 10, marginTop: 6, textAlign: "center" },
+  reportCategoryBreakdown: { marginTop: 8 },
+  reportCategoryBreakdownWide: { alignItems: "center", flexDirection: "row", gap: 16 },
   reportDonutWrap: { alignItems: "center", marginTop: 10 },
-  reportCategoryList: { gap: 2, marginTop: 4 },
-  reportCategoryRow: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 8, minHeight: 40, marginTop: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  reportDonutWrapWide: { marginTop: 0 },
+  reportCategoryList: { gap: 0, marginTop: 16 },
+  reportCategoryListWide: { flex: 1, marginTop: 0, minWidth: 0 },
+  reportCategoryRow: { alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 8, minHeight: 42, paddingVertical: 7 },
   reportCategoryLabel: { flex: 1, fontSize: 12, minWidth: 0 },
-  reportCategoryAmount: { fontSize: 12, fontWeight: "600" },
+  reportCategoryValues: { alignItems: "flex-end", flexShrink: 0, justifyContent: "center", maxWidth: "56%" },
+  reportCategoryAmount: { fontSize: 15, fontWeight: "500" },
+  reportCategoryPercent: { fontSize: 12 },
   reportTopCategories: { gap: 16, marginTop: 20 },
   reportTopCategoryItem: { gap: 10, minHeight: 44 },
   reportTopCategoryHeading: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between" },
   reportTopCategoryName: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, minWidth: 0 },
   reportRank: { borderRadius: 5, fontSize: 11, overflow: "hidden", paddingHorizontal: 5, paddingVertical: 2, textAlign: "center" },
   reportTopCategoryProgress: { alignItems: "center", flexDirection: "row", gap: 8, marginTop: 8 },
-  reportProgressTrack: { borderRadius: 4, flex: 1, height: 7, overflow: "hidden" },
+  reportProgressTrack: { borderRadius: 4, flex: 1, height: 8, overflow: "hidden" },
   reportProgressFill: { borderRadius: 4, height: "100%" },
-  reportPercentage: { fontSize: 11, textAlign: "right", width: 42 },
+  reportPercentage: { fontSize: 12, textAlign: "right", width: 42 },
   reportTransactionCard: { marginTop: 16, padding: 16 },
   reportTransactionHeader: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 8 },
+  reportTransactionsScroll: { maxHeight: 7 * 64 },
   reportTransactionTitleBlock: { flex: 1, minWidth: 160 },
   reportViewAllButton: { alignItems: "center", flexDirection: "row", gap: 4, justifyContent: "center", minHeight: 44 },
   reportViewAllText: { fontSize: 12, fontWeight: "600" },
@@ -9106,6 +10434,8 @@ const styles = StyleSheet.create({
   settingsTextInput: { borderRadius: 9, borderWidth: 1, fontSize: 14, minHeight: 44, paddingHorizontal: 12 },
   securePasswordField: { position: "relative" },
   securePasswordMask: { position: "absolute", left: 13, right: 12, top: 0, bottom: 0, fontSize: 14, textAlignVertical: "center" },
+  deleteAccountPasswordInput: { fontSize: 16, minHeight: 46 },
+  deleteAccountPasswordMask: { fontSize: 16 },
   settingsReminderTimes: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   settingsReminderField: { flex: 1, gap: 6, minWidth: 120 },
   settingsTimezoneNote: { fontSize: 12, lineHeight: 17 },
@@ -9167,10 +10497,9 @@ const styles = StyleSheet.create({
   profileFields: { alignSelf: "stretch", marginTop: 12 },
   sectionHeading: { fontSize: 18, fontWeight: "700", marginTop: 24 },
   chevron: { fontSize: 25 },
-  bottomNav: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", minHeight: 68, paddingTop: 4, width: "100%" },
+  bottomNav: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", paddingTop: 4, width: "100%" },
   navItem: { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 60 },
   navItemPressed: { opacity: 0.72 },
-  navAddItem: { transform: [{ translateY: -5 }] },
   navIconWrap: { alignItems: "center", borderRadius: 18, height: 32, justifyContent: "center", width: 56 },
   navAddIcon: { borderRadius: 25, elevation: 4, height: 50, width: 50 },
   navText: { fontSize: 11, fontWeight: "600", marginTop: 2 },
@@ -9210,9 +10539,12 @@ const styles = StyleSheet.create({
   deleteDialogClose: { alignItems: "center", height: 44, justifyContent: "center", position: "absolute", right: 8, top: 8, width: 44, zIndex: 1 },
   deleteDialogTitle: { fontSize: 18, fontWeight: "600", textAlign: "center" },
   deleteDialogDescription: { alignSelf: "center", fontSize: 14, lineHeight: 20, marginTop: 8, maxWidth: 260, textAlign: "center" },
-  deleteDialogActions: { flexDirection: "column-reverse", gap: 8, marginTop: 24 },
+  deleteDialogActions: { flexDirection: "column", gap: 8, marginTop: 24 },
   deleteDialogCancel: { alignItems: "center", borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 44, width: "100%" },
   deleteDialogConfirm: { alignItems: "center", borderRadius: 12, justifyContent: "center", minHeight: 44, width: "100%" },
+  nativeAlertActions: { gap: 10, marginTop: 24 },
+  nativeAlertButton: { alignItems: "center", borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 16, width: "100%" },
+  nativeAlertButtonText: { fontSize: 16, fontWeight: "600", textAlign: "center" },
   nativeSelectContainer: { position: "relative" },
   nativeSelectTrigger: { alignItems: "center", borderRadius: 12, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 44, paddingHorizontal: 12 },
   nativeSelectDisabled: { opacity: 0.65 },
@@ -9222,13 +10554,17 @@ const styles = StyleSheet.create({
   nativeSelectEmpty: { fontSize: 14, paddingHorizontal: 12, paddingVertical: 14 },
   nativeCalendar: { borderRadius: 4, borderWidth: 1, elevation: 24, paddingHorizontal: 6, paddingVertical: 8, position: "absolute", shadowColor: "#000000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.24, shadowRadius: 8 },
   nativeCalendarHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 44, paddingLeft: 6 },
+  nativeCalendarHeading: { alignItems: "center", flexDirection: "row", flex: 1 },
+  nativeCalendarHeadingButton: { alignItems: "center", flexDirection: "row", minHeight: 44, paddingHorizontal: 4 },
   nativeCalendarMonth: { fontSize: 16, fontWeight: "700" },
   nativeCalendarNavigation: { alignItems: "center", flexDirection: "row" },
   nativeCalendarNavButton: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
   nativeCalendarDays: { flex: 1 },
+  nativeCalendarGrid: { flex: 1, justifyContent: "space-evenly", paddingVertical: 8 },
   nativeCalendarWeek: { alignItems: "center", flexDirection: "row" },
   nativeCalendarWeekday: { flex: 1, fontSize: 14, fontWeight: "500", lineHeight: 32, textAlign: "center" },
   nativeCalendarDay: { alignItems: "center", borderColor: "transparent", borderRadius: 4, borderWidth: 1, flex: 1, height: 44, justifyContent: "center" },
+  nativeCalendarChoice: { alignItems: "center", borderRadius: 6, flex: 1, justifyContent: "center", marginHorizontal: 2, minHeight: 44, paddingHorizontal: 2 },
   nativeCalendarFooter: { alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 2, minHeight: 48 },
   nativeCalendarAction: { alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 64, paddingHorizontal: 12 },
   modalHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
@@ -9247,6 +10583,6 @@ const styles = StyleSheet.create({
 });
 
 const themes = {
-  dark: { background: "#020202", surface: "#161616", card: "#171717", input: "#1C1C1C", popover: "#111111", border: "#2A2A2A", muted: "#242424", text: "#FFFFFF", secondaryText: "#A1A1AA", accent: "#B2D5E5", accentText: "#020202", incomeAmount: "#10B981", expenseAmount: "#EF4444", chart1: "#B2D5E5", chart2: "#34D399", chart3: "#FBBF24", chart4: "#F87171", chart5: "#A1A1AA", success: "#22C55E", info: "#3B82F6", warning: "#F59E0B", danger: "#EF4444" },
+  dark: { background: "#020202", surface: "#161616", card: "#171717", input: "#1C1C1C", popover: "#111111", border: "#2A2A2A", muted: "#242424", text: "#FFFFFF", secondaryText: "#A1A1AA", accent: "#B2D5E5", accentText: "#020202", incomeAmount: "#10B981", expenseAmount: "#EF4444", chart1: "#60A5FA", chart2: "#34D399", chart3: "#FBBF24", chart4: "#F87171", chart5: "#A1A1AA", success: "#22C55E", info: "#3B82F6", warning: "#F59E0B", danger: "#EF4444" },
   light: { background: "#FFFFFF", surface: "#FAFAFA", card: "#FFFFFF", input: "#FFFFFF", popover: "#FFFFFF", border: "#E4E4E7", muted: "#F4F4F5", text: "#18181B", secondaryText: "#52525B", accent: "#0A6CBA", accentText: "#FFFFFF", incomeAmount: "#047857", expenseAmount: "#B91C1C", chart1: "#0A6CBA", chart2: "#059669", chart3: "#D97706", chart4: "#DC2626", chart5: "#71717A", success: "#16A34A", info: "#2563EB", warning: "#F59E0B", danger: "#EF4444" },
 } as const;

@@ -22,6 +22,7 @@ export class SessionsController {
     return items.map((s) => ({
       id: s.id,
       user_id: s.user_id,
+      device_id: s.device_id ?? null,
       device_name: s.device_name ?? null,
       device_type: s.device_type ?? null,
       browser: s.browser ?? null,

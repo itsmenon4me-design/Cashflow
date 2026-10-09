@@ -2,7 +2,7 @@
   "expo": {
     "name": "Neraca",
     "slug": "mobile",
-    "version": "1.0.4",
+    "version": "1.0.9",
     "scheme": "neraca",
     "orientation": "portrait",
     "icon": "./assets/neraca-icon.png",
@@ -19,7 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.mobile",
-      "versionCode": 11
+      "versionCode": 17
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +41,8 @@
           }
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

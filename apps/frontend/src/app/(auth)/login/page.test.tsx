@@ -4,29 +4,31 @@ import { useLanguageStore } from "@/stores/language.store";
 import { ApiError } from "@/lib/axios";
 
 const {
-  mockGoogleLogin,
-  mockGithubLogin,
+  mockGoogleRedirectUrl,
+  mockGithubRedirectUrl,
   mockLogin,
   mockSendVerification,
   mockLoginSession,
+  mockSearchParams,
 } =
   vi.hoisted(() => ({
-    mockGoogleLogin: vi.fn(),
-    mockGithubLogin: vi.fn(),
+    mockGoogleRedirectUrl: vi.fn(),
+    mockGithubRedirectUrl: vi.fn(),
     mockLogin: vi.fn(),
     mockSendVerification: vi.fn(),
     mockLoginSession: vi.fn(),
+    mockSearchParams: vi.fn(),
   }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: mockSearchParams,
 }));
 
 vi.mock("@/services/auth.service", () => ({
   authService: {
-    googleLogin: mockGoogleLogin,
-    githubLogin: mockGithubLogin,
+    googleRedirectUrl: mockGoogleRedirectUrl,
+    githubRedirectUrl: mockGithubRedirectUrl,
     login: mockLogin,
     logout: vi.fn(),
     register: vi.fn(),
@@ -45,19 +47,19 @@ import Page from "./page";
 
 describe("Login page", () => {
   beforeEach(() => {
-    mockGoogleLogin.mockReset();
-    mockGithubLogin.mockReset();
+    mockGoogleRedirectUrl.mockReset();
+    mockGithubRedirectUrl.mockReset();
     mockLogin.mockReset();
     mockSendVerification.mockReset();
     mockLoginSession.mockReset();
+    mockSearchParams.mockReturnValue(new URLSearchParams());
     useLanguageStore.getState().setLanguage("en");
   });
 
-  it("redirects to Google when Continue with Google is clicked", async () => {
-    mockGoogleLogin.mockResolvedValue({
-      success: true,
-      url: "https://accounts.google.com/oauth2/auth",
-    });
+  it("navigates directly to the Google OAuth redirect endpoint", () => {
+    mockGoogleRedirectUrl.mockReturnValue(
+      "https://cashflow-backend.example/api/v1/auth/google/redirect",
+    );
     const assignSpy = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -69,17 +71,16 @@ describe("Login page", () => {
       screen.getByRole("button", { name: /Continue with Google/i }),
     );
 
-    await waitFor(() => expect(mockGoogleLogin).toHaveBeenCalledTimes(1));
+    expect(mockGoogleRedirectUrl).toHaveBeenCalledTimes(1);
     expect(assignSpy).toHaveBeenCalledWith(
-      "https://accounts.google.com/oauth2/auth",
+      "https://cashflow-backend.example/api/v1/auth/google/redirect",
     );
   });
 
-  it("redirects to GitHub when Continue with GitHub is clicked", async () => {
-    mockGithubLogin.mockResolvedValue({
-      success: true,
-      url: "https://github.com/login/oauth/authorize",
-    });
+  it("navigates directly to the GitHub OAuth redirect endpoint", () => {
+    mockGithubRedirectUrl.mockReturnValue(
+      "https://cashflow-backend.example/api/v1/auth/github/redirect",
+    );
     const assignSpy = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -91,27 +92,19 @@ describe("Login page", () => {
       screen.getByRole("button", { name: /Continue with GitHub/i }),
     );
 
-    await waitFor(() => expect(mockGithubLogin).toHaveBeenCalledTimes(1));
+    expect(mockGithubRedirectUrl).toHaveBeenCalledTimes(1);
     expect(assignSpy).toHaveBeenCalledWith(
-      "https://github.com/login/oauth/authorize",
+      "https://cashflow-backend.example/api/v1/auth/github/redirect",
     );
   });
 
-  it("displays a generic OAuth error when Google login fails", async () => {
-    mockGoogleLogin.mockResolvedValue({
-      success: false,
-      message: "Google OAuth belum dikonfigurasi.",
-    });
-
-    render(<Page />);
-    fireEvent.click(
-      screen.getByRole("button", { name: /Continue with Google/i }),
+  it("shows the GitHub-specific OAuth error from the callback", () => {
+    mockSearchParams.mockReturnValue(
+      new URLSearchParams("oauth_error=github_auth_failed"),
     );
-
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        /Google OAuth belum dikonfigurasi/i,
-      ),
+    render(<Page />);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /GitHub login is not available/i,
     );
   });
 

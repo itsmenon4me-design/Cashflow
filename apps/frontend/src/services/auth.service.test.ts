@@ -9,6 +9,10 @@ vi.mock("@/lib/axios", () => ({
     patch: vi.fn(),
     delete: vi.fn(),
   },
+  buildApiUrl: vi.fn((path: string, params?: URLSearchParams) =>
+    `https://cashflow-backend.example/api/v1${path}${params?.toString() ? `?${params.toString()}` : ""}`,
+  ),
+  getBrowserDeviceId: vi.fn(() => "123e4567-e89b-42d3-a456-426614174000"),
 }));
 
 const mockedApi = apiClient as unknown as {
@@ -50,6 +54,15 @@ describe("auth.service", () => {
       success: true,
       url: "https://github.com/login/oauth/authorize",
     });
+  });
+
+  it("builds provider redirect URLs with the existing browser device id", () => {
+    expect(authService.googleRedirectUrl()).toBe(
+      "https://cashflow-backend.example/api/v1/auth/google/redirect?deviceId=123e4567-e89b-42d3-a456-426614174000",
+    );
+    expect(authService.githubRedirectUrl()).toBe(
+      "https://cashflow-backend.example/api/v1/auth/github/redirect?deviceId=123e4567-e89b-42d3-a456-426614174000",
+    );
   });
 
   it("register posts to /auth/register and returns payload", async () => {
